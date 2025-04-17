@@ -1,0 +1,49 @@
+// This file defines the database schema using Prisma's schema definition language.
+// It specifies models, fields, and relationships for the PostgreSQL database.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Vessel {
+  id             Int      @id @default(autoincrement())
+  name           String
+  type           String
+  length         Float
+  width          Float
+  draft          Float
+  displacement   Float
+  ballast        Float
+  cargo          Float
+  fuelCapacity   Float
+  fuelLevel      Float
+  engineModel    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Simulation {
+  id        Int      @id @default(autoincrement())
+  vesselId  Int
+  userId    Int
+  state     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vessel Vessel @relation(fields: [vesselId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+}
