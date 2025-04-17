@@ -1,3 +1,5 @@
+import { VesselState } from 'wasm/ship_sim';
+
 export async function loadWasm() {
   const response = await fetch('/wasm/ship_sim.wasm');
   const bytes = await response.arrayBuffer();
@@ -12,6 +14,6 @@ export async function loadWasm() {
   return instance.exports as {
     add: (a: number, b: number) => number;
     multiply: (a: number, b: number) => number;
-    // Add other exported functions here as needed
+    updateVesselState: (state: VesselState, dt: number) => VesselState;
   };
 }
