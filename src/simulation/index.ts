@@ -19,16 +19,23 @@ interface WasmPhysics {
   ) => number;
   setThrottle: (vesselPtr: number, throttle: number) => void;
   setRudderAngle: (vesselPtr: number, angle: number) => void;
-  setBallast?: (vesselPtr: number, level: number) => void;
+  setBallast: (vesselPtr: number, level: number) => void;
   getVesselX: (vesselPtr: number) => number;
   getVesselY: (vesselPtr: number) => number;
   getVesselHeading: (vesselPtr: number) => number;
   getVesselSpeed: (vesselPtr: number) => number;
-  getVesselEngineRPM?: (vesselPtr: number) => number;
-  getVesselFuelLevel?: (vesselPtr: number) => number;
-  getVesselFuelConsumption?: (vesselPtr: number) => number;
-  getVesselGM?: (vesselPtr: number) => number;
+  getVesselEngineRPM: (vesselPtr: number) => number;
+  getVesselFuelLevel: (vesselPtr: number) => number;
+  getVesselFuelConsumption: (vesselPtr: number) => number;
+  getVesselGM: (vesselPtr: number) => number;
+  getVesselCenterOfGravityY: (vesselPtr: number) => number;
 }
+
+// Global instance for the simulation manager
+let simulationInstance: SimulationManager | null = null;
+
+// Pointer to the vessel in WASM memory
+let vesselPtr: number | null = null;
 
 class SimulationManager {
   private wasmModule: WasmPhysics | null = null;
@@ -113,7 +120,7 @@ class SimulationManager {
 
     if (wasmVesselPtr !== null) {
       try {
-        // Update physics in WASM with enhanced parameters
+        // Update physics in WASM with enhanced parameters - make sure sea state is passed correctly
         this.wasmModule.updateVesselState(
           wasmVesselPtr,
           dt,
@@ -121,7 +128,7 @@ class SimulationManager {
           environment.wind.direction,
           environment.current.speed,
           environment.current.direction,
-          environment.seaState,
+          environment.seaState, // explicitly pass sea state to WASM
         );
 
         // Get updated vessel state values from WASM
@@ -137,7 +144,7 @@ class SimulationManager {
           velocity: { surge: speed, sway: 0, heave: 0 },
         };
 
-        // Get additional vessel parameters if available
+        // Get additional vessel parameters if available - ensure all are properly retrieved
         if (
           typeof this.wasmModule.getVesselEngineRPM === 'function' &&
           typeof this.wasmModule.getVesselFuelLevel === 'function' &&
@@ -155,12 +162,32 @@ class SimulationManager {
           };
         }
 
-        // Get stability data if available
+        // Get stability data if available and update the vessel state
         if (typeof this.wasmModule.getVesselGM === 'function') {
           const metacentricHeight = this.wasmModule.getVesselGM(wasmVesselPtr);
+
+          // Update stability data in the vessel state
           vesselUpdate.stability = {
             metacentricHeight,
+            // Include any previously set center of gravity data
+            centerOfGravity: store.vessel.stability?.centerOfGravity || {
+              x: 0,
+              y: 0,
+              z: 0,
+            },
           };
+
+          // Get center of gravity data if available
+          if (typeof this.wasmModule.getVesselCenterOfGravityY === 'function') {
+            const centerOfGravityY =
+              this.wasmModule.getVesselCenterOfGravityY(wasmVesselPtr);
+
+            // Update the vessel's center of gravity
+            vesselUpdate.stability.centerOfGravity = {
+              ...vesselUpdate.stability.centerOfGravity,
+              y: centerOfGravityY,
+            };
+          }
         }
 
         // Update the store with new vessel state

@@ -9,33 +9,58 @@ async function instantiate(module, imports = {}) {
         columnNumber = columnNumber >>> 0;
         (() => {
           // @external.js
-          throw Error(`${message} in ${fileName}:${lineNumber}:${columnNumber}`);
+          throw Error(
+            `${message} in ${fileName}:${lineNumber}:${columnNumber}`,
+          );
         })();
       },
     }),
   };
   const { exports } = await WebAssembly.instantiate(module, adaptedImports);
   const memory = exports.memory || imports.env.memory;
-  const adaptedExports = Object.setPrototypeOf({
-    updateVesselState(vesselPtr, dt, windSpeed, windDirection) {
-      // assembly/index/updateVesselState(usize, f64, f64?, f64?) => usize
-      exports.__setArgumentsLength(arguments.length);
-      return exports.updateVesselState(vesselPtr, dt, windSpeed, windDirection) >>> 0;
+  const adaptedExports = Object.setPrototypeOf(
+    {
+      updateVesselState(
+        vesselPtr,
+        dt,
+        windSpeed,
+        windDirection,
+        currentSpeed,
+        currentDirection,
+        seaState,
+      ) {
+        // assembly/index/updateVesselState(usize, f64, f64?, f64?, f64?, f64?, f64?) => usize
+        exports.__setArgumentsLength(arguments.length);
+        return (
+          exports.updateVesselState(
+            vesselPtr,
+            dt,
+            windSpeed,
+            windDirection,
+            currentSpeed,
+            currentDirection,
+            seaState,
+          ) >>> 0
+        );
+      },
+      createVessel() {
+        // assembly/index/createVessel() => usize
+        return exports.createVessel() >>> 0;
+      },
     },
-    createVessel() {
-      // assembly/index/createVessel() => usize
-      return exports.createVessel() >>> 0;
-    },
-  }, exports);
+    exports,
+  );
   function __liftString(pointer) {
     if (!pointer) return null;
-    const
-      end = pointer + new Uint32Array(memory.buffer)[pointer - 4 >>> 2] >>> 1,
+    const end =
+        (pointer + new Uint32Array(memory.buffer)[(pointer - 4) >>> 2]) >>> 1,
       memoryU16 = new Uint16Array(memory.buffer);
-    let
-      start = pointer >>> 1,
-      string = "";
-    while (end - start > 1024) string += String.fromCharCode(...memoryU16.subarray(start, start += 1024));
+    let start = pointer >>> 1,
+      string = '';
+    while (end - start > 1024)
+      string += String.fromCharCode(
+        ...memoryU16.subarray(start, (start += 1024)),
+      );
     return string + String.fromCharCode(...memoryU16.subarray(start, end));
   }
   return adaptedExports;
@@ -53,15 +78,32 @@ export const {
   createVessel,
   setThrottle,
   setRudderAngle,
+  setBallast,
   getVesselX,
   getVesselY,
   getVesselHeading,
   getVesselSpeed,
-} = await (async url => instantiate(
-  await (async () => {
-    const isNodeOrBun = typeof process != "undefined" && process.versions != null && (process.versions.node != null || process.versions.bun != null);
-    if (isNodeOrBun) { return globalThis.WebAssembly.compile(await (await import("node:fs/promises")).readFile(url)); }
-    else { return await globalThis.WebAssembly.compileStreaming(globalThis.fetch(url)); }
-  })(), {
-  }
-))(new URL("ship_sim.wasm", import.meta.url));
+  getVesselEngineRPM,
+  getVesselFuelLevel,
+  getVesselFuelConsumption,
+  getVesselGM,
+  getVesselCenterOfGravityY,
+} = await (async url =>
+  instantiate(
+    await (async () => {
+      const isNodeOrBun =
+        typeof process != 'undefined' &&
+        process.versions != null &&
+        (process.versions.node != null || process.versions.bun != null);
+      if (isNodeOrBun) {
+        return globalThis.WebAssembly.compile(
+          await (await import('node:fs/promises')).readFile(url),
+        );
+      } else {
+        return await globalThis.WebAssembly.compileStreaming(
+          globalThis.fetch(url),
+        );
+      }
+    })(),
+    {},
+  ))(new URL('ship_sim.wasm', import.meta.url));

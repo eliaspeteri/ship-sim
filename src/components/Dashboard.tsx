@@ -62,6 +62,22 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
     }
   };
 
+  const getSeaStateDescription = (seaState: number) => {
+    const descriptions = [
+      'Calm (glassy)',
+      'Calm (rippled)',
+      'Smooth',
+      'Slight',
+      'Moderate',
+      'Rough',
+      'Very rough',
+      'High',
+      'Very high',
+      'Phenomenal',
+    ];
+    return descriptions[seaState] || 'Unknown';
+  };
+
   return (
     <div
       className={`${className} flex flex-wrap justify-center space-x-4 bg-black bg-opacity-50 p-4 text-white`}
@@ -78,12 +94,14 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           {vessel.position.y.toFixed(1)})
         </p>
         <p>
-          Heading: {((vessel.orientation.heading * 180) / Math.PI).toFixed(1)}°
+          Heading:{' '}
+          {((((vessel.orientation.heading * 180) / Math.PI) % 360) + 360) % 360}
+          °
         </p>
         <p>Simulation time: {elapsedTime.toFixed(1)}s</p>
       </div>
 
-      {/* Engine Information - New Panel */}
+      {/* Engine Information */}
       <div className="rounded-lg bg-gray-800 bg-opacity-70 p-3 m-2">
         <h3 className="border-b border-gray-600 font-bold">Engine Data</h3>
         <p>RPM: {vessel.engineState?.rpm.toFixed(0) || 'N/A'}</p>
@@ -110,7 +128,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
         </div>
       </div>
 
-      {/* Stability Information - New Panel */}
+      {/* Stability Information */}
       <div className="rounded-lg bg-gray-800 bg-opacity-70 p-3 m-2">
         <h3 className="border-b border-gray-600 font-bold">Stability</h3>
         <p>GM: {vessel.stability?.metacentricHeight.toFixed(2) || 'N/A'} m</p>
@@ -165,13 +183,10 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           </span>
         </div>
 
-        {/* RPM Gauge - updated to show actual engine RPM */}
+        {/* RPM Gauge */}
         <div className="mt-2 h-16 w-full rounded-md bg-gray-700 flex items-center justify-center">
           <span className="text-xl font-mono">
-            {Math.round(
-              vessel.engineState?.rpm || vessel.controls.throttle * 120,
-            )}{' '}
-            RPM
+            {Math.round(vessel.engineState?.rpm || 0)} RPM
           </span>
         </div>
       </div>
@@ -207,7 +222,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
         </div>
       </div>
 
-      {/* Environment Data */}
+      {/* Environment Data Summary */}
       <div className="rounded-lg bg-gray-800 bg-opacity-70 p-3 m-2">
         <h3 className="border-b border-gray-600 font-bold">Environment</h3>
         <p>
@@ -218,49 +233,11 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           Current: {environment.current.speed.toFixed(1)} m/s at{' '}
           {((environment.current.direction * 180) / Math.PI).toFixed(0)}°
         </p>
-        <p>Sea state: {environment.seaState}/12 (Beaufort)</p>
+        <p>
+          Sea state: {environment.seaState}/12 -{' '}
+          {getSeaStateDescription(environment.seaState)}
+        </p>
         <p>Water depth: {environment.waterDepth.toFixed(0)}m</p>
-
-        {/* Sea state control */}
-        <div className="my-2 flex items-center">
-          <span className="w-20">Sea State:</span>
-          <input
-            type="range"
-            min="0"
-            max="12"
-            step="1"
-            value={environment.seaState}
-            onChange={e => {
-              useStore.getState().updateEnvironment({
-                seaState: parseInt(e.target.value),
-              });
-            }}
-            className="mx-2 h-8 flex-grow"
-          />
-          <span>{environment.seaState}</span>
-        </div>
-
-        {/* Wind speed control */}
-        <div className="my-2 flex items-center">
-          <span className="w-20">Wind:</span>
-          <input
-            type="range"
-            min="0"
-            max="30"
-            step="0.5"
-            value={environment.wind.speed}
-            onChange={e => {
-              useStore.getState().updateEnvironment({
-                wind: {
-                  ...environment.wind,
-                  speed: parseFloat(e.target.value),
-                },
-              });
-            }}
-            className="mx-2 h-8 flex-grow"
-          />
-          <span>{environment.wind.speed.toFixed(1)} m/s</span>
-        </div>
       </div>
 
       {/* Simulation Controls */}

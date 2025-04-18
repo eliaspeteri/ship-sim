@@ -35,6 +35,7 @@ declare module 'wasm/ship_sim' {
   export function getVesselFuelLevel(vesselPtr: number): number;
   export function getVesselFuelConsumption(vesselPtr: number): number;
   export function getVesselGM(vesselPtr: number): number;
+  export function getVesselCenterOfGravityY(vesselPtr: number): number;
 }
 
 export interface WasmModule {
@@ -92,6 +93,7 @@ export interface WasmModule {
   getVesselFuelLevel: (vesselPtr: number) => number;
   getVesselFuelConsumption: (vesselPtr: number) => number;
   getVesselGM: (vesselPtr: number) => number;
+  getVesselCenterOfGravityY: (vesselPtr: number) => number;
 
   // Advanced physics (optional)
   applyForce?: (
