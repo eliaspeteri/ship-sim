@@ -1,4 +1,4 @@
-// Ship simulator physics core - Simplified for stable WebAssembly execution
+// Ship simulator physics core - Implementing advanced hydrodynamics and propulsion
 
 // IMPORTANT: Keep a reference to a single vessel state to avoid memory leaks
 let globalVessel: VesselState | null = null;
@@ -18,24 +18,53 @@ class VesselState {
   x: f64;
   y: f64;
   z: f64;
-  psi: f64;
-  phi: f64;
-  theta: f64;
+  psi: f64; // heading (yaw)
+  phi: f64; // roll
+  theta: f64; // pitch
+
   // Linear and angular velocities
-  u: f64;
-  v: f64;
-  w: f64;
-  r: f64;
-  p: f64;
-  q: f64;
+  u: f64; // surge (forward/aft)
+  v: f64; // sway (lateral)
+  w: f64; // heave (vertical)
+  r: f64; // yaw rate
+  p: f64; // roll rate
+  q: f64; // pitch rate
+
   // Control inputs
-  throttle: f64;
-  rudderAngle: f64;
+  throttle: f64; // 0.0 - 1.0
+  rudderAngle: f64; // radians
+
   // Vessel properties
-  mass: f64;
-  length: f64;
-  beam: f64;
-  draft: f64;
+  mass: f64; // kg
+  length: f64; // m
+  beam: f64; // m
+  draft: f64; // m
+
+  // Advanced physics properties
+  // Hydrodynamics
+  blockCoefficient: f64; // Block coefficient for hull resistance calculation
+  waterDensity: f64; // kg/m³
+
+  // Propulsion
+  engineRPM: f64; // Engine RPM
+  maxEnginePower: f64; // Max power in kW
+  fuelConsumption: f64; // kg/h
+  propellerDiameter: f64; // m
+
+  // Mass & Stability
+  centerOfGravityX: f64; // LCG in m from midship
+  centerOfGravityY: f64; // TCG in m from centerline
+  centerOfGravityZ: f64; // VCG in m from keel
+  displacement: f64; // m³
+
+  // Moments of inertia
+  Ixx: f64; // kg·m²
+  Iyy: f64; // kg·m²
+  Izz: f64; // kg·m²
+
+  // Tank states
+  fuelLevel: f64; // 0.0 - 1.0
+  ballastLevel: f64; // 0.0 - 1.0
 
   constructor(
     x: f64 = 0,
@@ -75,51 +104,457 @@ class VesselState {
     this.length = length;
     this.beam = beam;
     this.draft = draft;
+
+    // Initialize advanced physics properties with default values
+    this.blockCoefficient = 0.8;
+    this.waterDensity = 1025.0;
+
+    this.engineRPM = 0.0;
+    this.maxEnginePower = 2000.0;
+    this.fuelConsumption = 0.0;
+    this.propellerDiameter = 3.0;
+
+    this.centerOfGravityX = 0.0;
+    this.centerOfGravityY = 0.0;
+    this.centerOfGravityZ = draft * 0.5;
+    this.displacement = this.calculateDisplacement();
+
+    // Approximate moments of inertia for a ship
+    this.Ixx = (mass * (beam * beam + draft * draft)) / 12;
+    this.Iyy = (mass * (length * length + draft * draft)) / 12;
+    this.Izz = (mass * (length * length + beam * beam)) / 12;
+
+    this.fuelLevel = 1.0;
+    this.ballastLevel = 0.5;
+  }
+
+  // Calculate approximate displacement
+  private calculateDisplacement(): f64 {
+    return this.length * this.beam * this.draft * this.blockCoefficient;
   }
 }
 
-// ULTRA-SIMPLIFIED UPDATE FUNCTION:
-// This version minimizes stack usage and complexity to avoid WebAssembly errors
+// Holtrop-Mennen model constants
+const HM_C1 = 2223105.0;
+const HM_C2 = 4.0;
+const HM_C3 = 0.5;
+const HM_C4 = 0.15;
+
+// Calculate hull resistance using simplified Holtrop-Mennen method
+function calculateHullResistance(vessel: VesselState, speed: f64): f64 {
+  if (speed < 0.01) return 0.0;
+
+  // Calculate wetted surface area (approximation)
+  const wettedArea =
+    vessel.length *
+    (2.0 * vessel.draft + vessel.beam) *
+    Math.sqrt(vessel.blockCoefficient) *
+    0.8;
+
+  // Calculate Froude number
+  const froudeNum = speed / Math.sqrt(9.81 * vessel.length);
+
+  // Calculate Reynolds number
+  const kineViscosity = 0.000001187; // m²/s at 20°C
+  const reynoldsNum = (speed * vessel.length) / kineViscosity;
+
+  // Friction resistance coefficient (ITTC-57)
+  const Cf = 0.075 / Math.pow(Math.log10(reynoldsNum) - 2.0, 2.0);
+
+  // Friction resistance
+  const Rf = 0.5 * vessel.waterDensity * speed * speed * wettedArea * Cf;
+
+  // Residual resistance (simplified from Holtrop-Mennen)
+  const Rr =
+    HM_C1 *
+    vessel.displacement *
+    Math.pow(froudeNum, HM_C2) *
+    Math.exp(-HM_C3 / Math.pow(froudeNum, HM_C4));
+
+  // Total resistance
+  const Rt = Rf + Rr;
+
+  return Rt;
+}
+
+// Calculate added resistance due to waves
+function calculateWaveResistance(vessel: VesselState, seaState: f64): f64 {
+  // Simplified calculation based on sea state (Beaufort scale 0-12)
+  const waveHeight = Math.pow(seaState, 2.0) * 0.05; // Approximate wave height in meters
+
+  // Added resistance increases with square of wave height and is proportional to vessel size
+  const addedResistance =
+    (500.0 * waveHeight * waveHeight * vessel.length * vessel.beam) / 100.0;
+
+  return addedResistance;
+}
+
+// Calculate maneuvering forces based on rudder angle and speed
+function calculateManeuveringForces(vessel: VesselState): f64[] {
+  const speed = Math.sqrt(vessel.u * vessel.u + vessel.v * vessel.v);
+  if (speed < 0.01) return [0.0, 0.0, 0.0];
+
+  // Rudder characteristics
+  const aspectRatio = 1.5;
+  const rudderArea = 0.02 * vessel.length * vessel.draft;
+  const rudderLift =
+    ((Math.PI * aspectRatio) / (1.0 + aspectRatio)) *
+    vessel.rudderAngle *
+    rudderArea *
+    0.5 *
+    vessel.waterDensity *
+    speed *
+    speed;
+
+  // Rudder location (typically near stern)
+  const rudderLeverArm = -0.45 * vessel.length;
+
+  // Sway force and yaw moment from rudder
+  const rudderForceY = rudderLift * Math.cos(vessel.rudderAngle);
+  const rudderMomentZ = rudderForceY * rudderLeverArm;
+
+  // Also calculate drag force in x direction
+  const rudderDrag =
+    Math.abs(rudderLift) * Math.sin(Math.abs(vessel.rudderAngle));
+
+  return [rudderDrag, rudderForceY, rudderMomentZ];
+}
+
+// Calculate diesel engine torque based on RPM
+function calculateEngineTorque(vessel: VesselState): f64 {
+  // Simplified diesel engine torque curve characteristics
+  const maxTorque = (vessel.maxEnginePower * 9550.0) / 0.8 / vessel.engineRPM; // Nm at peak torque RPM
+  const rpmRatio = vessel.engineRPM / (vessel.maxEnginePower / 5.0); // Normalized RPM
+
+  // Simplified torque curve, peaking at around 80% of max RPM
+  let torqueFactor: f64;
+  if (rpmRatio < 0.1) {
+    torqueFactor = rpmRatio * 5.0; // Linear increase at very low RPM
+  } else if (rpmRatio < 0.8) {
+    torqueFactor = 0.5 + rpmRatio / 1.6; // Increasing to peak
+  } else {
+    torqueFactor = 1.0 - (rpmRatio - 0.8) / 2.0; // Decreasing after peak
+  }
+
+  return maxTorque * torqueFactor * vessel.throttle;
+}
+
+// Calculate propeller thrust from engine torque and ship speed
+function calculatePropellerThrust(vessel: VesselState): f64 {
+  const engineTorque = calculateEngineTorque(vessel);
+
+  // Calculate wake fraction (simplified)
+  const wakeFraction = 0.3 * vessel.blockCoefficient;
+
+  // Speed of advance to the propeller
+  const speedAdvance = vessel.u * (1.0 - wakeFraction);
+
+  // Calculate propeller advance coefficient J
+  const propRPS = vessel.engineRPM / 60.0 / 3.0; // Assuming 3:1 gear ratio
+  const J =
+    Math.abs(speedAdvance) / (propRPS * vessel.propellerDiameter + 0.001);
+
+  // Simplified thrust coefficient based on advance coefficient
+  const KT = Math.max(0.0, 0.5 - 0.4 * J); // Approximation of thrust coefficient
+
+  // Calculate propeller thrust
+  const thrust =
+    KT *
+    vessel.waterDensity *
+    propRPS *
+    propRPS *
+    Math.pow(vessel.propellerDiameter, 4.0);
+
+  // Calculate fuel consumption
+  vessel.fuelConsumption = calculateFuelConsumption(vessel, engineTorque);
+
+  return thrust;
+}
+
+// Calculate fuel consumption based on engine power and RPM
+function calculateFuelConsumption(vessel: VesselState, torque: f64): f64 {
+  // Simple model: consumption proportional to torque and RPM
+  const powerFactor = (torque * vessel.engineRPM) / 9550.0; // Power in kW
+
+  // Specific fuel consumption (g/kWh) - lower at optimal load
+  let sfc: f64;
+  const loadFactor = powerFactor / vessel.maxEnginePower;
+
+  // SFC curve with minimum around 80% load
+  if (loadFactor < 0.2) {
+    sfc = 220.0 + (0.2 - loadFactor) * 400.0; // Higher at very low loads
+  } else if (loadFactor < 0.8) {
+    sfc = 220.0 - (loadFactor - 0.2) * 20.0; // Decreasing to optimal
+  } else {
+    sfc = 200.0 + (loadFactor - 0.8) * 50.0; // Increasing after optimal
+  }
+
+  // Calculate consumption in kg/h
+  return (powerFactor * sfc) / 1000.0;
+}
+
+// Calculate center of gravity based on fuel, ballast, and cargo
+function calculateCenterOfGravity(vessel: VesselState): f64[] {
+  // Base CG position without variable weights
+  const baseCGX = 0.0;
+  const baseCGY = 0.0;
+  const baseCGZ = vessel.draft * 0.5;
+
+  // Mass of base vessel (empty)
+  const emptyMass = vessel.mass * 0.7;
+
+  // Fuel tank properties (simplified)
+  const fuelTankMaxMass = vessel.mass * 0.1;
+  const fuelMass = fuelTankMaxMass * vessel.fuelLevel;
+  const fuelCGX = -0.2 * vessel.length; // Fuel tanks typically aft
+  const fuelCGZ = vessel.draft * 0.3; // Low in the vessel
+
+  // Ballast tank properties
+  const ballastTankMaxMass = vessel.mass * 0.2;
+  const ballastMass = ballastTankMaxMass * vessel.ballastLevel;
+  const ballastCGZ = vessel.draft * 0.1; // Very low in the vessel
+
+  // Calculate combined center of gravity
+  const totalMass = emptyMass + fuelMass + ballastMass;
+
+  const cgX = (emptyMass * baseCGX + fuelMass * fuelCGX) / totalMass;
+  const cgY = (emptyMass * baseCGY) / totalMass; // Assuming symmetry in Y
+  const cgZ =
+    (emptyMass * baseCGZ + fuelMass * fuelCGZ + ballastMass * ballastCGZ) /
+    totalMass;
+
+  // Update vessel mass based on fuel and ballast levels
+  vessel.mass = totalMass;
+
+  return [cgX, cgY, cgZ];
+}
+
+// Calculate metacentric height (GM) - a measure of stability
+function calculateGM(vessel: VesselState): f64 {
+  // Get current CG
+  const cg = calculateCenterOfGravity(vessel);
+  const cgZ = cg[2];
+
+  // Calculate second moment of area of the waterplane
+  const waterplaneArea = vessel.length * vessel.beam;
+  const Iyy_waterplane = (waterplaneArea * vessel.beam * vessel.beam) / 12.0;
+
+  // Calculate metacenter height above keel
+  const volume = vessel.displacement;
+  const KM = vessel.draft + Iyy_waterplane / (vessel.waterDensity * volume);
+
+  // GM = KM - KG
+  const GM = KM - cgZ;
+
+  return GM;
+}
+
+// Calculate wind force based on wind speed and direction
+function calculateWindForce(
+  vessel: VesselState,
+  windSpeed: f64,
+  windDirection: f64,
+): f64[] {
+  // Relative wind direction (0 = head wind, PI = following wind)
+  const relativeDirection = windDirection - vessel.psi;
+
+  // Projected areas (simplified)
+  const projectedAreaFront = vessel.beam * vessel.draft * 1.5; // Include superstructure
+  const projectedAreaSide = vessel.length * vessel.draft * 1.5; // Include superstructure
+
+  // Wind coefficients
+  const windCoefficientX = 0.5 + 0.4 * Math.abs(Math.cos(relativeDirection));
+  const windCoefficientY = 0.7 * Math.abs(Math.sin(relativeDirection));
+  const windCoefficientN = 0.1 * Math.sin(2.0 * relativeDirection);
+
+  // Air density
+  const airDensity = 1.225; // kg/m³
+
+  // Calculate wind forces
+  const windForceX =
+    0.5 *
+    airDensity *
+    windSpeed *
+    windSpeed *
+    projectedAreaFront *
+    windCoefficientX *
+    Math.cos(relativeDirection);
+
+  const windForceY =
+    0.5 *
+    airDensity *
+    windSpeed *
+    windSpeed *
+    projectedAreaSide *
+    windCoefficientY *
+    Math.sin(relativeDirection);
+
+  const windMomentN =
+    0.5 *
+    airDensity *
+    windSpeed *
+    windSpeed *
+    projectedAreaSide *
+    vessel.length *
+    windCoefficientN;
+
+  return [windForceX, windForceY, windMomentN];
+}
+
+// Calculate current effects on the vessel
+function calculateCurrentForce(
+  vessel: VesselState,
+  currentSpeed: f64,
+  currentDirection: f64,
+): f64[] {
+  // Relative current direction
+  const relativeDirection = currentDirection - vessel.psi;
+
+  // Wetted area (simplified)
+  const wettedAreaSide = vessel.length * vessel.draft * 0.7;
+  const wettedAreaBottom =
+    vessel.length * vessel.beam * vessel.blockCoefficient;
+
+  // Current coefficients
+  const currentCoefficientX = 0.5 + 0.3 * Math.abs(Math.cos(relativeDirection));
+  const currentCoefficientY = 0.8 * Math.abs(Math.sin(relativeDirection));
+  const currentCoefficientN = 0.1 * Math.sin(2.0 * relativeDirection);
+
+  // Calculate current forces
+  const currentForceX =
+    0.5 *
+    vessel.waterDensity *
+    currentSpeed *
+    currentSpeed *
+    wettedAreaBottom *
+    currentCoefficientX *
+    Math.cos(relativeDirection);
+
+  const currentForceY =
+    0.5 *
+    vessel.waterDensity *
+    currentSpeed *
+    currentSpeed *
+    wettedAreaSide *
+    currentCoefficientY *
+    Math.sin(relativeDirection);
+
+  const currentMomentN =
+    0.5 *
+    vessel.waterDensity *
+    currentSpeed *
+    currentSpeed *
+    wettedAreaSide *
+    vessel.length *
+    currentCoefficientN;
+
+  return [currentForceX, currentForceY, currentMomentN];
+}
+
+// Enhanced update function with comprehensive physics
 export function updateVesselState(
   vesselPtr: usize,
   dt: f64,
   windSpeed: f64 = 0,
   windDirection: f64 = 0,
+  currentSpeed: f64 = 0,
+  currentDirection: f64 = 0,
+  seaState: f64 = 0,
 ): usize {
   // Cast pointer to vessel object
   const vessel = changetype<VesselState>(vesselPtr);
 
-  // Apply basic physics with minimal calculation steps
+  // 0. Update center of gravity
+  const cg = calculateCenterOfGravity(vessel);
+  vessel.centerOfGravityX = cg[0];
+  vessel.centerOfGravityY = cg[1];
+  vessel.centerOfGravityZ = cg[2];
 
-  // 1. Calculate propeller thrust (simplified)
-  const propThrust =
-    vessel.throttle *
-    200000 *
-    (vessel.u <= 0 ? 1.0 : Math.max(0, 1.0 - vessel.u / 20.0));
+  // 1. Update engine RPM based on throttle
+  const targetRPM = vessel.throttle * 1800.0; // Max RPM of 1800
+  const rpmRate = 50.0; // RPM change per second
+  if (vessel.engineRPM < targetRPM) {
+    vessel.engineRPM = Math.min(vessel.engineRPM + rpmRate * dt, targetRPM);
+  } else if (vessel.engineRPM > targetRPM) {
+    vessel.engineRPM = Math.max(vessel.engineRPM - rpmRate * dt, targetRPM);
+  }
 
-  // 2. Calculate hull resistance (simplified)
-  const resistance =
-    0.05 * vessel.u * Math.abs(vessel.u) * vessel.length * vessel.beam;
+  // 2. Calculate propeller thrust based on engine power and RPM
+  const propThrust = calculatePropellerThrust(vessel);
 
-  // 3. Calculate rudder force (simplified)
-  const rudderForce = 50000 * vessel.rudderAngle * Math.abs(vessel.u);
+  // 3. Calculate hull resistance (Holtrop-Mennen model)
+  const speed = Math.abs(vessel.u);
+  const hullResistance = calculateHullResistance(vessel, speed);
 
-  // 4. Calculate accelerations
-  const accelSurge = (propThrust - resistance) / vessel.mass;
-  const accelSway = rudderForce / vessel.mass;
-  const accelYaw = (rudderForce * vessel.length * -0.5) / (vessel.mass * 10);
+  // 4. Calculate wave resistance
+  const waveResistance = calculateWaveResistance(vessel, seaState);
 
-  // 5. Update velocities
-  vessel.u += accelSurge * dt;
-  vessel.v += accelSway * dt;
-  vessel.r += accelYaw * dt;
+  // 5. Calculate maneuvering forces from rudder
+  const maneuveringForces = calculateManeuveringForces(vessel);
+  const rudderDrag = maneuveringForces[0];
+  const rudderForceY = maneuveringForces[1];
+  const rudderMomentZ = maneuveringForces[2];
 
-  // 6. Update position and orientation
+  // 6. Calculate wind forces
+  const windForces = calculateWindForce(vessel, windSpeed, windDirection);
+  const windForceX = windForces[0];
+  const windForceY = windForces[1];
+  const windMomentZ = windForces[2];
+
+  // 7. Calculate current forces
+  const currentForces = calculateCurrentForce(
+    vessel,
+    currentSpeed,
+    currentDirection,
+  );
+  const currentForceX = currentForces[0];
+  const currentForceY = currentForces[1];
+  const currentMomentZ = currentForces[2];
+
+  // 8. Calculate total forces and moments
+  const totalForceX =
+    propThrust -
+    hullResistance -
+    waveResistance -
+    rudderDrag +
+    windForceX +
+    currentForceX;
+  const totalForceY = rudderForceY + windForceY + currentForceY;
+  const totalMomentZ = rudderMomentZ + windMomentZ + currentMomentZ;
+
+  // 9. Calculate accelerations (F = m*a)
+  // Using effective mass to account for added mass effects
+  const addedMassSurge = vessel.mass * 0.05; // 5% added mass in surge
+  const addedMassSway = vessel.mass * 0.8; // 80% added mass in sway
+  const addedInertiaYaw = vessel.Izz * 0.4; // 40% added inertia in yaw
+
+  const accelSurge = totalForceX / (vessel.mass + addedMassSurge);
+  const accelSway = totalForceY / (vessel.mass + addedMassSway);
+  const accelYaw = totalMomentZ / (vessel.Izz + addedInertiaYaw);
+
+  // 10. Update velocities with damping effects
+  // Linear damping coefficients
+  const dampingSurge = 0.02;
+  const dampingSway = 0.1;
+  const dampingYaw = 0.05;
+
+  vessel.u += (accelSurge - dampingSurge * vessel.u) * dt;
+  vessel.v += (accelSway - dampingSway * vessel.v) * dt;
+  vessel.r += (accelYaw - dampingYaw * vessel.r) * dt;
+
+  // 11. Update position and orientation
   const cosPsi = Math.cos(vessel.psi);
   const sinPsi = Math.sin(vessel.psi);
   vessel.x += (vessel.u * cosPsi - vessel.v * sinPsi) * dt;
   vessel.y += (vessel.u * sinPsi + vessel.v * cosPsi) * dt;
   vessel.psi += vessel.r * dt;
+
+  // 12. Update fuel level based on consumption
+  const fuelCapacity = vessel.mass * 0.1; // 10% of vessel mass is fuel
+  const fuelConsumptionPerSecond = vessel.fuelConsumption / 3600.0; // Convert from kg/h to kg/s
+  const fuelUsed = fuelConsumptionPerSecond * dt;
+  const fuelRatio = fuelUsed / fuelCapacity;
+  vessel.fuelLevel = Math.max(0.0, vessel.fuelLevel - fuelRatio);
 
   // Keep reference and return
   globalVessel = vessel;
@@ -153,7 +588,7 @@ export function createVessel(): usize {
   return changetype<usize>(globalVessel);
 }
 
-// Control functions - keep these simple
+// Control functions
 export function setThrottle(vesselPtr: usize, throttle: f64): void {
   const vessel = changetype<VesselState>(vesselPtr);
   vessel.throttle = throttle > 1.0 ? 1.0 : throttle < 0.0 ? 0.0 : throttle;
@@ -166,7 +601,14 @@ export function setRudderAngle(vesselPtr: usize, angle: f64): void {
   globalVessel = vessel;
 }
 
-// State access - keep these minimal
+// Add function to set ballast level
+export function setBallast(vesselPtr: usize, level: f64): void {
+  const vessel = changetype<VesselState>(vesselPtr);
+  vessel.ballastLevel = level > 1.0 ? 1.0 : level < 0.0 ? 0.0 : level;
+  globalVessel = vessel;
+}
+
+// State access functions
 export function getVesselX(vesselPtr: usize): f64 {
   return changetype<VesselState>(vesselPtr).x;
 }
@@ -182,4 +624,20 @@ export function getVesselHeading(vesselPtr: usize): f64 {
 export function getVesselSpeed(vesselPtr: usize): f64 {
   const vessel = changetype<VesselState>(vesselPtr);
   return Math.sqrt(vessel.u * vessel.u + vessel.v * vessel.v);
+}
+
+export function getVesselEngineRPM(vesselPtr: usize): f64 {
+  return changetype<VesselState>(vesselPtr).engineRPM;
+}
+
+export function getVesselFuelLevel(vesselPtr: usize): f64 {
+  return changetype<VesselState>(vesselPtr).fuelLevel;
+}
+
+export function getVesselFuelConsumption(vesselPtr: usize): f64 {
+  return changetype<VesselState>(vesselPtr).fuelConsumption;
+}
+
+export function getVesselGM(vesselPtr: usize): f64 {
+  return calculateGM(changetype<VesselState>(vesselPtr));
 }

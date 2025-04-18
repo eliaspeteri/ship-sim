@@ -9,12 +9,25 @@ interface VesselState {
   controls: {
     throttle: number;
     rudderAngle: number;
+    ballast?: number; // 0.0-1.0 ballast level
   };
   properties: {
     mass: number;
     length: number;
     beam: number;
     draft: number;
+    blockCoefficient?: number;
+  };
+  // Engine state information with required fields (no optional fields)
+  engineState: {
+    rpm: number;
+    fuelLevel: number; // 0.0-1.0
+    fuelConsumption: number; // kg/h
+  };
+  // Stability information with required fields
+  stability: {
+    metacentricHeight: number; // GM value
+    centerOfGravity: { x: number; y: number; z: number };
   };
 }
 
@@ -62,12 +75,23 @@ const defaultVesselState: VesselState = {
   controls: {
     throttle: 0,
     rudderAngle: 0,
+    ballast: 0.5,
   },
   properties: {
     mass: 50000,
     length: 50,
     beam: 10,
     draft: 3,
+    blockCoefficient: 0.8,
+  },
+  engineState: {
+    rpm: 0,
+    fuelLevel: 1.0,
+    fuelConsumption: 0,
+  },
+  stability: {
+    metacentricHeight: 2.0,
+    centerOfGravity: { x: 0, y: 0, z: 1.5 },
   },
 };
 
@@ -116,6 +140,24 @@ const useStore = create<SimulationState>(set => ({
           ...state.vessel.properties,
           ...(vesselUpdate.properties || {}),
         },
+        engineState: vesselUpdate.engineState
+          ? {
+              ...state.vessel.engineState,
+              ...vesselUpdate.engineState,
+            }
+          : state.vessel.engineState,
+        stability: vesselUpdate.stability
+          ? {
+              ...state.vessel.stability,
+              ...vesselUpdate.stability,
+              centerOfGravity: vesselUpdate.stability.centerOfGravity
+                ? {
+                    ...state.vessel.stability.centerOfGravity,
+                    ...vesselUpdate.stability.centerOfGravity,
+                  }
+                : state.vessel.stability.centerOfGravity,
+            }
+          : state.vessel.stability,
       },
     })),
 

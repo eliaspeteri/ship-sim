@@ -13,13 +13,21 @@ interface WasmPhysics {
     dt: number,
     windSpeed?: number,
     windDirection?: number,
+    currentSpeed?: number,
+    currentDirection?: number,
+    seaState?: number,
   ) => number;
   setThrottle: (vesselPtr: number, throttle: number) => void;
   setRudderAngle: (vesselPtr: number, angle: number) => void;
+  setBallast?: (vesselPtr: number, level: number) => void;
   getVesselX: (vesselPtr: number) => number;
   getVesselY: (vesselPtr: number) => number;
   getVesselHeading: (vesselPtr: number) => number;
   getVesselSpeed: (vesselPtr: number) => number;
+  getVesselEngineRPM?: (vesselPtr: number) => number;
+  getVesselFuelLevel?: (vesselPtr: number) => number;
+  getVesselFuelConsumption?: (vesselPtr: number) => number;
+  getVesselGM?: (vesselPtr: number) => number;
 }
 
 class SimulationManager {
@@ -34,7 +42,7 @@ class SimulationManager {
   async initialize(): Promise<void> {
     try {
       // Load WASM module using custom loader
-      this.wasmModule = await loadWasmModule();
+      this.wasmModule = (await loadWasmModule()) as unknown as WasmPhysics;
 
       // Create vessel in WASM
       const vesselPtr = this.wasmModule.createVessel();
@@ -105,12 +113,15 @@ class SimulationManager {
 
     if (wasmVesselPtr !== null) {
       try {
-        // Update physics in WASM
+        // Update physics in WASM with enhanced parameters
         this.wasmModule.updateVesselState(
           wasmVesselPtr,
           dt,
           environment.wind.speed,
           environment.wind.direction,
+          environment.current.speed,
+          environment.current.direction,
+          environment.seaState,
         );
 
         // Get updated vessel state values from WASM
@@ -119,12 +130,41 @@ class SimulationManager {
         const heading = this.wasmModule.getVesselHeading(wasmVesselPtr);
         const speed = this.wasmModule.getVesselSpeed(wasmVesselPtr);
 
-        // Update the store with new vessel state
-        store.updateVessel({
+        // Prepare update object with base values
+        const vesselUpdate: any = {
           position: { x, y, z: 0 },
           orientation: { heading, roll: 0, pitch: 0 },
           velocity: { surge: speed, sway: 0, heave: 0 },
-        });
+        };
+
+        // Get additional vessel parameters if available
+        if (
+          typeof this.wasmModule.getVesselEngineRPM === 'function' &&
+          typeof this.wasmModule.getVesselFuelLevel === 'function' &&
+          typeof this.wasmModule.getVesselFuelConsumption === 'function'
+        ) {
+          const engineRPM = this.wasmModule.getVesselEngineRPM(wasmVesselPtr);
+          const fuelLevel = this.wasmModule.getVesselFuelLevel(wasmVesselPtr);
+          const fuelConsumption =
+            this.wasmModule.getVesselFuelConsumption(wasmVesselPtr);
+
+          vesselUpdate.engineState = {
+            rpm: engineRPM,
+            fuelLevel,
+            fuelConsumption,
+          };
+        }
+
+        // Get stability data if available
+        if (typeof this.wasmModule.getVesselGM === 'function') {
+          const metacentricHeight = this.wasmModule.getVesselGM(wasmVesselPtr);
+          vesselUpdate.stability = {
+            metacentricHeight,
+          };
+        }
+
+        // Update the store with new vessel state
+        store.updateVessel(vesselUpdate);
 
         // Update simulation elapsed time
         store.incrementTime(dt);
@@ -141,7 +181,7 @@ class SimulationManager {
   /**
    * Apply controls to the vessel
    */
-  applyControls(throttle: number, rudderAngle: number): void {
+  applyControls(throttle: number, rudderAngle: number, ballast?: number): void {
     if (!this.wasmModule) return;
 
     const { wasmVesselPtr } = useStore.getState();
@@ -151,9 +191,26 @@ class SimulationManager {
       this.wasmModule.setThrottle(wasmVesselPtr, throttle);
       this.wasmModule.setRudderAngle(wasmVesselPtr, rudderAngle);
 
+      // Set ballast if specified and function is available
+      if (
+        ballast !== undefined &&
+        typeof this.wasmModule.setBallast === 'function'
+      ) {
+        this.wasmModule.setBallast(wasmVesselPtr, ballast);
+      }
+
       // Update the store
+      const controlsUpdate: any = {
+        throttle,
+        rudderAngle,
+      };
+
+      if (ballast !== undefined) {
+        controlsUpdate.ballast = ballast;
+      }
+
       useStore.getState().updateVessel({
-        controls: { throttle, rudderAngle },
+        controls: controlsUpdate,
       });
     }
   }
@@ -178,6 +235,7 @@ export const stopSimulation = (): void => {
 export const applyVesselControls = (
   throttle: number,
   rudderAngle: number,
+  ballast?: number,
 ): void => {
-  simulationManager.applyControls(throttle, rudderAngle);
+  simulationManager.applyControls(throttle, rudderAngle, ballast);
 };

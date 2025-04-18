@@ -6,21 +6,35 @@
 declare module 'wasm/ship_sim' {
   export function add(a: number, b: number): number;
   export function multiply(a: number, b: number): number;
-  export function updateVesselState(
-    state: VesselState,
-    dt: number,
-  ): VesselState;
 
-  export type VesselState = {
-    x: number;
-    y: number;
-    psi: number;
-    u: number;
-    v: number;
-    r: number;
-    throttle: number;
-    rudderAngle: number;
-  };
+  // Enhanced physics functions
+  export function updateVesselState(
+    vesselPtr: number,
+    dt: number,
+    windSpeed?: number,
+    windDirection?: number,
+    currentSpeed?: number,
+    currentDirection?: number,
+    seaState?: number,
+  ): number;
+
+  // Create vessel instance
+  export function createVessel(): number;
+
+  // Control functions
+  export function setThrottle(vesselPtr: number, throttle: number): void;
+  export function setRudderAngle(vesselPtr: number, angle: number): void;
+  export function setBallast(vesselPtr: number, level: number): void;
+
+  // State access functions
+  export function getVesselX(vesselPtr: number): number;
+  export function getVesselY(vesselPtr: number): number;
+  export function getVesselHeading(vesselPtr: number): number;
+  export function getVesselSpeed(vesselPtr: number): number;
+  export function getVesselEngineRPM(vesselPtr: number): number;
+  export function getVesselFuelLevel(vesselPtr: number): number;
+  export function getVesselFuelConsumption(vesselPtr: number): number;
+  export function getVesselGM(vesselPtr: number): number;
 }
 
 export interface WasmModule {
@@ -35,18 +49,19 @@ export interface WasmModule {
 
   // Vessel creation and management
   createVessel: () => number;
-  destroyVessel: (vesselPtr: number) => void;
+  destroyVessel?: (vesselPtr: number) => void;
 
   // Vessel properties
-  setVesselProperties: (
+  setVesselProperties?: (
     vesselPtr: number,
     mass: number,
     length: number,
     beam: number,
     draft: number,
+    blockCoefficient: number,
   ) => void;
 
-  // Physics update function
+  // Physics update function with enhanced parameters
   updateVesselState: (
     vesselPtr: number,
     deltaTime: number,
@@ -54,30 +69,38 @@ export interface WasmModule {
     windDirection?: number,
     currentSpeed?: number,
     currentDirection?: number,
+    seaState?: number,
   ) => number;
 
   // Control inputs
   setThrottle: (vesselPtr: number, throttle: number) => void;
   setRudderAngle: (vesselPtr: number, angle: number) => void;
+  setBallast: (vesselPtr: number, level: number) => void;
 
-  // State access
+  // State access - basic
   getVesselX: (vesselPtr: number) => number;
   getVesselY: (vesselPtr: number) => number;
-  getVesselZ: (vesselPtr: number) => number;
+  getVesselZ?: (vesselPtr: number) => number;
   getVesselHeading: (vesselPtr: number) => number;
-  getVesselRoll: (vesselPtr: number) => number;
-  getVesselPitch: (vesselPtr: number) => number;
+  getVesselRoll?: (vesselPtr: number) => number;
+  getVesselPitch?: (vesselPtr: number) => number;
   getVesselSpeed: (vesselPtr: number) => number;
-  getVesselYawRate: (vesselPtr: number) => number;
+  getVesselYawRate?: (vesselPtr: number) => number;
 
-  // Advanced physics
-  applyForce: (
+  // State access - enhanced
+  getVesselEngineRPM: (vesselPtr: number) => number;
+  getVesselFuelLevel: (vesselPtr: number) => number;
+  getVesselFuelConsumption: (vesselPtr: number) => number;
+  getVesselGM: (vesselPtr: number) => number;
+
+  // Advanced physics (optional)
+  applyForce?: (
     vesselPtr: number,
     forceX: number,
     forceY: number,
     forceZ: number,
   ) => void;
-  applyTorque: (
+  applyTorque?: (
     vesselPtr: number,
     torqueX: number,
     torqueY: number,
@@ -91,6 +114,17 @@ export interface VesselPhysicsState {
   orientation: { heading: number; roll: number; pitch: number };
   velocity: { surge: number; sway: number; heave: number };
   angularVelocity: { yaw: number; roll: number; pitch: number };
+  engineState?: {
+    rpm: number;
+    fuelLevel: number;
+    fuelConsumption: number;
+  };
+  stability?: {
+    metacentricHeight: number;
+    centerOfGravity?: { x: number; y: number; z: number };
+    trim?: number;
+    list?: number;
+  };
 }
 
 // Enumeration for vessel types
