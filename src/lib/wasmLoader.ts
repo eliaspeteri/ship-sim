@@ -1,19 +1,33 @@
-import { VesselState } from 'wasm/ship_sim';
+import { instantiateStreaming } from '@assemblyscript/loader';
+
+let wasmModule: any = null;
 
 export async function loadWasm() {
-  const response = await fetch('/wasm/ship_sim.wasm');
-  const bytes = await response.arrayBuffer();
-  const { instance } = await WebAssembly.instantiate(bytes, {
-    env: {
-      abort: (msg: string) => {
-        console.error(`WASM abort: ${msg}`);
-        throw new Error(msg);
-      },
-    },
-  });
-  return instance.exports as {
-    add: (a: number, b: number) => number;
-    multiply: (a: number, b: number) => number;
-    updateVesselState: (state: VesselState, dt: number) => VesselState;
-  };
+  if (wasmModule) return wasmModule;
+
+  try {
+    // Use AssemblyScript loader which handles imports automatically
+    const module = await instantiateStreaming(fetch('/wasm/ship_sim.wasm'));
+
+    wasmModule = module.exports;
+
+    return {
+      // Original test functions
+      add: wasmModule.add,
+      multiply: wasmModule.multiply,
+
+      // Vessel functions
+      createVessel: wasmModule.createVessel,
+      updateVesselState: wasmModule.updateVesselState,
+      setThrottle: wasmModule.setThrottle,
+      setRudderAngle: wasmModule.setRudderAngle,
+      getVesselX: wasmModule.getVesselX,
+      getVesselY: wasmModule.getVesselY,
+      getVesselHeading: wasmModule.getVesselHeading,
+      getVesselSpeed: wasmModule.getVesselSpeed,
+    };
+  } catch (error) {
+    console.error('Failed to load WASM module:', error);
+    throw error;
+  }
 }

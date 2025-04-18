@@ -17,10 +17,14 @@ async function instantiate(module, imports = {}) {
   const { exports } = await WebAssembly.instantiate(module, adaptedImports);
   const memory = exports.memory || imports.env.memory;
   const adaptedExports = Object.setPrototypeOf({
-    updateVesselState(state, dt) {
-      // assembly/index/updateVesselState(assembly/index/VesselState, f64) => assembly/index/VesselState
-      state = __lowerInternref(state) || __notnull();
-      return __liftInternref(exports.updateVesselState(state, dt) >>> 0);
+    updateVesselState(vesselPtr, dt, windSpeed, windDirection) {
+      // assembly/index/updateVesselState(usize, f64, f64?, f64?) => usize
+      exports.__setArgumentsLength(arguments.length);
+      return exports.updateVesselState(vesselPtr, dt, windSpeed, windDirection) >>> 0;
+    },
+    createVessel() {
+      // assembly/index/createVessel() => usize
+      return exports.createVessel() >>> 0;
     },
   }, exports);
   function __liftString(pointer) {
@@ -34,39 +38,6 @@ async function instantiate(module, imports = {}) {
     while (end - start > 1024) string += String.fromCharCode(...memoryU16.subarray(start, start += 1024));
     return string + String.fromCharCode(...memoryU16.subarray(start, end));
   }
-  class Internref extends Number {}
-  const registry = new FinalizationRegistry(__release);
-  function __liftInternref(pointer) {
-    if (!pointer) return null;
-    const sentinel = new Internref(__retain(pointer));
-    registry.register(sentinel, pointer);
-    return sentinel;
-  }
-  function __lowerInternref(value) {
-    if (value == null) return 0;
-    if (value instanceof Internref) return value.valueOf();
-    throw TypeError("internref expected");
-  }
-  const refcounts = new Map();
-  function __retain(pointer) {
-    if (pointer) {
-      const refcount = refcounts.get(pointer);
-      if (refcount) refcounts.set(pointer, refcount + 1);
-      else refcounts.set(exports.__pin(pointer), 1);
-    }
-    return pointer;
-  }
-  function __release(pointer) {
-    if (pointer) {
-      const refcount = refcounts.get(pointer);
-      if (refcount === 1) exports.__unpin(pointer), refcounts.delete(pointer);
-      else if (refcount) refcounts.set(pointer, refcount - 1);
-      else throw Error(`invalid refcount '${refcount}' for reference '${pointer}'`);
-    }
-  }
-  function __notnull() {
-    throw TypeError("value must not be null");
-  }
   return adaptedExports;
 }
 export const {
@@ -74,6 +45,13 @@ export const {
   add,
   multiply,
   updateVesselState,
+  createVessel,
+  setThrottle,
+  setRudderAngle,
+  getVesselX,
+  getVesselY,
+  getVesselHeading,
+  getVesselSpeed,
 } = await (async url => instantiate(
   await (async () => {
     const isNodeOrBun = typeof process != "undefined" && process.versions != null && (process.versions.node != null || process.versions.bun != null);

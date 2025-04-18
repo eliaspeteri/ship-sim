@@ -1,5 +1,6 @@
 export default {
   reactStrictMode: true,
+  transpilePackages: ['three'],
   images: {
     domains: ['example.com'],
   },
