@@ -59,8 +59,13 @@ interface VesselControlData {
 }
 
 interface EnvironmentUpdateData {
-  wind: { speed: number; direction: number };
-  current: { speed: number; direction: number };
+  wind: {
+    speed: number;
+    direction: number;
+    gusting: boolean;
+    gustFactor: number;
+  };
+  current: { speed: number; direction: number; variability: number };
   seaState: number;
 }
 

@@ -37,11 +37,16 @@ let simulationInstance: SimulationManager | null = null;
 // Pointer to the vessel in WASM memory
 let vesselPtr: number | null = null;
 
+// Add throttling to prevent too many state updates
+const MIN_UPDATE_INTERVAL = 50; // milliseconds between state updates
+
 class SimulationManager {
   private wasmModule: WasmPhysics | null = null;
   private animationFrameId: number | null = null;
   private lastTime: number | null = null;
+  private lastStateUpdateTime: number = 0;
   private isRunning = false;
+  private accumulatedVesselUpdate: any = {};
 
   /**
    * Initialize the simulation
@@ -120,7 +125,7 @@ class SimulationManager {
 
     if (wasmVesselPtr !== null) {
       try {
-        // Update physics in WASM with enhanced parameters - make sure sea state is passed correctly
+        // Update physics in WASM with enhanced parameters
         this.wasmModule.updateVesselState(
           wasmVesselPtr,
           dt,
@@ -128,73 +133,73 @@ class SimulationManager {
           environment.wind.direction,
           environment.current.speed,
           environment.current.direction,
-          environment.seaState, // explicitly pass sea state to WASM
+          environment.seaState,
         );
 
-        // Get updated vessel state values from WASM
-        const x = this.wasmModule.getVesselX(wasmVesselPtr);
-        const y = this.wasmModule.getVesselY(wasmVesselPtr);
-        const heading = this.wasmModule.getVesselHeading(wasmVesselPtr);
-        const speed = this.wasmModule.getVesselSpeed(wasmVesselPtr);
+        // Throttle state updates to reduce React re-renders
+        const now = performance.now();
 
-        // Prepare update object with base values
-        const vesselUpdate: any = {
-          position: { x, y, z: 0 },
-          orientation: { heading, roll: 0, pitch: 0 },
-          velocity: { surge: speed, sway: 0, heave: 0 },
-        };
-
-        // Get additional vessel parameters if available - ensure all are properly retrieved
-        if (
-          typeof this.wasmModule.getVesselEngineRPM === 'function' &&
-          typeof this.wasmModule.getVesselFuelLevel === 'function' &&
-          typeof this.wasmModule.getVesselFuelConsumption === 'function'
-        ) {
-          const engineRPM = this.wasmModule.getVesselEngineRPM(wasmVesselPtr);
-          const fuelLevel = this.wasmModule.getVesselFuelLevel(wasmVesselPtr);
-          const fuelConsumption =
-            this.wasmModule.getVesselFuelConsumption(wasmVesselPtr);
-
-          vesselUpdate.engineState = {
-            rpm: engineRPM,
-            fuelLevel,
-            fuelConsumption,
-          };
-        }
-
-        // Get stability data if available and update the vessel state
-        if (typeof this.wasmModule.getVesselGM === 'function') {
-          const metacentricHeight = this.wasmModule.getVesselGM(wasmVesselPtr);
-
-          // Update stability data in the vessel state
-          vesselUpdate.stability = {
-            metacentricHeight,
-            // Include any previously set center of gravity data
-            centerOfGravity: store.vessel.stability?.centerOfGravity || {
-              x: 0,
-              y: 0,
+        // Only update state periodically (20 times per second max)
+        if (now - this.lastStateUpdateTime >= MIN_UPDATE_INTERVAL) {
+          // Get updated vessel state values from WASM in a single batch
+          const vesselUpdate = {
+            position: {
+              x: this.wasmModule.getVesselX(wasmVesselPtr),
+              y: this.wasmModule.getVesselY(wasmVesselPtr),
               z: 0,
+            },
+            orientation: {
+              heading: this.wasmModule.getVesselHeading(wasmVesselPtr),
+              roll: 0,
+              pitch: 0,
+            },
+            velocity: {
+              surge: this.wasmModule.getVesselSpeed(wasmVesselPtr),
+              sway: 0,
+              heave: 0,
             },
           };
 
-          // Get center of gravity data if available
-          if (typeof this.wasmModule.getVesselCenterOfGravityY === 'function') {
-            const centerOfGravityY =
-              this.wasmModule.getVesselCenterOfGravityY(wasmVesselPtr);
-
-            // Update the vessel's center of gravity
-            vesselUpdate.stability.centerOfGravity = {
-              ...vesselUpdate.stability.centerOfGravity,
-              y: centerOfGravityY,
+          // Only add engine state if the functions exist
+          if (typeof this.wasmModule.getVesselEngineRPM === 'function') {
+            const engineUpdate = {
+              rpm: this.wasmModule.getVesselEngineRPM(wasmVesselPtr),
+              fuelLevel:
+                this.wasmModule.getVesselFuelLevel?.(wasmVesselPtr) ||
+                store.vessel.engineState.fuelLevel,
+              fuelConsumption:
+                this.wasmModule.getVesselFuelConsumption?.(wasmVesselPtr) || 0,
             };
+
+            // @ts-ignore - Add engineState only if needed
+            vesselUpdate.engineState = engineUpdate;
           }
+
+          // Only add stability info if the function exists
+          if (typeof this.wasmModule.getVesselGM === 'function') {
+            const stabilityUpdate = {
+              metacentricHeight: this.wasmModule.getVesselGM(wasmVesselPtr),
+              centerOfGravity: { ...store.vessel.stability.centerOfGravity },
+            };
+
+            if (
+              typeof this.wasmModule.getVesselCenterOfGravityY === 'function'
+            ) {
+              stabilityUpdate.centerOfGravity.y =
+                this.wasmModule.getVesselCenterOfGravityY(wasmVesselPtr);
+            }
+
+            // @ts-ignore - Add stability only if needed
+            vesselUpdate.stability = stabilityUpdate;
+          }
+
+          // Update the store with new vessel state in a single operation
+          store.updateVessel(vesselUpdate);
+
+          // Update simulation elapsed time
+          store.incrementTime(dt);
+          this.lastStateUpdateTime = now;
         }
-
-        // Update the store with new vessel state
-        store.updateVessel(vesselUpdate);
-
-        // Update simulation elapsed time
-        store.incrementTime(dt);
       } catch (error) {
         console.error('Error in simulation update:', error);
         this.stop();

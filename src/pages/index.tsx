@@ -47,9 +47,9 @@ const Home = () => {
 
   // Get formatted vessel data for display
   const vesselPosition = {
-    x: vessel.position.x,
-    y: vessel.position.y,
-    heading: vessel.orientation.heading,
+    x: vessel?.position?.x || 0,
+    y: vessel?.position?.y || 0,
+    heading: vessel?.orientation?.heading || 0,
   };
 
   // Toggle settings panel
