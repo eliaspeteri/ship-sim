@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "asbuild:debug": "asc assembly/index.ts --target debug",
     "asbuild:release": "asc assembly/index.ts --target release",
-    "asbuild": "npm run asbuild:debug && npm run asbuild:release"
+    "asbuild": "npm run asbuild:debug && npm run asbuild:release",
+    "server": "npx tsx src/server/index.ts"
   },
   "dependencies": {
     "@assemblyscript/loader": "^0.27.35",
@@ -25,6 +26,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "socket.io": "^4.0.0",
+    "socket.io-client": "^4.8.1",
     "tailwindcss": "4.0",
     "three": "^0.175.0",
     "websocket": "^1.0.34",
@@ -59,7 +61,6 @@
     "type": "git",
     "url": "https://github.com/your-username/ship-sim.git"
   },
-  "type": "module",
   "exports": {
     ".": {
       "import": "./build/release.js",

@@ -42,6 +42,11 @@ async function instantiate(module, imports = {}) {
 }
 export const {
   memory,
+  __new,
+  __pin,
+  __unpin,
+  __collect,
+  __rtti_base,
   add,
   multiply,
   updateVesselState,

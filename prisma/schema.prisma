@@ -2,48 +2,150 @@
 // It specifies models, fields, and relationships for the PostgreSQL database.
 
 generator client {
-  provider = "prisma-client-js"
+    provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
 }
 
+// Main vessel definition model
 model Vessel {
-  id             Int      @id @default(autoincrement())
-  name           String
-  type           String
-  length         Float
-  width          Float
-  draft          Float
-  displacement   Float
-  ballast        Float
-  cargo          Float
-  fuelCapacity   Float
-  fuelLevel      Float
-  engineModel    String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+    id             Int      @id @default(autoincrement())
+    name           String
+    type           String
+    length         Float
+    beam           Float // Changed from 'width' to match marine terminology
+    draft          Float
+    displacement   Float
+    mass           Float
+    maxSpeed       Float
+    maxRudderAngle Float
+    enginePower    Float
+    fuelCapacity   Float
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @updatedAt
+
+    // Relations
+    vesselStates VesselState[]
 }
 
+// User model
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+    id        String   @id @default(uuid()) // Changed to String for UUID compatibility
+    username  String   @unique
+    email     String   @unique
+    password  String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relations
+    settings     UserSettings?
+    vesselStates VesselState[]
 }
 
-model Simulation {
-  id        Int      @id @default(autoincrement())
-  vesselId  Int
-  userId    Int
-  state     Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// Vessel state for simulation persistence
+model VesselState {
+    id       Int    @id @default(autoincrement())
+    userId   String @unique // Unique constraint to ensure one state per user
+    vesselId Int? // Optional relation to a specific vessel type
 
-  vessel Vessel @relation(fields: [vesselId], references: [id])
-  user   User   @relation(fields: [userId], references: [id])
+    // Position
+    positionX Float
+    positionY Float
+    positionZ Float
+
+    // Orientation
+    heading Float // Psi - yaw
+    roll    Float // Phi
+    pitch   Float // Theta
+
+    // Velocity
+    velocityX Float // Surge
+    velocityY Float // Sway
+    velocityZ Float // Heave
+
+    // Angular velocity components (not currently used)
+    yawRate   Float? // r
+    rollRate  Float? // p
+    pitchRate Float? // q
+
+    // Control state
+    throttle    Float @default(0)
+    rudderAngle Float @default(0)
+
+    // Ship properties (can be overridden from vessel defaults)
+    mass   Float?
+    length Float?
+    beam   Float?
+    draft  Float?
+
+    // Timestamps
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relations
+    vessel Vessel? @relation(fields: [vesselId], references: [id])
+    user   User    @relation(fields: [userId], references: [id])
+}
+
+// Environment state
+model EnvironmentState {
+    id Int @id @default(autoincrement())
+
+    // Wind
+    windSpeed     Float
+    windDirection Float
+
+    // Current
+    currentSpeed     Float
+    currentDirection Float
+
+    // Sea state (Beaufort scale 0-12)
+    seaState Int
+
+    // Timestamps
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+// User settings
+model UserSettings {
+    id     Int    @id @default(autoincrement())
+    userId String @unique
+
+    // UI preferences
+    cameraMode   String  @default("thirdPerson") // thirdPerson, firstPerson, topDown, etc.
+    soundEnabled Boolean @default(true)
+    showHUD      Boolean @default(true)
+
+    // Simulation preferences
+    timeScale Float @default(1.0)
+
+    // Timestamps
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relations
+    user User @relation(fields: [userId], references: [id])
+}
+
+// Saved simulation scenarios
+model Scenario {
+    id          Int     @id @default(autoincrement())
+    name        String
+    description String?
+
+    // Initial states
+    initialVesselState Json
+    initialEnvironment Json
+
+    // Scenario-specific settings
+    duration   Int? // Duration in seconds, if applicable
+    objectives Json? // Array of objectives
+
+    // Timestamps
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 }

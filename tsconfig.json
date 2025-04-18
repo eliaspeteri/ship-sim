@@ -1,11 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es5",
-    "module": "commonjs",
-    "lib": [
-      "es6",
-      "dom"
-    ],
+    "target": "es2020",
+    "module": "esnext",
+    "lib": ["es2020", "dom"],
     "outDir": "./build",
     "rootDir": "./",
     "strict": true,
@@ -20,11 +17,6 @@
     "isolatedModules": true,
     "jsx": "preserve"
   },
-  "include": [
-    "**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "**/*.spec.ts"
-  ]
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
 }

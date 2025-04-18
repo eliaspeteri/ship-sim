@@ -1,33 +1,92 @@
-import { instantiateStreaming } from '@assemblyscript/loader';
+/**
+ * Ship Simulator WASM Module Loader
+ *
+ * This file handles loading and initializing the AssemblyScript WASM module
+ * that contains our physics simulation code.
+ */
 
-let wasmModule: any = null;
+// Import our custom loader
+import { loadWasmModule, unloadWasmModule } from './customWasmLoader';
+import { WasmModule } from '../types/wasm';
 
-export async function loadWasm() {
-  if (wasmModule) return wasmModule;
+// Cache the loaded module
+let wasmModule: WasmModule | null = null;
+
+/**
+ * Load and initialize the WASM module
+ */
+export async function loadWasm(): Promise<WasmModule> {
+  if (wasmModule) {
+    return wasmModule;
+  }
 
   try {
-    // Use AssemblyScript loader which handles imports automatically
-    const module = await instantiateStreaming(fetch('/wasm/ship_sim.wasm'));
+    // Use our custom loader instead of the auto-generated one
+    const exports = await loadWasmModule();
 
-    wasmModule = module.exports;
+    // Add compatibility layer for functions that expect the full WasmModule interface
+    const enhancedExports = {
+      ...exports,
 
-    return {
-      // Original test functions
-      add: wasmModule.add,
-      multiply: wasmModule.multiply,
+      // Add stub implementations for any missing AssemblyScript runtime functions
+      // that might be expected by the rest of the application
+      __pin: exports.__pin || ((ptr: number) => ptr),
+      __unpin: exports.__unpin || (() => undefined),
+      __collect: exports.__collect || (() => undefined),
 
-      // Vessel functions
-      createVessel: wasmModule.createVessel,
-      updateVesselState: wasmModule.updateVesselState,
-      setThrottle: wasmModule.setThrottle,
-      setRudderAngle: wasmModule.setRudderAngle,
-      getVesselX: wasmModule.getVesselX,
-      getVesselY: wasmModule.getVesselY,
-      getVesselHeading: wasmModule.getVesselHeading,
-      getVesselSpeed: wasmModule.getVesselSpeed,
-    };
+      // Array handling stubs
+      __getArray: () => {
+        console.warn('__getArray called but not implemented in custom loader');
+        return [];
+      },
+
+      __getArrayView: () => {
+        console.warn(
+          '__getArrayView called but not implemented in custom loader',
+        );
+        return new Uint8Array(0);
+      },
+    } as unknown as WasmModule;
+
+    // Cache the module for future use
+    wasmModule = enhancedExports;
+
+    console.log('WASM physics engine loaded and enhanced successfully');
+    return enhancedExports;
   } catch (error) {
-    console.error('Failed to load WASM module:', error);
+    console.error('Failed to load WASM physics engine:', error);
     throw error;
   }
+}
+
+/**
+ * Cleanup WASM resources when no longer needed
+ */
+export function cleanupWasm() {
+  if (wasmModule) {
+    unloadWasmModule();
+    wasmModule = null;
+  }
+}
+
+/**
+ * Helper function to convert JS arrays to WASM memory
+ * Note: This is a stub function since we're not using the full AssemblyScript runtime
+ */
+export function arrayToWasm<T>(
+  _module: WasmModule,
+  _array: T[],
+  _createArrayFn: (length: number) => number,
+): number {
+  console.warn('arrayToWasm called but not implemented with custom loader');
+  return 0;
+}
+
+/**
+ * Helper function to retrieve arrays from WASM memory
+ * Note: This is a stub function since we're not using the full AssemblyScript runtime
+ */
+export function wasmToArray<T>(_module: WasmModule, _ptr: number): T[] {
+  console.warn('wasmToArray called but not implemented with custom loader');
+  return [] as T[];
 }
