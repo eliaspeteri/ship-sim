@@ -129,25 +129,6 @@ const Ocean: React.FC<OceanProps> = ({
   // Water material ref for updating uniforms
   const waterMaterialRef = useRef<THREE.ShaderMaterial>(null!);
 
-  // Generate procedural waves on a custom water shader
-  const generateWave = (
-    position: THREE.Vector3,
-    pattern: any,
-    time: number,
-  ) => {
-    const steepness = pattern.steepness;
-    const wavelength = pattern.wavelength;
-    const k = (2 * Math.PI) / wavelength;
-    const c = Math.sqrt(9.8 / k);
-    const d = pattern.direction;
-    const f = k * (d.x * position.x + d.y * position.z - c * time);
-    const a = steepness / k;
-
-    position.x += d.x * a * Math.cos(f);
-    position.y += steepness * Math.sin(f);
-    position.z += d.y * a * Math.cos(f);
-  };
-
   // Set up a custom shader for the water with more realistic waves
   useEffect(() => {
     if (ref.current && ref.current.material) {
@@ -217,35 +198,39 @@ const Ocean: React.FC<OceanProps> = ({
         `,
       );
 
-      // Update fragment shader for better caustics and foam
+      // Instead of injecting functions, we'll directly modify the existing fragment shader
+      // by replacing the final output calculation
       const originalFragmentShader = material.fragmentShader;
-      material.fragmentShader = originalFragmentShader
-        .replace(
-          'void main() {',
-          `
-        uniform float time;
-        
-        // Function to create foam based on wave height and position
-        float foam(vec2 position, float time, float turbulence) {
-          float speed = time * 0.05;
-          float smallWaves = sin(position.x * 10.0 + speed) * 
-                            cos(position.y * 10.0 + speed) * 0.1;
-                            
-          float mediumWaves = sin(position.x * 4.0 + speed) * 
-                             cos(position.y * 4.0 + speed) * 0.25;
-                             
-          return clamp(smallWaves + mediumWaves + turbulence, 0.0, 1.0);
-        }
-        
-        void main() {
-        `,
-        )
-        .replace(
-          'gl_FragColor = vec4( mix(reflectionSample, refractionSample, reflectance) , alpha );',
-          `
-        // Add foam based on wave height
+
+      // Find the position of the final gl_FragColor assignment
+      const fragColorPos = originalFragmentShader.indexOf(
+        'gl_FragColor = vec4( mix(',
+      );
+
+      if (fragColorPos !== -1) {
+        // Extract the part before gl_FragColor assignment
+        const beforeFragColor = originalFragmentShader.substring(
+          0,
+          fragColorPos,
+        );
+
+        // Extract the part after the gl_FragColor line ends (after the semicolon)
+        const afterSemicolon = originalFragmentShader.indexOf(
+          ';',
+          fragColorPos,
+        );
+        const afterFragColor = originalFragmentShader.substring(
+          afterSemicolon + 1,
+        );
+
+        // Create our new fragment shader
+        material.fragmentShader = `${beforeFragColor}
+        // Calculate wave foam effect
         float waveHeight = vUv.y;
-        float foamFactor = foam(vUv * 10.0, time, waveHeight * 0.05);
+        float foamSpeed = time * 0.05;
+        float smallWaves = sin(vUv.x * 10.0 + foamSpeed) * cos(vUv.y * 10.0 + foamSpeed) * 0.1;
+        float mediumWaves = sin(vUv.x * 4.0 + foamSpeed) * cos(vUv.y * 4.0 + foamSpeed) * 0.25;
+        float foamFactor = clamp(smallWaves + mediumWaves + waveHeight * 0.05, 0.0, 1.0);
         
         // Mix foam with water color
         vec3 foamColor = vec3(1.0, 1.0, 1.0);
@@ -258,9 +243,8 @@ const Ocean: React.FC<OceanProps> = ({
         // Add slight blue tint to deeper areas
         finalColor = mix(finalColor, vec3(0.0, 0.1, 0.2), 0.1);
         
-        gl_FragColor = vec4(finalColor, alpha);
-        `,
-        );
+        gl_FragColor = vec4(finalColor, alpha);${afterFragColor}`;
+      }
 
       // Force update shader
       material.needsUpdate = true;

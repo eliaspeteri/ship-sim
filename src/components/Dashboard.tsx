@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import useStore from '../store';
-import {
-  applyVesselControls,
-  startSimulation,
-  stopSimulation,
-} from '../simulation';
+import { startSimulation, stopSimulation } from '../simulation';
 import MachineryPanel from './MachineryPanel';
 
 interface DashboardProps {
@@ -146,9 +142,6 @@ const ControlLever: React.FC<{
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging, startPos, startValue]);
-
-  // Track width/height
-  const trackDimension = vertical ? 'h-40' : 'w-40';
 
   return (
     <div className="flex flex-col items-center p-2">
@@ -453,7 +446,11 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   // Apply controls whenever throttle or rudder changes
   useEffect(() => {
     if (controls) {
-      applyVesselControls(throttle, rudderAngle, controls.ballast || 0.5);
+      useStore.getState().applyVesselControls({
+        throttle,
+        rudderAngle,
+        ballast: controls?.ballast || 0.5,
+      });
     }
   }, [throttle, rudderAngle, controls]);
 

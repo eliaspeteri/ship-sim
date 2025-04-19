@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getSimulationLoop } from '../simulation/simulationLoop';
 
 // Ship type enumeration
 export enum ShipType {
@@ -214,6 +215,14 @@ interface SimulationState {
   // WASM pointer (used for communication with physics engine)
   wasmVesselPtr: number | null;
   setWasmVesselPtr: (ptr: number | null) => void;
+
+  // Apply vessel controls
+  applyVesselControls: (controls: {
+    throttle?: number;
+    rudderAngle?: number;
+    ballast?: number;
+    bowThruster?: number;
+  }) => void;
 }
 
 // Default states
@@ -344,99 +353,120 @@ const useStore = create<SimulationState>()(
       vessel: defaultVesselState,
       updateVessel: vesselUpdate =>
         set(state => {
-          // Create a shallow copy of the current vessel state
-          const updatedVessel = { ...state.vessel };
+          try {
+            // Create a shallow copy of the current vessel state
+            const updatedVessel = { ...state.vessel };
 
-          // Handle top-level properties first
-          if (vesselUpdate.position) {
-            updatedVessel.position = {
-              ...updatedVessel.position,
-              ...vesselUpdate.position,
-            };
-          }
-
-          if (vesselUpdate.orientation) {
-            updatedVessel.orientation = {
-              ...updatedVessel.orientation,
-              ...vesselUpdate.orientation,
-            };
-          }
-
-          if (vesselUpdate.velocity) {
-            updatedVessel.velocity = {
-              ...updatedVessel.velocity,
-              ...vesselUpdate.velocity,
-            };
-          }
-
-          if (vesselUpdate.angularVelocity) {
-            updatedVessel.angularVelocity = {
-              ...updatedVessel.angularVelocity,
-              ...vesselUpdate.angularVelocity,
-            };
-          }
-
-          if (vesselUpdate.controls) {
-            updatedVessel.controls = {
-              ...updatedVessel.controls,
-              ...vesselUpdate.controls,
-            };
-          }
-
-          if (vesselUpdate.properties) {
-            updatedVessel.properties = {
-              ...updatedVessel.properties,
-              ...vesselUpdate.properties,
-            };
-          }
-
-          if (vesselUpdate.engineState) {
-            updatedVessel.engineState = {
-              ...updatedVessel.engineState,
-              ...vesselUpdate.engineState,
-            };
-          }
-
-          if (vesselUpdate.electricalSystem) {
-            updatedVessel.electricalSystem = {
-              ...updatedVessel.electricalSystem,
-              ...vesselUpdate.electricalSystem,
-            };
-          }
-
-          if (vesselUpdate.stability) {
-            const updatedStability = {
-              ...updatedVessel.stability,
-              ...vesselUpdate.stability,
-            };
-
-            if (vesselUpdate.stability.centerOfGravity) {
-              updatedStability.centerOfGravity = {
-                ...updatedVessel.stability.centerOfGravity,
-                ...vesselUpdate.stability.centerOfGravity,
+            // Handle top-level properties first
+            if (vesselUpdate.position) {
+              updatedVessel.position = {
+                ...updatedVessel.position,
+                ...vesselUpdate.position,
               };
             }
 
-            updatedVessel.stability = updatedStability;
-          }
-
-          if (vesselUpdate.alarms) {
-            const updatedAlarms = {
-              ...updatedVessel.alarms,
-              ...vesselUpdate.alarms,
-            };
-
-            if (vesselUpdate.alarms.otherAlarms) {
-              updatedAlarms.otherAlarms = {
-                ...updatedVessel.alarms.otherAlarms,
-                ...vesselUpdate.alarms.otherAlarms,
+            if (vesselUpdate.orientation) {
+              updatedVessel.orientation = {
+                ...updatedVessel.orientation,
+                ...vesselUpdate.orientation,
               };
             }
 
-            updatedVessel.alarms = updatedAlarms;
-          }
+            if (vesselUpdate.velocity) {
+              updatedVessel.velocity = {
+                ...updatedVessel.velocity,
+                ...vesselUpdate.velocity,
+              };
+            }
 
-          return { vessel: updatedVessel };
+            if (vesselUpdate.angularVelocity) {
+              updatedVessel.angularVelocity = {
+                ...updatedVessel.angularVelocity,
+                ...vesselUpdate.angularVelocity,
+              };
+            }
+
+            if (vesselUpdate.controls) {
+              updatedVessel.controls = {
+                ...updatedVessel.controls,
+                ...vesselUpdate.controls,
+              };
+            }
+
+            if (vesselUpdate.properties) {
+              updatedVessel.properties = {
+                ...updatedVessel.properties,
+                ...vesselUpdate.properties,
+              };
+            }
+
+            if (vesselUpdate.engineState) {
+              updatedVessel.engineState = {
+                ...updatedVessel.engineState,
+                ...vesselUpdate.engineState,
+              };
+            }
+
+            if (vesselUpdate.electricalSystem) {
+              updatedVessel.electricalSystem = {
+                ...updatedVessel.electricalSystem,
+                ...vesselUpdate.electricalSystem,
+              };
+            }
+
+            // Handle stability property safely
+            if (vesselUpdate.stability) {
+              // Ensure stability exists in both source and target
+              if (!updatedVessel.stability) {
+                updatedVessel.stability = {
+                  metacentricHeight: 2.0,
+                  centerOfGravity: { x: 0, y: 0, z: 6.0 },
+                  trim: 0,
+                  list: 0,
+                };
+              }
+
+              // Create updated stability object
+              const updatedStability = {
+                ...updatedVessel.stability,
+                ...vesselUpdate.stability,
+              };
+
+              // Handle centerOfGravity property separately
+              if (vesselUpdate.stability.centerOfGravity) {
+                if (!updatedStability.centerOfGravity) {
+                  updatedStability.centerOfGravity = { x: 0, y: 0, z: 6.0 };
+                }
+
+                updatedStability.centerOfGravity = {
+                  ...updatedStability.centerOfGravity,
+                  ...vesselUpdate.stability.centerOfGravity,
+                };
+              }
+
+              updatedVessel.stability = updatedStability;
+            }
+
+            if (vesselUpdate.alarms) {
+              updatedVessel.alarms = {
+                ...updatedVessel.alarms,
+                ...vesselUpdate.alarms,
+              };
+
+              if (vesselUpdate.alarms.otherAlarms) {
+                updatedVessel.alarms.otherAlarms = {
+                  ...updatedVessel.alarms.otherAlarms,
+                  ...vesselUpdate.alarms.otherAlarms,
+                };
+              }
+            }
+
+            return { vessel: updatedVessel };
+          } catch (error) {
+            console.error('Error in updateVessel:', error);
+            // Return unchanged state if there was an error
+            return {};
+          }
         }),
 
       setVesselName: name =>
@@ -693,6 +723,26 @@ const useStore = create<SimulationState>()(
       // WASM vessel pointer
       wasmVesselPtr: null,
       setWasmVesselPtr: ptr => set({ wasmVesselPtr: ptr }),
+
+      // Apply vessel controls
+      applyVesselControls: controls => {
+        const simulationLoop = getSimulationLoop();
+        const vessel = get().vessel;
+
+        // First update the store with the new control values
+        set(state => ({
+          vessel: {
+            ...state.vessel,
+            controls: {
+              ...state.vessel.controls,
+              ...controls,
+            },
+          },
+        }));
+
+        // Then apply the controls to the physics engine
+        simulationLoop.applyControls(controls);
+      },
     }),
     {
       name: 'ship-sim-storage', // Name for localStorage/sessionStorage
