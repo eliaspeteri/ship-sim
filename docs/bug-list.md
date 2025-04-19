@@ -6,7 +6,8 @@
 - [ ] Engine isn't running even when turning it on from "start engine" button.
 - [ ] Machinery controls lays pipe schematics on top of the canvas.
 - [ ] Pump controls are working, but they're toggled by clicking a text. They should be toggled from a button.
-- [ ] Events are stored, but they're listed for example as "Invalid Date	Engine started". They're missing the event time.
+- [x] Events are stored, but they're listed for example as "Invalid Date	Engine started". They're missing the event time.
+- [ ] Events are logged with time as "2:00:00 AM" and it never changes. It should use the simulation time.
 - [ ] Dashboard shows gauges in a single column. UI should be reworked to represent the gauges more visually. Gauges should be grouped in relation to each other, and what they represent. Controls should be grouped with common gauges. For example coolant pump controls should be grouped with coolant pump gauges.
 - [ ] The ocean doesn't respond to the set environment. The ocean is always calm.
 - [ ] Stop engine button doesn't work in the machinery controls.
