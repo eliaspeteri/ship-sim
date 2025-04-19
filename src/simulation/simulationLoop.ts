@@ -65,7 +65,7 @@ export class SimulationLoop {
       const vesselPtr = this.wasmExports.createVessel();
       useStore.getState().setWasmVesselPtr(vesselPtr);
 
-      console.log(
+      console.info(
         'Simulation initialized with WASM vessel pointer:',
         vesselPtr,
       );
@@ -89,7 +89,7 @@ export class SimulationLoop {
 
     useStore.getState().setRunning(true);
 
-    console.log('Simulation loop started');
+    console.info('Simulation loop started');
   }
 
   /**
@@ -101,7 +101,7 @@ export class SimulationLoop {
       this.animationFrameId = null;
       useStore.getState().setRunning(false);
 
-      console.log('Simulation loop stopped');
+      console.info('Simulation loop stopped');
     }
   }
 
@@ -134,7 +134,7 @@ export class SimulationLoop {
       useStore.getState().setWasmVesselPtr(vesselPtr);
     }
 
-    console.log('Simulation reset');
+    console.info('Simulation reset');
   }
 
   /**
@@ -177,13 +177,13 @@ export class SimulationLoop {
       // Increment simulation time - ensure this is always called when running
       state.incrementTime(scaledDeltaTime);
 
-      // Debug time incrementation issues - log every 5 seconds of real time
+      // Debug time incrementation issues - info every 5 seconds of real time
       const now = Date.now();
       if (now - this.lastStateUpdateTime > 5000) {
         this.lastStateUpdateTime = now;
         const elapsedTime = state.simulation.elapsedTime || 0;
         const timeScale = state.simulation.timeScale || 1.0;
-        console.log(
+        console.info(
           `Simulation time: ${elapsedTime.toFixed(2)}s, Time scale: ${timeScale}`,
         );
       }

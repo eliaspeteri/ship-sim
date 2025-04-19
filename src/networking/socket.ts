@@ -1,22 +1,6 @@
 import io from 'socket.io-client';
 import useStore from '../store';
 
-// Define event types
-type _ServerToClientEvents = {
-  'simulation:update': (data: SimulationUpdateData) => void;
-  'vessel:joined': (data: VesselJoinedData) => void;
-  'vessel:left': (data: VesselLeftData) => void;
-  'environment:update': (data: EnvironmentUpdateData) => void;
-  error: (error: string) => void;
-};
-
-type _ClientToServerEvents = {
-  'vessel:update': (data: VesselUpdateData) => void;
-  'vessel:control': (data: VesselControlData) => void;
-  'simulation:state': (data: { isRunning: boolean }) => void;
-  'chat:message': (data: { message: string }) => void;
-};
-
 // Define data interface types
 interface SimulationUpdateData {
   timestamp: number;
@@ -89,7 +73,7 @@ class SocketManager {
       this.disconnect();
     }
 
-    console.log(`Connecting to Socket.IO server at ${url}`);
+    console.info(`Connecting to Socket.IO server at ${url}`);
 
     this.socket = io(url, {
       reconnectionAttempts: this.maxReconnectAttempts,
@@ -111,7 +95,7 @@ class SocketManager {
 
     // Connection events
     this.socket.on('connect', () => {
-      console.log('Socket.IO connection established');
+      console.info('Socket.IO connection established');
       this.connectionAttempts = 0;
       if (this.reconnectTimer) {
         clearTimeout(this.reconnectTimer);
@@ -120,7 +104,7 @@ class SocketManager {
     });
 
     this.socket.on('disconnect', (reason: string) => {
-      console.log(`Socket.IO disconnected: ${reason}`);
+      console.info(`Socket.IO disconnected: ${reason}`);
 
       // Handle reconnection for certain disconnect reasons
       if (reason === 'io server disconnect') {
@@ -140,12 +124,12 @@ class SocketManager {
     });
 
     this.socket.on('vessel:joined', (data: VesselJoinedData) => {
-      console.log(`New vessel joined: ${data.name} (${data.id})`);
+      console.info(`New vessel joined: ${data.name} (${data.id})`);
       // Handle new vessel joining
     });
 
     this.socket.on('vessel:left', (data: VesselLeftData) => {
-      console.log(`Vessel left: ${data.id}`);
+      console.info(`Vessel left: ${data.id}`);
       // Handle vessel leaving
     });
 
@@ -224,10 +208,10 @@ class SocketManager {
     }
 
     const delay = Math.min(1000 * Math.pow(2, this.connectionAttempts), 30000);
-    console.log(`Attempting to reconnect in ${delay / 1000} seconds...`);
+    console.info(`Attempting to reconnect in ${delay / 1000} seconds...`);
 
     this.reconnectTimer = setTimeout(() => {
-      console.log(`Reconnection attempt ${this.connectionAttempts}`);
+      console.info(`Reconnection attempt ${this.connectionAttempts}`);
       this.socket?.connect();
       this.reconnectTimer = null;
     }, delay);

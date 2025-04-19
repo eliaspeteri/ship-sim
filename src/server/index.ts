@@ -126,7 +126,7 @@ io.on('connection', socket => {
   const userId =
     socket.handshake.auth.userId ||
     `user_${Math.random().toString(36).substring(2, 9)}`;
-  console.log(`Socket connected: ${userId}`);
+  console.info(`Socket connected: ${userId}`);
 
   // Add user to global state
   globalState.vessels[userId] = {
@@ -176,12 +176,12 @@ io.on('connection', socket => {
 
     // In a multi-user scenario, we'd broadcast this to other users
     // But for now, we just log it
-    console.log(`Control update from ${userId}:`, data);
+    console.info(`Control update from ${userId}:`, data);
   });
 
   // Handle simulation state changes
   socket.on('simulation:state', data => {
-    console.log(`Simulation state update from ${userId}:`, data);
+    console.info(`Simulation state update from ${userId}:`, data);
     // In a full implementation, this would affect the global simulation
   });
 
@@ -201,7 +201,7 @@ io.on('connection', socket => {
 
   // Handle disconnection
   socket.on('disconnect', () => {
-    console.log(`Socket disconnected: ${userId}`);
+    console.info(`Socket disconnected: ${userId}`);
 
     // Remove user from global state
     delete globalState.vessels[userId];
@@ -278,7 +278,7 @@ async function persistState() {
       },
     });
 
-    console.log('State persisted to database');
+    console.info('State persisted to database');
   } catch (error) {
     console.error('Failed to persist state:', error);
   }
@@ -286,7 +286,7 @@ async function persistState() {
 
 // Start server
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.info(`Server running on port ${PORT}`);
 });
 
 export default server;

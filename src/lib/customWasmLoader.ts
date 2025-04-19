@@ -67,7 +67,7 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
   }
 
   try {
-    console.log('Loading WASM physics engine...');
+    console.info('Loading WASM physics engine...');
 
     // Fetch the WebAssembly binary
     const response = await fetch('/wasm/ship_sim.wasm');
@@ -225,7 +225,7 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
     // Store the wrapper
     wasmInstance = wrapper;
 
-    console.log('WASM physics engine loaded successfully');
+    console.info('WASM physics engine loaded successfully');
     return wasmInstance;
   } catch (error) {
     console.error('Failed to load WASM physics engine:', error);

@@ -51,7 +51,7 @@ export async function loadWasm(): Promise<WasmModule> {
     // Cache the module for future use
     wasmModule = enhancedExports;
 
-    console.log('WASM physics engine loaded and enhanced successfully');
+    console.info('WASM physics engine loaded and enhanced successfully');
     return enhancedExports;
   } catch (error) {
     console.error('Failed to load WASM physics engine:', error);
