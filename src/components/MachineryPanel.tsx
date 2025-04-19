@@ -442,11 +442,11 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
 
       // Update vessel state in the next frame
       setTimeout(() => {
-        applyVesselControls(
-          0,
-          vessel.controls.rudderAngle,
-          vessel.controls.ballast,
-        );
+        applyVesselControls({
+          throttle: 0,
+          rudderAngle: vessel.controls.rudderAngle,
+          ballast: vessel.controls.ballast,
+        });
       }, 0);
     }
 
@@ -576,11 +576,13 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
     });
 
     // Apply minimal throttle to start turning the engine
-    applyVesselControls(
-      0.1,
-      vessel.controls.rudderAngle,
-      vessel.controls.ballast,
-    );
+    setTimeout(() => {
+      applyVesselControls({
+        throttle: 0.1,
+        rudderAngle: vessel.controls.rudderAngle,
+        ballast: vessel.controls.ballast,
+      });
+    }, 0);
 
     // Set engine running status
     useStore.getState().updateVessel({
@@ -605,11 +607,11 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
   // Handle engine stop
   const handleEngineStop = () => {
     // Stop the engine by setting throttle to zero
-    applyVesselControls(
-      0,
-      vessel.controls.rudderAngle,
-      vessel.controls.ballast,
-    );
+    applyVesselControls({
+      throttle: 0,
+      rudderAngle: vessel.controls.rudderAngle,
+      ballast: vessel.controls.ballast,
+    });
 
     // Set engine running status
     useStore.getState().updateVessel({

@@ -1,35 +1,46 @@
 // Ship simulator simulation manager
 // Handles integration between WASM physics and application state
 
-import { _Physics } from './physics'; // Added underscore prefix
-import { _SimulationLoop } from './simulationLoop'; // Already has underscore
-import _useStore from '../store'; // Added underscore prefix
+// Import the correct exports from the files
+// No need to import useStore here as it's used through the simulationLoop
+import { getSimulationLoop } from './simulationLoop';
 
 // Export our simulation loop functions for use throughout the application
 export const initializeSimulation = async (): Promise<void> => {
-  const simulationLoop = _SimulationLoop();
+  const simulationLoop = getSimulationLoop();
   return simulationLoop.initialize();
 };
 
 export const startSimulation = (): void => {
-  const simulationLoop = _SimulationLoop();
+  const simulationLoop = getSimulationLoop();
   simulationLoop.start();
 };
 
 export const stopSimulation = (): void => {
-  const simulationLoop = _SimulationLoop();
+  const simulationLoop = getSimulationLoop();
   simulationLoop.stop();
 };
 
 export const togglePauseSimulation = (): void => {
-  const simulationLoop = _SimulationLoop();
+  const simulationLoop = getSimulationLoop();
   simulationLoop.togglePause();
 };
 
 export const resetSimulation = (): void => {
-  const simulationLoop = _SimulationLoop();
+  const simulationLoop = getSimulationLoop();
   simulationLoop.reset();
 };
 
-// Export the simulation loop singleton for direct access where needed
-export { _SimulationLoop as getSimulationLoop };
+// Export the applyVesselControls function for use in MachineryPanel.tsx
+export const applyVesselControls = (controls: {
+  throttle?: number;
+  rudderAngle?: number;
+  ballast?: number;
+  bowThruster?: number;
+}): void => {
+  const simulationLoop = getSimulationLoop();
+  simulationLoop.applyControls(controls);
+};
+
+// Re-export the getSimulationLoop function
+export { getSimulationLoop };

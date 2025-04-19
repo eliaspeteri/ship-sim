@@ -394,7 +394,7 @@ export class SimulationLoop {
           severity: 'critical',
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in updateUIFromPhysics:', error);
 
       // Limit frequency of error logging to avoid flooding the console
@@ -407,7 +407,7 @@ export class SimulationLoop {
         state.addEvent({
           category: 'system',
           type: 'critical_error',
-          message: `Critical error in physics update: ${error.message}`,
+          message: `Critical error in physics update: ${error instanceof Error ? error.message : 'Unknown error'}`,
           severity: 'critical',
         });
       }

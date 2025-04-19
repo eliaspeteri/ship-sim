@@ -744,14 +744,19 @@ const useStore = create<SimulationState>()(
       },
 
       // Update water status
-      updateWaterStatus: (_set, _get) => _state => {
+      updateWaterStatus: (_set: any, _get: any) => (_state: any) => {
         // Empty implementation
       },
 
       // Update vessel properties
       updateVesselProperties:
-        set => (newProperties: Partial<VesselState['properties']>) => {
-          set(state => ({
+        (
+          set: (
+            updater: (state: SimulationState) => Partial<SimulationState>,
+          ) => void,
+        ) =>
+        (newProperties: Partial<VesselState['properties']>) => {
+          set((state: SimulationState) => ({
             vessel: {
               ...state.vessel,
               properties: {
