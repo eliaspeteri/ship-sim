@@ -455,11 +455,11 @@ function calculateCurrentForce(
 export function updateVesselState(
   vesselPtr: usize,
   dt: f64,
-  windSpeed: f64 = 0.0,
-  windDirection: f64 = 0.0,
-  currentSpeed: f64 = 0.0,
-  currentDirection: f64 = 0.0,
-  seaState: f64 = 0.0,
+  windSpeed: f64,
+  windDirection: f64,
+  currentSpeed: f64,
+  currentDirection: f64,
+  seaState: f64,
 ): usize {
   const vessel = changetype<VesselState>(vesselPtr);
 
