@@ -219,6 +219,7 @@ export default function Scene({ vesselPosition }: SceneProps) {
           length={vesselProperties.length}
           beam={vesselProperties.beam}
           draft={vesselProperties.draft}
+          shipType={vesselProperties.type}
         />
 
         {/* Camera Controls */}

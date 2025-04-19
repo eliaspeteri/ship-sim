@@ -10,7 +10,7 @@ const SHIP_MODELS = {
   TANKER: '/models/tanker_ship.glb',
   CARGO: '/models/cargo_ship.glb',
   DEFAULT: null,
-};
+} as const;
 
 interface ShipProps {
   position: { x: number; y: number; z: number };
@@ -369,8 +369,8 @@ const Ship: React.FC<ShipProps> = ({
           {/* High detail at close range */}
           <primitive
             object={model.scene.clone()}
-            scale={[0.1, 0.1, 0.1]} // Adjust scale as needed
-            position={[0, -draft / 2, 0]}
+            scale={[10, 10, 10]} // Adjust scale as needed
+            position={[0, -draft, 0]}
           />
           {/* Medium detail at medium range */}
           <primitive
