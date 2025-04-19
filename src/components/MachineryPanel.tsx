@@ -443,10 +443,11 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
 
       // Update vessel state in the next frame
       setTimeout(() => {
+        // Add null safety check before accessing vessel.controls properties
         applyVesselControls({
           throttle: 0,
-          rudderAngle: vessel.controls.rudderAngle,
-          ballast: vessel.controls.ballast,
+          rudderAngle: vessel.controls?.rudderAngle || 0,
+          ballast: vessel.controls?.ballast || 0.5,
         });
       }, 0);
     }
@@ -580,8 +581,8 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
     setTimeout(() => {
       applyVesselControls({
         throttle: 0.1,
-        rudderAngle: vessel.controls.rudderAngle,
-        ballast: vessel.controls.ballast,
+        rudderAngle: vessel.controls?.rudderAngle || 0,
+        ballast: vessel.controls?.ballast || 0.5,
       });
     }, 0);
 

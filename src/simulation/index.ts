@@ -2,7 +2,7 @@
 // Handles integration between WASM physics and application state
 
 // Import the correct exports from the files
-// No need to import useStore here as it's used through the simulationLoop
+import useStore from '../store'; // Fixed import path
 import { getSimulationLoop } from './simulationLoop';
 
 // Export our simulation loop functions for use throughout the application
@@ -38,8 +38,23 @@ export const applyVesselControls = (controls: {
   ballast?: number;
   bowThruster?: number;
 }): void => {
-  const simulationLoop = getSimulationLoop();
-  simulationLoop.applyControls(controls);
+  try {
+    const simulationLoop = getSimulationLoop();
+    simulationLoop.applyControls(controls);
+  } catch (error) {
+    console.error('Error applying vessel controls:', error);
+
+    // Update the store directly if the WASM call fails completely
+    const state = useStore.getState();
+    if (state.vessel.controls) {
+      state.updateVessel({
+        controls: {
+          ...state.vessel.controls,
+          ...controls,
+        },
+      });
+    }
+  }
 };
 
 // Re-export the getSimulationLoop function

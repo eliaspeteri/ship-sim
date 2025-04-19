@@ -248,19 +248,40 @@ export class SimulationLoop {
 
     if (vesselPtr === null) return;
 
-    // Set throttle if provided
-    if (controls.throttle !== undefined) {
-      this.wasmExports.setThrottle(vesselPtr, controls.throttle);
-    }
+    try {
+      // Set throttle if provided and function exists
+      if (
+        controls.throttle !== undefined &&
+        typeof this.wasmExports.setThrottle === 'function'
+      ) {
+        this.wasmExports.setThrottle(vesselPtr, controls.throttle);
+      }
 
-    // Set rudder angle if provided
-    if (controls.rudderAngle !== undefined) {
-      this.wasmExports.setRudderAngle(vesselPtr, controls.rudderAngle);
-    }
+      // Set rudder angle if provided and function exists
+      if (
+        controls.rudderAngle !== undefined &&
+        typeof this.wasmExports.setRudderAngle === 'function'
+      ) {
+        this.wasmExports.setRudderAngle(vesselPtr, controls.rudderAngle);
+      }
 
-    // Set ballast if provided
-    if (controls.ballast !== undefined) {
-      this.wasmExports.setBallast(vesselPtr, controls.ballast);
+      // Set ballast if provided and function exists
+      if (
+        controls.ballast !== undefined &&
+        typeof this.wasmExports.setBallast === 'function'
+      ) {
+        this.wasmExports.setBallast(vesselPtr, controls.ballast);
+      }
+    } catch (error) {
+      console.error('Error applying vessel controls:', error);
+
+      // Update the store with the requested controls even if WASM call fails
+      state.updateVessel({
+        controls: {
+          ...state.vessel.controls,
+          ...controls,
+        },
+      });
     }
   }
 
