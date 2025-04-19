@@ -28,17 +28,26 @@ export interface ShipSimWasm {
     dt: number,
     windSpeed?: number,
     windDirection?: number,
+    currentSpeed?: number,
+    currentDirection?: number,
+    seaState?: number,
   ) => number;
 
   // Control inputs
   setThrottle: (vesselPtr: number, throttle: number) => void;
   setRudderAngle: (vesselPtr: number, angle: number) => void;
+  setBallast: (vesselPtr: number, level: number) => void;
 
   // State access
   getVesselX: (vesselPtr: number) => number;
   getVesselY: (vesselPtr: number) => number;
   getVesselHeading: (vesselPtr: number) => number;
   getVesselSpeed: (vesselPtr: number) => number;
+  getVesselEngineRPM: (vesselPtr: number) => number;
+  getVesselFuelLevel: (vesselPtr: number) => number;
+  getVesselFuelConsumption: (vesselPtr: number) => number;
+  getVesselGM: (vesselPtr: number) => number;
+  getVesselCenterOfGravityY: (vesselPtr: number) => number;
 }
 
 // Keep a cached instance of the module
@@ -104,13 +113,19 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
         dt: number,
         windSpeed?: number,
         windDirection?: number,
+        currentSpeed?: number,
+        currentDirection?: number,
+        seaState?: number,
       ) => {
         // Handle optional parameters if the runtime supports it
         if (exports.__setArgumentsLength) {
           const argCount =
             2 +
             (windSpeed !== undefined ? 1 : 0) +
-            (windDirection !== undefined ? 1 : 0);
+            (windDirection !== undefined ? 1 : 0) +
+            (currentSpeed !== undefined ? 1 : 0) +
+            (currentDirection !== undefined ? 1 : 0) +
+            (seaState !== undefined ? 1 : 0);
           exports.__setArgumentsLength(argCount);
         }
         return exports.updateVesselState(
@@ -118,6 +133,9 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
           dt,
           windSpeed,
           windDirection,
+          currentSpeed,
+          currentDirection,
+          seaState,
         );
       },
 
@@ -127,12 +145,18 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
       // Control functions
       setThrottle: exports.setThrottle,
       setRudderAngle: exports.setRudderAngle,
+      setBallast: exports.setBallast,
 
       // State access
       getVesselX: exports.getVesselX,
       getVesselY: exports.getVesselY,
       getVesselHeading: exports.getVesselHeading,
       getVesselSpeed: exports.getVesselSpeed,
+      getVesselEngineRPM: exports.getVesselEngineRPM,
+      getVesselFuelLevel: exports.getVesselFuelLevel,
+      getVesselFuelConsumption: exports.getVesselFuelConsumption,
+      getVesselGM: exports.getVesselGM,
+      getVesselCenterOfGravityY: exports.getVesselCenterOfGravityY,
     };
 
     // Store the wrapper
