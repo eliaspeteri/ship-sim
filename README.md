@@ -49,6 +49,7 @@ The goal is to create a realistic motor vessel simulator that will run on an onl
 - Prettier 3.5.3 <!-- Code formatting -->
 - Husky 9.1.7 <!-- Git hooks for code quality -->
 - Database (PostgreSQL) <!-- For persistent backup -->
+- DaisyUI <!-- UI components and design system -->
 
 ## Features
 

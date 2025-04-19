@@ -11,8 +11,8 @@
 - [ ] Events are logged with format "1745077455261	Simulation paused". Timestamp should be formatted to be human readable.
 - [ ] Dashboard shows gauges in a single column. UI should be reworked to represent the gauges more visually. Gauges should be grouped in relation to each other, and what they represent. Controls should be grouped with common gauges. For example coolant pump controls should be grouped with coolant pump gauges.
 - [ ] The ocean doesn't respond to the set environment. The ocean is always calm.
-- [ ] Stop engine button doesn't work in the machinery controls.
-- [ ] Start engine button doesn't work in the machinery controls.
+- [x] Stop engine button doesn't work in the machinery controls.
+- [x] Start engine button doesn't work in the machinery controls.
 - [x] If I have the machinery controls open, and I start the engine from engine controls, and then I stop the engine from the machinery controls, I get an error "TypeError: this.wasmExports.setBallast is not a function". It's happening in "src\simulation\simulationLoop.ts (263:24) @ applyControls".
 - [x] The "fuel pump failure" button causes continuous event logging about the failure. I also get the following error in browser console tons of times:
 ```
