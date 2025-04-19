@@ -579,33 +579,31 @@ const useStore = create<SimulationState>()(
 
       // Event system
       eventLog: [],
-      addEvent: event => {
-        const newEvent = {
-          id: `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          timestamp: get().simulation.elapsedTime,
-          ...event,
-        };
+      addEvent: event =>
+        set(state => {
+          // Get the simulation time in seconds
+          const simTimeSeconds = state.simulation.elapsedTime;
 
-        set(state => ({
-          eventLog: [newEvent, ...state.eventLog].slice(0, 200), // Keep only the most recent 200 events
-        }));
+          // Convert simulation seconds to hours, minutes, seconds
+          const hours = Math.floor(simTimeSeconds / 3600);
+          const minutes = Math.floor((simTimeSeconds % 3600) / 60);
+          const seconds = Math.floor(simTimeSeconds % 60);
 
-        // For critical alarms, we might want to update vessel state too
-        if (event.severity === 'critical' && event.category === 'alarm') {
-          if (event.type === 'engine_overheat') {
-            set(state => ({
-              vessel: {
-                ...state.vessel,
-                alarms: {
-                  ...state.vessel.alarms,
-                  engineOverheat: true,
-                },
-              },
-            }));
-          }
-          // Add similar logic for other alarm types
-        }
-      },
+          // Format time as HH:MM:SS
+          const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+          // Create the new event with simulation time
+          const newEvent = {
+            ...event,
+            id: Date.now().toString(), // Use current timestamp as unique ID
+            time: timeString,
+            timestamp: Date.now(), // Keep this for sorting
+          };
+
+          return {
+            eventLog: [...state.eventLog, newEvent],
+          };
+        }),
 
       clearEventLog: () => set({ eventLog: [] }),
 
