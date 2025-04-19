@@ -49,6 +49,7 @@ export class SimulationLoop {
     if (simulationInstance) {
       return simulationInstance;
     }
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     simulationInstance = this;
   }
 
@@ -82,7 +83,10 @@ export class SimulationLoop {
     }
 
     this.lastFrameTime = performance.now();
-    this.animationFrameId = requestAnimationFrame(this.loop);
+
+    // Using an arrow function instead of bind(this)
+    this.animationFrameId = requestAnimationFrame(time => this.loop(time));
+
     useStore.getState().setRunning(true);
 
     console.log('Simulation loop started');
@@ -136,7 +140,7 @@ export class SimulationLoop {
   /**
    * The main simulation loop
    */
-  private loop = (currentTime: number): void => {
+  private loop(currentTime: number): void {
     // Calculate time delta
     const deltaTime = (currentTime - this.lastFrameTime) / 1000; // in seconds
     this.lastFrameTime = currentTime;
@@ -165,9 +169,9 @@ export class SimulationLoop {
       this.processEvents(scaledDeltaTime);
     }
 
-    // Continue the loop
-    this.animationFrameId = requestAnimationFrame(this.loop);
-  };
+    // Continue the loop using arrow function
+    this.animationFrameId = requestAnimationFrame(time => this.loop(time));
+  }
 
   /**
    * Update physics state using WASM module

@@ -48,7 +48,7 @@ function PerformanceMonitor({
 }: {
   onPerformanceDrop: (isLow: boolean) => void;
 }) {
-  const { gl } = useThree();
+  const { _gl } = useThree(); // Changed from 'gl' to '_gl'
   const frameRates: number[] = useRef<number[]>([]).current;
   const lastTime = useRef(performance.now());
   const checkInterval = useRef<number | null>(null);

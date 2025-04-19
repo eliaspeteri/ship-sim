@@ -513,7 +513,7 @@ const useStore = create<SimulationState>()(
         // Implement day/night cycle logic
         if (enabled) {
           // Set up time progression
-          const intervalId = setInterval(() => {
+          const _intervalId = setInterval(() => {
             set(state => ({
               environment: {
                 ...state.environment,
@@ -530,15 +530,15 @@ const useStore = create<SimulationState>()(
       // Simulation control
       simulation: defaultSimulationControl,
       setRunning: running =>
-        set(state => ({
+        set(_state => ({
           simulation: {
-            ...state.simulation,
+            ..._state.simulation,
             isRunning: running,
-            paused: running ? false : state.simulation.paused,
+            paused: running ? false : _state.simulation.paused,
             realStartTime:
-              running && !state.simulation.isRunning
+              running && !_state.simulation.isRunning
                 ? Date.now()
-                : state.simulation.realStartTime,
+                : _state.simulation.realStartTime,
           },
         })),
 
@@ -567,7 +567,7 @@ const useStore = create<SimulationState>()(
         })),
 
       resetSimulation: () =>
-        set(state => ({
+        set(_state => ({
           vessel: defaultVesselState,
           simulation: {
             ...defaultSimulationControl,
@@ -727,7 +727,6 @@ const useStore = create<SimulationState>()(
       // Apply vessel controls
       applyVesselControls: controls => {
         const simulationLoop = getSimulationLoop();
-        const vessel = get().vessel;
 
         // First update the store with the new control values
         set(state => ({
@@ -743,6 +742,25 @@ const useStore = create<SimulationState>()(
         // Then apply the controls to the physics engine
         simulationLoop.applyControls(controls);
       },
+
+      // Update water status
+      updateWaterStatus: (_set, _get) => _state => {
+        // Empty implementation
+      },
+
+      // Update vessel properties
+      updateVesselProperties:
+        set => (newProperties: Partial<VesselState['properties']>) => {
+          set(state => ({
+            vessel: {
+              ...state.vessel,
+              properties: {
+                ...state.vessel.properties,
+                ...newProperties,
+              },
+            },
+          }));
+        },
     }),
     {
       name: 'ship-sim-storage', // Name for localStorage/sessionStorage

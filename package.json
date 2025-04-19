@@ -10,11 +10,14 @@
     "start": "next start",
     "test": "jest",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:errors": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "asbuild:debug": "asc assembly/index.ts --target debug",
     "asbuild:release": "asc assembly/index.ts --target release",
     "asbuild": "npm run asbuild:debug && npm run asbuild:release",
-    "server": "npx tsx src/server/index.ts"
+    "server": "npx tsx src/server/index.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@assemblyscript/loader": "^0.27.35",

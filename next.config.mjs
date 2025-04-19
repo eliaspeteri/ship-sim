@@ -7,7 +7,7 @@ export default {
   env: {
     CUSTOM_ENV_VARIABLE: process.env.CUSTOM_ENV_VARIABLE,
   },
-  webpack: (config, { isServer, webpack }) => {
+  webpack: config => {
     // WebAssembly support
     config.experiments = {
       ...config.experiments,

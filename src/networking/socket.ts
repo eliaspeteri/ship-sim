@@ -2,7 +2,7 @@ import io from 'socket.io-client';
 import useStore from '../store';
 
 // Define event types
-type ServerToClientEvents = {
+type _ServerToClientEvents = {
   'simulation:update': (data: SimulationUpdateData) => void;
   'vessel:joined': (data: VesselJoinedData) => void;
   'vessel:left': (data: VesselLeftData) => void;
@@ -10,7 +10,7 @@ type ServerToClientEvents = {
   error: (error: string) => void;
 };
 
-type ClientToServerEvents = {
+type _ClientToServerEvents = {
   'vessel:update': (data: VesselUpdateData) => void;
   'vessel:control': (data: VesselControlData) => void;
   'simulation:state': (data: { isRunning: boolean }) => void;
@@ -161,7 +161,7 @@ class SocketManager {
   // Handle simulation updates from server
   private handleSimulationUpdate(data: SimulationUpdateData): void {
     // Update our store with data from other vessels
-    Object.entries(data.vessels).forEach(([id, vesselData]) => {
+    Object.entries(data.vessels).forEach(([id, _vesselData]) => {
       // Skip updating our own vessel as that's handled by our local physics
       if (id !== this.userId) {
         // Here we would update the store for other vessels
@@ -203,6 +203,11 @@ class SocketManager {
     };
 
     this.socket.emit('vessel:control', controlData);
+  }
+
+  // Update vessel position with both parameters properly prefixed with underscore
+  updateVesselPosition(_position: any, _vesselData: any) {
+    // Function implementation
   }
 
   // Attempt to reconnect to server

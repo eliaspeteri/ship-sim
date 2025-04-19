@@ -27,7 +27,7 @@ const Pipe: React.FC<{
   animated = false,
 }) => {
   // Calculate flow path dasharray/dashoffset for animation
-  const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+  const _length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
   const dashLength = Math.max(5, width * 2);
   const gapLength = dashLength;
   const dashArray = animated ? `${dashLength} ${gapLength}` : '';
@@ -380,7 +380,7 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
   // Get data from store
   const vessel = useStore(state => state.vessel);
   const machinerySystems = useStore(state => state.machinerySystems);
-  const updateMachineryStatus = useStore(state => state.updateMachineryStatus);
+  const _updateMachineryStatus = useStore(state => state.updateMachineryStatus);
   const triggerFailure = useStore(state => state.triggerFailure);
   const addEvent = useStore(state => state.addEvent);
 
@@ -404,7 +404,7 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
   // Health values
   const engineHealth = machinerySystems.engineHealth;
   const propulsionEfficiency = machinerySystems.propulsionEfficiency;
-  const electricalSystemHealth = machinerySystems.electricalSystemHealth;
+  const _electricalSystemHealth = machinerySystems.electricalSystemHealth;
 
   // Failures
   const engineFailure = machinerySystems.failures.engineFailure;

@@ -35,11 +35,11 @@ const Ocean: React.FC<OceanProps> = ({
   const ref = useRef<THREE.Mesh>(null!);
   const gl = useThree(state => state.gl);
   const scene = useThree(state => state.scene);
-  const camera = useThree(state => state.camera);
+  const _camera = useThree(state => state.camera);
 
   // Get environment state
   const environment = useStore(state => state.environment);
-  const { waveHeight, waveDirection, wind } = environment;
+  const { waveHeight, wind } = environment;
   // Derive waveSpeed from wind speed
   const waveSpeed = wind.speed * 0.2; // Scale wind speed to reasonable wave speed
   // Use wind direction for wave direction if needed
