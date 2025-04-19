@@ -726,21 +726,41 @@ const useStore = create<SimulationState>()(
 
       // Apply vessel controls
       applyVesselControls: controls => {
-        const simulationLoop = getSimulationLoop();
+        // Store current controls to avoid redundant updates
+        const state = get();
+        const currentControls = state.vessel.controls;
 
-        // First update the store with the new control values
-        set(state => ({
-          vessel: {
-            ...state.vessel,
-            controls: {
-              ...state.vessel.controls,
-              ...controls,
+        // Check if there are any actual changes to avoid unnecessary updates
+        const hasChanges = Object.entries(controls).some(
+          ([key, value]) =>
+            currentControls[key as keyof typeof currentControls] !== value,
+        );
+
+        // Only update if there are actual changes
+        if (hasChanges) {
+          // First update the store with the new control values
+          set(state => ({
+            vessel: {
+              ...state.vessel,
+              controls: {
+                ...state.vessel.controls,
+                ...controls,
+              },
             },
-          },
-        }));
+          }));
 
-        // Then apply the controls to the physics engine
-        simulationLoop.applyControls(controls);
+          // Then apply the controls to the physics engine
+          try {
+            const simulationLoop = getSimulationLoop();
+            simulationLoop.applyControls(controls);
+          } catch (error) {
+            console.error(
+              'Error applying vessel controls to simulation:',
+              error,
+            );
+            // No state updates here to avoid circular updates
+          }
+        }
       },
 
       // Update water status

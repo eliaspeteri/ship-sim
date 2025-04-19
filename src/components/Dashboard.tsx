@@ -479,10 +479,18 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   };
 
   // Format simulation time as hh:mm:ss
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
+  const formatTime = (seconds: number | null | undefined) => {
+    // Handle invalid values
+    if (seconds === undefined || seconds === null || isNaN(seconds)) {
+      return '00:00:00';
+    }
+
+    // Ensure we're working with a non-negative number
+    const timeInSeconds = Math.max(0, Math.floor(seconds));
+
+    const hours = Math.floor(timeInSeconds / 3600);
+    const minutes = Math.floor((timeInSeconds % 3600) / 60);
+    const secs = timeInSeconds % 60;
 
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };

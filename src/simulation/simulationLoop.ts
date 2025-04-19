@@ -147,10 +147,25 @@ export class SimulationLoop {
 
     const state = useStore.getState();
 
+    // Ensure state.simulation is properly initialized with default values if needed
+    if (!state.simulation) {
+      console.error('Simulation state is null, reinitializing');
+      state.resetSimulation();
+      return;
+    }
+
+    // Initialize elapsedTime if it's null
+    if (
+      state.simulation.elapsedTime === null ||
+      state.simulation.elapsedTime === undefined
+    ) {
+      state.incrementTime(0); // This will set elapsedTime to 0
+    }
+
     // Only update if simulation is running and not paused
     if (state.simulation.isRunning && !state.simulation.paused) {
       // Scale delta time by time scale factor
-      const scaledDeltaTime = deltaTime * state.simulation.timeScale;
+      const scaledDeltaTime = deltaTime * (state.simulation.timeScale || 1.0);
       this.accumulatedTime += scaledDeltaTime;
 
       // Run fixed timestep physics updates
@@ -159,8 +174,19 @@ export class SimulationLoop {
         this.accumulatedTime -= this.fixedTimeStep;
       }
 
-      // Increment simulation time
+      // Increment simulation time - ensure this is always called when running
       state.incrementTime(scaledDeltaTime);
+
+      // Debug time incrementation issues - log every 5 seconds of real time
+      const now = Date.now();
+      if (now - this.lastStateUpdateTime > 5000) {
+        this.lastStateUpdateTime = now;
+        const elapsedTime = state.simulation.elapsedTime || 0;
+        const timeScale = state.simulation.timeScale || 1.0;
+        console.log(
+          `Simulation time: ${elapsedTime.toFixed(2)}s, Time scale: ${timeScale}`,
+        );
+      }
 
       // Update UI state from physics state
       this.updateUIFromPhysics();
@@ -205,9 +231,15 @@ export class SimulationLoop {
     const { throttle, rudderAngle, ballast } = state.vessel.controls;
 
     // Update controls in WASM
-    this.wasmExports.setThrottle(vesselPtr, throttle);
-    this.wasmExports.setRudderAngle(vesselPtr, rudderAngle);
-    this.wasmExports.setBallast(vesselPtr, ballast);
+    if (typeof this.wasmExports.setThrottle === 'function') {
+      this.wasmExports.setThrottle(vesselPtr, throttle);
+    }
+    if (typeof this.wasmExports.setRudderAngle === 'function') {
+      this.wasmExports.setRudderAngle(vesselPtr, rudderAngle);
+    }
+    if (typeof this.wasmExports.setBallast === 'function') {
+      this.wasmExports.setBallast(vesselPtr, ballast);
+    }
 
     // Update vessel physics in WASM
     this.wasmExports.updateVesselState(
@@ -273,15 +305,9 @@ export class SimulationLoop {
         this.wasmExports.setBallast(vesselPtr, controls.ballast);
       }
     } catch (error) {
-      console.error('Error applying vessel controls:', error);
-
-      // Update the store with the requested controls even if WASM call fails
-      state.updateVessel({
-        controls: {
-          ...state.vessel.controls,
-          ...controls,
-        },
-      });
+      console.error('Error applying vessel controls to WASM:', error);
+      // Don't update store here - the store has already been updated in applyVesselControls
+      // This prevents circular updates that can lead to "Maximum update depth exceeded"
     }
   }
 

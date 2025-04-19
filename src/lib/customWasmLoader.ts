@@ -4,6 +4,11 @@
  * without relying on the auto-generated loader that uses Node.js imports
  */
 
+// Error tracking state
+let lastErrorTime = 0;
+let errorCount = 0;
+let vesselStateErrored = false;
+
 // Define the interface for our WebAssembly exports
 export interface ShipSimWasm {
   // Memory
@@ -117,26 +122,84 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
         currentDirection?: number,
         seaState?: number,
       ) => {
-        // Handle optional parameters if the runtime supports it
-        if (exports.__setArgumentsLength) {
-          const argCount =
-            2 +
-            (windSpeed !== undefined ? 1 : 0) +
-            (windDirection !== undefined ? 1 : 0) +
-            (currentSpeed !== undefined ? 1 : 0) +
-            (currentDirection !== undefined ? 1 : 0) +
-            (seaState !== undefined ? 1 : 0);
-          exports.__setArgumentsLength(argCount);
+        // Check if we've had too many errors - temporarily disable function
+        const now = Date.now();
+        if (vesselStateErrored) {
+          // Reset error state after 5 seconds to try again
+          if (now - lastErrorTime > 5000) {
+            vesselStateErrored = false;
+            errorCount = 0;
+          } else {
+            // While in error state, just return the pointer without calling WASM
+            return vesselPtr;
+          }
         }
-        return exports.updateVesselState(
-          vesselPtr,
-          dt,
-          windSpeed,
-          windDirection,
-          currentSpeed,
-          currentDirection,
-          seaState,
-        );
+
+        try {
+          // Ensure parameters are within reasonable bounds to avoid WASM errors
+          // Pointer must be positive integer
+          if (vesselPtr <= 0 || !Number.isInteger(vesselPtr)) {
+            return vesselPtr;
+          }
+
+          // Delta time must be positive and reasonable
+          if (dt <= 0 || dt > 1.0) {
+            return vesselPtr;
+          }
+
+          // Ensure all parameters have valid values and normalize to avoid edge cases
+          const safeWindSpeed =
+            typeof windSpeed === 'number' && isFinite(windSpeed)
+              ? Math.max(0, Math.min(50, windSpeed)) // Clamp between 0-50 m/s
+              : 0.0;
+
+          const safeWindDirection =
+            typeof windDirection === 'number' && isFinite(windDirection)
+              ? windDirection % (2 * Math.PI) // Normalize to [0, 2π)
+              : 0.0;
+
+          // Set the correct argument count - the compiled WebAssembly only expects 4 parameters
+          if (exports.__setArgumentsLength) {
+            exports.__setArgumentsLength(4);
+          }
+
+          // Only pass the parameters that the WASM function actually accepts
+          return exports.updateVesselState(
+            vesselPtr,
+            dt,
+            safeWindSpeed,
+            safeWindDirection,
+          );
+        } catch (error) {
+          // Update error tracking
+          errorCount++;
+          lastErrorTime = now;
+
+          // If we've had multiple errors in succession, enter error state
+          if (errorCount > 3) {
+            vesselStateErrored = true;
+            console.warn(
+              'Disabling vessel state updates temporarily due to repeated errors',
+            );
+          }
+
+          // Only log once per second to avoid flooding console
+          if (now - lastErrorTime > 1000 || errorCount <= 3) {
+            console.error('Error in WASM updateVesselState:', error);
+            console.error('Parameters:', {
+              vesselPtr,
+              dt,
+              windSpeed,
+              windDirection,
+              currentSpeed,
+              currentDirection,
+              seaState,
+            });
+          }
+
+          // Return the vessel pointer as fallback to prevent simulation crash
+          return vesselPtr;
+        }
       },
 
       // Vessel management

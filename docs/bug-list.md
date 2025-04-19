@@ -1,5 +1,5 @@
 - [x] Simulation time is shown as NaN:NaN:NaN.
-- [ ] Simulation time is not advancing when the simulation is running.
+- [x] Simulation time is not advancing when the simulation is running.
 - [ ] Dashboard is below the canvas. Should be reworked to be on top of the canvas.
 - [ ] Gauges are on top of each other in the dashboard.
 - [ ] Vessel controls are missing. Dashboard only has text "Throttle" and "Rudder".
@@ -25,3 +25,5 @@ index.js line 6602 > eval:591:29
 - [ ] Precipitation is missing.
 - [ ] No button for start air valve.
 - Tab crashing occasionally. Need to reproduce. Was playing with engine controls, starting and stopping the engine. Perhaps tab ran out of memory too.
+- [ ] Update `assembly/index.ts` to remove default parameters from the `updateVesselState` function declaration and handle undefined values inside the function.
+- [ ] Missing error boundaries in the app.
