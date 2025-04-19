@@ -104,12 +104,13 @@ const MachineGauge: React.FC<{
   size = 80,
 }) => {
   // Calculate angle for gauge needle
-  const angle = -135 + ((value - min) / (max - min)) * 270;
+  const angle = -135 + (((value || 0) - min) / (max - min)) * 270;
 
   // Determine color based on thresholds
   const getColor = () => {
-    if (redThreshold && value >= redThreshold) return '#f56565';
-    if (yellowThreshold && value >= yellowThreshold) return '#ecc94b';
+    const safeValue = value || 0;
+    if (redThreshold && safeValue >= redThreshold) return '#f56565';
+    if (yellowThreshold && safeValue >= yellowThreshold) return '#ecc94b';
     return '#48bb78';
   };
 
@@ -195,7 +196,7 @@ const MachineGauge: React.FC<{
       {/* Value display */}
       <div className="text-white text-center mt-1" style={{ color }}>
         <span className="font-mono text-sm">
-          {value.toFixed(1)}
+          {(value || 0).toFixed(1)}
           {unit}
         </span>
       </div>
@@ -339,7 +340,7 @@ const Tank: React.FC<{
         <div
           className="absolute bottom-0 w-full transition-all duration-1000"
           style={{
-            height: `${Math.max(0, Math.min(100, level * 100))}%`,
+            height: `${Math.max(0, Math.min(100, (level || 0) * 100))}%`,
             backgroundColor: color,
             backgroundImage:
               'linear-gradient(0deg, rgba(0,0,0,0.2) 0%, rgba(255,255,255,0.1) 100%)',
@@ -364,7 +365,7 @@ const Tank: React.FC<{
           className="absolute right-1 bottom-1 text-white text-xs font-mono"
           style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}
         >
-          {Math.round(level * 100)}%
+          {Math.round((level || 0) * 100)}%
         </div>
       </div>
 
@@ -609,8 +610,8 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
     // Stop the engine by setting throttle to zero
     applyVesselControls({
       throttle: 0,
-      rudderAngle: vessel.controls.rudderAngle,
-      ballast: vessel.controls.ballast,
+      rudderAngle: vessel.controls?.rudderAngle || 0,
+      ballast: vessel.controls?.ballast || 0.5,
     });
 
     // Set engine running status
@@ -840,7 +841,7 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
               <div className="text-xs mb-2">
                 {engineRunning ? 'Running' : 'Stopped'}
               </div>
-              <div className="text-xs">{engineRPM.toFixed(0)} RPM</div>
+              <div className="text-xs">{(engineRPM || 0).toFixed(0)} RPM</div>
 
               {/* Engine health indicator */}
               <div className="mt-3 w-full bg-gray-800 h-3 rounded-full overflow-hidden">

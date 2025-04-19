@@ -238,7 +238,10 @@ const CircularGauge: React.FC<{
   criticalThreshold,
 }) => {
   // Calculate angle for gauge
-  const angle = Math.min(270, Math.max(0, ((value - min) / (max - min)) * 270));
+  const angle = Math.min(
+    270,
+    Math.max(0, (((value || 0) - min) / (max - min)) * 270),
+  );
 
   // Get color based on thresholds
   const getColor = () => {
@@ -295,7 +298,7 @@ const CircularGauge: React.FC<{
         {/* Value */}
         <div className="absolute inset-0 flex items-center justify-center flex-col">
           <span className="text-white font-bold text-xl">
-            {Math.round(value)}
+            {Math.round(value || 0)}
           </span>
           <span className="text-gray-400 text-xs">{unit}</span>
         </div>

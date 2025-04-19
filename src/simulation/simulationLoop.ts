@@ -187,6 +187,20 @@ export class SimulationLoop {
     // Get environment state
     const { wind, current, seaState } = state.environment;
 
+    // Ensure vessel.controls exists before accessing its properties
+    if (!state.vessel.controls) {
+      // Initialize controls with safe defaults if missing
+      state.updateVessel({
+        controls: {
+          throttle: 0,
+          rudderAngle: 0,
+          ballast: 0.5,
+          bowThruster: 0
+        }
+      });
+      return; // Skip this physics update until controls are available
+    }
+
     // Get control inputs
     const { throttle, rudderAngle, ballast } = state.vessel.controls;
 
@@ -431,12 +445,15 @@ export class SimulationLoop {
       });
 
       // Increase generator output when engine is running
-      state.updateVessel({
-        electricalSystem: {
-          ...state.vessel.electricalSystem,
-          generatorOutput: 200 * state.vessel.controls.throttle,
-        },
-      });
+      // Add null-safety check for state.vessel.controls
+      if (state.vessel.controls) {
+        state.updateVessel({
+          electricalSystem: {
+            ...state.vessel.electricalSystem,
+            generatorOutput: 200 * (state.vessel.controls.throttle || 0),
+          },
+        });
+      }
     }
 
     // Random failures based on engine hours or other conditions
