@@ -195,8 +195,8 @@ export class SimulationLoop {
           throttle: 0,
           rudderAngle: 0,
           ballast: 0.5,
-          bowThruster: 0
-        }
+          bowThruster: 0,
+        },
       });
       return; // Skip this physics update until controls are available
     }
