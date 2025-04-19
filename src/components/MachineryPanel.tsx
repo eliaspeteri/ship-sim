@@ -683,7 +683,7 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
         <div className="bg-gray-900 p-3 rounded-lg text-center">
           <div className="text-sm opacity-70">Engine Hours</div>
           <div className="text-lg font-mono">
-            {vessel.engineState.hours.toFixed(1)} hrs
+            {(vessel.engineState.hours || 0).toFixed(1)} hrs
           </div>
         </div>
 
