@@ -212,7 +212,7 @@ export default function Scene({ vesselPosition }: SceneProps) {
         <Ship
           position={{
             x: vesselPosition.x,
-            y: 0, // At water level
+            y: vesselProperties.draft, // At water level
             z: vesselPosition.y, // Note: Z is used for Y in the 3D world
           }}
           heading={vesselPosition.heading}
@@ -226,9 +226,10 @@ export default function Scene({ vesselPosition }: SceneProps) {
           ref={controlsRef}
           target={[vesselPosition.x, 0, vesselPosition.y]}
           enableDamping={isTabVisible}
+          enablePan={false}
           dampingFactor={0.1}
           minDistance={10}
-          maxDistance={150}
+          maxDistance={300}
           // Prevent camera from going below water level
           minPolarAngle={Math.PI * 0.05}
           maxPolarAngle={Math.PI * 0.5}
