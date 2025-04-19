@@ -1,122 +1,197 @@
 import React from 'react';
 
-// Circular gauge component
-export const CircularGauge: React.FC<{
+// Define the props interface for type safety and clarity
+interface CircularGaugeProps {
   value: number;
   min: number;
   max: number;
   label: string;
   unit: string;
-  size?: number;
+  size?: number; // Optional size prop
   warningThreshold?: number;
   criticalThreshold?: number;
-}> = ({
+}
+
+/**
+ * Renders a circular gauge to display a value within a range.
+ * It visually indicates the value with a colored arc and provides textual feedback.
+ * Thresholds can be set to change the arc color for warnings or critical levels.
+ */
+export const CircularGauge: React.FC<CircularGaugeProps> = ({
   value,
   min,
   max,
   label,
   unit,
-  size = 120,
+  size = 120, // Default size if not provided
   warningThreshold,
   criticalThreshold,
 }) => {
-  // Calculate angle for gauge
-  const angle = Math.min(
-    270,
-    Math.max(0, (((value || 0) - min) / (max - min)) * 270),
-  );
+  // Clamp the value within the min/max range before calculating the angle
+  const clampedValue = Math.min(max, Math.max(min, value || 0));
+  // Calculate the angle of the gauge arc (0 to 270 degrees)
+  const angle = ((clampedValue - min) / (max - min)) * 270;
 
-  // Get color based on thresholds
-  const getColor = () => {
-    if (criticalThreshold && value >= criticalThreshold) return '#f56565';
-    if (warningThreshold && value >= warningThreshold) return '#ed8936';
-    return '#48bb78';
+  // Determine the color of the gauge arc based on thresholds
+  const getColor = (): string => {
+    // Use critical color if value meets or exceeds the critical threshold
+    if (
+      criticalThreshold !== undefined &&
+      clampedValue >= criticalThreshold &&
+      warningThreshold !== undefined &&
+      criticalThreshold > warningThreshold // Ensure critical is higher prio if both met
+    )
+      return '#f56565'; // Red for critical
+    // Use warning color if value meets or exceeds the warning threshold
+    if (warningThreshold !== undefined && clampedValue >= warningThreshold)
+      return '#ed8936'; // Orange for warning
+    // Default color if no thresholds are met or defined
+    return '#48bb78'; // Green for normal
   };
 
+  const color = getColor(); // Cache the color determination
+
+  // Define SVG path for the gauge arc background (full 270 degrees)
+  const backgroundArcPath = describeArc(
+    size / 2,
+    size / 2,
+    size / 2 - 10,
+    -135,
+    135,
+  );
+  // Define SVG path for the gauge value arc based on the calculated angle
+  const valueArcPath = describeArc(
+    size / 2,
+    size / 2,
+    size / 2 - 10,
+    -135,
+    angle - 135,
+  );
+
   return (
-    <div className="flex flex-col items-center" style={{ width: `${size}px` }}>
-      <div className="text-white font-bold mb-1 text-center">{label}</div>
-      <div
-        className="relative rounded-full bg-gray-800 border border-gray-600"
-        style={{ width: `${size}px`, height: `${size}px` }}
+    // Use flex column, center items, allow full width up to max size
+    <div className={`flex flex-col items-center w-full max-w-[${size}px]`}>
+      <div className="text-white font-bold mb-1 text-center text-sm truncate w-full px-1">
+        {label}
+      </div>
+      {/* Use SVG for smoother rendering and easier arc drawing */}
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        className="relative"
       >
-        {/* Gauge background track */}
-        <div
-          className="absolute"
-          style={{
-            width: `${size - 20}px`,
-            height: `${size - 20}px`,
-            borderRadius: '50%',
-            top: '10px',
-            left: '10px',
-            background: 'conic-gradient(#334 0deg, transparent 0deg)',
-          }}
+        {/* Background Arc */}
+        <path
+          d={backgroundArcPath}
+          fill="none"
+          stroke="#374151" // Use a gray color from Tailwind palette (gray-700)
+          strokeWidth="10"
+          strokeLinecap="round"
+        />
+        {/* Value Arc */}
+        <path
+          d={valueArcPath}
+          fill="none"
+          stroke={color}
+          strokeWidth="10"
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dasharray 0.3s ease, stroke 0.3s ease' }} // Smooth transition for value changes
         />
 
-        {/* Gauge value fill */}
-        <div
-          className="absolute"
-          style={{
-            width: `${size - 20}px`,
-            height: `${size - 20}px`,
-            borderRadius: '50%',
-            top: '10px',
-            left: '10px',
-            background: `conic-gradient(${getColor()} 0deg, ${getColor()} ${angle}deg, transparent ${angle}deg)`,
-            transition: 'background 0.3s ease',
-          }}
-        />
+        {/* Center Text */}
+        <text
+          x="50%"
+          y="50%"
+          dy=".3em" // Vertically center text
+          textAnchor="middle" // Horizontally center text
+          className="fill-current text-white font-bold"
+          fontSize={size * 0.2} // Scale font size with gauge size
+        >
+          {Math.round(value || 0)}
+        </text>
+        <text
+          x="50%"
+          y="50%"
+          dy="1.8em" // Position unit below the value
+          textAnchor="middle"
+          className="fill-current text-gray-400"
+          fontSize={size * 0.1} // Smaller font size for unit
+        >
+          {unit}
+        </text>
 
-        {/* Inner circle to create a donut */}
-        <div
-          className="absolute bg-gray-900 rounded-full"
-          style={{
-            width: `${size - 40}px`,
-            height: `${size - 40}px`,
-            top: '20px',
-            left: '20px',
-          }}
-        />
-
-        {/* Value */}
-        <div className="absolute inset-0 flex items-center justify-center flex-col">
-          <span className="text-white font-bold text-xl">
-            {Math.round(value || 0)}
-          </span>
-          <span className="text-gray-400 text-xs">{unit}</span>
-        </div>
-
-        {/* Ticks */}
-        {Array.from({ length: 10 }).map((_, i) => {
-          const tickAngle = i * 30;
-          const isMajor = i % 3 === 0;
-
-          return (
-            <div
-              key={i}
-              className={`absolute bg-white ${isMajor ? 'h-3 w-1' : 'h-2 w-0.5'}`}
-              style={{
-                top: `${size / 2}px`,
-                left: `${size / 2}px`,
-                transformOrigin: '50% 0',
-                transform: `rotate(${tickAngle - 135}deg) translateY(${size / 2 - 10}px)`,
-              }}
-            />
-          );
-        })}
-      </div>
-
-      {/* Min/Max labels */}
-      <div className="flex justify-between w-full mt-1">
-        <span className="text-gray-400 text-xs">
+        {/* Optional: Add Ticks (can be complex with SVG arcs) */}
+        {/* Example for min/max text labels instead of ticks */}
+        <text
+          x="15%"
+          y="95%"
+          textAnchor="middle"
+          className="fill-current text-gray-400 text-xs"
+        >
           {min}
-          {unit}
-        </span>
-        <span className="text-gray-400 text-xs">
+        </text>
+        <text
+          x="85%"
+          y="95%"
+          textAnchor="middle"
+          className="fill-current text-gray-400 text-xs"
+        >
           {max}
-          {unit}
-        </span>
-      </div>
+        </text>
+      </svg>
     </div>
   );
 };
+
+// Helper function to describe an SVG arc path
+function polarToCartesian(
+  centerX: number,
+  centerY: number,
+  radius: number,
+  angleInDegrees: number,
+) {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+  return {
+    x: centerX + radius * Math.cos(angleInRadians),
+    y: centerY + radius * Math.sin(angleInRadians),
+  };
+}
+
+function describeArc(
+  x: number,
+  y: number,
+  radius: number,
+  startAngle: number,
+  endAngle: number,
+): string {
+  // Ensure endAngle doesn't slightly exceed startAngle for full circles if needed
+  if (endAngle - startAngle >= 360) {
+    endAngle = startAngle + 359.99;
+  } else if (endAngle < startAngle) {
+    // Handle cases where the value maps to an angle less than the start
+    // For this gauge, angles range from -135 to +135. If angle is less than -135, draw nothing.
+    endAngle = startAngle; // Effectively draws a zero-length arc
+  }
+
+  const start = polarToCartesian(x, y, radius, endAngle);
+  const end = polarToCartesian(x, y, radius, startAngle);
+
+  const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
+
+  const d = [
+    'M',
+    start.x,
+    start.y,
+    'A',
+    radius,
+    radius,
+    0,
+    largeArcFlag,
+    0,
+    end.x,
+    end.y,
+  ].join(' ');
+
+  return d;
+}

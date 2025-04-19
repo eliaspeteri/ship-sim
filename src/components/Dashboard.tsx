@@ -214,8 +214,13 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
             Performance
           </h2>
 
-          {/* Gauges */}
-          <div className="flex flex-wrap justify-center gap-4 mb-4">
+          {/* Single Grid for ALL Gauges and Group Headings */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6 justify-items-center w-full mb-4">
+            {/* Group 1: Navigation Heading */}
+            <div className="col-span-2 md:col-span-3 w-full text-sm font-semibold text-gray-400 mb-2 border-b border-gray-700 pb-1">
+              Navigation
+            </div>
+            {/* Navigation Gauges */}
             <CircularGauge
               label="Speed"
               value={(velocity?.surge || 0) * 1.94384} // convert to knots
@@ -223,8 +228,24 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
               max={20}
               unit="kts"
               warningThreshold={15}
+              size={140}
             />
+            <CircularGauge
+              label="Rudder Angle"
+              value={Math.round(rudderAngle * 90)}
+              min={-90}
+              max={90}
+              unit="°"
+              size={140}
+            />
+            {/* Placeholder for 3-column layout */}
+            <div className="hidden md:block"></div>
 
+            {/* Group 2: Engine Heading */}
+            <div className="col-span-2 md:col-span-3 w-full text-sm font-semibold text-gray-400 mb-2 border-b border-gray-700 pb-1 mt-4">
+              Engine
+            </div>
+            {/* Engine Gauges */}
             <CircularGauge
               label="Engine RPM"
               value={engineState?.rpm || 0}
@@ -233,8 +254,8 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
               unit="rpm"
               warningThreshold={1200}
               criticalThreshold={1400}
+              // size={120} // Default size
             />
-
             <CircularGauge
               label="Engine Temp"
               value={engineState?.temperature || 25}
@@ -243,18 +264,8 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
               unit="°C"
               warningThreshold={85}
               criticalThreshold={95}
+              // size={120}
             />
-
-            <CircularGauge
-              label="Fuel"
-              value={(engineState?.fuelLevel || 0) * 100}
-              min={0}
-              max={100}
-              unit="%"
-              warningThreshold={20}
-              criticalThreshold={10}
-            />
-
             <CircularGauge
               label="Oil Pressure"
               value={engineState?.oilPressure || 0}
@@ -263,7 +274,36 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
               unit="bar"
               warningThreshold={3}
               criticalThreshold={2}
+              // size={120}
             />
+
+            {/* Group 3: Resources Heading */}
+            <div className="col-span-2 md:col-span-3 w-full text-sm font-semibold text-gray-400 mb-2 border-b border-gray-700 pb-1 mt-4">
+              Resources
+            </div>
+            {/* Resources Gauges */}
+            <CircularGauge
+              label="Fuel"
+              value={(engineState?.fuelLevel || 0) * 100}
+              min={0}
+              max={100}
+              unit="%"
+              warningThreshold={20}
+              criticalThreshold={10}
+              size={140}
+            />
+            <CircularGauge
+              label="Load"
+              value={(engineState?.load || 0) * 100}
+              min={0}
+              max={100}
+              unit="%"
+              warningThreshold={85}
+              criticalThreshold={95}
+              size={140}
+            />
+            {/* Placeholder for 3-column layout */}
+            <div className="hidden md:block"></div>
           </div>
 
           {/* Fuel consumption and efficiency */}
