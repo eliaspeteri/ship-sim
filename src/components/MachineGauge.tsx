@@ -1,31 +1,46 @@
 import React from 'react';
 
+/**
+ * Defines a colored zone on the gauge.
+ * If min/max are omitted, the zone extends to the start/end of the scale.
+ */
+interface GaugeZone {
+  color: string;
+  min?: number;
+  max?: number;
+}
+
 interface MachineGaugeProps {
   value: number;
   min: number;
   max: number;
   label: string;
   unit: string;
-  redThreshold?: number;
-  yellowThreshold?: number;
-  size?: number; // Size now refers to the outer diameter
+  /** Array of zones defining colored segments on the gauge arc. */
+  zones?: GaugeZone[];
+  /** Outer diameter of the gauge in pixels. */
+  size?: number;
+  /** Number of numerical labels to display along the scale. */
+  numLabels?: number;
 }
 
 /**
  * Converts polar coordinates (angle in degrees, radius) to Cartesian coordinates (x, y).
- * Necessary for calculating SVG path points from angles.
  * Assumes 0 degrees is pointing upwards (like a clock face) and positive angles go clockwise.
- * @param angleDegrees Angle in degrees.
+ * The SVG coordinate system has Y increasing downwards, hence the angle adjustment.
+ * @param angleDegrees Angle in degrees (0=up, clockwise).
  * @param radius Distance from the origin (center of the gauge).
- * @returns Cartesian coordinates { x: number, y: number } relative to the center.
+ * @returns Cartesian coordinates { x: number, y: number } relative to the center (0,0).
  */
 const polarToCartesian = (
   angleDegrees: number,
   radius: number,
 ): { x: number; y: number } => {
-  // Convert degrees to radians and adjust so 0 degrees is up (-90 degrees in standard Cartesian)
+  // Convert degrees to radians. Subtract 90 because in standard trig, 0 degrees is right,
+  // but we want 0 degrees to be up.
   const angleRadians = ((angleDegrees - 90) * Math.PI) / 180.0;
   return {
+    // Standard formulas for polar to Cartesian conversion.
     x: radius * Math.cos(angleRadians),
     y: radius * Math.sin(angleRadians),
   };
@@ -33,7 +48,7 @@ const polarToCartesian = (
 
 /**
  * Generates the SVG path data string ('d' attribute) for an arc segment.
- * This function encapsulates the logic for the SVG 'A' (arc) command.
+ * This is crucial for drawing the colored zones and potentially other arc-based elements.
  * @param radius Radius of the arc.
  * @param startAngleDegrees Start angle in degrees (0 is up, clockwise).
  * @param endAngleDegrees End angle in degrees (0 is up, clockwise).
@@ -44,23 +59,31 @@ const describeArc = (
   startAngleDegrees: number,
   endAngleDegrees: number,
 ): string => {
-  // Prevent rendering issues if start and end are effectively the same
-  if (Math.abs(startAngleDegrees - endAngleDegrees) < 0.01) return '';
-  // Ensure endAngle is greater for arc calculation logic if it wraps around
-  const adjustedEndAngle =
-    endAngleDegrees <= startAngleDegrees
-      ? endAngleDegrees + 360
+  // Avoid issues with arcs of zero length or full circles described incorrectly.
+  // A tiny epsilon difference ensures the arc command works as expected.
+  const clampedEndAngle =
+    Math.abs(startAngleDegrees - endAngleDegrees) % 360 < 0.01
+      ? endAngleDegrees - 0.01 // Slightly less if start/end are same
       : endAngleDegrees;
+
+  // Ensure endAngle is treated as being 'after' startAngle, even if it wraps past 360.
+  // This is important for the large-arc-flag calculation.
+  const adjustedEndAngle =
+    clampedEndAngle <= startAngleDegrees
+      ? clampedEndAngle + 360
+      : clampedEndAngle;
 
   const start = polarToCartesian(startAngleDegrees, radius);
   const end = polarToCartesian(adjustedEndAngle, radius);
 
-  // large-arc-flag is 1 if the arc spans more than 180 degrees
+  // Determine if the arc spans more than 180 degrees.
   const largeArcFlag = adjustedEndAngle - startAngleDegrees <= 180 ? '0' : '1';
-  // sweep-flag is 1 for clockwise, 0 for counter-clockwise
+  // '1' for clockwise sweep, which matches our angle convention.
   const sweepFlag = '1';
 
-  // Construct the SVG path data string: M(ove) to start, A(rc) to end
+  // Construct the SVG path data string:
+  // M(ove) to the start point.
+  // A(rc) command: rx, ry, x-axis-rotation, large-arc-flag, sweep-flag, end.x, end.y
   const d = [
     'M',
     start.x,
@@ -80,8 +103,7 @@ const describeArc = (
 
 /**
  * Renders an analog gauge similar to those found in engine rooms using SVG.
- * Displays a value within a min/max range, with optional color zones.
- * This approach uses SVG for reliable rendering of arcs and lines.
+ * Displays a value within a min/max range, with configurable color zones and labels.
  */
 export const MachineGauge: React.FC<MachineGaugeProps> = ({
   value,
@@ -89,89 +111,76 @@ export const MachineGauge: React.FC<MachineGaugeProps> = ({
   max,
   label,
   unit,
-  redThreshold,
-  yellowThreshold,
-  // Apply default size directly in the destructuring
-  size: outerSize = 80,
+  zones,
+  size: outerSize = 120, // Increased default size for labels
+  numLabels = 6, // Default number of labels
 }) => {
   // --- Input Validation & Clamping ---
-  const safeValue = typeof value === 'number' && !isNaN(value) ? value : 0;
+  const safeValue = typeof value === 'number' && !isNaN(value) ? value : min; // Default to min if invalid
   const clampedValue = Math.max(min, Math.min(max, safeValue));
   const range = max - min;
+  // Handle division by zero if min === max.
   const percentage = range === 0 ? 0 : (clampedValue - min) / range;
 
   // --- Angle Calculations (Degrees, 0 is up, clockwise sweep) ---
-  // Define the gauge's visual sweep range
   const totalAngleSweep = 270;
-  // Start angle visually corresponds to ~7:30 position
+  // Start angle at ~7:30 position (225 degrees from top).
   const startAngle = 225;
-  // End angle visually corresponds to ~4:30 position
-  const endAngle = startAngle + totalAngleSweep; // 135 + 270 = 405
-  // Calculate the needle's angle based on the value percentage
+  // End angle at ~4:30 position.
+  const endAngle = startAngle + totalAngleSweep; // 225 + 270 = 495
   const valueAngle = startAngle + percentage * totalAngleSweep;
 
-  // --- Color Zone Calculations ---
-  const greenColor = '#48bb78';
-  const yellowColor = '#ecc94b';
-  const redColor = '#f56565';
+  // --- Color & Zone Definitions ---
+  const defaultColor = '#48bb78'; // Default green if no zones match
+  // Provide a default green zone if none are specified by the user.
+  const safeZones =
+    zones && zones.length > 0
+      ? zones
+      : [{ color: defaultColor, min: min, max: max }];
+
+  /**
+   * Converts a value to its corresponding angle on the gauge scale.
+   * @param val The value to convert.
+   * @returns The angle in degrees (0=up, clockwise).
+   */
+  const valueToAngle = (val: number): number => {
+    const valPercentage = range === 0 ? 0 : (val - min) / range;
+    // Clamp percentage to handle values outside min/max for zone boundaries.
+    const clampedPercentage = Math.max(0, Math.min(1, valPercentage));
+    return startAngle + clampedPercentage * totalAngleSweep;
+  };
+
+  // Determine the color for the digital value display based on zones.
+  // --- Styling Constants ---
+  const markColor = '#2d3748'; // Color for ticks, needle, default text
+
+  const valueTextColor = (() => {
+    // Find the first zone that contains the current value.
+    const currentZone = safeZones.find(
+      zone =>
+        (zone.min === undefined || safeValue >= zone.min) &&
+        (zone.max === undefined || safeValue <= zone.max),
+    );
+    // Use the zone's color, or the default mark color if no zone matches (shouldn't happen with default zone).
+    return currentZone?.color || markColor;
+  })();
   const faceColor = '#f7fafc';
-  const markColor = '#2d3748';
   const bezelColor = '#1a202c';
   const hubColor = '#2d3748';
 
-  /**
-   * Calculates the angular stop point for a threshold within the gauge's sweep.
-   * @param threshold The threshold value (e.g., yellowThreshold).
-   * @returns The angle (degrees, 0=up, clockwise) where the color zone ends.
-   */
-  const calculateStopAngle = (threshold: number | undefined): number => {
-    // If no threshold or range is invalid, the zone extends to the end angle.
-    if (threshold === undefined || range === 0) {
-      return endAngle;
-    }
-    // Calculate the threshold's percentage within the range, clamped between 0 and 1.
-    const thresholdPercentage = Math.max(
-      0,
-      Math.min(1, (threshold - min) / range),
-    );
-    // Convert percentage to the corresponding angle within the sweep.
-    return startAngle + thresholdPercentage * totalAngleSweep;
-  };
-
-  const yellowStopAngle = calculateStopAngle(yellowThreshold);
-  const redStopAngle = calculateStopAngle(redThreshold);
-
-  // Determine the color for the digital value display based on thresholds.
-  const valueTextColor = (() => {
-    if (redThreshold !== undefined && safeValue >= redThreshold)
-      return redColor;
-    if (yellowThreshold !== undefined && safeValue >= yellowThreshold)
-      return yellowColor;
-    return markColor; // Use dark color for normal range for contrast
-  })();
-
-  // --- Styling Constants ---
-  // Calculations are relative to outerSize for scalability.
   const bezelWidth = Math.max(1, Math.round(outerSize * 0.06));
-  // faceSize is the diameter of the area inside the bezel.
   const faceSize = Math.max(0, outerSize - 2 * bezelWidth);
   const faceRadius = faceSize / 2;
-  // facePadding is the space between the face edge and the start of the arc/ticks.
-  const facePadding = Math.max(1, Math.round(faceSize * 0.06));
-  // arcWidth is the thickness of the colored arc.
+  // Increased padding slightly to give labels more room from the edge.
+  const facePadding = Math.max(1, Math.round(faceSize * 0.08));
   const arcWidth = Math.max(2, Math.round(faceSize * 0.1));
-  // arcCenterRadius is the radius to the midline of the arc path.
   const arcCenterRadius = Math.max(0, faceRadius - facePadding - arcWidth / 2);
-  // needleLength extends slightly past the arc's center radius for visibility.
-  const needleLength = arcCenterRadius * 1.05;
+  const needleLength = arcCenterRadius * 0.95; // Keep needle inside arc radius
   const needleWidth = Math.max(1, Math.round(outerSize * 0.025));
-  // centerHubRadius is the size of the central circle.
   const centerHubRadius = Math.max(2, needleWidth * 1.25);
   const tickWidth = Math.max(1, needleWidth * 0.75);
-  // Ticks are positioned relative to the arc center radius.
   const majorTickHeight = arcWidth * 0.8;
   const minorTickHeight = majorTickHeight * 0.6;
-  // Calculate inner/outer radii for drawing tick lines.
   const tickInnerRadius = Math.max(0, arcCenterRadius - majorTickHeight / 2);
   const tickOuterRadius = arcCenterRadius + majorTickHeight / 2;
   const minorTickInnerRadius = Math.max(
@@ -179,19 +188,41 @@ export const MachineGauge: React.FC<MachineGaugeProps> = ({
     arcCenterRadius - minorTickHeight / 2,
   );
   const minorTickOuterRadius = arcCenterRadius + minorTickHeight / 2;
+  // Radius for placing the numerical labels, slightly outside the ticks.
+  const labelRadius = tickOuterRadius * 1.1; // Adjust multiplier as needed
+  // Dynamic font size based on face radius.
+  const labelFontSize = Math.max(6, Math.round(faceRadius * 0.15)); // Min size 6px
 
   // --- SVG ViewBox ---
-  // Center the viewBox at (0,0). Size is based on faceRadius.
-  // Use faceSize directly for width/height to match the drawing area.
+  // Center the coordinate system at (0,0) within the SVG.
   const viewBoxMin = -faceRadius;
   const viewBox = `${viewBoxMin} ${viewBoxMin} ${faceSize} ${faceSize}`;
 
-  // --- Markings ---
-  const numTicks = 10; // Number of intervals marked on the gauge
+  // --- Markings & Labels ---
+  const numTicks = 10; // Keep 10 intervals for visual ticks
   const tickAngles = Array.from(
     { length: numTicks + 1 },
     (_, i) => startAngle + (i / numTicks) * totalAngleSweep,
   );
+
+  // Calculate labels based on numLabels prop.
+  const labels = Array.from({ length: numLabels }, (_, i) => {
+    // Calculate the value for this label step.
+    const labelValue = min + (i / (numLabels - 1)) * range;
+    // Calculate the angle corresponding to this value.
+    const angle = valueToAngle(labelValue);
+    // Calculate the position for the label text.
+    const position = polarToCartesian(angle, labelRadius);
+    // Determine precision based on the range step. Avoid excessive decimals.
+    const step = range / (numLabels - 1);
+    const precision = step < 1 ? (step < 0.1 ? 2 : 1) : 0;
+    return {
+      value: labelValue.toFixed(precision),
+      angle: angle,
+      x: position.x,
+      y: position.y,
+    };
+  });
 
   return (
     <div
@@ -221,58 +252,61 @@ export const MachineGauge: React.FC<MachineGaugeProps> = ({
           borderRadius: '50%',
         }}
       >
-        {/* SVG Container for the gauge face graphics */}
+        {/* SVG Container */}
         <div
-          className="relative w-full h-full" // Occupies the space inside the bezel padding
+          className="relative w-full h-full"
           style={{ background: faceColor, borderRadius: '50%' }}
         >
           <svg
             viewBox={viewBox}
             width="100%"
             height="100%"
-            // Prevent potential extra space below the inline SVG element
-            style={{ display: 'block' }}
+            style={{ display: 'block' }} // Prevents extra space below SVG
           >
-            {/* Color Arcs: Drawn as separate paths for simplicity */}
-            {/* Green Arc: From start to yellow threshold (or end if no yellow) */}
-            <path
-              d={describeArc(arcCenterRadius, startAngle, yellowStopAngle)}
-              fill="none"
-              stroke={greenColor}
-              strokeWidth={arcWidth}
-            />
-            {/* Yellow Arc: From yellow threshold to red threshold (or end if no red) */}
-            {/* Only drawn if yellowThreshold is defined */}
-            {yellowThreshold !== undefined && (
-              <path
-                d={describeArc(arcCenterRadius, yellowStopAngle, redStopAngle)}
-                fill="none"
-                stroke={yellowColor}
-                strokeWidth={arcWidth}
-              />
-            )}
-            {/* Red Arc: From red threshold to the end angle */}
-            {/* Only drawn if redThreshold is defined */}
-            {redThreshold !== undefined && (
-              <path
-                d={describeArc(arcCenterRadius, redStopAngle, endAngle)}
-                fill="none"
-                stroke={redColor}
-                strokeWidth={arcWidth}
-              />
-            )}
+            {/* Draw Color Zones */}
+            {safeZones.map((zone, index) => {
+              // Determine the start and end angles for this zone's arc.
+              // Use gauge min/max if zone min/max are undefined.
+              const zoneStartValue = zone.min ?? min;
+              const zoneEndValue = zone.max ?? max;
+              // Convert values to angles, ensuring they stay within the gauge sweep.
+              const zoneStartAngle = Math.max(
+                startAngle,
+                valueToAngle(zoneStartValue),
+              );
+              const zoneEndAngle = Math.min(
+                endAngle,
+                valueToAngle(zoneEndValue),
+              );
 
-            {/* Ticks: Drawn as lines radiating from the center */}
+              // Don't draw if the angles are invalid or reversed.
+              if (zoneEndAngle <= zoneStartAngle) {
+                return null;
+              }
+
+              return (
+                <path
+                  key={`zone-${index}`}
+                  d={describeArc(arcCenterRadius, zoneStartAngle, zoneEndAngle)}
+                  fill="none"
+                  stroke={zone.color}
+                  strokeWidth={arcWidth}
+                />
+              );
+            })}
+
+            {/* Draw Ticks */}
             {tickAngles.map((angle, index) => {
-              const isMajorTick = index % (numTicks / 2) === 0;
-              // Determine inner/outer radius based on whether it's a major/minor tick
+              // Major ticks often align with label intervals, but not always.
+              // Here, we just make the start, middle, and end ticks major.
+              const isMajorTick =
+                index === 0 || index === numTicks / 2 || index === numTicks;
               const innerR = isMajorTick
                 ? tickInnerRadius
                 : minorTickInnerRadius;
               const outerR = isMajorTick
                 ? tickOuterRadius
                 : minorTickOuterRadius;
-              // Calculate start and end points using polar conversion
               const startPt = polarToCartesian(angle, innerR);
               const endPt = polarToCartesian(angle, outerR);
               return (
@@ -288,32 +322,47 @@ export const MachineGauge: React.FC<MachineGaugeProps> = ({
               );
             })}
 
-            {/* Needle: Drawn as a line rotated to the value angle */}
+            {/* Draw Labels */}
+            {labels.map(lbl => (
+              <text
+                key={`label-${lbl.value}`}
+                x={lbl.x}
+                y={lbl.y}
+                fill={markColor}
+                fontSize={labelFontSize}
+                // Centers the text horizontally at the calculated point.
+                textAnchor="middle"
+                // Attempts to center the text vertically. Support varies. 'central' might work better in some SVGs.
+                dominantBaseline="middle"
+              >
+                {lbl.value}
+              </text>
+            ))}
+
+            {/* Draw Needle */}
             {(() => {
-              // Calculate the needle's end point based on its angle and length
               const needleEnd = polarToCartesian(valueAngle, needleLength);
               return (
                 <line
-                  x1={0} // Starts at the center (0,0 in viewBox)
+                  x1={0}
                   y1={0}
                   x2={needleEnd.x}
                   y2={needleEnd.y}
                   stroke={markColor}
                   strokeWidth={needleWidth}
-                  // Use round line caps for a smoother needle appearance
                   strokeLinecap="round"
                 />
               );
             })()}
 
-            {/* Center Hub: A circle drawn at the center */}
+            {/* Draw Center Hub */}
             <circle
               cx={0}
               cy={0}
               r={centerHubRadius}
               fill={hubColor}
               stroke={markColor}
-              strokeWidth={1} // Thin border for the hub
+              strokeWidth={1}
             />
           </svg>
         </div>
@@ -324,7 +373,6 @@ export const MachineGauge: React.FC<MachineGaugeProps> = ({
         className="text-center mt-1 font-mono text-sm"
         style={{ color: valueTextColor }}
       >
-        {/* Display value with one decimal place */}
         {safeValue.toFixed(1)}
         {unit}
       </div>

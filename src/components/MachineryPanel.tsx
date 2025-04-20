@@ -364,33 +364,49 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
 
           <div className="flex flex-wrap justify-center gap-4">
             <MachineGauge
-              label="RPM"
+              label="Engine RPM"
               value={engineRPM}
               min={0}
               max={1500}
-              unit=""
-              yellowThreshold={1200}
-              redThreshold={1400}
+              unit="rpm"
+              zones={[
+                { color: '#48bb78', max: 1200 }, // Green up to 1200
+                { color: '#ecc94b', min: 1200, max: 1400 }, // Yellow 1200-1400
+                { color: '#f56565', min: 1400 }, // Red above 1400
+              ]}
+              numLabels={7} // Show 0, 250, 500, 750, 1000, 1250, 1500
+              size={150}
             />
 
             <MachineGauge
-              label="Temperature"
+              label="Coolant Temp"
               value={engineTemp}
               min={0}
               max={120}
               unit="°C"
-              yellowThreshold={85}
-              redThreshold={95}
+              zones={[
+                { color: '#ecc94b', max: 75 }, // Yellow below 75
+                { color: '#48bb78', min: 75, max: 90 }, // Green 75-90
+                { color: '#f56565', min: 90 }, // Red above 90
+              ]}
+              numLabels={7} // 0, 20, 40, 60, 80, 100, 120
+              size={150}
             />
 
             <MachineGauge
-              label="Oil Press."
+              label="Oil Pressure"
               value={oilPressure}
               min={0}
               max={8}
               unit="bar"
-              yellowThreshold={2.5}
-              redThreshold={2}
+              zones={[
+                { color: '#f56565', max: 1 }, // Red below 1
+                { color: '#ecc94b', min: 1, max: 2 }, // Yellow between 1 and 2
+                { color: '#48bb78', min: 2, max: 6 }, // Green between 2 and 6
+                { color: '#ecc94b', min: 6 }, // Yellow above 6
+              ]}
+              numLabels={9} // Show labels 0, 1, 2, 3, 4, 5, 6, 7, 8
+              size={150} // Make it larger
             />
 
             <MachineGauge
@@ -399,8 +415,12 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
               min={0}
               max={120}
               unit="%"
-              yellowThreshold={90}
-              redThreshold={110}
+              size={150}
+              zones={[
+                { color: '#48bb78', max: 80 }, // Green below 80%
+                { color: '#ecc94b', min: 80, max: 100 }, // Yellow between 80% and 100%
+                { color: '#f56565', min: 100 }, // Red above 100%
+              ]}
             />
           </div>
 
