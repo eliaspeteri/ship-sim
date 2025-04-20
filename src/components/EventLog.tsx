@@ -53,7 +53,7 @@ export const EventLog: React.FC = () => {
                 {eventLog.map((event, index) => (
                   <tr key={index} className="hover">
                     <td className="font-mono text-xs opacity-70 whitespace-nowrap">
-                      {event.timestamp}
+                      {new Date(event.timestamp).toLocaleString()}
                     </td>
                     <td className={`${getEventSeverityClass(event.severity)}`}>
                       {event.message}
