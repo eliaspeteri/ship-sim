@@ -199,7 +199,7 @@ export const MachineGauge: React.FC<MachineGaugeProps> = ({
   const viewBox = `${viewBoxMin} ${viewBoxMin} ${faceSize} ${faceSize}`;
 
   // --- Markings & Labels ---
-  const numTicks = 10; // Keep 10 intervals for visual ticks
+  const numTicks = (numLabels - 1) * 2 || 10; // Keep 10 intervals for visual ticks
   const tickAngles = Array.from(
     { length: numTicks + 1 },
     (_, i) => startAngle + (i / numTicks) * totalAngleSweep,
