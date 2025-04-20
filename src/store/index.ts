@@ -125,7 +125,7 @@ interface EventLogEntry {
   type: string; // Specific event type
   message: string;
   severity: 'info' | 'warning' | 'critical';
-  data?: Record<string, any>; // Additional event data
+  data?: Record<string, unknown>; // Additional event data
 }
 
 // Simulation control with enhanced features
@@ -762,9 +762,11 @@ const useStore = create<SimulationState>()(
       },
 
       // Update water status
-      updateWaterStatus: (_set: any, _get: any) => (_state: any) => {
-        // Empty implementation
-      },
+      updateWaterStatus:
+        (_set: (state: SimulationState) => void, _get: () => SimulationState) =>
+        (_state: SimulationState) => {
+          // Empty implementation
+        },
 
       // Update vessel properties
       updateVesselProperties:
@@ -791,10 +793,8 @@ const useStore = create<SimulationState>()(
         // Don't persist everything, only select fields
         vessel: {
           properties: state.vessel.properties,
-          engineState: {
-            hours: state.vessel.engineState.hours,
-            fuelLevel: state.vessel.engineState.fuelLevel,
-          },
+          // include full engineState so rpm, load, temp, oilPressure, fuelConsumption, running, etc. survive re‑hydrate
+          engineState: state.vessel.engineState,
         },
         navigation: {
           route: state.navigation.route,

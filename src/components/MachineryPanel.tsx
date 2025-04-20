@@ -16,7 +16,6 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
   // Get data from store
   const vessel = useStore(state => state.vessel);
   const machinerySystems = useStore(state => state.machinerySystems);
-  const _updateMachineryStatus = useStore(state => state.updateMachineryStatus);
   const triggerFailure = useStore(state => state.triggerFailure);
   const addEvent = useStore(state => state.addEvent);
 
@@ -40,7 +39,6 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
   // Health values
   const engineHealth = machinerySystems.engineHealth;
   const propulsionEfficiency = machinerySystems.propulsionEfficiency;
-  const _electricalSystemHealth = machinerySystems.electricalSystemHealth;
 
   // Failures
   const engineFailure = machinerySystems.failures.engineFailure;
