@@ -485,7 +485,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
         }
