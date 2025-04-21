@@ -117,6 +117,7 @@ export default function Scene({ vesselPosition }: SceneProps) {
 
   // Clean up function to dispose of Three.js objects and prevent memory leaks
   const cleanupScene = useCallback(() => {
+    console.info('Cleaning up scene...');
     disposables.current.forEach(obj => {
       if ((obj as any).geometry) (obj as any).geometry.dispose();
       if ((obj as any).material) {
@@ -216,9 +217,6 @@ export default function Scene({ vesselPosition }: SceneProps) {
             z: vesselPosition.y, // Note: Z is used for Y in the 3D world
           }}
           heading={vesselPosition.heading}
-          length={vesselProperties.length}
-          beam={vesselProperties.beam}
-          draft={vesselProperties.draft}
           shipType={vesselProperties.type}
         />
 
