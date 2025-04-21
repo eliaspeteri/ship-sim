@@ -1,8 +1,6 @@
 'use client';
-// Example implementation based on the Three.js ocean example
-// src/components/Ocean.tsx
 import React, { useRef, useMemo, useEffect } from 'react';
-import { extend, useFrame, useThree, ThreeElement } from '@react-three/fiber';
+import { extend, useFrame, useThree } from '@react-three/fiber';
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import * as THREE from 'three';
 import useStore from '../store';
@@ -10,42 +8,53 @@ import useStore from '../store';
 // Extend Three.js with Water component
 extend({ Water });
 
-// Add type definitions for custom water component
-declare module '@react-three/fiber' {
-  interface ThreeElements {
-    water: ThreeElement<typeof Water>;
-  }
-}
+// Wave physics constants
+const WAVE_SPEED_FACTOR = 0.2; // How much wind speed affects wave speed
+const WAVE_HEIGHT_FACTOR = 0.15; // How much sea state affects wave height
+const WAVE_FOAM_THRESHOLD = 0.8; // When to show foam based on wave height
+
+// Wave frequency modulation by sea state
+const WAVE_FREQUENCY_FACTOR = [
+  1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25,
+];
 
 interface OceanProps {
-  size?: number;
-  resolution?: number;
-  position?: [number, number, number];
-  waterColor?: string;
-  distortionScale?: number;
+  size: number;
+  resolution: number;
+  position: [number, number, number];
+  waterColor: string;
+  distortionScale: number;
 }
 
-const Ocean: React.FC<OceanProps> = ({
+function Ocean({
   size = 10000,
   resolution = 256,
   position = [0, -0.5, 0],
   waterColor = '#001e0f',
   distortionScale = 3.7,
-}) => {
-  const ref = useRef<THREE.Mesh>(null!);
+}: OceanProps) {
+  const ref = useRef<THREE.Mesh>(null);
   const gl = useThree(state => state.gl);
   const scene = useThree(state => state.scene);
-  const _camera = useThree(state => state.camera);
 
-  // Get environment state
+  // Get environment state from the store
   const environment = useStore(state => state.environment);
-  const { waveHeight, wind } = environment;
-  // Derive waveSpeed from wind speed
-  const waveSpeed = wind.speed * 0.2; // Scale wind speed to reasonable wave speed
-  // Use wind direction for wave direction if needed
-  const windDirection = wind.direction * (180 / Math.PI); // Convert to degrees for calculations
 
-  // Normal maps for water
+  // Calculate wave parameters based on environment
+  const waveHeight = useMemo(() => {
+    return Math.max(0.1, environment.seaState * WAVE_HEIGHT_FACTOR);
+  }, [environment.seaState]);
+
+  const waveSpeed = useMemo(() => {
+    return environment.wind.speed * WAVE_SPEED_FACTOR;
+  }, [environment.wind.speed]);
+
+  // Convert wind direction from radians to degrees for calculations
+  const windDirection = useMemo(() => {
+    return environment.wind.direction * (180 / Math.PI);
+  }, [environment.wind.direction]);
+
+  // Load water normal maps
   const waterNormals = useMemo(() => {
     const textureLoader = new THREE.TextureLoader();
     const normalMap1 = textureLoader.load('/textures/Water_1_M_Normal.jpg');
@@ -59,14 +68,13 @@ const Ocean: React.FC<OceanProps> = ({
 
   // Create a cubemap for reflections
   const cubeRenderTarget = useMemo(() => {
-    const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(512, {
-      format: THREE.RGBFormat,
+    const target = new THREE.WebGLCubeRenderTarget(512, {
+      type: THREE.HalfFloatType,
       generateMipmaps: true,
       minFilter: THREE.LinearMipmapLinearFilter,
     });
-    // Update to use colorSpace instead of encoding
-    cubeRenderTarget.texture.colorSpace = THREE.SRGBColorSpace;
-    return cubeRenderTarget;
+    target.texture.colorSpace = THREE.SRGBColorSpace;
+    return target;
   }, []);
 
   // Create a cube camera for reflections
@@ -74,14 +82,63 @@ const Ocean: React.FC<OceanProps> = ({
     return new THREE.CubeCamera(0.1, 1000, cubeRenderTarget);
   }, [cubeRenderTarget]);
 
-  // Water parameters that respond to environment settings
+  // Generate wave patterns based on wind and sea state
+  const [primaryWave, secondaryWave, tertiaryWave] = useMemo(() => {
+    // Calculate wave patterns based on wind direction and sea state
+    const freqFactor = WAVE_FREQUENCY_FACTOR[Math.min(9, environment.seaState)];
+
+    // Primary wave follows wind direction
+    const primaryWave = {
+      direction: new THREE.Vector2(
+        Math.sin((windDirection * Math.PI) / 180),
+        Math.cos((windDirection * Math.PI) / 180),
+      ),
+      wavelength: 20.0 * (1 + environment.seaState * 0.2), // Longer waves in higher sea states
+      steepness: Math.min(0.6, 0.2 + environment.seaState * 0.05),
+      frequency: freqFactor,
+    };
+
+    // Secondary wave at an angle to main wind direction
+    const secondaryWave = {
+      direction: new THREE.Vector2(
+        Math.sin(((windDirection + 45) * Math.PI) / 180),
+        Math.cos(((windDirection + 45) * Math.PI) / 180),
+      ),
+      wavelength: 30.0,
+      steepness: Math.min(0.3, 0.1 + environment.seaState * 0.02),
+      frequency: freqFactor * 1.3,
+    };
+
+    // Tertiary small chop waves
+    const tertiaryWave = {
+      direction: new THREE.Vector2(
+        Math.sin(((windDirection + 120) * Math.PI) / 180),
+        Math.cos(((windDirection + 120) * Math.PI) / 180),
+      ),
+      wavelength: 5.0,
+      steepness: 0.1,
+      frequency: freqFactor * 2.1,
+    };
+
+    return [primaryWave, secondaryWave, tertiaryWave];
+  }, [windDirection, environment.seaState]);
+
+  // Water material options
   const waterOptions = useMemo(() => {
     return {
       textureWidth: 512,
       textureHeight: 512,
       waterNormals: waterNormals.normalMap1,
-      sunDirection: new THREE.Vector3(0, 1, 0),
-      sunColor: 0xffffff,
+      sunDirection: new THREE.Vector3(
+        Math.sin(Math.PI * (environment.timeOfDay / 12)),
+        Math.max(0.1, Math.sin(Math.PI * (environment.timeOfDay / 12))),
+        Math.cos(Math.PI * (environment.timeOfDay / 12)),
+      ),
+      sunColor: new THREE.Color(
+        environment.timeOfDay > 6 && environment.timeOfDay < 18
+          ? 0xffffff
+          : 0xaaaaff,
+      ),
       waterColor: new THREE.Color(waterColor),
       distortionScale: distortionScale * waveHeight,
       fog: scene.fog !== undefined,
@@ -89,203 +146,16 @@ const Ocean: React.FC<OceanProps> = ({
       size: 4,
       clipBias: 0.0,
     };
-  }, [scene.fog, waterColor, distortionScale, waveHeight, waterNormals]);
+  }, [
+    scene.fog,
+    waterColor,
+    distortionScale,
+    waveHeight,
+    waterNormals,
+    environment.timeOfDay,
+  ]);
 
-  // Wave patterns
-  const [wavePattern1, wavePattern2, wavePattern3] = useMemo(() => {
-    // Primary wave pattern
-    const pattern1 = {
-      direction: new THREE.Vector2(
-        Math.sin((windDirection * Math.PI) / 180),
-        Math.cos((windDirection * Math.PI) / 180),
-      ),
-      steepness: 0.5,
-      wavelength: 20.0,
-    };
-
-    // Secondary wave pattern (perpendicular to wind)
-    const pattern2 = {
-      direction: new THREE.Vector2(
-        Math.sin(((windDirection + 90) * Math.PI) / 180),
-        Math.cos(((windDirection + 90) * Math.PI) / 180),
-      ),
-      steepness: 0.15,
-      wavelength: 30.0,
-    };
-
-    // Tertiary wave pattern (small chop)
-    const pattern3 = {
-      direction: new THREE.Vector2(
-        Math.sin(((windDirection + 45) * Math.PI) / 180),
-        Math.cos(((windDirection + 45) * Math.PI) / 180),
-      ),
-      steepness: 0.05,
-      wavelength: 5.0,
-    };
-
-    return [pattern1, pattern2, pattern3];
-  }, [windDirection]);
-
-  // Water material ref for updating uniforms
-  const waterMaterialRef = useRef<THREE.ShaderMaterial>(null!);
-
-  // Set up a custom shader for the water with more realistic waves
-  useEffect(() => {
-    if (ref.current && ref.current.material) {
-      const material = ref.current.material as THREE.ShaderMaterial;
-      waterMaterialRef.current = material;
-
-      // Store original vertex shader
-      const originalVertexShader = material.vertexShader;
-
-      // Enhance vertex shader with custom wave functions
-      material.vertexShader = originalVertexShader.replace(
-        '#include <begin_vertex>',
-        `
-        #include <begin_vertex>
-        
-        // Custom Gerstner waves implementation
-        float steepness = ${waveHeight.toFixed(2)};
-        float speed = ${waveSpeed.toFixed(2)};
-        
-        // Apply multiple wave patterns
-        vec3 modifiedPosition = transformed;
-        
-        // Primary wave
-        float k1 = 2.0 * 3.14159 / 20.0;
-        float a1 = steepness / k1;
-        vec2 d1 = normalize(vec2(${wavePattern1.direction.x.toFixed(4)}, ${wavePattern1.direction.y.toFixed(4)}));
-        float f1 = k1 * (d1.x * modifiedPosition.x + d1.y * modifiedPosition.z - speed * time);
-        modifiedPosition.x += d1.x * a1 * cos(f1);
-        modifiedPosition.y += steepness * sin(f1);
-        modifiedPosition.z += d1.y * a1 * cos(f1);
-        
-        // Secondary wave
-        float k2 = 2.0 * 3.14159 / 30.0;
-        float a2 = (steepness * 0.3) / k2;
-        vec2 d2 = normalize(vec2(${wavePattern2.direction.x.toFixed(4)}, ${wavePattern2.direction.y.toFixed(4)}));
-        float f2 = k2 * (d2.x * modifiedPosition.x + d2.y * modifiedPosition.z - (speed * 0.7) * time);
-        modifiedPosition.x += d2.x * a2 * cos(f2);
-        modifiedPosition.y += steepness * 0.3 * sin(f2);
-        modifiedPosition.z += d2.y * a2 * cos(f2);
-        
-        // Tertiary smaller waves
-        float k3 = 2.0 * 3.14159 / 5.0;
-        float a3 = (steepness * 0.1) / k3;
-        vec2 d3 = normalize(vec2(${wavePattern3.direction.x.toFixed(4)}, ${wavePattern3.direction.y.toFixed(4)}));
-        float f3 = k3 * (d3.x * modifiedPosition.x + d3.y * modifiedPosition.z - (speed * 1.3) * time);
-        modifiedPosition.x += d3.x * a3 * cos(f3);
-        modifiedPosition.y += steepness * 0.1 * sin(f3);
-        modifiedPosition.z += d3.y * a3 * cos(f3);
-        
-        // Update normal based on wave gradient
-        vec3 bitangent = vec3(1.0, 
-          steepness * k1 * d1.x * cos(f1) + 
-          steepness * 0.3 * k2 * d2.x * cos(f2) + 
-          steepness * 0.1 * k3 * d3.x * cos(f3), 
-          0.0);
-          
-        vec3 tangent = vec3(0.0, 
-          steepness * k1 * d1.y * cos(f1) + 
-          steepness * 0.3 * k2 * d2.y * cos(f2) + 
-          steepness * 0.1 * k3 * d3.y * cos(f3), 
-          1.0);
-          
-        vec3 waveNormal = normalize(cross(bitangent, tangent));
-        
-        // Use the modified position
-        transformed = modifiedPosition;
-        `,
-      );
-
-      // Instead of injecting functions, we'll directly modify the existing fragment shader
-      // by replacing the final output calculation
-      const originalFragmentShader = material.fragmentShader;
-
-      // Find the position of the final gl_FragColor assignment
-      const fragColorPos = originalFragmentShader.indexOf(
-        'gl_FragColor = vec4( mix(',
-      );
-
-      if (fragColorPos !== -1) {
-        // Extract the part before gl_FragColor assignment
-        const beforeFragColor = originalFragmentShader.substring(
-          0,
-          fragColorPos,
-        );
-
-        // Extract the part after the gl_FragColor line ends (after the semicolon)
-        const afterSemicolon = originalFragmentShader.indexOf(
-          ';',
-          fragColorPos,
-        );
-        const afterFragColor = originalFragmentShader.substring(
-          afterSemicolon + 1,
-        );
-
-        // Create our new fragment shader
-        material.fragmentShader = `${beforeFragColor}
-        // Calculate wave foam effect
-        float waveHeight = vUv.y;
-        float foamSpeed = time * 0.05;
-        float smallWaves = sin(vUv.x * 10.0 + foamSpeed) * cos(vUv.y * 10.0 + foamSpeed) * 0.1;
-        float mediumWaves = sin(vUv.x * 4.0 + foamSpeed) * cos(vUv.y * 4.0 + foamSpeed) * 0.25;
-        float foamFactor = clamp(smallWaves + mediumWaves + waveHeight * 0.05, 0.0, 1.0);
-        
-        // Mix foam with water color
-        vec3 foamColor = vec3(1.0, 1.0, 1.0);
-        float foamMask = smoothstep(0.8, 0.95, foamFactor);
-        
-        // Final mix including foam for whitecaps
-        vec3 waterColor = mix(reflectionSample, refractionSample, reflectance);
-        vec3 finalColor = mix(waterColor, foamColor, foamMask * ${waveHeight.toFixed(2)} * 0.3);
-        
-        // Add slight blue tint to deeper areas
-        finalColor = mix(finalColor, vec3(0.0, 0.1, 0.2), 0.1);
-        
-        gl_FragColor = vec4(finalColor, alpha);${afterFragColor}`;
-      }
-
-      // Force update shader
-      material.needsUpdate = true;
-    }
-  }, [waveHeight, waveSpeed, wavePattern1, wavePattern2, wavePattern3]);
-
-  // Update cubemap reflections and wave animation
-  useFrame((state, delta) => {
-    if (ref.current) {
-      // Hide water from cubecam
-      ref.current.visible = false;
-
-      // Update cube camera reflections
-      cubeCamera.update(gl, scene);
-
-      // Show water again
-      ref.current.visible = true;
-
-      // Set material uniforms
-      const material = ref.current.material as THREE.ShaderMaterial;
-
-      // Update wave parameters based on environment settings
-      if (material.uniforms.time) {
-        material.uniforms.time.value += delta * waveSpeed;
-      }
-
-      if (material.uniforms.distortionScale) {
-        material.uniforms.distortionScale.value = distortionScale * waveHeight;
-      }
-
-      // Switch between normal maps for variety
-      if (material.uniforms.normalSampler && Math.random() < 0.01) {
-        material.uniforms.normalSampler.value =
-          material.uniforms.normalSampler.value === waterNormals.normalMap1
-            ? waterNormals.normalMap2
-            : waterNormals.normalMap1;
-      }
-    }
-  });
-
-  // Generate foam texture pattern
+  // Create foam texture
   const foamTexture = useMemo(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
@@ -294,11 +164,12 @@ const Ocean: React.FC<OceanProps> = ({
     if (context) {
       context.fillStyle = 'white';
 
-      // Create noise pattern for foam
-      for (let i = 0; i < 1000; i++) {
+      // Create noise pattern based on sea state
+      const noiseCount = 1000 * (1 + environment.seaState * 0.3);
+      for (let i = 0; i < noiseCount; i++) {
         const x = Math.random() * canvas.width;
         const y = Math.random() * canvas.height;
-        const radius = Math.random() * 1.5;
+        const radius = Math.random() * (1 + environment.seaState * 0.2);
 
         context.beginPath();
         context.arc(x, y, radius, 0, 2 * Math.PI);
@@ -310,39 +181,258 @@ const Ocean: React.FC<OceanProps> = ({
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
-  }, []);
+  }, [environment.seaState]);
+
+  // Update shader when wave parameters change
+  useEffect(() => {
+    if (!ref.current || !ref.current.material) return;
+
+    const material = ref.current.material as THREE.ShaderMaterial;
+
+    // Replace vertex shader with our custom wave implementation
+    if (material.vertexShader) {
+      material.vertexShader = material.vertexShader.replace(
+        '#include <begin_vertex>',
+        `
+        #include <begin_vertex>
+        
+        // Wave parameters from physics engine
+        float steepness = ${waveHeight.toFixed(3)};
+        float waveSpeed = ${waveSpeed.toFixed(3)};
+        
+        // Apply multiple wave patterns for realistic ocean
+        vec3 modifiedPosition = transformed;
+        
+        // Primary wave pattern (follows wind)
+        float k1 = 2.0 * 3.14159 / ${primaryWave.wavelength.toFixed(2)};
+        float a1 = steepness / k1;
+        vec2 d1 = normalize(vec2(${primaryWave.direction.x.toFixed(6)}, ${primaryWave.direction.y.toFixed(6)}));
+        float f1 = k1 * (d1.x * modifiedPosition.x + d1.y * modifiedPosition.z - (waveSpeed * ${primaryWave.frequency.toFixed(3)}) * time);
+        
+        modifiedPosition.x += d1.x * a1 * cos(f1);
+        modifiedPosition.y += steepness * ${primaryWave.steepness.toFixed(3)} * sin(f1);
+        modifiedPosition.z += d1.y * a1 * cos(f1);
+        
+        // Secondary wave pattern
+        float k2 = 2.0 * 3.14159 / ${secondaryWave.wavelength.toFixed(2)};
+        float a2 = steepness / k2 * ${secondaryWave.steepness.toFixed(3)};
+        vec2 d2 = normalize(vec2(${secondaryWave.direction.x.toFixed(6)}, ${secondaryWave.direction.y.toFixed(6)}));
+        float f2 = k2 * (d2.x * modifiedPosition.x + d2.y * modifiedPosition.z - (waveSpeed * ${secondaryWave.frequency.toFixed(3)}) * time);
+        
+        modifiedPosition.x += d2.x * a2 * cos(f2);
+        modifiedPosition.y += steepness * ${secondaryWave.steepness.toFixed(3)} * sin(f2);
+        modifiedPosition.z += d2.y * a2 * cos(f2);
+        
+        // Tertiary wave pattern (small chop waves)
+        float k3 = 2.0 * 3.14159 / ${tertiaryWave.wavelength.toFixed(2)};
+        float a3 = steepness / k3 * ${tertiaryWave.steepness.toFixed(3)};
+        vec2 d3 = normalize(vec2(${tertiaryWave.direction.x.toFixed(6)}, ${tertiaryWave.direction.y.toFixed(6)}));
+        float f3 = k3 * (d3.x * modifiedPosition.x + d3.y * modifiedPosition.z - (waveSpeed * ${tertiaryWave.frequency.toFixed(3)}) * time);
+        
+        modifiedPosition.x += d3.x * a3 * cos(f3);
+        modifiedPosition.y += steepness * ${tertiaryWave.steepness.toFixed(3)} * sin(f3);
+        modifiedPosition.z += d3.y * a3 * cos(f3);
+        
+        // Calculate wave normal based on derivatives
+        vec3 bitangent = vec3(
+          1.0, 
+          steepness * k1 * ${primaryWave.steepness.toFixed(3)} * d1.x * cos(f1) + 
+          steepness * k2 * ${secondaryWave.steepness.toFixed(3)} * d2.x * cos(f2) + 
+          steepness * k3 * ${tertiaryWave.steepness.toFixed(3)} * d3.x * cos(f3, 
+          0.0
+        );
+        
+        vec3 tangent = vec3(
+          0.0, 
+          steepness * k1 * ${primaryWave.steepness.toFixed(3)} * d1.y * cos(f1) + 
+          steepness * k2 * ${secondaryWave.steepness.toFixed(3)} * d2.y * cos(f2) + 
+          steepness * k3 * ${tertiaryWave.steepness.toFixed(3)} * d3.y * cos(f3), 
+          1.0
+        );
+        
+        vec3 waveNormal = normalize(cross(bitangent, tangent));
+        
+        // Use modified position and normal
+        transformed = modifiedPosition;
+        `,
+      );
+
+      // Also update fragment shader to add foam and wave caps
+      const fragColorPos = material.fragmentShader.indexOf(
+        'gl_FragColor = vec4( mix(',
+      );
+
+      if (fragColorPos !== -1) {
+        const beforeFragColor = material.fragmentShader.substring(
+          0,
+          fragColorPos,
+        );
+        const afterSemicolon = material.fragmentShader.indexOf(
+          ';',
+          fragColorPos,
+        );
+        const afterFragColor = material.fragmentShader.substring(
+          afterSemicolon + 1,
+        );
+
+        // Enhanced fragment shader with foam based on sea state
+        const seaStateDependent = environment.seaState >= 4 ? 0.4 : 0.2;
+
+        material.fragmentShader = `${beforeFragColor}
+        // Calculate wave foam based on sea state ${environment.seaState}
+        float waveHeight = vUv.y;
+        float foamSpeed = time * ${(0.05 * waveSpeed).toFixed(3)};
+        
+        // Noise patterns for foam
+        float smallWaves = sin(vUv.x * 20.0 + foamSpeed) * cos(vUv.y * 20.0 + foamSpeed) * 0.1;
+        float mediumWaves = sin(vUv.x * 10.0 + foamSpeed) * cos(vUv.y * 10.0 + foamSpeed) * 0.2;
+        float largeWaves = sin(vUv.x * 5.0 + foamSpeed) * cos(vUv.y * 5.0 + foamSpeed) * 0.3;
+        
+        // More foam in rough seas
+        float foamFactor = clamp(
+          smallWaves + mediumWaves + largeWaves + waveHeight * ${seaStateDependent.toFixed(2)}, 
+          0.0, 
+          1.0
+        );
+        
+        // Foam color and application
+        vec3 foamColor = vec3(1.0, 1.0, 1.0);
+        float foamThreshold = ${WAVE_FOAM_THRESHOLD.toFixed(2)} - (${(environment.seaState * 0.03).toFixed(3)});
+        float foamMask = smoothstep(foamThreshold, 0.95, foamFactor);
+        
+        // Mix water color with foam based on sea state
+        vec3 waterColor = mix(reflectionSample, refractionSample, reflectance);
+        vec3 finalColor = mix(waterColor, foamColor, foamMask * ${waveHeight.toFixed(3)} * ${(0.3 + environment.seaState * 0.1).toFixed(2)});
+        
+        // Add depth coloration
+        float depth = 1.0 - reflectance;
+        finalColor = mix(finalColor, vec3(0.0, 0.1, 0.2), depth * 0.2);
+        
+        gl_FragColor = vec4(finalColor, alpha);${afterFragColor}`;
+      }
+
+      // Force shader update
+      material.needsUpdate = true;
+    }
+  }, [
+    waveHeight,
+    waveSpeed,
+    primaryWave,
+    secondaryWave,
+    tertiaryWave,
+    environment.seaState,
+  ]);
+
+  // Update water animation and reflections
+  useFrame((state, delta) => {
+    if (ref.current) {
+      // Hide water for reflection camera to avoid recursion
+      ref.current.visible = false;
+
+      // Update reflections
+      cubeCamera.update(gl, scene);
+
+      // Show water again
+      ref.current.visible = true;
+
+      // Update wave animation
+      const material = ref.current.material as THREE.ShaderMaterial;
+
+      if (material.uniforms) {
+        if (material.uniforms.time) {
+          // Speed up waves in rough seas
+          const timeScale = waveSpeed * (1 + environment.seaState * 0.1);
+          material.uniforms.time.value += delta * timeScale;
+        }
+
+        // Update distortion based on sea state
+        if (material.uniforms.distortionScale) {
+          material.uniforms.distortionScale.value =
+            distortionScale * waveHeight;
+        }
+
+        // Update sun position based on time of day
+        if (material.uniforms.sunDirection) {
+          const sunAngle = Math.PI * (environment.timeOfDay / 12);
+          material.uniforms.sunDirection.value.set(
+            Math.sin(sunAngle),
+            Math.max(0.1, Math.sin(sunAngle)),
+            Math.cos(sunAngle),
+          );
+        }
+
+        // Occasional normal map switch for variety
+        if (material.uniforms.normalSampler && Math.random() < 0.005) {
+          material.uniforms.normalSampler.value =
+            material.uniforms.normalSampler.value === waterNormals.normalMap1
+              ? waterNormals.normalMap2
+              : waterNormals.normalMap1;
+        }
+      }
+    }
+  });
+
+  // Calculate foam visibility based on sea state
+  const foamOpacity = useMemo(() => {
+    return Math.min(0.7, environment.seaState * 0.08);
+  }, [environment.seaState]);
 
   return (
     <>
       {/* Main ocean water */}
-      <water
+      <primitive
+        object={
+          new Water(
+            new THREE.PlaneGeometry(size, size, resolution, resolution),
+            waterOptions,
+          )
+        }
         ref={ref}
-        args={[
-          new THREE.PlaneGeometry(size, size, resolution, resolution),
-          waterOptions,
-        ]}
         rotation={[-Math.PI / 2, 0, 0]}
         position={position}
         receiveShadow
       />
 
-      {/* Ship wakes and interaction layer */}
-      <mesh
-        position={[0, -0.3, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        visible={waveHeight > 0.1}
-      >
-        <planeGeometry args={[size / 2, size / 2, 128, 128]} />
-        <meshStandardMaterial
-          color="#ffffff"
-          map={foamTexture}
-          transparent
-          opacity={0.3}
-          depthWrite={false}
-        />
-      </mesh>
+      {/* Foam layer - intensity based on sea state */}
+      {environment.seaState > 2 && (
+        <mesh position={[0, -0.3, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[size * 0.7, size * 0.7, 128, 128]} />
+          <meshStandardMaterial
+            color="#ffffff"
+            map={foamTexture}
+            transparent
+            opacity={foamOpacity}
+            depthWrite={false}
+          >
+            {/* Set map repeat using ref instead of the unsupported onUpdate */}
+            <primitive
+              object={foamTexture}
+              attach="map"
+              ref={texture => {
+                if (texture) {
+                  texture.repeat.set(4, 4);
+                }
+              }}
+            />
+          </meshStandardMaterial>
+        </mesh>
+      )}
+
+      {/* Wave caps for high sea states */}
+      {environment.seaState >= 5 && (
+        <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[size * 0.4, size * 0.4, 64, 64]} />
+          <meshStandardMaterial
+            color="#e0f0ff"
+            transparent
+            opacity={Math.min(0.5, (environment.seaState - 4) * 0.1)}
+            depthWrite={false}
+            map={foamTexture}
+          />
+        </mesh>
+      )}
     </>
   );
-};
+}
 
 export default Ocean;

@@ -13,7 +13,13 @@ export enum ShipType {
 // Vessel state interface
 interface VesselState {
   // Basic position and orientation
-  position: { x: number; y: number; z: number };
+  position: {
+    x: number;
+    y: number;
+    z: number;
+    waveHeight?: number;
+    wavePhase?: number;
+  };
   orientation: { heading: number; roll: number; pitch: number };
   velocity: { surge: number; sway: number; heave: number };
   angularVelocity: { yaw: number; roll: number; pitch: number };

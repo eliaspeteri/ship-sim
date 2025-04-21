@@ -22,7 +22,7 @@ Uncaught TypeError: vessel.controls is undefined
     React 5
 index.js line 6602 > eval:591:29
 ```
-- [ ] Performance issues when the simulation is running.
+- [x] Performance issues when the simulation is running.
 - [ ] Day-night cycle is not working. The sun is always in the same position.
 - [ ] Precipitation is missing.
 - [ ] No button for start air valve.
