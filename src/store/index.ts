@@ -732,7 +732,36 @@ const useStore = create<SimulationState>()(
       applyVesselControls: controls => {
         // Store current controls to avoid redundant updates
         const state = get();
-        const currentControls = state.vessel.controls;
+        const currentControls = state.vessel?.controls;
+
+        // First ensure controls exist to avoid "undefined" errors
+        if (!currentControls) {
+          // If controls don't exist, just set them without comparison
+          set(state => ({
+            vessel: {
+              ...state.vessel,
+              controls: {
+                throttle: 0,
+                rudderAngle: 0,
+                ballast: 0.5,
+                bowThruster: 0,
+                ...controls,
+              },
+            },
+          }));
+
+          // Then apply the controls to the physics engine
+          try {
+            const simulationLoop = getSimulationLoop();
+            simulationLoop.applyControls(controls);
+          } catch (error) {
+            console.error(
+              'Error applying vessel controls to simulation:',
+              error,
+            );
+          }
+          return;
+        }
 
         // Check if there are any actual changes to avoid unnecessary updates
         const hasChanges = Object.entries(controls).some(

@@ -39,6 +39,16 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
         ballast: controls?.ballast || 0.5,
       });
     }
+
+    return () => {
+      console.info('Cleaning up controls on unmount...');
+      // Reset controls when component unmounts
+      useStore.getState().applyVesselControls({
+        throttle: 0,
+        rudderAngle: 0,
+        ballast: controls?.ballast || 0.5,
+      });
+    };
   }, [throttle, rudderAngle, controls]);
 
   // Toggle simulation running state

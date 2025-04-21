@@ -19,6 +19,16 @@ import React, {
 import * as THREE from 'three';
 import Ship from './Ship';
 import useStore from '../store';
+import MemoryMonitor from './MemoryMonitor';
+
+// Define interfaces for Ocean component props
+interface OceanProps {
+  size: number;
+  resolution: number;
+  position: [number, number, number];
+  waterColor: string;
+  distortionScale: number;
+}
 
 // Import Ocean dynamically to avoid SSR issues
 const Ocean = dynamic(() => import('./Ocean'), { ssr: false });
@@ -27,8 +37,15 @@ const Ocean = dynamic(() => import('./Ocean'), { ssr: false });
 const LowDetailOcean = dynamic(
   () =>
     import('./Ocean').then(mod => ({
-      default: (props: any) => (
-        <mod.default {...props} resolution={64} size={5000} />
+      default: (props: Partial<OceanProps>) => (
+        <mod.default
+          size={5000}
+          resolution={64}
+          position={[0, -0.5, 0]}
+          waterColor="#001e0f"
+          distortionScale={3.7}
+          {...props}
+        />
       ),
     })),
   { ssr: false },
@@ -42,13 +59,37 @@ interface SceneProps {
   };
 }
 
+// Component that handles WebGL context loss events
+function ContextLossHandler({ onContextLost }: { onContextLost: () => void }) {
+  const { gl } = useThree();
+
+  useEffect(() => {
+    // Get the canvas element from the renderer
+    const canvas = gl.domElement;
+
+    const handleContextLost = (event: globalThis.Event) => {
+      event.preventDefault?.();
+      console.warn('WebGL context lost - forcing cleanup');
+      onContextLost();
+    };
+
+    // Add event listener directly to the canvas
+    canvas.addEventListener('webglcontextlost', handleContextLost);
+
+    return () => {
+      canvas.removeEventListener('webglcontextlost', handleContextLost);
+    };
+  }, [gl, onContextLost]);
+
+  return null;
+}
+
 // Performance monitoring component
 function PerformanceMonitor({
   onPerformanceDrop,
 }: {
   onPerformanceDrop: (isLow: boolean) => void;
 }) {
-  const { gl: _gl } = useThree(); // Prefix with underscore to indicate it's not used
   const frameRates: number[] = useRef<number[]>([]).current;
   const lastTime = useRef(performance.now());
   const checkInterval = useRef<number | null>(null);
@@ -82,6 +123,7 @@ function PerformanceMonitor({
     checkInterval.current = window.setInterval(checkPerformance, 1000);
 
     return () => {
+      console.info('Cleaning up performance monitor...');
       if (checkInterval.current) window.clearInterval(checkInterval.current);
     };
   }, [frameRates, onPerformanceDrop]);
@@ -97,8 +139,8 @@ export default function Scene({ vesselPosition }: SceneProps) {
   const [lowPerformanceMode, setLowPerformanceMode] = useState(false);
   const [isTabVisible, setIsTabVisible] = useState(true);
 
-  // Create ref for orbit controls
-  const controlsRef = useRef<any>(null);
+  // Create ref for orbit controls - using typeof to refer to the component value
+  const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null);
 
   // Memory management for disposable objects
   const disposables = useRef<THREE.Object3D[]>([]);
@@ -111,6 +153,7 @@ export default function Scene({ vesselPosition }: SceneProps) {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
+      console.info('Cleaning up visibility change listener...');
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
@@ -119,26 +162,46 @@ export default function Scene({ vesselPosition }: SceneProps) {
   const cleanupScene = useCallback(() => {
     console.info('Cleaning up scene...');
     disposables.current.forEach(obj => {
-      if ((obj as any).geometry) (obj as any).geometry.dispose();
-      if ((obj as any).material) {
-        const materials = Array.isArray((obj as any).material)
-          ? (obj as any).material
-          : [(obj as any).material];
+      const objWithGeometry = obj as unknown as {
+        geometry?: { dispose: () => void };
+      };
+      const objWithMaterial = obj as unknown as {
+        material?: THREE.Material | THREE.Material[];
+      };
 
-        materials.forEach((material: any) => {
+      if (objWithGeometry.geometry) {
+        objWithGeometry.geometry.dispose();
+      }
+
+      if (objWithMaterial.material) {
+        const materials = Array.isArray(objWithMaterial.material)
+          ? objWithMaterial.material
+          : [objWithMaterial.material];
+
+        materials.forEach((material: THREE.Material) => {
           Object.keys(material).forEach(prop => {
+            const value = material[prop as keyof THREE.Material];
             if (
-              material[prop] &&
-              typeof material[prop].dispose === 'function'
+              value &&
+              typeof (value as unknown as { dispose?: () => void }).dispose ===
+                'function'
             ) {
-              material[prop].dispose();
+              (value as unknown as { dispose: () => void }).dispose();
             }
           });
           material.dispose();
         });
       }
     });
+
+    // Clear array and help GC
     disposables.current = [];
+
+    // Attempt to force garbage collection when available
+    const windowWithGC = window as unknown as { gc?: () => void };
+    if (typeof window !== 'undefined' && windowWithGC.gc) {
+      windowWithGC.gc();
+    }
   }, []);
 
   // Cleanup on component unmount
@@ -151,8 +214,12 @@ export default function Scene({ vesselPosition }: SceneProps) {
   // Update the orbit controls target when the ship position changes
   useEffect(() => {
     if (controlsRef.current) {
-      // Set the target to follow the ship
-      controlsRef.current.target.set(vesselPosition.x, 0, vesselPosition.y);
+      // OrbitControls has a target property of type Vector3
+      (controlsRef.current as unknown as { target: THREE.Vector3 }).target.set(
+        vesselPosition.x,
+        0,
+        vesselPosition.y,
+      );
     }
   }, [vesselPosition.x, vesselPosition.y]);
 
@@ -173,6 +240,15 @@ export default function Scene({ vesselPosition }: SceneProps) {
   const OceanComponent =
     isTabVisible && !lowPerformanceMode ? Ocean : LowDetailOcean;
 
+  // Default ocean props
+  const oceanProps: OceanProps = {
+    size: 10000,
+    resolution: lowPerformanceMode ? 128 : 256,
+    position: [0, -0.5, 0],
+    waterColor: '#001e0f',
+    distortionScale: 3.7,
+  };
+
   return (
     <div style={{ width: '100%', height: '100vh' }}>
       <Canvas
@@ -190,6 +266,8 @@ export default function Scene({ vesselPosition }: SceneProps) {
         }}
         performance={{ min: 0.5 }}
       >
+        {/* Context loss handling moved to a separate component */}
+        <ContextLossHandler onContextLost={cleanupScene} />
         <PerformanceMonitor onPerformanceDrop={handlePerformanceDrop} />
         <AdaptiveDpr pixelated />
         <AdaptiveEvents />
@@ -206,7 +284,7 @@ export default function Scene({ vesselPosition }: SceneProps) {
 
         {/* Ocean */}
         <Suspense fallback={null}>
-          <OceanComponent />
+          <OceanComponent {...oceanProps} />
         </Suspense>
 
         {/* Ship at the specified position and heading */}
@@ -234,6 +312,9 @@ export default function Scene({ vesselPosition }: SceneProps) {
           maxPolarAngle={Math.PI * 0.5}
         />
       </Canvas>
+
+      {/* Add memory monitor component */}
+      <MemoryMonitor />
     </div>
   );
 }

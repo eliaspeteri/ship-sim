@@ -108,6 +108,7 @@ export const useLeverDrag = ({
     }
 
     return () => {
+      console.info('Cleaning up event listeners in useLeverDrag');
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = '';

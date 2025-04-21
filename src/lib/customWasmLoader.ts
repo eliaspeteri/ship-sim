@@ -20,7 +20,7 @@ export interface ShipSimWasm {
   __pin?: (ptr: number) => number;
   __unpin?: (ptr: number) => void;
   __collect?: () => void;
-  __getArray?: (ptr: number) => any;
+  __getArray?: (ptr: number) => unknown[];
 
   // Basic math (testing functions)
   add: (a: number, b: number) => number;
@@ -237,8 +237,30 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
  * Clear the cached WebAssembly instance
  */
 export function unloadWasmModule(): void {
-  if (wasmInstance && typeof wasmInstance.__collect === 'function') {
-    wasmInstance.__collect();
+  if (wasmInstance) {
+    try {
+      // Call AssemblyScript's garbage collection
+      if (typeof wasmInstance.__collect === 'function') {
+        wasmInstance.__collect();
+      }
+
+      // Release any explicitly pinned objects
+      if (typeof wasmInstance.__unpin === 'function') {
+        // In a real implementation, you'd keep track of pinned pointers
+        // and unpin them here
+      }
+
+      // Clear reference to the instance to allow GC
+      wasmInstance = null;
+
+      // Force a browser garbage collection hint (not guaranteed)
+      if (typeof window !== 'undefined' && window.gc) {
+        window.gc();
+      }
+
+      console.info('WebAssembly module resources cleaned up');
+    } catch (error) {
+      console.error('Error cleaning up WebAssembly module:', error);
+    }
   }
-  wasmInstance = null;
 }

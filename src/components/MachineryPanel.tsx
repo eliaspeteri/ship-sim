@@ -162,6 +162,18 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
         }, 1000);
       }
     }
+
+    return () => {
+      console.info('Cleaning up machinery panel...');
+      // Cleanup function to reset alarms when component unmounts
+      useStore.getState().updateVessel({
+        alarms: {
+          ...vessel.alarms,
+          engineOverheat: false,
+          lowOilPressure: false,
+        },
+      });
+    };
   }, [
     fuelValveOpen,
     fuelPumpRunning,

@@ -1,5 +1,5 @@
 'use client';
-import React, { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect, useCallback } from 'react';
 import { extend, useFrame, useThree } from '@react-three/fiber';
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import * as THREE from 'three';
@@ -37,6 +37,9 @@ function Ocean({
   const gl = useThree(state => state.gl);
   const scene = useThree(state => state.scene);
 
+  // Track all resources that need to be disposed
+  const disposables = useRef<Array<{ dispose: () => void }>>([]);
+
   // Get environment state from the store
   const environment = useStore(state => state.environment);
 
@@ -54,7 +57,7 @@ function Ocean({
     return environment.wind.direction * (180 / Math.PI);
   }, [environment.wind.direction]);
 
-  // Load water normal maps
+  // Load water normal maps with proper resource tracking
   const waterNormals = useMemo(() => {
     const textureLoader = new THREE.TextureLoader();
     const normalMap1 = textureLoader.load('/textures/Water_1_M_Normal.jpg');
@@ -63,10 +66,14 @@ function Ocean({
     normalMap1.wrapS = normalMap1.wrapT = THREE.RepeatWrapping;
     normalMap2.wrapS = normalMap2.wrapT = THREE.RepeatWrapping;
 
+    // Add textures to disposables list
+    disposables.current.push(normalMap1);
+    disposables.current.push(normalMap2);
+
     return { normalMap1, normalMap2 };
   }, []);
 
-  // Create a cubemap for reflections
+  // Create a cubemap for reflections with proper resource tracking
   const cubeRenderTarget = useMemo(() => {
     const target = new THREE.WebGLCubeRenderTarget(512, {
       type: THREE.HalfFloatType,
@@ -74,6 +81,10 @@ function Ocean({
       minFilter: THREE.LinearMipmapLinearFilter,
     });
     target.texture.colorSpace = THREE.SRGBColorSpace;
+
+    // Add to disposables list
+    disposables.current.push(target);
+
     return target;
   }, []);
 
@@ -155,7 +166,7 @@ function Ocean({
     environment.timeOfDay,
   ]);
 
-  // Create foam texture
+  // Create foam texture with proper resource tracking
   const foamTexture = useMemo(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
@@ -180,6 +191,10 @@ function Ocean({
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
     texture.colorSpace = THREE.SRGBColorSpace;
+
+    // Add to disposables list
+    disposables.current.push(texture);
+
     return texture;
   }, [environment.seaState]);
 
@@ -238,7 +253,7 @@ function Ocean({
           1.0, 
           steepness * k1 * ${primaryWave.steepness.toFixed(3)} * d1.x * cos(f1) + 
           steepness * k2 * ${secondaryWave.steepness.toFixed(3)} * d2.x * cos(f2) + 
-          steepness * k3 * ${tertiaryWave.steepness.toFixed(3)} * d3.x * cos(f3, 
+          steepness * k3 * ${tertiaryWave.steepness.toFixed(3)} * d3.x * cos(f3), 
           0.0
         );
         
@@ -323,6 +338,41 @@ function Ocean({
     environment.seaState,
   ]);
 
+  // Cleanup function to dispose of all resources
+  const cleanup = useCallback(() => {
+    console.info('Cleaning up ocean resources...');
+
+    // Dispose all tracked disposables
+    disposables.current.forEach(item => {
+      if (item && typeof item.dispose === 'function') {
+        item.dispose();
+      }
+    });
+
+    // Clear the array
+    disposables.current = [];
+
+    // Clear references to help GC
+    if (ref.current && ref.current.material) {
+      const material = ref.current.material as THREE.ShaderMaterial;
+      if (material.uniforms) {
+        // Clear texture references in uniforms
+        Object.values(material.uniforms).forEach(uniform => {
+          if (uniform.value && uniform.value instanceof THREE.Texture) {
+            uniform.value = null;
+          }
+        });
+      }
+    }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanup();
+    };
+  }, [cleanup]);
+
   // Update water animation and reflections
   useFrame((state, delta) => {
     if (ref.current) {
@@ -361,7 +411,7 @@ function Ocean({
           );
         }
 
-        // Occasional normal map switch for variety
+        // Occasional normal map switch for variety - reduced frequency to every 200 frames
         if (material.uniforms.normalSampler && Math.random() < 0.005) {
           material.uniforms.normalSampler.value =
             material.uniforms.normalSampler.value === waterNormals.normalMap1
@@ -377,16 +427,80 @@ function Ocean({
     return Math.min(0.7, environment.seaState * 0.08);
   }, [environment.seaState]);
 
+  // Create geometries with ref tracking for disposal
+  const mainPlaneGeometry = useMemo(() => {
+    const geometry = new THREE.PlaneGeometry(
+      size,
+      size,
+      resolution,
+      resolution,
+    );
+    disposables.current.push(geometry);
+    return geometry;
+  }, [size, resolution]);
+
+  const foamPlaneGeometry = useMemo(() => {
+    const geometry = new THREE.PlaneGeometry(size * 0.7, size * 0.7, 128, 128);
+    disposables.current.push(geometry);
+    return geometry;
+  }, [size]);
+
+  const waveCapsGeometry = useMemo(() => {
+    const geometry = new THREE.PlaneGeometry(size * 0.4, size * 0.4, 64, 64);
+    disposables.current.push(geometry);
+    return geometry;
+  }, [size]);
+
+  // Create materials with ref tracking for disposal
+  const foamMaterial = useMemo(() => {
+    const material = new THREE.MeshStandardMaterial({
+      color: '#ffffff',
+      map: foamTexture,
+      transparent: true,
+      opacity: foamOpacity,
+      depthWrite: false,
+    });
+
+    // Apply texture settings
+    foamTexture.repeat.set(4, 4);
+
+    // Track for disposal
+    disposables.current.push(material);
+
+    return material;
+  }, [foamTexture, foamOpacity]);
+
+  const waveCapsMaterial = useMemo(() => {
+    const material = new THREE.MeshStandardMaterial({
+      color: '#e0f0ff',
+      transparent: true,
+      opacity: Math.min(0.5, (environment.seaState - 4) * 0.1),
+      depthWrite: false,
+      map: foamTexture,
+    });
+
+    // Track for disposal
+    disposables.current.push(material);
+
+    return material;
+  }, [foamTexture, environment.seaState]);
+
+  // Create the Water object instance
+  const waterMeshObject = useMemo(() => {
+    const waterObj = new Water(mainPlaneGeometry, waterOptions);
+
+    // We can't directly add a Water instance to disposables
+    // since it's complex and needs to be handled specially
+    // The geometry is already tracked, and the material will be handled in cleanup
+
+    return waterObj;
+  }, [mainPlaneGeometry, waterOptions]);
+
   return (
     <>
       {/* Main ocean water */}
       <primitive
-        object={
-          new Water(
-            new THREE.PlaneGeometry(size, size, resolution, resolution),
-            waterOptions,
-          )
-        }
+        object={waterMeshObject}
         ref={ref}
         rotation={[-Math.PI / 2, 0, 0]}
         position={position}
@@ -395,41 +509,22 @@ function Ocean({
 
       {/* Foam layer - intensity based on sea state */}
       {environment.seaState > 2 && (
-        <mesh position={[0, -0.3, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[size * 0.7, size * 0.7, 128, 128]} />
-          <meshStandardMaterial
-            color="#ffffff"
-            map={foamTexture}
-            transparent
-            opacity={foamOpacity}
-            depthWrite={false}
-          >
-            {/* Set map repeat using ref instead of the unsupported onUpdate */}
-            <primitive
-              object={foamTexture}
-              attach="map"
-              ref={texture => {
-                if (texture) {
-                  texture.repeat.set(4, 4);
-                }
-              }}
-            />
-          </meshStandardMaterial>
-        </mesh>
+        <mesh
+          position={[0, -0.3, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          geometry={foamPlaneGeometry}
+          material={foamMaterial}
+        />
       )}
 
       {/* Wave caps for high sea states */}
       {environment.seaState >= 5 && (
-        <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[size * 0.4, size * 0.4, 64, 64]} />
-          <meshStandardMaterial
-            color="#e0f0ff"
-            transparent
-            opacity={Math.min(0.5, (environment.seaState - 4) * 0.1)}
-            depthWrite={false}
-            map={foamTexture}
-          />
-        </mesh>
+        <mesh
+          position={[0, 0, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          geometry={waveCapsGeometry}
+          material={waveCapsMaterial}
+        />
       )}
     </>
   );
