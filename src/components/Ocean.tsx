@@ -513,7 +513,7 @@ function Ocean({
           position={[0, -0.3, 0]}
           rotation={[-Math.PI / 2, 0, 0]}
           geometry={foamPlaneGeometry}
-          material={foamMaterial}
+          attach={foamMaterial}
         />
       )}
 
@@ -523,7 +523,7 @@ function Ocean({
           position={[0, 0, 0]}
           rotation={[-Math.PI / 2, 0, 0]}
           geometry={waveCapsGeometry}
-          material={waveCapsMaterial}
+          attach={waveCapsMaterial}
         />
       )}
     </>

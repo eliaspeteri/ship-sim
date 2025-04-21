@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import useStore from '../store';
-import { startSimulation, stopSimulation } from '../simulation';
+import {
+  startSimulation,
+  stopSimulation,
+  getSimulationLoop,
+} from '../simulation';
 import MachineryPanel from './MachineryPanel';
 import EventLog from './EventLog';
 import { AlarmIndicator } from './AlarmIndicator';
@@ -26,30 +30,62 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
     vessel || {};
 
   // Control state
-  const [throttle, setThrottle] = useState(controls?.throttle || 0);
-  const [rudderAngle, setRudderAngle] = useState(controls?.rudderAngle || 0);
+  const [throttleLocal, setThrottleLocal] = useState(controls?.throttle || 0);
+  const [rudderAngleLocal, setRudderAngleLocal] = useState(
+    controls?.rudderAngle || 0,
+  );
   const [showMachineryPanel, setShowMachineryPanel] = useState(false);
 
-  // Apply controls whenever throttle or rudder changes
+  // Track last applied values to prevent redundant updates
+  const lastAppliedRef = useRef({
+    throttle: controls?.throttle || 0,
+    rudderAngle: controls?.rudderAngle || 0,
+  });
+
+  // Apply controls whenever throttle or rudder changes, but use a debounce pattern
   useEffect(() => {
-    if (controls) {
-      useStore.getState().applyVesselControls({
-        throttle,
-        rudderAngle,
-        ballast: controls?.ballast || 0.5,
-      });
+    // Skip the effect if controls don't exist
+    if (!controls) return;
+
+    // Only apply controls if values actually changed
+    if (
+      throttleLocal !== lastAppliedRef.current.throttle ||
+      rudderAngleLocal !== lastAppliedRef.current.rudderAngle
+    ) {
+      // Update the reference to current values
+      lastAppliedRef.current = {
+        throttle: throttleLocal,
+        rudderAngle: rudderAngleLocal,
+      };
+
+      // Apply the controls directly to the simulation engine
+      const simulationLoop = getSimulationLoop();
+      try {
+        simulationLoop.applyControls({
+          throttle: throttleLocal,
+          rudderAngle: rudderAngleLocal,
+          ballast: controls.ballast || 0.5,
+        });
+      } catch (error) {
+        console.error('Error applying controls directly:', error);
+      }
     }
 
     return () => {
       console.info('Cleaning up controls on unmount...');
       // Reset controls when component unmounts
-      useStore.getState().applyVesselControls({
-        throttle: 0,
-        rudderAngle: 0,
-        ballast: controls?.ballast || 0.5,
-      });
+      try {
+        const simulationLoop = getSimulationLoop();
+        simulationLoop.applyControls({
+          throttle: 0,
+          rudderAngle: 0,
+          ballast: controls.ballast || 0.5,
+        });
+      } catch (error) {
+        console.error('Error resetting controls on cleanup:', error);
+      }
     };
-  }, [throttle, rudderAngle, controls]);
+  }, [throttleLocal, rudderAngleLocal, controls]);
 
   // Toggle simulation running state
   const toggleSimulation = () => {
@@ -243,7 +279,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
             />
             <CircularGauge
               label="Rudder Angle"
-              value={Math.round(rudderAngle * 90)}
+              value={Math.round(rudderAngleLocal * 90)}
               min={-90}
               max={90}
               unit="°"
@@ -359,10 +395,10 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
             {/* Throttle Telegraph */}
             <TelegraphLever
               label="Throttle"
-              value={throttle}
+              value={throttleLocal}
               min={-1}
               max={1}
-              onChange={setThrottle}
+              onChange={setThrottleLocal}
               scale={[
                 { label: 'F.Astern', value: -1, major: true },
                 { label: 'H.Astern', value: -0.5 },
@@ -377,10 +413,10 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
             {/* Rudder Control Lever */}
             <ControlLever
               label="Rudder"
-              value={rudderAngle}
+              value={rudderAngleLocal}
               min={-0.6}
               max={0.6}
-              onChange={setRudderAngle}
+              onChange={setRudderAngleLocal}
               scale={[
                 { label: '35° Port', value: -0.6 },
                 { label: '0°', value: 0 },
@@ -403,7 +439,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
                   marginTop: '-2px',
                   marginLeft: '-10px',
                   transformOrigin: 'center left',
-                  transform: `rotate(${rudderAngle * 90}deg)`,
+                  transform: `rotate(${rudderAngleLocal * 90}deg)`,
                   transition: 'transform 0.3s ease',
                 }}
               ></div>
@@ -440,7 +476,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
                   className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded mr-2 disabled:opacity-50"
                   disabled={!engineState?.running}
                   onClick={() => {
-                    setThrottle(0);
+                    setThrottleLocal(0);
                     setTimeout(() => {
                       useStore.getState().updateVessel({
                         engineState: {

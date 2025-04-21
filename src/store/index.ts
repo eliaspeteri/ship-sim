@@ -750,28 +750,17 @@ const useStore = create<SimulationState>()(
             },
           }));
 
-          // Then apply the controls to the physics engine
-          try {
-            const simulationLoop = getSimulationLoop();
-            simulationLoop.applyControls(controls);
-          } catch (error) {
-            console.error(
-              'Error applying vessel controls to simulation:',
-              error,
-            );
-          }
           return;
         }
 
-        // Check if there are any actual changes to avoid unnecessary updates
+        // Only update the store if there are actual changes, but always call the simulation
         const hasChanges = Object.entries(controls).some(
           ([key, value]) =>
             currentControls[key as keyof typeof currentControls] !== value,
         );
 
-        // Only update if there are actual changes
+        // Important: Update the store first, then apply to simulation
         if (hasChanges) {
-          // First update the store with the new control values
           set(state => ({
             vessel: {
               ...state.vessel,
@@ -781,18 +770,14 @@ const useStore = create<SimulationState>()(
               },
             },
           }));
+        }
 
-          // Then apply the controls to the physics engine
-          try {
-            const simulationLoop = getSimulationLoop();
-            simulationLoop.applyControls(controls);
-          } catch (error) {
-            console.error(
-              'Error applying vessel controls to simulation:',
-              error,
-            );
-            // No state updates here to avoid circular updates
-          }
+        // Apply controls to physics engine separately, regardless of store updates
+        try {
+          const simulationLoop = getSimulationLoop();
+          simulationLoop.applyControls(controls);
+        } catch (error) {
+          console.error('Error applying vessel controls to simulation:', error);
         }
       },
 

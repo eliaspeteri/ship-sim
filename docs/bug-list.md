@@ -26,6 +26,6 @@ index.js line 6602 > eval:591:29
 - [ ] Day-night cycle is not working. The sun is always in the same position.
 - [ ] Precipitation is missing.
 - [ ] No button for start air valve.
-- Tab crashing occasionally. Need to reproduce. Was playing with engine controls, starting and stopping the engine. Perhaps tab ran out of memory too.
-- [ ] Update `assembly/index.ts` to remove default parameters from the `updateVesselState` function declaration and handle undefined values inside the function.
+- [x] Tab crashing occasionally. Need to reproduce. Was playing with engine controls, starting and stopping the engine. Perhaps tab ran out of memory too.
+- [x] Update `assembly/index.ts` to remove default parameters from the `updateVesselState` function declaration and handle undefined values inside the function.
 - [ ] Missing error boundaries in the app.

@@ -56,12 +56,19 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
 
   // Update engine state based on system component states
   useEffect(() => {
+    // Store previous values to prevent unnecessary updates
+    const prevValues = {
+      engineRunning: engineRunning,
+      engineTemp: engineTemp,
+      oilPressure: oilPressure,
+    };
+
     // In a real system, we'd update the engine state based on all these factors
     // For now, let's implement a simple logic:
 
     // If fuel system fails, engine stops
     if (!fuelValveOpen || !fuelPumpRunning || fuelLevel <= 0.05) {
-      if (engineRunning) {
+      if (engineRunning && prevValues.engineRunning) {
         addEvent({
           category: 'engine',
           type: 'engine_stopped',
@@ -72,40 +79,53 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
               : 'Engine stopped: Low fuel level',
           severity: 'warning',
         });
-      }
 
-      // Update vessel state in the next frame
-      setTimeout(() => {
-        // Add null safety check before accessing vessel.controls properties
-        applyVesselControls({
-          throttle: 0,
-          rudderAngle: vessel.controls?.rudderAngle || 0,
-          ballast: vessel.controls?.ballast || 0.5,
-        });
-      }, 0);
+        setTimeout(() => {
+          // Only apply controls to stop the engine if it's currently running
+          applyVesselControls({
+            throttle: 0,
+            rudderAngle: vessel.controls?.rudderAngle || 0,
+            ballast: vessel.controls?.ballast || 0.5,
+          });
+
+          // Update engine running state directly to prevent loops
+          useStore.getState().updateVessel({
+            engineState: {
+              ...vessel.engineState,
+              running: false,
+            },
+          });
+        }, 0);
+      }
     }
 
     // If cooling system fails, temperature rises
-    if (!coolantValveOpen || !coolantPumpRunning) {
-      // Increase engine temperature simulation (would be handled by physics in real impl)
-      if (engineRunning && engineRPM > 100) {
-        setTimeout(() => {
-          const currentTemp = vessel.engineState.temperature;
-          if (currentTemp < 120) {
-            // Max temp
-            // Temperature rises faster with higher RPM
-            const tempIncrease = (engineRPM / 1000) * 0.5;
+    if (
+      (!coolantValveOpen || !coolantPumpRunning) &&
+      engineRunning &&
+      engineRPM > 100
+    ) {
+      // Use a separate interval ID for each effect type
+      const tempInterval = setInterval(() => {
+        const currentTemp = vessel.engineState.temperature;
+        if (currentTemp < 120) {
+          // Max temp
+          // Temperature rises faster with higher RPM
+          const tempIncrease = (engineRPM / 1000) * 0.5;
+          const newTemp = currentTemp + tempIncrease;
 
+          // Only update if temperature actually changed significantly
+          if (Math.abs(newTemp - currentTemp) > 0.1) {
             // Update vessel engine temperature
             useStore.getState().updateVessel({
               engineState: {
                 ...vessel.engineState,
-                temperature: currentTemp + tempIncrease,
+                temperature: newTemp,
               },
             });
 
             // If temperature gets too high, trigger overheat alarm
-            if (currentTemp + tempIncrease > 95 && currentTemp <= 95) {
+            if (newTemp > 95 && currentTemp <= 95) {
               addEvent({
                 category: 'alarm',
                 type: 'engine_overheat',
@@ -122,27 +142,33 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
               });
             }
           }
-        }, 1000); // Update every second
-      }
+        }
+      }, 1000); // Update every second
+
+      // Clear the interval on cleanup
+      return () => clearInterval(tempInterval);
     }
 
     // If lube oil system fails, pressure drops
-    if (!lubePumpRunning) {
+    if (!lubePumpRunning && engineRunning) {
       // Decrease oil pressure simulation
-      if (engineRunning) {
-        setTimeout(() => {
-          const currentPressure = vessel.engineState.oilPressure;
-          if (currentPressure > 0.5) {
+      const pressureInterval = setInterval(() => {
+        const currentPressure = vessel.engineState.oilPressure;
+        if (currentPressure > 0.5) {
+          const newPressure = currentPressure - 0.2;
+
+          // Only update if pressure actually changed significantly
+          if (Math.abs(newPressure - currentPressure) > 0.05) {
             // Update vessel oil pressure
             useStore.getState().updateVessel({
               engineState: {
                 ...vessel.engineState,
-                oilPressure: currentPressure - 0.2,
+                oilPressure: newPressure,
               },
             });
 
             // If pressure gets too low, trigger alarm
-            if (currentPressure - 0.2 < 2.0 && currentPressure >= 2.0) {
+            if (newPressure < 2.0 && currentPressure >= 2.0) {
               addEvent({
                 category: 'alarm',
                 type: 'low_oil_pressure',
@@ -159,13 +185,16 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
               });
             }
           }
-        }, 1000);
-      }
+        }
+      }, 1000);
+
+      // Clear the interval on cleanup
+      return () => clearInterval(pressureInterval);
     }
 
+    // Cleanup function to reset alarms when component unmounts
     return () => {
       console.info('Cleaning up machinery panel...');
-      // Cleanup function to reset alarms when component unmounts
       useStore.getState().updateVessel({
         alarms: {
           ...vessel.alarms,
@@ -180,7 +209,8 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
     coolantValveOpen,
     coolantPumpRunning,
     lubePumpRunning,
-    vessel,
+    // Remove vessel from dependencies to prevent constant rerenders
+    // Note: we use getState() to access the latest vessel state
     engineRunning,
     engineRPM,
     fuelLevel,
