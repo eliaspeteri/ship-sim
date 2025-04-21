@@ -6,6 +6,7 @@ import EventLog from './EventLog';
 import { AlarmIndicator } from './AlarmIndicator';
 import { CompassRose } from './CompassRose';
 import { ControlLever } from './ControlLever';
+import { TelegraphLever } from './TelegraphLever';
 import { CircularGauge } from './CircularGauge';
 
 interface DashboardProps {
@@ -344,37 +345,38 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
             Controls
           </h2>
 
-          <div className="flex flex-wrap justify-around mb-4">
-            <div>
-              <ControlLever
-                label="Throttle"
-                value={throttle}
-                min={0}
-                max={1}
-                onChange={setThrottle}
-                scale={[
-                  { label: 'Stop', value: 0 },
-                  { label: 'Slow', value: 0.25 },
-                  { label: 'Half', value: 0.5 },
-                  { label: 'Full', value: 1 },
-                ]}
-              />
-            </div>
+          <div className="flex flex-wrap justify-around items-start mb-4">
+            {/* Throttle Telegraph */}
+            <TelegraphLever
+              label="Throttle"
+              value={throttle}
+              min={-1}
+              max={1}
+              onChange={setThrottle}
+              scale={[
+                { label: 'F.Astern', value: -1, major: true },
+                { label: 'H.Astern', value: -0.5 },
+                { label: 'S.Astern', value: -0.25 },
+                { label: 'Stop', value: 0, major: true },
+                { label: 'S.Ahead', value: 0.25 },
+                { label: 'H.Ahead', value: 0.5 },
+                { label: 'F.Ahead', value: 1, major: true },
+              ]}
+            />
 
-            <div>
-              <ControlLever
-                label="Rudder"
-                value={rudderAngle}
-                min={-0.6}
-                max={0.6}
-                onChange={setRudderAngle}
-                scale={[
-                  { label: 'Port', value: -0.6 },
-                  { label: 'Mid', value: 0 },
-                  { label: 'Stbd', value: 0.6 },
-                ]}
-              />
-            </div>
+            {/* Rudder Control Lever */}
+            <ControlLever
+              label="Rudder"
+              value={rudderAngle}
+              min={-0.6}
+              max={0.6}
+              onChange={setRudderAngle}
+              scale={[
+                { label: '35° Port', value: -0.6 },
+                { label: '0°', value: 0 },
+                { label: '35° Stbd', value: 0.6 },
+              ]}
+            />
           </div>
 
           {/* Rudder indicator */}

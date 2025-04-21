@@ -2,7 +2,7 @@
 - [x] Simulation time is not advancing when the simulation is running.
 - [ ] Dashboard is below the canvas. Should be reworked to be on top of the canvas.
 - [ ] Gauges are on top of each other in the dashboard.
-- [ ] Vessel controls are missing. Dashboard only has text "Throttle" and "Rudder".
+- [-] Vessel controls are missing. Dashboard only has text "Throttle" and "Rudder".
 - [ ] Engine isn't running even when turning it on from "start engine" button.
 - [ ] Machinery controls lays pipe schematics on top of the canvas.
 - [ ] Pump controls are working, but they're toggled by clicking a text. They should be toggled from a button.

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useLeverDrag } from '../hooks/useLeverDrag'; // Import the hook
 
-// Control lever component for throttle/rudder
-export const ControlLever: React.FC<{
+interface ControlLeverProps {
   value: number;
   min: number;
   max: number;
@@ -9,89 +9,80 @@ export const ControlLever: React.FC<{
   vertical?: boolean;
   label: string;
   scale?: Array<{ label: string; value: number }>;
-}> = ({ value, min, max, onChange, vertical = false, label, scale }) => {
-  // Calculate normalized position 0-1
-  const normalized = (value - min) / (max - min);
+}
+
+/**
+ * Renders a linear slider control, suitable for rudder or similar inputs.
+ * Uses the useLeverDrag hook for handling drag interactions.
+ */
+export const ControlLever: React.FC<ControlLeverProps> = ({
+  value: initialValue, // Rename prop to avoid conflict with hook's return value
+  min,
+  max,
+  onChange,
+  vertical = false,
+  label,
+  scale,
+}) => {
+  // Use the custom hook to manage drag state and logic
+  const { value, isDragging, handleMouseDown } = useLeverDrag({
+    initialValue,
+    min,
+    max,
+    onChange,
+    dragAxis: vertical ? 'vertical' : 'horizontal',
+  });
+
+  // Calculate normalized position (0-1) based on the current value from the hook
+  const range = max - min;
+  const normalized = range === 0 ? 0 : (value - min) / range;
+  // Invert position for vertical levers so 0 is at the bottom
   const position = vertical ? 1 - normalized : normalized;
-
-  // Handle drag
-  const [isDragging, setIsDragging] = useState(false);
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
-  const [startValue, setStartValue] = useState(value);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    setStartPos({ x: e.clientX, y: e.clientY });
-    setStartValue(value);
-    e.preventDefault();
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging) return;
-
-    // Calculate delta
-    const delta = vertical
-      ? (startPos.y - e.clientY) / 100
-      : (e.clientX - startPos.x) / 100;
-
-    // Calculate new value based on range
-    const range = max - min;
-    const newValue = Math.max(min, Math.min(max, startValue + delta * range));
-
-    onChange(newValue);
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, startPos, startValue]);
 
   return (
     <div className="flex flex-col items-center p-2">
-      <div className="text-white mb-1">{label}</div>
+      <div className="text-white mb-1 text-sm font-semibold">{label}</div>
       <div
         className={`relative ${vertical ? 'h-40 w-10' : 'w-40 h-10'} bg-gray-800 rounded-full border border-gray-600`}
       >
         {/* Scale markings */}
         {scale &&
           scale.map(mark => {
-            const markPos = (mark.value - min) / (max - min);
+            // Calculate position based on the mark's value
+            const markRange = max - min;
+            const markNorm =
+              markRange === 0 ? 0 : (mark.value - min) / markRange;
+            const markPos = vertical ? 1 - markNorm : markNorm; // Invert for vertical
             const posStyle = vertical
-              ? { bottom: `${markPos * 100}%`, left: '100%' }
+              ? { top: `${markPos * 100}%`, left: '100%' } // Use top for vertical
               : { left: `${markPos * 100}%`, top: '100%' };
 
             return (
-              <div key={mark.value} className="absolute" style={posStyle}>
+              <div
+                key={mark.value}
+                className="absolute"
+                style={{
+                  ...posStyle,
+                  // Adjust transform origin based on orientation
+                  transform: vertical ? 'translateY(-50%)' : 'translateX(-50%)',
+                }}
+              >
+                {/* Tick mark */}
                 <div
-                  className="h-2 w-1 bg-white"
+                  className={`${vertical ? 'h-1 w-2' : 'h-2 w-1'} bg-gray-400`}
                   style={{
-                    transform: vertical
-                      ? 'translateY(50%)'
-                      : 'translateX(-50%)',
-                    marginLeft: vertical ? '5px' : '0',
-                    marginTop: vertical ? '0' : '5px',
+                    marginLeft: vertical ? '4px' : '0',
+                    marginTop: vertical ? '0' : '4px',
                   }}
                 />
+                {/* Label text */}
                 <div
-                  className="text-white text-xs"
-                  style={{
-                    transform: vertical
-                      ? 'translateY(50%)'
-                      : 'translateX(-50%)',
-                    marginLeft: vertical ? '8px' : '0',
-                    marginTop: vertical ? '0' : '8px',
-                  }}
+                  className="text-gray-400 text-xs absolute whitespace-nowrap"
+                  style={
+                    vertical
+                      ? { transform: 'translateY(-50%)', left: '10px' } // Position right for vertical
+                      : { transform: 'translateX(-50%)', top: '10px' } // Position below for horizontal
+                  }
                 >
                   {mark.label}
                 </div>
@@ -99,32 +90,34 @@ export const ControlLever: React.FC<{
             );
           })}
 
-        {/* Track active section */}
+        {/* Track active section (visual feedback) */}
         <div
-          className={`absolute ${vertical ? 'w-full' : 'h-full'} bg-blue-500 rounded-full`}
+          className={`absolute ${vertical ? 'w-full bottom-0' : 'h-full left-0'} bg-blue-600 rounded-full`}
           style={
             vertical
-              ? { bottom: 0, height: `${normalized * 100}%` }
-              : { left: 0, width: `${normalized * 100}%` }
+              ? { height: `${normalized * 100}%` } // Height from bottom
+              : { width: `${normalized * 100}%` } // Width from left
           }
         />
 
-        {/* Lever handle */}
+        {/* Lever handle - Attach mouse down handler here */}
         <div
-          className={`absolute cursor-grab ${isDragging ? 'cursor-grabbing' : ''} w-8 h-8 rounded-full bg-gray-300 border-2 border-gray-500`}
+          className={`absolute ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} w-8 h-8 rounded-full bg-gray-300 hover:bg-gray-200 border-2 border-gray-500 shadow-md`}
           style={
             vertical
-              ? { bottom: `calc(${position * 100}% - 16px)`, left: '1px' }
-              : { left: `calc(${position * 100}% - 16px)`, top: '1px' }
+              ? { top: `calc(${position * 100}% - 16px)`, left: '4px' } // Use top, adjust horizontal position
+              : { left: `calc(${position * 100}% - 16px)`, top: '4px' } // Adjust vertical position
           }
           onMouseDown={handleMouseDown}
         />
       </div>
 
       {/* Value display */}
-      <div className="mt-1">
-        <span className="text-white font-mono">
-          {typeof value === 'number' && value.toFixed(2)}
+      <div className="mt-2 min-h-[1.5em]">
+        {' '}
+        {/* Reserve space */}
+        <span className="text-white font-mono text-sm">
+          {typeof value === 'number' ? value.toFixed(2) : ''}
         </span>
       </div>
     </div>
