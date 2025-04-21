@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import useStore from '../store';
 import { WeatherVisualizer } from './WeatherVisualizer';
+import socketManager from '../networking/socket';
 
 interface EnvironmentControlsProps {
   className?: string;
@@ -11,8 +12,10 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
 }) => {
   // Get environment state from store
   const environment = useStore(state => state.environment);
-  const updateEnvironment = useStore(state => state.updateEnvironment);
-  const setDayNightCycle = useStore(state => state.setDayNightCycle);
+
+  // Check if current user is an admin
+  const isAdmin = socketManager.isAdminUser();
+  const isConnected = socketManager.isConnected();
 
   // Local state for the form
   const [windSpeed, setWindSpeed] = useState(environment.wind.speed);
@@ -25,176 +28,107 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
     environment.current.direction,
   );
   const [seaState, setSeaState] = useState(environment.seaState);
-  const [visibility, setVisibility] = useState(environment.visibility);
-  const [timeOfDay, setTimeOfDay] = useState(environment.timeOfDay);
+  const [visibility, setVisibility] = useState(environment.visibility || 10);
+  const [timeOfDay, setTimeOfDay] = useState(environment.timeOfDay || 12);
   const [precipitation, setPrecipitation] = useState<
     'none' | 'rain' | 'snow' | 'fog'
-  >(environment.precipitation);
+  >(environment.precipitation || 'none');
   const [precipitationIntensity, setPrecipitationIntensity] = useState(
-    environment.precipitationIntensity,
+    environment.precipitationIntensity || 0,
   );
-  const [autoDayNight, setAutoDayNight] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<string>('');
+  const [randomWeather, setRandomWeather] = useState(true);
 
-  // Handle applying changes to the environment
+  // Update local state when environment changes (from server)
+  useEffect(() => {
+    setWindSpeed(environment.wind.speed);
+    setWindDirection(environment.wind.direction);
+    setWindGusting(environment.wind.gusting || false);
+    setCurrentSpeed(environment.current.speed);
+    setCurrentDirection(environment.current.direction);
+    setSeaState(environment.seaState);
+    setVisibility(environment.visibility || 10);
+    setTimeOfDay(environment.timeOfDay || 12);
+    setPrecipitation(environment.precipitation || 'none');
+    setPrecipitationIntensity(environment.precipitationIntensity || 0);
+  }, [environment]);
+
+  // Handle applying changes to the environment (admin only)
   const handleApplyChanges = () => {
-    updateEnvironment({
-      wind: {
-        speed: windSpeed,
-        direction: windDirection,
-        gusting: windGusting,
-        gustFactor: environment.wind.gustFactor,
-      },
-      current: {
-        speed: currentSpeed,
-        direction: currentDirection,
-        variability: environment.current.variability,
-      },
-      seaState: seaState,
-      visibility: visibility,
-      timeOfDay: timeOfDay,
-      precipitation: precipitation,
-      precipitationIntensity: precipitationIntensity,
-      // Keep existing values for other properties
-      waterDepth: environment.waterDepth,
-      waveHeight: calculateWaveHeight(seaState),
-      waveDirection: windDirection, // Assume waves generally follow wind direction
-      waveLength: environment.waveLength,
-    });
+    if (!isAdmin) {
+      return;
+    }
 
-    // Update day/night cycle if checkbox is checked
-    setDayNightCycle(autoDayNight);
+    // Send weather control command to server
+    socketManager.sendWeatherControl(selectedPreset);
+
+    // Clear selected preset
+    setSelectedPreset('');
   };
 
-  // Calculate approximate wave height from sea state
-  const calculateWaveHeight = (state: number): number => {
-    // Douglas Sea Scale approximate wave heights
-    const heights = [0, 0.1, 0.2, 0.6, 1.5, 2.5, 4, 6, 9, 14, 14, 14, 14];
-    return heights[Math.min(state, heights.length - 1)];
+  // Enable or disable random weather changes
+  const toggleRandomWeather = () => {
+    setRandomWeather(!randomWeather);
+
+    if (!randomWeather) {
+      socketManager.enableRandomWeather();
+    }
   };
 
   // Convert radians to degrees for display
   const radToDeg = (rad: number) => Math.round((rad * 180) / Math.PI);
 
-  // Convert degrees to radians for input
-  const degToRad = (deg: number) => (deg * Math.PI) / 180;
-
-  // Preview of current settings
-  const previewEnvironment = {
-    wind: {
-      speed: windSpeed,
-      direction: windDirection,
-      gusting: windGusting,
-      gustFactor: environment.wind.gustFactor,
-    },
-    current: {
-      speed: currentSpeed,
-      direction: currentDirection,
-      variability: environment.current.variability,
-    },
-    seaState: seaState,
-    visibility: visibility,
-    timeOfDay: timeOfDay,
-    precipitation: precipitation,
-    precipitationIntensity: precipitationIntensity,
-  };
-
   return (
     <div
       className={`${className} rounded-lg bg-gray-800 bg-opacity-70 p-4 text-white`}
     >
-      <h2 className="mb-3 text-xl font-bold">Environment Controls</h2>
+      <h2 className="mb-3 text-xl font-bold">Environment Status</h2>
 
       {/* Environment visualizer */}
-      <WeatherVisualizer weatherState={previewEnvironment} />
+      <WeatherVisualizer weatherState={environment} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        {/* Wind Controls */}
+        {/* Wind Information */}
         <div className="space-y-2 bg-gray-900 bg-opacity-50 p-3 rounded-lg">
           <h3 className="font-semibold border-b border-gray-700 pb-1">Wind</h3>
 
           <div className="flex items-center">
-            <label className="w-24">Speed (m/s):</label>
-            <input
-              type="range"
-              min="0"
-              max="30"
-              step="0.5"
-              value={windSpeed}
-              onChange={e => setWindSpeed(parseFloat(e.target.value))}
-              className="mx-2 w-32"
-            />
-            <span className="w-12">{windSpeed.toFixed(1)}</span>
+            <label className="w-24">Speed:</label>
+            <span className="w-32">{windSpeed.toFixed(1)} m/s</span>
           </div>
 
           <div className="flex items-center">
-            <label className="w-24">Direction (°):</label>
-            <input
-              type="range"
-              min="0"
-              max="359"
-              step="1"
-              value={radToDeg(windDirection)}
-              onChange={e =>
-                setWindDirection(degToRad(parseInt(e.target.value)))
-              }
-              className="mx-2 w-32"
-            />
-            <span className="w-12">{radToDeg(windDirection)}°</span>
+            <label className="w-24">Direction:</label>
+            <span className="w-32">{radToDeg(windDirection)}°</span>
           </div>
 
           <div className="flex items-center">
             <label className="w-24">Gusting:</label>
-            <input
-              type="checkbox"
-              checked={windGusting}
-              onChange={e => setWindGusting(e.target.checked)}
-              className="mx-2"
-            />
             <span className="w-32">
               {windGusting ? 'Variable winds' : 'Steady wind'}
             </span>
           </div>
         </div>
 
-        {/* Current Controls */}
+        {/* Current Information */}
         <div className="space-y-2 bg-gray-900 bg-opacity-50 p-3 rounded-lg">
           <h3 className="font-semibold border-b border-gray-700 pb-1">
             Current
           </h3>
 
           <div className="flex items-center">
-            <label className="w-24">Speed (m/s):</label>
-            <input
-              type="range"
-              min="0"
-              max="5"
-              step="0.1"
-              value={currentSpeed}
-              onChange={e => setCurrentSpeed(parseFloat(e.target.value))}
-              className="mx-2 w-32"
-            />
-            <span className="w-12">{currentSpeed.toFixed(1)}</span>
+            <label className="w-24">Speed:</label>
+            <span className="w-32">{currentSpeed.toFixed(1)} m/s</span>
           </div>
 
           <div className="flex items-center">
-            <label className="w-24">Direction (°):</label>
-            <input
-              type="range"
-              min="0"
-              max="359"
-              step="1"
-              value={radToDeg(currentDirection)}
-              onChange={e =>
-                setCurrentDirection(degToRad(parseInt(e.target.value)))
-              }
-              className="mx-2 w-32"
-            />
-            <span className="w-12">{radToDeg(currentDirection)}°</span>
+            <label className="w-24">Direction:</label>
+            <span className="w-32">{radToDeg(currentDirection)}°</span>
           </div>
         </div>
       </div>
 
-      {/* Sea State Control */}
+      {/* Sea State Information */}
       <div className="mt-4 bg-gray-900 bg-opacity-50 p-3 rounded-lg">
         <h3 className="font-semibold border-b border-gray-700 pb-1">
           Sea Conditions
@@ -202,15 +136,6 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
 
         <div className="flex items-center mt-2">
           <label className="w-24">Sea State:</label>
-          <input
-            type="range"
-            min="0"
-            max="9"
-            step="1"
-            value={seaState}
-            onChange={e => setSeaState(parseInt(e.target.value))}
-            className="mx-2 w-32"
-          />
           <span className="w-48">
             {seaState} - {getSeaStateDescription(seaState)}
           </span>
@@ -219,12 +144,15 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
         <div className="flex items-center mt-2">
           <label className="w-24">Wave Height:</label>
           <span className="w-32">
-            {calculateWaveHeight(seaState).toFixed(1)} m
+            {(environment.waveHeight || calculateWaveHeight(seaState)).toFixed(
+              1,
+            )}{' '}
+            m
           </span>
         </div>
       </div>
 
-      {/* Visibility and Time Controls */}
+      {/* Visibility and Time Information */}
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-gray-900 bg-opacity-50 p-3 rounded-lg">
           <h3 className="font-semibold border-b border-gray-700 pb-1">
@@ -233,46 +161,17 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
 
           <div className="flex items-center mt-2">
             <label className="w-24">Visibility:</label>
-            <input
-              type="range"
-              min="0.1"
-              max="10"
-              step="0.1"
-              value={visibility}
-              onChange={e => setVisibility(parseFloat(e.target.value))}
-              className="mx-2 w-32"
-            />
-            <span className="w-20">{visibility.toFixed(1)} nm</span>
+            <span className="w-20">{visibility?.toFixed(1)} nm</span>
           </div>
 
           <div className="flex items-center mt-2">
             <label className="w-24">Time:</label>
-            <input
-              type="range"
-              min="0"
-              max="24"
-              step="0.5"
-              value={timeOfDay}
-              onChange={e => setTimeOfDay(parseFloat(e.target.value))}
-              className="mx-2 w-32"
-            />
             <span className="w-20">
-              {Math.floor(timeOfDay)}:
-              {Math.floor((timeOfDay % 1) * 60)
+              {Math.floor(timeOfDay || 12)}:
+              {Math.floor(((timeOfDay || 12) % 1) * 60)
                 .toString()
                 .padStart(2, '0')}
             </span>
-          </div>
-
-          <div className="flex items-center mt-2">
-            <label className="w-24">Auto Cycle:</label>
-            <input
-              type="checkbox"
-              checked={autoDayNight}
-              onChange={e => setAutoDayNight(e.target.checked)}
-              className="mx-2"
-            />
-            <span className="w-32">Day/Night Cycle</span>
           </div>
         </div>
 
@@ -283,32 +182,14 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
 
           <div className="flex items-center mt-2">
             <label className="w-24">Type:</label>
-            <select
-              value={precipitation}
-              onChange={e => setPrecipitation(e.target.value as any)}
-              className="mx-2 w-32 bg-gray-700 rounded p-1"
-            >
-              <option value="none">None</option>
-              <option value="rain">Rain</option>
-              <option value="snow">Snow</option>
-              <option value="fog">Fog</option>
-            </select>
+            <span className="w-32">
+              {precipitation.charAt(0).toUpperCase() + precipitation.slice(1)}
+            </span>
           </div>
 
           {precipitation !== 'none' && (
             <div className="flex items-center mt-2">
               <label className="w-24">Intensity:</label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={precipitationIntensity}
-                onChange={e =>
-                  setPrecipitationIntensity(parseFloat(e.target.value))
-                }
-                className="mx-2 w-32"
-              />
               <span className="w-20">
                 {precipitationIntensity < 0.3
                   ? 'Light'
@@ -321,121 +202,109 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
         </div>
       </div>
 
-      {/* Presets */}
-      <div className="mt-4 bg-gray-900 bg-opacity-50 p-3 rounded-lg">
-        <h3 className="font-semibold border-b border-gray-700 pb-1">
-          Weather Presets
-        </h3>
+      {/* Admin Controls - only visible to admin users */}
+      {isAdmin && isConnected && (
+        <div className="mt-4 bg-gray-700 bg-opacity-50 p-3 rounded-lg border border-blue-500">
+          <h3 className="font-semibold border-b border-gray-500 pb-1 text-blue-300">
+            Admin Weather Controls
+          </h3>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-          <button
-            className="bg-blue-600 hover:bg-blue-700 py-1 px-2 rounded"
-            onClick={() => {
-              setWindSpeed(2);
-              setSeaState(1);
-              setPrecipitation('none');
-              setPrecipitationIntensity(0);
-              setVisibility(10);
-              setTimeOfDay(12);
-            }}
-          >
-            Calm
-          </button>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+            <button
+              className={`py-1 px-2 rounded ${selectedPreset === 'calm' ? 'bg-blue-800' : 'bg-blue-600 hover:bg-blue-700'}`}
+              onClick={() => setSelectedPreset('calm')}
+            >
+              Calm
+            </button>
 
-          <button
-            className="bg-teal-600 hover:bg-teal-700 py-1 px-2 rounded"
-            onClick={() => {
-              setWindSpeed(8);
-              setSeaState(3);
-              setPrecipitation('none');
-              setPrecipitationIntensity(0);
-              setVisibility(8);
-              setTimeOfDay(14);
-            }}
-          >
-            Moderate
-          </button>
+            <button
+              className={`py-1 px-2 rounded ${selectedPreset === 'moderate' ? 'bg-teal-800' : 'bg-teal-600 hover:bg-teal-700'}`}
+              onClick={() => setSelectedPreset('moderate')}
+            >
+              Moderate
+            </button>
 
-          <button
-            className="bg-yellow-600 hover:bg-yellow-700 py-1 px-2 rounded"
-            onClick={() => {
-              setWindSpeed(15);
-              setSeaState(5);
-              setPrecipitation('rain');
-              setPrecipitationIntensity(0.5);
-              setVisibility(3);
-              setTimeOfDay(16);
-            }}
-          >
-            Stormy
-          </button>
+            <button
+              className={`py-1 px-2 rounded ${selectedPreset === 'stormy' ? 'bg-yellow-800' : 'bg-yellow-600 hover:bg-yellow-700'}`}
+              onClick={() => setSelectedPreset('stormy')}
+            >
+              Stormy
+            </button>
 
-          <button
-            className="bg-red-600 hover:bg-red-700 py-1 px-2 rounded"
-            onClick={() => {
-              setWindSpeed(25);
-              setSeaState(8);
-              setPrecipitation('rain');
-              setPrecipitationIntensity(0.9);
-              setVisibility(1);
-              setTimeOfDay(17);
-            }}
-          >
-            Hurricane
-          </button>
+            <button
+              className={`py-1 px-2 rounded ${selectedPreset === 'hurricane' ? 'bg-red-800' : 'bg-red-600 hover:bg-red-700'}`}
+              onClick={() => setSelectedPreset('hurricane')}
+            >
+              Hurricane
+            </button>
 
-          <button
-            className="bg-blue-800 hover:bg-blue-900 py-1 px-2 rounded"
-            onClick={() => {
-              setWindSpeed(5);
-              setSeaState(2);
-              setPrecipitation('none');
-              setPrecipitationIntensity(0);
-              setVisibility(10);
-              setTimeOfDay(21);
-            }}
-          >
-            Night
-          </button>
+            <button
+              className={`py-1 px-2 rounded ${selectedPreset === 'night' ? 'bg-blue-900' : 'bg-blue-800 hover:bg-blue-900'}`}
+              onClick={() => setSelectedPreset('night')}
+            >
+              Night
+            </button>
 
-          <button
-            className="bg-gray-500 hover:bg-gray-600 py-1 px-2 rounded"
-            onClick={() => {
-              setWindSpeed(3);
-              setSeaState(1);
-              setPrecipitation('fog');
-              setPrecipitationIntensity(0.8);
-              setVisibility(0.5);
-              setTimeOfDay(10);
-            }}
-          >
-            Foggy
-          </button>
+            <button
+              className={`py-1 px-2 rounded ${selectedPreset === 'foggy' ? 'bg-gray-600' : 'bg-gray-500 hover:bg-gray-600'}`}
+              onClick={() => setSelectedPreset('foggy')}
+            >
+              Foggy
+            </button>
 
-          <button
-            className="bg-blue-200 hover:bg-blue-300 text-gray-900 py-1 px-2 rounded"
-            onClick={() => {
-              setWindSpeed(10);
-              setSeaState(4);
-              setPrecipitation('snow');
-              setPrecipitationIntensity(0.7);
-              setVisibility(2);
-              setTimeOfDay(14);
-            }}
-          >
-            Winter
-          </button>
+            <button
+              className={`py-1 px-2 rounded ${selectedPreset === 'winter' ? 'bg-blue-300 text-gray-800' : 'bg-blue-200 hover:bg-blue-300 text-gray-900'}`}
+              onClick={() => setSelectedPreset('winter')}
+            >
+              Winter
+            </button>
+          </div>
+
+          <div className="flex items-center mt-4">
+            <label className="w-40">Random Weather:</label>
+            <input
+              type="checkbox"
+              checked={randomWeather}
+              onChange={toggleRandomWeather}
+              className="mx-2"
+            />
+            <span className="w-40">
+              {randomWeather ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
+
+          <div className="mt-4 text-right">
+            <button
+              onClick={handleApplyChanges}
+              disabled={!selectedPreset && randomWeather}
+              className={`rounded px-4 py-2 font-bold text-white transition-colors ${
+                !selectedPreset && randomWeather
+                  ? 'bg-gray-500 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+            >
+              {randomWeather
+                ? 'Enable Random Weather'
+                : 'Apply Selected Weather'}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Apply Changes Button */}
-      <div className="mt-4 text-right">
-        <button
-          onClick={handleApplyChanges}
-          className="rounded bg-blue-600 px-4 py-2 font-bold text-white hover:bg-blue-700 transition-colors"
-        >
-          Apply Changes
-        </button>
+      {/* Server connection status */}
+      <div className="mt-4 text-center text-xs text-gray-400">
+        {isConnected ? (
+          <span className="flex items-center justify-center">
+            <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+            Connected to weather server
+          </span>
+        ) : (
+          <span className="flex items-center justify-center">
+            <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+            Disconnected from weather server
+          </span>
+        )}
+        {isAdmin && <span className="ml-2">(Admin Mode)</span>}
       </div>
 
       <style>{`
@@ -468,6 +337,13 @@ function getSeaStateDescription(state: number): string {
   ];
 
   return descriptions[Math.min(state, descriptions.length - 1)];
+}
+
+// Calculate approximate wave height from sea state
+function calculateWaveHeight(state: number): number {
+  // Douglas Sea Scale approximate wave heights
+  const heights = [0, 0.1, 0.2, 0.6, 1.5, 2.5, 4, 6, 9, 14, 14, 14, 14];
+  return heights[Math.min(state, heights.length - 1)];
 }
 
 export default EnvironmentControls;

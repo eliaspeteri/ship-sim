@@ -5,11 +5,7 @@ import useStore from '../store';
 interface SimulationUpdateData {
   timestamp: number;
   vessels: Record<string, VesselState>;
-  environment: {
-    wind: { speed: number; direction: number };
-    current: { speed: number; direction: number };
-    seaState: number;
-  };
+  environment: EnvironmentUpdateData;
 }
 
 interface VesselState {
@@ -49,15 +45,35 @@ interface EnvironmentUpdateData {
     gusting: boolean;
     gustFactor: number;
   };
-  current: { speed: number; direction: number; variability: number };
+  current: {
+    speed: number;
+    direction: number;
+    variability: number;
+  };
   seaState: number;
+  waterDepth?: number;
+  waveHeight?: number;
+  waveDirection?: number;
+  waveLength?: number;
+  visibility?: number;
+  timeOfDay?: number;
+  precipitation?: 'none' | 'rain' | 'snow' | 'fog';
+  precipitationIntensity?: number;
+  name?: string;
+}
+
+interface ChatMessageData {
+  userId: string;
+  username: string;
+  message: string;
 }
 
 // Socket.IO Client Manager
 class SocketManager {
   // Use any type for now to avoid TypeScript errors
-  private socket: any = null;
+  private socket: ReturnType<typeof io> | null = null;
   private userId: string;
+  private isAdmin: boolean = false;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private connectionAttempts = 0;
   private maxReconnectAttempts = 5;
@@ -67,12 +83,16 @@ class SocketManager {
   }
 
   // Connect to Socket.IO server
-  connect(url: string = 'http://localhost:3001'): void {
+  connect(
+    url: string = 'http://localhost:3001',
+    isAdmin: boolean = false,
+  ): void {
     if (this.socket) {
       console.warn('Socket connection already exists. Disconnecting first.');
       this.disconnect();
     }
 
+    this.isAdmin = isAdmin;
     console.info(`Connecting to Socket.IO server at ${url}`);
 
     this.socket = io(url, {
@@ -82,6 +102,7 @@ class SocketManager {
       timeout: 10000,
       auth: {
         userId: this.userId,
+        isAdmin: this.isAdmin,
       },
     });
 
@@ -137,6 +158,18 @@ class SocketManager {
       this.handleEnvironmentUpdate(data);
     });
 
+    this.socket.on('chat:message', (data: ChatMessageData) => {
+      // Add to event log for now
+      if (data.userId === 'system') {
+        useStore.getState().addEvent({
+          category: 'system',
+          type: 'notification',
+          message: `${data.username}: ${data.message}`,
+          severity: 'info',
+        });
+      }
+    });
+
     this.socket.on('error', (error: unknown) => {
       console.error('Socket.IO error:', error);
     });
@@ -189,8 +222,34 @@ class SocketManager {
     this.socket.emit('vessel:control', controlData);
   }
 
+  // Send admin weather control command
+  sendWeatherControl(
+    pattern?: string,
+    coordinates?: { lat: number; lng: number },
+  ): void {
+    if (!this.socket?.connected || !this.isAdmin) {
+      console.warn('Cannot send weather control: not connected or not admin');
+      return;
+    }
+
+    this.socket.emit('admin:weather', { pattern, coordinates });
+  }
+
+  // Enable random weather changes
+  enableRandomWeather(): void {
+    if (!this.socket?.connected || !this.isAdmin) {
+      console.warn('Cannot enable random weather: not connected or not admin');
+      return;
+    }
+
+    this.socket.emit('admin:weather', {});
+  }
+
   // Update vessel position with both parameters properly prefixed with underscore
-  updateVesselPosition(_position: any, _vesselData: any) {
+  updateVesselPosition(
+    _position: { x: number; y: number; z: number },
+    _vesselData: VesselState,
+  ) {
     // Function implementation
   }
 
@@ -238,6 +297,11 @@ class SocketManager {
   // Check if we're connected to the server
   isConnected(): boolean {
     return this.socket?.connected || false;
+  }
+
+  // Check if current user is admin
+  isAdminUser(): boolean {
+    return this.isAdmin;
   }
 }
 

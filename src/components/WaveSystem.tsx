@@ -25,6 +25,7 @@ const WaveSystem: React.FC<WaveSystemProps> = ({
 }) => {
   // References to mesh and material
   const meshRef = useRef<THREE.Mesh>(null);
+  console.info('WaveSystem component initialized');
 
   // Get environment state from store
   const environment = useStore(state => state.environment);
@@ -249,6 +250,7 @@ const WaveSystem: React.FC<WaveSystemProps> = ({
             environment.wind.speed,
             environment.wind.direction,
           );
+          console.info('Wave properties:', waveProps);
 
           // Extract wave properties from returned array
           const waveHeight = waveProps[0];
@@ -267,6 +269,7 @@ const WaveSystem: React.FC<WaveSystemProps> = ({
             waveDirection,
             environment.seaState,
           );
+          console.info('Wave height at vessel position:', height);
 
           // Get current phase based on position and time
           const k = (2.0 * Math.PI) / waveLength;

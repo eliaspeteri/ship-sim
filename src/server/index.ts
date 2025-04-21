@@ -4,6 +4,13 @@ import { Server } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
 import cors from 'cors';
 import apiRoutes from './api';
+import {
+  generateRandomWeather,
+  getWeatherPattern,
+  transitionWeather,
+  getWeatherByCoordinates,
+  WeatherPattern,
+} from './weatherSystem';
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
@@ -26,6 +33,10 @@ type ClientToServerEvents = {
   'vessel:update': (data: VesselUpdateData) => void;
   'vessel:control': (data: VesselControlData) => void;
   'simulation:state': (data: { isRunning: boolean }) => void;
+  'admin:weather': (data: {
+    pattern?: string;
+    coordinates?: { lat: number; lng: number };
+  }) => void;
   'chat:message': (data: { message: string }) => void;
 };
 
@@ -37,6 +48,7 @@ interface SocketData {
   userId: string;
   username?: string;
   vesselType?: string;
+  isAdmin?: boolean;
 }
 
 // Define data interface types
@@ -54,9 +66,27 @@ interface VesselState {
 }
 
 interface EnvironmentState {
-  wind: { speed: number; direction: number };
-  current: { speed: number; direction: number };
+  wind: {
+    speed: number;
+    direction: number;
+    gusting?: boolean;
+    gustFactor?: number;
+  };
+  current: {
+    speed: number;
+    direction: number;
+    variability?: number;
+  };
   seaState: number;
+  waterDepth?: number;
+  waveHeight?: number;
+  waveDirection?: number;
+  waveLength?: number;
+  visibility?: number;
+  timeOfDay?: number;
+  precipitation?: 'none' | 'rain' | 'snow' | 'fog';
+  precipitationIntensity?: number;
+  name?: string;
 }
 
 interface VesselJoinedData {
@@ -82,16 +112,21 @@ interface VesselControlData {
   rudderAngle?: number;
 }
 
+// Weather system variables
+let targetWeather: WeatherPattern | null = null;
+let currentWeatherTick = 0;
+const WEATHER_TRANSITION_TICKS = 600; // 60 seconds at 10 ticks/s
+// Using underscore prefix to indicate intentionally unused variable for future use
+let _weatherUpdateInterval: NodeJS.Timeout | null = null;
+let randomWeatherEnabled = true;
+
 // Global state to track connected vessels and environment
 const globalState = {
   vessels: {} as Record<string, VesselState>,
-  environment: {
-    wind: { speed: 5, direction: 0 },
-    current: { speed: 0.5, direction: Math.PI / 4 },
-    seaState: 3,
-    waterDepth: 100,
-  } as EnvironmentState,
+  environment: getWeatherPattern('moderate') as EnvironmentState,
   lastUpdate: Date.now(),
+  lastWeatherChange: Date.now(),
+  weatherTransitionStart: Date.now(),
 };
 
 // Create Express app
@@ -127,6 +162,15 @@ io.on('connection', socket => {
     socket.handshake.auth.userId ||
     `user_${Math.random().toString(36).substring(2, 9)}`;
   console.info(`Socket connected: ${userId}`);
+
+  // Check if the user is an admin
+  const isAdmin = socket.handshake.auth.isAdmin === true;
+
+  // Set the socket data
+  socket.data.userId = userId;
+  socket.data.username = socket.handshake.auth.username || 'Anonymous';
+  socket.data.vesselType = socket.handshake.auth.vesselType || 'default';
+  socket.data.isAdmin = isAdmin;
 
   // Add user to global state
   globalState.vessels[userId] = {
@@ -185,6 +229,41 @@ io.on('connection', socket => {
     // In a full implementation, this would affect the global simulation
   });
 
+  // Handle admin weather control
+  socket.on('admin:weather', data => {
+    // Only admins can change the weather
+    if (!socket.data.isAdmin) {
+      socket.emit('error', 'Not authorized to change weather');
+      return;
+    }
+
+    console.info(`Weather update from admin ${userId}:`, data);
+
+    if (data.pattern) {
+      // Set specific weather pattern
+      targetWeather = getWeatherPattern(data.pattern);
+      startWeatherTransition();
+      randomWeatherEnabled = false;
+    } else if (data.coordinates) {
+      // Get weather based on Earth coordinates
+      const { lat, lng } = data.coordinates;
+      targetWeather = getWeatherByCoordinates(lat, lng);
+      startWeatherTransition();
+      randomWeatherEnabled = false;
+    } else {
+      // Enable random weather
+      randomWeatherEnabled = true;
+      scheduleRandomWeather();
+    }
+
+    // Notify all clients about the weather change
+    io.emit('chat:message', {
+      userId: 'system',
+      username: 'Weather System',
+      message: `Weather is changing to ${targetWeather?.name || 'a random pattern'}`,
+    });
+  });
+
   // Handle chat messages
   socket.on(
     'chat:message',
@@ -213,6 +292,83 @@ io.on('connection', socket => {
     persistState();
   });
 });
+
+// Start the weather system
+function startWeatherSystem() {
+  // Schedule initial random weather if enabled
+  if (randomWeatherEnabled) {
+    scheduleRandomWeather();
+  }
+
+  // Update weather every 100ms (for smooth transitions)
+  _weatherUpdateInterval = setInterval(() => updateWeather(), 100);
+}
+
+// Schedule a random weather change
+function scheduleRandomWeather() {
+  // Random interval between 5-15 minutes
+  const delay = 5 * 60 * 1000 + Math.random() * 10 * 60 * 1000;
+
+  setTimeout(() => {
+    // Only change if random weather is still enabled
+    if (randomWeatherEnabled) {
+      console.info('Generating new random weather pattern');
+      targetWeather = generateRandomWeather();
+      startWeatherTransition();
+
+      // Notify all clients
+      io.emit('chat:message', {
+        userId: 'system',
+        username: 'Weather System',
+        message: `Weather is changing to ${targetWeather.name}`,
+      });
+
+      // Schedule the next change
+      scheduleRandomWeather();
+    }
+  }, delay);
+}
+
+// Start weather transition
+function startWeatherTransition() {
+  currentWeatherTick = 0;
+  globalState.weatherTransitionStart = Date.now();
+}
+
+// Update weather (called every tick)
+function updateWeather() {
+  // Skip if no target weather or already at target
+  if (!targetWeather || currentWeatherTick >= WEATHER_TRANSITION_TICKS) {
+    return;
+  }
+
+  // Calculate progress (0-1)
+  currentWeatherTick++;
+  const progress = currentWeatherTick / WEATHER_TRANSITION_TICKS;
+
+  // Transition to target weather
+  const transitionedWeather = transitionWeather(
+    globalState.environment as WeatherPattern,
+    targetWeather,
+    progress,
+  );
+
+  // Update global state
+  globalState.environment = transitionedWeather;
+
+  // Broadcast environment update to all clients
+  io.emit('environment:update', globalState.environment);
+
+  // If transition complete, clear target
+  if (currentWeatherTick >= WEATHER_TRANSITION_TICKS) {
+    console.info(`Weather transition to ${targetWeather.name} complete`);
+
+    // If using random weather, schedule the next change
+    if (randomWeatherEnabled) {
+      globalState.lastWeatherChange = Date.now();
+    }
+  }
+}
 
 // Broadcast updates to all clients every 100ms
 setInterval(() => {
@@ -287,6 +443,8 @@ async function persistState() {
 // Start server
 server.listen(PORT, () => {
   console.info(`Server running on port ${PORT}`);
+  // Start the weather system after server is running
+  startWeatherSystem();
 });
 
 export default server;
