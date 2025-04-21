@@ -3,7 +3,7 @@
 - [ ] Dashboard is below the canvas. Should be reworked to be on top of the canvas.
 - [ ] Gauges are on top of each other in the dashboard.
 - [-] Vessel controls are missing. Dashboard only has text "Throttle" and "Rudder".
-- [ ] Engine isn't running even when turning it on from "start engine" button.
+- [ ] Engine isn't running even when turning it on from "start engine" button. RPM is stuck at 0.
 - [ ] Machinery controls lays pipe schematics on top of the canvas.
 - [ ] Pump controls are working, but they're toggled by clicking a text. They should be toggled from a button.
 - [x] Events are stored, but they're listed for example as "Invalid Date	Engine started". They're missing the event time.
