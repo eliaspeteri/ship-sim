@@ -8,15 +8,14 @@ import useStore from '../store';
 // Extend Three.js with Water component
 extend({ Water });
 
-// Wave physics constants
-const WAVE_SPEED_FACTOR = 0.2; // How much wind speed affects wave speed
-const WAVE_HEIGHT_FACTOR = 0.15; // How much sea state affects wave height
-const WAVE_FOAM_THRESHOLD = 0.8; // When to show foam based on wave height
+// Wave physics constants - increased amplitude factors for more dramatic visual effect
+const WAVE_SPEED_FACTOR = 0.3; // How much wind speed affects wave speed
+const WAVE_HEIGHT_FACTOR = 0.4; // Significantly increased for more dramatic waves
+const WAVE_FOAM_THRESHOLD = 0.7; // When to show foam based on wave height
+const MAX_WAVE_HEIGHT = 15.0; // Maximum wave height in meters for extreme conditions
 
-// Wave frequency modulation by sea state
-const WAVE_FREQUENCY_FACTOR = [
-  1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25,
-];
+// Wave frequency modulation by sea state - adjusted for more dramatic visual difference
+const WAVE_FREQUENCY_FACTOR = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.15];
 
 interface OceanProps {
   size: number;
@@ -45,7 +44,10 @@ function Ocean({
 
   // Calculate wave parameters based on environment
   const waveHeight = useMemo(() => {
-    return Math.max(0.1, environment.seaState * WAVE_HEIGHT_FACTOR);
+    return Math.min(
+      MAX_WAVE_HEIGHT,
+      Math.max(0.1, environment.seaState * WAVE_HEIGHT_FACTOR),
+    );
   }, [environment.seaState]);
 
   const waveSpeed = useMemo(() => {

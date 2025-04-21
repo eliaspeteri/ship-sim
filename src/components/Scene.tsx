@@ -22,6 +22,7 @@ import Ship from './Ship';
 import useStore from '../store';
 import MemoryMonitor from './MemoryMonitor';
 import Precipitation from './Precipitation';
+import WaveSystem from './WaveSystem';
 
 // Define interfaces for Ocean component props
 interface OceanProps {
@@ -275,10 +276,10 @@ export default function Scene({ vesselPosition }: SceneProps) {
     return baseDistortion * (1 + environment.seaState * 0.15);
   }, [environment.seaState]);
 
-  // Default ocean props
+  // Default ocean props with higher resolution for better wave definition
   const oceanProps: OceanProps = {
     size: 10000,
-    resolution: lowPerformanceMode ? 128 : 256,
+    resolution: lowPerformanceMode ? 128 : 512, // Higher resolution for more detailed waves
     position: [0, -0.5, 0],
     waterColor: getWaterColor(),
     distortionScale: getDistortionScale(),
@@ -324,6 +325,16 @@ export default function Scene({ vesselPosition }: SceneProps) {
         {/* Ocean */}
         <Suspense fallback={null}>
           <OceanComponent {...oceanProps} />
+
+          {/* Add WaveSystem for enhanced 3D waves in high sea states */}
+          {environment.seaState > 4 && isTabVisible && !lowPerformanceMode && (
+            <WaveSystem
+              resolution={Math.min(256, 64 + environment.seaState * 16)}
+              size={4000}
+              position={[0, -0.2, 0]}
+              followTarget={[vesselPosition.x, 0, vesselPosition.y]}
+            />
+          )}
         </Suspense>
 
         {/* Precipitation */}

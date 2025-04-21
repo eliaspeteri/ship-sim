@@ -222,6 +222,10 @@ interface SimulationState {
   wasmVesselPtr: number | null;
   setWasmVesselPtr: (ptr: number | null) => void;
 
+  // WASM exports for interacting with the WebAssembly module
+  wasmExports?: any;
+  setWasmExports?: (exports: any) => void;
+
   // Apply vessel controls
   applyVesselControls: (controls: {
     throttle?: number;
@@ -727,6 +731,10 @@ const useStore = create<SimulationState>()(
       // WASM vessel pointer
       wasmVesselPtr: null,
       setWasmVesselPtr: ptr => set({ wasmVesselPtr: ptr }),
+
+      // WASM exports
+      wasmExports: undefined,
+      setWasmExports: exports => set({ wasmExports: exports }),
 
       // Apply vessel controls
       applyVesselControls: controls => {

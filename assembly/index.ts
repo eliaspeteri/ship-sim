@@ -821,6 +821,20 @@ export function setThrottle(vesselPtr: usize, throttle: f64): void {
   globalVessel = vessel;
 }
 
+/**
+ * Set wave data for the vessel to facilitate interaction between
+ * the Three.js wave system and the physics model
+ * @param vesselPtr - Pointer to the vessel instance
+ * @param height - Current wave height at vessel position
+ * @param phase - Current wave phase at vessel position
+ */
+export function setWaveData(vesselPtr: usize, height: f64, phase: f64): void {
+  const vessel = changetype<VesselState>(vesselPtr);
+  vessel.waveHeight = height;
+  vessel.wavePhase = phase;
+  globalVessel = vessel;
+}
+
 export function setRudderAngle(vesselPtr: usize, angle: f64): void {
   const vessel = changetype<VesselState>(vesselPtr);
   // Limit rudder angle to reasonable values (-35 to 35 degrees in radians)
