@@ -1,0 +1,47 @@
+FROM node:18-alpine AS deps
+
+# Install dependencies and netcat for connectivity checking
+RUN apk add --no-cache netcat-openbsd libc6-compat
+
+WORKDIR /app
+
+# Install dependencies with specific npm settings to avoid filesystem issues
+COPY package.json package-lock.json* ./
+RUN npm ci --production=false --no-audit --ignore-scripts && \
+    npm cache clean --force
+
+# Build stage to generate Prisma client
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Production image
+FROM node:18-alpine AS runner
+WORKDIR /app
+
+# Install production dependencies only
+RUN apk add --no-cache netcat-openbsd
+
+# Copy from build stage
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/docker-startup.sh ./docker-startup.sh
+COPY --from=builder /app/package.json ./package.json
+
+# Make startup script executable
+RUN chmod +x docker-startup.sh
+
+# Expose port
+EXPOSE 3001
+
+# Use startup script as entrypoint
+ENTRYPOINT ["./docker-startup.sh"]
+
+# Start server using tsx to match package.json script
+CMD ["npx", "tsx", "src/server/index.ts"]

@@ -1,29 +1,82 @@
 version: '3.8'
 
 services:
-  web:
+  frontend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.frontend
     ports:
       - '3000:3000'
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
+      - NEXT_PUBLIC_WEBSOCKET_URL=http://localhost:3001
     volumes:
-      - .:/app
+      - ./public:/app/public
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    depends_on:
+      - server
+    networks:
+      - ship-sim-network
+    restart: unless-stopped
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    ports:
+      - '3001:3001'
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/ship_sim
+      - JWT_SECRET=secure_jwt_secret_for_ship_sim_2025
+      - AUTH_SECRET=ship-sim-auth-secret-2025
+      # Admin credentials for initial setup
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=ship_sim_admin
+      - ADMIN_EMAIL=admin@shipsim.com
+    volumes:
+      - ./prisma:/app/prisma
+      - ./scripts:/app/scripts
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     depends_on:
       - db
+    networks:
+      - ship-sim-network
+    restart: unless-stopped
 
   db:
-    image: postgres:latest
+    image: postgres:14-alpine
     environment:
-      POSTGRES_USER: your_username
-      POSTGRES_PASSWORD: your_password
-      POSTGRES_DB: your_database
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ship_sim
     ports:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - ship-sim-network
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+networks:
+  ship-sim-network:
+    driver: bridge
 
 volumes:
   postgres_data:

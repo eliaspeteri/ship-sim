@@ -48,6 +48,7 @@ export default [
       sourceType: 'module',
       globals: {
         // Browser globals
+        process: 'readonly',
         window: 'readonly',
         document: 'readonly',
         console: 'readonly',
@@ -64,6 +65,8 @@ export default [
         HTMLDivElement: 'readonly',
         NodeJS: 'readonly', // Added NodeJS global
         Buffer: 'readonly', // Added Buffer global
+        URLSearchParams: 'readonly', // Added URLSearchParams global
+        Event: 'readonly', // Added Event global
       },
       parserOptions: {
         ecmaFeatures: {

@@ -3,13 +3,14 @@ import { useEffect, useState } from 'react';
 import Scene from '../components/Scene';
 import Dashboard from '../components/Dashboard';
 import EnvironmentControls from '../components/EnvironmentControls';
+import LoginPanel from '../components/LoginPanel';
 import useStore from '../store';
 import {
   initializeSimulation,
   startSimulation,
   stopSimulation,
 } from '../simulation';
-import { socketManager } from '../networking/socket';
+import socketManager from '../networking/socket';
 
 const Home = () => {
   // Get relevant state from Zustand store
@@ -18,6 +19,7 @@ const Home = () => {
   // Local state for UI controls
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Initialize simulation on component mount
   useEffect(() => {
@@ -30,6 +32,9 @@ const Home = () => {
         // Initialize WebSocket connection
         socketManager.connect();
 
+        // Check if user is already authenticated (token stored in localStorage)
+        setIsAuthenticated(socketManager.isAuthenticated());
+
         setLoading(false);
       } catch (error) {
         console.error('Failed to initialize simulation:', error);
@@ -39,10 +44,23 @@ const Home = () => {
 
     init();
 
+    // Set up auth change listener
+    const handleAuthChange = (isLoggedIn: boolean) => {
+      setIsAuthenticated(isLoggedIn);
+    };
+
+    // Subscribe to auth state changes
+    window.addEventListener('auth-changed', () =>
+      handleAuthChange(socketManager.isAuthenticated()),
+    );
+
     // Clean up on unmount
     return () => {
       stopSimulation();
       socketManager.disconnect();
+      window.removeEventListener('auth-changed', () =>
+        handleAuthChange(socketManager.isAuthenticated()),
+      );
     };
   }, []);
 
@@ -70,6 +88,12 @@ const Home = () => {
             <div className="mx-auto h-2 w-64 overflow-hidden rounded-full bg-gray-700">
               <div className="h-full w-1/2 animate-pulse bg-blue-500"></div>
             </div>
+          </div>
+        </div>
+      ) : !isAuthenticated ? (
+        <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-gray-900 to-black">
+          <div className="w-full max-w-md">
+            <LoginPanel className="mx-auto" />
           </div>
         </div>
       ) : (

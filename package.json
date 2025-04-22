@@ -63,11 +63,11 @@
     "threejs",
     "nextjs"
   ],
-  "author": "Your Name",
+  "author": "Elias Peteri",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/ship-sim.git"
+    "url": "https://github.com/eliaspeteri/ship-sim.git"
   },
   "exports": {
     ".": {

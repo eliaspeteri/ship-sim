@@ -68,31 +68,88 @@ interface ChatMessageData {
   message: string;
 }
 
+// Authentication interfaces
+interface AuthResponse {
+  success: boolean;
+  token?: string;
+  username?: string;
+  isAdmin?: boolean;
+  error?: string;
+}
+
 // Socket.IO Client Manager
 class SocketManager {
-  // Use any type for now to avoid TypeScript errors
   private socket: ReturnType<typeof io> | null = null;
   private userId: string;
   private isAdmin: boolean = false;
+  private authToken: string | null = null;
+  private username: string = 'Anonymous';
   private reconnectTimer: NodeJS.Timeout | null = null;
   private connectionAttempts = 0;
   private maxReconnectAttempts = 5;
 
   constructor() {
     this.userId = this.generateUserId();
+
+    // Try to restore auth from localStorage
+    this.restoreAuthFromStorage();
+  }
+
+  // Restore authentication from storage if available
+  private restoreAuthFromStorage(): void {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const storedAuth = localStorage.getItem('ship-sim-auth');
+      if (storedAuth) {
+        const auth = JSON.parse(storedAuth);
+        this.authToken = auth.token;
+        this.userId = auth.userId;
+        this.username = auth.username;
+        this.isAdmin = auth.isAdmin;
+        console.info(`Restored authentication for ${this.username}`);
+      }
+    } catch (error) {
+      console.error('Failed to restore authentication from storage:', error);
+    }
+  }
+
+  // Save authentication to storage
+  private saveAuthToStorage(authData: {
+    token: string;
+    userId: string;
+    username: string;
+    isAdmin: boolean;
+  }): void {
+    if (typeof window === 'undefined') return;
+
+    try {
+      localStorage.setItem('ship-sim-auth', JSON.stringify(authData));
+      window.dispatchEvent(new Event('auth-changed'));
+    } catch (error) {
+      console.error('Failed to save authentication to storage:', error);
+    }
+  }
+
+  // Clear authentication from storage
+  private clearAuthFromStorage(): void {
+    if (typeof window === 'undefined') return;
+
+    try {
+      localStorage.removeItem('ship-sim-auth');
+      window.dispatchEvent(new Event('auth-changed'));
+    } catch (error) {
+      console.error('Failed to clear authentication from storage:', error);
+    }
   }
 
   // Connect to Socket.IO server
-  connect(
-    url: string = 'http://localhost:3001',
-    isAdmin: boolean = false,
-  ): void {
+  connect(url: string = 'http://localhost:3001'): void {
     if (this.socket) {
       console.warn('Socket connection already exists. Disconnecting first.');
       this.disconnect();
     }
 
-    this.isAdmin = isAdmin;
     console.info(`Connecting to Socket.IO server at ${url}`);
 
     this.socket = io(url, {
@@ -102,7 +159,8 @@ class SocketManager {
       timeout: 10000,
       auth: {
         userId: this.userId,
-        isAdmin: this.isAdmin,
+        username: this.username,
+        token: this.authToken,
       },
     });
 
@@ -222,6 +280,126 @@ class SocketManager {
     this.socket.emit('vessel:control', controlData);
   }
 
+  // Authenticate user with username and password
+  async login(username: string, password: string): Promise<AuthResponse> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket?.connected) {
+        reject(new Error('Not connected to server'));
+        return;
+      }
+
+      this.socket.emit(
+        'auth:login',
+        { username, password },
+        (response: AuthResponse) => {
+          if (response.success && response.token) {
+            // Store the authentication info
+            this.authToken = response.token;
+            this.username = response.username || username;
+            this.isAdmin = response.isAdmin || false;
+
+            // Save to localStorage for persistence
+            this.saveAuthToStorage({
+              token: response.token,
+              userId: this.userId,
+              username: this.username,
+              isAdmin: this.isAdmin,
+            });
+
+            // Add login event to the event log
+            useStore.getState().addEvent({
+              category: 'system',
+              type: 'auth',
+              message: `Logged in as ${this.username}${
+                this.isAdmin ? ' (admin)' : ''
+              }`,
+              severity: 'info',
+            });
+
+            resolve(response);
+          } else {
+            reject(new Error(response.error || 'Authentication failed'));
+          }
+        },
+      );
+    });
+  }
+
+  // Register a new user (admin for testing purposes)
+  async register(username: string, password: string): Promise<AuthResponse> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket?.connected) {
+        reject(new Error('Not connected to server'));
+        return;
+      }
+
+      this.socket.emit(
+        'auth:register',
+        { username, password },
+        (response: AuthResponse) => {
+          if (response.success && response.token) {
+            // Store the authentication info
+            this.authToken = response.token;
+            this.username = response.username || username;
+            this.isAdmin = response.isAdmin || false;
+
+            // Save to localStorage for persistence
+            this.saveAuthToStorage({
+              token: response.token,
+              userId: this.userId,
+              username: this.username,
+              isAdmin: this.isAdmin,
+            });
+
+            // Add registration event to the event log
+            useStore.getState().addEvent({
+              category: 'system',
+              type: 'auth',
+              message: `Registered and logged in as ${this.username}${
+                this.isAdmin ? ' (admin)' : ''
+              }`,
+              severity: 'info',
+            });
+
+            resolve(response);
+          } else {
+            reject(new Error(response.error || 'Registration failed'));
+          }
+        },
+      );
+    });
+  }
+
+  // Log out the current user
+  logout(): void {
+    if (this.socket?.connected) {
+      this.socket.emit('auth:logout');
+    }
+
+    // Clear authentication data
+    this.authToken = null;
+    this.username = 'Anonymous';
+    this.isAdmin = false;
+
+    // Clear from storage
+    this.clearAuthFromStorage();
+
+    // Reconnect with cleared auth
+    const currentSocket = this.socket;
+    if (currentSocket?.connected) {
+      this.disconnect();
+      this.connect();
+    }
+
+    // Add logout event to the event log
+    useStore.getState().addEvent({
+      category: 'system',
+      type: 'auth',
+      message: 'Logged out',
+      severity: 'info',
+    });
+  }
+
   // Send admin weather control command
   sendWeatherControl(
     pattern?: string,
@@ -302,6 +480,16 @@ class SocketManager {
   // Check if current user is admin
   isAdminUser(): boolean {
     return this.isAdmin;
+  }
+
+  // Get current username
+  getUsername(): string {
+    return this.username;
+  }
+
+  // Check if user is authenticated with a token
+  isAuthenticated(): boolean {
+    return !!this.authToken;
   }
 }
 

@@ -7,6 +7,8 @@ export default {
   env: {
     CUSTOM_ENV_VARIABLE: process.env.CUSTOM_ENV_VARIABLE,
   },
+  // Enable standalone output mode for Docker deployment
+  output: 'standalone',
   webpack: config => {
     // WebAssembly support
     config.experiments = {

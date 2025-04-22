@@ -269,17 +269,6 @@ export class SimulationLoop {
       // Increment simulation time - ensure this is always called when running
       _state.incrementTime(scaledDeltaTime);
 
-      // Debug time incrementation issues - info every 5 seconds of real time
-      const now = Date.now();
-      if (now - this.lastStateUpdateTime > 5000) {
-        this.lastStateUpdateTime = now;
-        const elapsedTime = _state.simulation.elapsedTime || 0;
-        const timeScale = _state.simulation.timeScale || 1.0;
-        console.info(
-          `Simulation time: ${elapsedTime.toFixed(2)}s, Time scale: ${timeScale}`,
-        );
-      }
-
       // Update UI state from physics state
       this.updateUIFromPhysics();
 

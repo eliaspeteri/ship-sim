@@ -33,12 +33,14 @@ model Vessel {
 
 // User model
 model User {
-    id        String   @id @default(uuid()) // Changed to String for UUID compatibility
-    username  String   @unique
-    email     String   @unique
-    password  String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    id           String   @id @default(uuid()) // Changed to String for UUID compatibility
+    username     String   @unique
+    email        String   @unique
+    password     String? // Keeping for backward compatibility
+    passwordHash String // Added for secure password storage
+    isAdmin      Boolean  @default(false) // Added to track admin privileges
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
 
     // Relations
     settings     UserSettings?
