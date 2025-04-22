@@ -4,8 +4,8 @@
  * This script creates an initial admin user for the Ship Simulator
  * if one does not already exist in the database.
  */
-import { PrismaClient } from '@prisma/client';
-import crypto from 'crypto';
+const { PrismaClient } = require('@prisma/client');
+const crypto = require('crypto');
 
 const prisma = new PrismaClient();
 
