@@ -23,30 +23,48 @@ const polarToCartesian = (
 
 export const CompassRose: React.FC<CompassRoseProps> = ({
   heading,
-  size = 200,
+  size = 300, // Keep default size, but elements will scale within
 }) => {
   const rotationDegrees = -((((heading * 180) / Math.PI) % 360) + 360) % 360;
-  const radius = size / 2;
-  const viewBoxSize = size + 10; // Add padding for border/stroke
+
+  // Adjust overall size for padding and the new outer ring
+  const outerPadding = 3; // Padding around the entire SVG
+  const outerRingWidth = size * 0.1; // Width of the golden ring
+  const innerSize = size - 2 * outerRingWidth; // Size available for the rotating card
+  const innerRadius = innerSize / 2;
+  const viewBoxSize = size + 2 * outerPadding;
   const center = viewBoxSize / 2;
 
-  // Radii for elements relative to center
-  const borderOuterRadius = radius;
-  const tickOuterRadius = borderOuterRadius * 0.95;
-  const tickInnerRadiusMajor = borderOuterRadius * 0.85;
-  const tickInnerRadiusMinor = borderOuterRadius * 0.9;
-  const numberRadius = borderOuterRadius * 0.7;
+  // Radii relative to center
+  const goldenRingOuterRadius = size / 2;
+  const goldenRingInnerRadius = goldenRingOuterRadius - outerRingWidth;
+  const fixedTickOuterRadius = goldenRingOuterRadius * 0.9; // Ticks slightly inside the edge
+  const fixedTickInnerRadius = goldenRingInnerRadius * 1.02; // Ticks slightly inside the inner edge
+  const fixedNumberRadius =
+    (goldenRingOuterRadius + goldenRingInnerRadius) / 1.9; // Numbers centered on the ring
+
+  // Radii for the rotating inner card (relative to center)
+  const cardRadius = goldenRingInnerRadius * 0.98; // Small gap between card and ring
+  const cardTickOuterRadius = cardRadius * 0.95;
+  const cardTickInnerRadiusMajor = cardRadius * 0.85;
+  const cardTickInnerRadiusMinor = cardRadius * 0.9;
+  const cardNumberRadius = cardRadius * 0.7;
+  const centerHubRadius = size * 0.05; // Larger center hub
 
   // Style constants
-  const backgroundColor = '#000000'; // Black
-  const borderColor = '#4a5568'; // gray-600
-  const majorTickColor = '#FFFFFF'; // white
-  const tenDegreeTickColor = '#D1D5DB'; // gray-300
-  const minorTickColor = '#6B7280'; // gray-500
-  const numberColor = '#FFFFFF'; // white
+  const backgroundColor = '#000000'; // Black for the rotating card
+  const goldenRingColor = '#DAA520'; // Gold color
+  const fixedTickColor = '#D1D5DB'; // Light gray (gray-300)
+  const fixedNumberColor = '#D1D5DB'; // Light gray (gray-300)
+  const cardMajorTickColor = '#FFFFFF'; // white
+  const cardTenDegreeTickColor = '#D1D5DB'; // gray-300
+  const cardMinorTickColor = '#6B7280'; // gray-500
+  const cardNumberColor = '#FFFFFF'; // white
   const lubberLineColor = '#EF4444'; // red-500
-  const centerDotColor = '#9CA3AF'; // gray-400
-  const numberFontSize = size * 0.08;
+  const centerHubColor = '#C0C0C0'; // Silver
+
+  const fixedNumberFontSize = outerRingWidth * 0.35; // Scale font size to ring width
+  const cardNumberFontSize = innerRadius * 0.16; // Scale font size to inner card radius
 
   return (
     <svg
@@ -55,83 +73,170 @@ export const CompassRose: React.FC<CompassRoseProps> = ({
       viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
       className="select-none"
     >
-      {/* Background and Border */}
+      {/* Fixed Golden Outer Ring */}
       <circle
         cx={center}
         cy={center}
-        r={borderOuterRadius}
+        r={goldenRingOuterRadius}
+        fill={goldenRingColor}
+        stroke="#B8860B" // Optional darker border for the gold ring
+        strokeWidth="1"
+      />
+      {/* Cutout for the inner card - ensures gold ring is just a ring */}
+      <circle
+        cx={center}
+        cy={center}
+        r={goldenRingInnerRadius}
+        fill={backgroundColor} // Fill with card background color initially
+      />
+      {/* Fixed Ticks and Numbers on Golden Ring */}
+      <g>
+        {Array.from({ length: 36 }).map((_, i) => {
+          // Every 10 degrees
+          const angle = i * 10;
+          const isMajorFixedTick = angle % 30 === 0; // Major ticks every 30 deg
+
+          // Fixed Tick properties
+          const fixedTickStrokeWidth = isMajorFixedTick ? 1.5 : 1;
+
+          // Calculate fixed tick positions
+          const fixedTickStart = polarToCartesian(
+            center,
+            center,
+            fixedTickInnerRadius,
+            angle,
+          );
+          const fixedTickEnd = polarToCartesian(
+            center,
+            center,
+            fixedTickOuterRadius,
+            angle,
+          );
+
+          // Calculate fixed number position
+          const fixedNumPos = polarToCartesian(
+            center,
+            center,
+            fixedNumberRadius,
+            angle,
+          );
+
+          return (
+            <React.Fragment key={`fixed-mark-${angle}`}>
+              {/* Fixed Tick Line */}
+              <line
+                x1={fixedTickStart.x}
+                y1={fixedTickStart.y}
+                x2={fixedTickEnd.x}
+                y2={fixedTickEnd.y}
+                stroke={fixedTickColor}
+                strokeWidth={fixedTickStrokeWidth}
+              />
+
+              {/* Fixed Degree Number (every 30 degrees) */}
+              {isMajorFixedTick && (
+                <text
+                  x={fixedNumPos.x}
+                  y={fixedNumPos.y}
+                  fill={fixedNumberColor}
+                  fontSize={fixedNumberFontSize}
+                  fontFamily="sans-serif"
+                  fontWeight="normal" // Lighter weight for fixed numbers
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  transform={`rotate(${angle} ${fixedNumPos.x} ${fixedNumPos.y})`}
+                >
+                  {/* Show only tens and hundreds digit for fixed ring */}
+                  {(angle === 0 ? 360 : angle).toString().padStart(2, '0')}
+                </text>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </g>
+      {/* Rotating Inner Card Background (drawn over the cutout) */}
+      <circle
+        cx={center}
+        cy={center}
+        r={cardRadius} // Use the calculated card radius
         fill={backgroundColor}
-        stroke={borderColor}
-        strokeWidth="4" // Matches border-4
+        // Optional: Add a border to the inner card if desired
+        // stroke={borderColor}
+        // strokeWidth="1"
       />
       {/* Rotating Card Group */}
       <g
         transform={`rotate(${rotationDegrees} ${center} ${center})`}
         style={{ transition: 'transform 0.2s linear' }} // Smooth rotation
       >
-        {/* Ticks and Numbers */}
+        {/* Ticks and Numbers for the INNER card */}
         {Array.from({ length: 360 }).map((_, angle) => {
           const isTenDegreeMark = angle % 10 === 0;
           const isThirtyDegreeMark = angle % 30 === 0;
           const isNinetyDegreeMark = angle % 90 === 0;
 
-          // Tick properties
-          const tickStartRadius = isTenDegreeMark
-            ? tickInnerRadiusMajor
-            : tickInnerRadiusMinor;
-          const tickStrokeWidth = isNinetyDegreeMark
+          // Inner Tick properties
+          const cardTickStartRadius = isTenDegreeMark
+            ? cardTickInnerRadiusMajor
+            : cardTickInnerRadiusMinor;
+          const cardTickStrokeWidth = isNinetyDegreeMark
             ? 2
             : isTenDegreeMark
               ? 1.5
               : 1;
-          const tickColor = isNinetyDegreeMark
-            ? majorTickColor
+          const cardTickColor = isNinetyDegreeMark
+            ? cardMajorTickColor
             : isTenDegreeMark
-              ? tenDegreeTickColor
-              : minorTickColor;
+              ? cardTenDegreeTickColor
+              : cardMinorTickColor;
 
-          // Calculate tick positions
-          const tickStart = polarToCartesian(
+          // Calculate inner tick positions
+          const cardTickStart = polarToCartesian(
             center,
             center,
-            tickStartRadius,
+            cardTickStartRadius,
             angle,
           );
-          const tickEnd = polarToCartesian(
+          const cardTickEnd = polarToCartesian(
             center,
             center,
-            tickOuterRadius,
+            cardTickOuterRadius,
             angle,
           );
 
-          // Calculate number position
-          const numPos = polarToCartesian(center, center, numberRadius, angle);
+          // Calculate inner number position
+          const cardNumPos = polarToCartesian(
+            center,
+            center,
+            cardNumberRadius,
+            angle,
+          );
 
           return (
-            <React.Fragment key={`mark-${angle}`}>
-              {/* Tick Line */}
+            <React.Fragment key={`card-mark-${angle}`}>
+              {/* Inner Tick Line */}
               <line
-                x1={tickStart.x}
-                y1={tickStart.y}
-                x2={tickEnd.x}
-                y2={tickEnd.y}
-                stroke={tickColor}
-                strokeWidth={tickStrokeWidth}
+                x1={cardTickStart.x}
+                y1={cardTickStart.y}
+                x2={cardTickEnd.x}
+                y2={cardTickEnd.y}
+                stroke={cardTickColor}
+                strokeWidth={cardTickStrokeWidth}
               />
 
-              {/* Degree Number (every 30 degrees) */}
+              {/* Inner Degree Number (every 30 degrees) */}
               {isThirtyDegreeMark && (
                 <text
-                  x={numPos.x}
-                  y={numPos.y}
-                  fill={numberColor}
-                  fontSize={numberFontSize}
+                  x={cardNumPos.x}
+                  y={cardNumPos.y}
+                  fill={cardNumberColor}
+                  fontSize={cardNumberFontSize}
                   fontFamily="sans-serif"
                   fontWeight="semibold"
                   textAnchor="middle"
                   dominantBaseline="middle"
                   // Apply rotation matching the angle around the number's position
-                  transform={`rotate(${angle} ${numPos.x} ${numPos.y})`}
+                  transform={`rotate(${angle} ${cardNumPos.x} ${cardNumPos.y})`}
                 >
                   {(angle === 0 ? 360 : angle).toString().padStart(3, '0')}
                 </text>
@@ -141,22 +246,24 @@ export const CompassRose: React.FC<CompassRoseProps> = ({
         })}
       </g>{' '}
       {/* End Rotating Card Group */}
-      {/* Fixed Lubber Line */}
+      {/* Fixed Lubber Line (drawn over everything else) */}
       <line
         x1={center}
-        y1={center - borderOuterRadius} // Start slightly inside the border
+        y1={center - cardRadius * 1.02} // Start just above the inner card
         x2={center}
-        y2={center - borderOuterRadius * 0.85} // Length of the line
+        y2={center - cardRadius * 0.85} // Length of the line
         stroke={lubberLineColor}
         strokeWidth="2.5"
-        strokeLinecap="round" // Nicer ends
+        strokeLinecap="round"
       />
-      {/* Center Dot */}
+      {/* Center Hub (drawn over rotating card elements) */}
       <circle
         cx={center}
         cy={center}
-        r={size * 0.02} // Small radius for the dot
-        fill={centerDotColor}
+        r={centerHubRadius} // Use the larger hub radius
+        fill={centerHubColor} // Silver color
+        stroke="#808080" // Optional darker border for hub
+        strokeWidth="1"
       />
     </svg>
   );
