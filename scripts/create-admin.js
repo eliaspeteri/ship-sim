@@ -4,8 +4,8 @@
  * This script creates an initial admin user for the Ship Simulator
  * if one does not already exist in the database.
  */
-const { PrismaClient } = require('@prisma/client');
-const crypto = require('crypto');
+import { PrismaClient } from '@prisma/client';
+import { createHash } from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -30,10 +30,7 @@ async function createAdminUser() {
     const email = process.env.ADMIN_EMAIL || 'admin@shipsim.com';
 
     // Hash password
-    const passwordHash = crypto
-      .createHash('sha256')
-      .update(password)
-      .digest('hex');
+    const passwordHash = createHash('sha256').update(password).digest('hex');
 
     // Create admin user
     const user = await prisma.user.create({
