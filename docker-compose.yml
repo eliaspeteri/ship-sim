@@ -30,7 +30,6 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/ship_sim
-      - JWT_SECRET=secure_jwt_secret_for_ship_sim_2025
       - AUTH_SECRET=ship-sim-auth-secret-2025
       # Admin credentials for initial setup
       - ADMIN_USERNAME=admin
