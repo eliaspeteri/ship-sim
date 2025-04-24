@@ -3,156 +3,161 @@ import React from 'react';
 interface CompassRoseProps {
   /** The current heading in radians. */
   heading: number;
-  /** The size of the compass rose in pixels. Defaults to 150. */
+  /** The size of the compass rose in pixels. Defaults to 200. */
   size?: number;
 }
 
-/**
- * Renders a compass rose component that displays the ship's heading.
- * The compass card rotates while the ship indicator remains fixed at the top.
- * @param heading - The current heading in radians.
- * @param size - The diameter of the compass rose in pixels.
- */
+// Helper to convert polar coordinates to Cartesian for SVG
+const polarToCartesian = (
+  centerX: number,
+  centerY: number,
+  radius: number,
+  angleInDegrees: number,
+): { x: number; y: number } => {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0; // Adjust angle: 0 degrees is up
+  return {
+    x: centerX + radius * Math.cos(angleInRadians),
+    y: centerY + radius * Math.sin(angleInRadians),
+  };
+};
+
 export const CompassRose: React.FC<CompassRoseProps> = ({
   heading,
-  size = 150,
+  size = 200,
 }) => {
-  // Convert heading from radians to degrees for rotation calculation.
-  // Ensure heading stays within 0-359 degrees.
-  // Negative heading rotates the card clockwise, positive counter-clockwise.
   const rotationDegrees = -((((heading * 180) / Math.PI) % 360) + 360) % 360;
-  // Display heading needs to be positive 0-359
-  const _displayHeadingDeg = (360 + rotationDegrees) % 360;
   const radius = size / 2;
-  const innerRadius = radius * 0.85; // Radius for placing markings and text
+  const viewBoxSize = size + 10; // Add padding for border/stroke
+  const center = viewBoxSize / 2;
+
+  // Radii for elements relative to center
+  const borderOuterRadius = radius;
+  const tickOuterRadius = borderOuterRadius * 0.95;
+  const tickInnerRadiusMajor = borderOuterRadius * 0.85;
+  const tickInnerRadiusMinor = borderOuterRadius * 0.9;
+  const numberRadius = borderOuterRadius * 0.7;
+
+  // Style constants
+  const backgroundColor = '#000000'; // Black
+  const borderColor = '#4a5568'; // gray-600
+  const majorTickColor = '#FFFFFF'; // white
+  const tenDegreeTickColor = '#D1D5DB'; // gray-300
+  const minorTickColor = '#6B7280'; // gray-500
+  const numberColor = '#FFFFFF'; // white
+  const lubberLineColor = '#EF4444'; // red-500
+  const centerDotColor = '#9CA3AF'; // gray-400
+  const numberFontSize = size * 0.08;
 
   return (
-    <div className="flex flex-col items-center justify-center">
-      <div
-        className="relative rounded-full border-4 border-gray-500 bg-gray-800 overflow-hidden shadow-lg" // Adjusted border and background
-        style={{ width: `${size}px`, height: `${size}px` }}
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
+      className="select-none"
+    >
+      {/* Background and Border */}
+      <circle
+        cx={center}
+        cy={center}
+        r={borderOuterRadius}
+        fill={backgroundColor}
+        stroke={borderColor}
+        strokeWidth="4" // Matches border-4
+      />
+      {/* Rotating Card Group */}
+      <g
+        transform={`rotate(${rotationDegrees} ${center} ${center})`}
+        style={{ transition: 'transform 0.2s linear' }} // Smooth rotation
       >
-        {/* Rotating Compass Card */}
-        <div
-          className="absolute w-full h-full transition-transform duration-200 ease-linear" // Smooth transition
-          style={{ transform: `rotate(${rotationDegrees}deg)` }} // Rotate the entire card
-        >
-          {/* Cardinal points */}
-          {['N', 'E', 'S', 'W'].map((dir, i) => (
-            <div
-              key={dir}
-              className="absolute text-white font-semibold" // Adjusted font weight
-              style={{
-                // Position points closer to the edge using innerRadius
-                left: `${50 + (innerRadius / radius) * 50 * Math.sin((i * Math.PI) / 2)}%`,
-                top: `${50 - (innerRadius / radius) * 50 * Math.cos((i * Math.PI) / 2)}%`,
-                transform: `translate(-50%, -50%) rotate(${-rotationDegrees}deg)`, // Counter-rotate text to keep it upright
-                fontSize: `${size * 0.1}px`, // Scale font size with component size
-              }}
-            >
-              {dir}
-            </div>
-          ))}
+        {/* Ticks and Numbers */}
+        {Array.from({ length: 360 }).map((_, angle) => {
+          const isTenDegreeMark = angle % 10 === 0;
+          const isThirtyDegreeMark = angle % 30 === 0;
+          const isNinetyDegreeMark = angle % 90 === 0;
 
-          {/* Degree markings */}
-          {Array.from({ length: 72 }).map((_, i) => {
-            // Increased markings to every 5 degrees
-            const angle = i * 5;
-            const isMajor = angle % 30 === 0; // Major tick every 30 degrees
-            const isCardinal = angle % 90 === 0; // Cardinal tick
-            const length = isCardinal
-              ? size * 0.08
-              : isMajor
-                ? size * 0.06
-                : size * 0.04; // Scale length
-            const thickness = isMajor ? 2 : 1; // Thicker major ticks
+          // Tick properties
+          const tickStartRadius = isTenDegreeMark
+            ? tickInnerRadiusMajor
+            : tickInnerRadiusMinor;
+          const tickStrokeWidth = isNinetyDegreeMark
+            ? 2
+            : isTenDegreeMark
+              ? 1.5
+              : 1;
+          const tickColor = isNinetyDegreeMark
+            ? majorTickColor
+            : isTenDegreeMark
+              ? tenDegreeTickColor
+              : minorTickColor;
 
-            return (
-              <div
-                key={angle}
-                className="absolute bg-gray-300" // Lighter tick color
-                style={{
-                  top: '0px', // Start ticks from the outer edge
-                  left: '50%',
-                  height: `${length}px`,
-                  width: `${thickness}px`,
-                  transformOrigin: `center ${radius}px`, // Rotate around the center
-                  transform: `translateX(-50%) rotate(${angle}deg)`,
-                }}
+          // Calculate tick positions
+          const tickStart = polarToCartesian(
+            center,
+            center,
+            tickStartRadius,
+            angle,
+          );
+          const tickEnd = polarToCartesian(
+            center,
+            center,
+            tickOuterRadius,
+            angle,
+          );
+
+          // Calculate number position
+          const numPos = polarToCartesian(center, center, numberRadius, angle);
+
+          return (
+            <React.Fragment key={`mark-${angle}`}>
+              {/* Tick Line */}
+              <line
+                x1={tickStart.x}
+                y1={tickStart.y}
+                x2={tickEnd.x}
+                y2={tickEnd.y}
+                stroke={tickColor}
+                strokeWidth={tickStrokeWidth}
               />
-            );
-          })}
-          {/* Degree Numbers (every 30 degrees) */}
-          {Array.from({ length: 12 }).map((_, i) => {
-            const angle = i * 30;
-            if (angle % 90 === 0) return null; // Skip cardinal points where letters are
 
-            return (
-              <div
-                key={`num-${angle}`}
-                className="absolute text-gray-300 font-mono" // Use mono font for numbers
-                style={{
-                  // Position numbers similarly to cardinal points
-                  left: `${50 + (innerRadius / radius) * 50 * Math.sin((angle * Math.PI) / 180)}%`,
-                  top: `${50 - (innerRadius / radius) * 50 * Math.cos((angle * Math.PI) / 180)}%`,
-                  transform: `translate(-50%, -50%) rotate(${-rotationDegrees}deg)`, // Counter-rotate text
-                  fontSize: `${size * 0.07}px`, // Scale font size
-                }}
-              >
-                {angle}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Fixed Ship Indicator (Lubber Line - Red Triangle at Top) */}
-        <div
-          className="absolute w-0 h-0"
-          style={{
-            borderLeft: `${size * 0.05}px solid transparent`, // Scale size
-            borderRight: `${size * 0.05}px solid transparent`, // Scale size
-            borderBottom: `${size * 0.1}px solid #ef4444`, // Tailwind red-500
-            left: '50%',
-            top: `${radius - size * 0.1}px`, // Position near the top edge
-            transform: 'translateX(-50%)', // Center horizontally
-            // No rotation needed here, it's fixed
-          }}
-        />
-
-        {/* Center Dot */}
-        <div
-          className="absolute bg-gray-300 rounded-full" // Lighter center dot
-          style={{
-            width: `${size * 0.04}px`, // Scale size
-            height: `${size * 0.04}px`, // Scale size
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-          }}
-        />
-
-        {/* Heading display */}
-        <div className="absolute inset-x-0 bottom-2 flex justify-center pointer-events-none">
-          {' '}
-          {/* Lowered display slightly */}
-          <div className="bg-black bg-opacity-60 px-2 py-0.5 rounded">
-            {' '}
-            {/* Adjusted padding/opacity */}
-            <span
-              className="font-mono text-white font-bold"
-              style={{ fontSize: `${size * 0.09}px` }}
-            >
-              {' '}
-              {/* Scaled font size */}
-              {/* Display the actual heading, not the rotation */}
-              {Math.round(((((heading * 180) / Math.PI) % 360) + 360) % 360)
-                .toString()
-                .padStart(3, '0')}
-              °
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
+              {/* Degree Number (every 30 degrees) */}
+              {isThirtyDegreeMark && (
+                <text
+                  x={numPos.x}
+                  y={numPos.y}
+                  fill={numberColor}
+                  fontSize={numberFontSize}
+                  fontFamily="sans-serif"
+                  fontWeight="semibold"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  // Apply rotation matching the angle around the number's position
+                  transform={`rotate(${angle} ${numPos.x} ${numPos.y})`}
+                >
+                  {(angle === 0 ? 360 : angle).toString().padStart(3, '0')}
+                </text>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </g>{' '}
+      {/* End Rotating Card Group */}
+      {/* Fixed Lubber Line */}
+      <line
+        x1={center}
+        y1={center - borderOuterRadius} // Start slightly inside the border
+        x2={center}
+        y2={center - borderOuterRadius * 0.85} // Length of the line
+        stroke={lubberLineColor}
+        strokeWidth="2.5"
+        strokeLinecap="round" // Nicer ends
+      />
+      {/* Center Dot */}
+      <circle
+        cx={center}
+        cy={center}
+        r={size * 0.02} // Small radius for the dot
+        fill={centerDotColor}
+      />
+    </svg>
   );
 };
