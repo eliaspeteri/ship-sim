@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import socketManager from '../networking/socket';
 import useStore from '../store';
 import Precipitation from './Precipitation';
 
