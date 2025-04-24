@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface CompassRoseProps {
   /** The current heading in radians. */
@@ -23,14 +23,20 @@ const polarToCartesian = (
 
 export const CompassRose: React.FC<CompassRoseProps> = ({
   heading,
-  size = 300, // Keep default size, but elements will scale within
+  size = 200,
 }) => {
-  const rotationDegrees = -((((heading * 180) / Math.PI) % 360) + 360) % 360;
+  // State for continuous rotation
+  const initialRotationDegrees =
+    -((((heading * 180) / Math.PI) % 360) + 360) % 360;
+  const [visualRotation, setVisualRotation] = useState<number>(
+    initialRotationDegrees,
+  );
+  const previousHeadingRef = useRef<number>(heading);
 
-  // Adjust overall size for padding and the new outer ring
-  const outerPadding = 3; // Padding around the entire SVG
-  const outerRingWidth = size * 0.1; // Width of the golden ring
-  const innerSize = size - 2 * outerRingWidth; // Size available for the rotating card
+  // Constants
+  const outerPadding = 5;
+  const outerRingWidth = size * 0.15;
+  const innerSize = size - 2 * outerRingWidth;
   const innerRadius = innerSize / 2;
   const viewBoxSize = size + 2 * outerPadding;
   const center = viewBoxSize / 2;
@@ -65,6 +71,30 @@ export const CompassRose: React.FC<CompassRoseProps> = ({
 
   const fixedNumberFontSize = outerRingWidth * 0.35; // Scale font size to ring width
   const cardNumberFontSize = innerRadius * 0.16; // Scale font size to inner card radius
+
+  // Effect for continuous rotation
+  useEffect(() => {
+    const currentHeadingDeg = ((((heading * 180) / Math.PI) % 360) + 360) % 360;
+    const previousHeadingDeg =
+      ((((previousHeadingRef.current * 180) / Math.PI) % 360) + 360) % 360;
+
+    // Calculate the shortest difference between angles (handles wrap-around)
+    let deltaHeadingDeg = currentHeadingDeg - previousHeadingDeg;
+    if (deltaHeadingDeg > 180) {
+      deltaHeadingDeg -= 360;
+    } else if (deltaHeadingDeg < -180) {
+      deltaHeadingDeg += 360;
+    }
+
+    // The rotation delta is the negative of the heading delta
+    const deltaRotation = -deltaHeadingDeg;
+
+    // Update the visual rotation by adding the delta
+    setVisualRotation(prevRotation => prevRotation + deltaRotation);
+
+    // Store the current heading for the next calculation
+    previousHeadingRef.current = heading;
+  }, [heading]);
 
   return (
     <svg
@@ -146,8 +176,7 @@ export const CompassRose: React.FC<CompassRoseProps> = ({
                   dominantBaseline="middle"
                   transform={`rotate(${angle} ${fixedNumPos.x} ${fixedNumPos.y})`}
                 >
-                  {/* Show only tens and hundreds digit for fixed ring */}
-                  {(angle === 0 ? 360 : angle).toString().padStart(2, '0')}
+                  {(angle === 0 ? 360 : angle).toString()}
                 </text>
               )}
             </React.Fragment>
@@ -160,15 +189,9 @@ export const CompassRose: React.FC<CompassRoseProps> = ({
         cy={center}
         r={cardRadius} // Use the calculated card radius
         fill={backgroundColor}
-        // Optional: Add a border to the inner card if desired
-        // stroke={borderColor}
-        // strokeWidth="1"
       />
-      {/* Rotating Card Group */}
-      <g
-        transform={`rotate(${rotationDegrees} ${center} ${center})`}
-        style={{ transition: 'transform 0.2s linear' }} // Smooth rotation
-      >
+      {/* Rotating Card Group - Use visualRotation */}
+      <g transform={`rotate(${visualRotation} ${center} ${center})`}>
         {/* Ticks and Numbers for the INNER card */}
         {Array.from({ length: 360 }).map((_, angle) => {
           const isTenDegreeMark = angle % 10 === 0;
@@ -235,7 +258,6 @@ export const CompassRose: React.FC<CompassRoseProps> = ({
                   fontWeight="semibold"
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  // Apply rotation matching the angle around the number's position
                   transform={`rotate(${angle} ${cardNumPos.x} ${cardNumPos.y})`}
                 >
                   {(angle === 0 ? 360 : angle).toString().padStart(3, '0')}
@@ -244,8 +266,7 @@ export const CompassRose: React.FC<CompassRoseProps> = ({
             </React.Fragment>
           );
         })}
-      </g>{' '}
-      {/* End Rotating Card Group */}
+      </g>
       {/* Fixed Lubber Line (drawn over everything else) */}
       <line
         x1={center}
