@@ -109,6 +109,7 @@ export const WeatherVisualizer: React.FC<WeatherVisualizerProps> = ({
         <Precipitation
           type={precipitationType}
           intensity={precipitationIntensity}
+          inCanvas={false}
         />
       )}
     </div>

@@ -1,10 +1,10 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 
 // Define types for precipitation effects
 interface PrecipitationProps {
-  type: 'rain' | 'snow' | 'fog';
+  type: 'rain' | 'snow' | 'fog' | 'none';
   intensity: number; // 0 to 1
   position?: THREE.Vector3 | [number, number, number];
   color?: string;
@@ -12,6 +12,7 @@ interface PrecipitationProps {
   size?: number;
   speed?: number;
   area?: number;
+  inCanvas?: boolean; // Flag to determine if component is rendered inside Canvas
 }
 
 /**
@@ -25,6 +26,7 @@ interface PrecipitationProps {
  * @param size - Size of particles
  * @param speed - Fall speed
  * @param area - Area covered by precipitation
+ * @param inCanvas - Whether the component is rendered inside a Canvas component
  */
 const Precipitation: React.FC<PrecipitationProps> = ({
   type,
@@ -35,7 +37,13 @@ const Precipitation: React.FC<PrecipitationProps> = ({
   size,
   speed,
   area = 1000,
+  inCanvas = true, // Default to true for backward compatibility
 }) => {
+  // If type is 'none', don't render anything
+  if (type === 'none' || intensity <= 0) {
+    return null;
+  }
+
   const particlesRef = useRef<THREE.Points>(null);
 
   // Calculate particles count based on intensity and type
@@ -163,12 +171,14 @@ const Precipitation: React.FC<PrecipitationProps> = ({
     return [geometry, material, particlePositions];
   }, [type, particleCount, area, intensity, particleColor, particleSize]);
 
-  // Animation effect - falling particles
-  useFrame((_, delta) => {
-    if (!particlesRef.current) return;
+  // Function to animate precipitation particles
+  const animateParticles = (delta: number) => {
+    if (!particlesRef.current || !particlesRef.current.geometry) return;
 
     const positionAttribute =
       particlesRef.current.geometry.getAttribute('position');
+
+    if (!positionAttribute || !positionAttribute.array) return;
 
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
@@ -215,7 +225,36 @@ const Precipitation: React.FC<PrecipitationProps> = ({
     }
 
     positionAttribute.needsUpdate = true;
-  });
+  };
+
+  // Only use useFrame when inside a Canvas component
+  if (inCanvas) {
+    // Animation using useFrame (only works inside Canvas)
+    useFrame((_, delta) => {
+      animateParticles(delta);
+    });
+  } else {
+    // Use useEffect for animation when outside Canvas
+    useEffect(() => {
+      let animationFrameId: number;
+      let lastTime = 0;
+
+      const animate = (time: number) => {
+        if (lastTime === 0) lastTime = time;
+        const delta = (time - lastTime) / 1000; // Convert to seconds
+        lastTime = time;
+
+        animateParticles(delta);
+        animationFrameId = requestAnimationFrame(animate);
+      };
+
+      animationFrameId = requestAnimationFrame(animate);
+
+      return () => {
+        cancelAnimationFrame(animationFrameId);
+      };
+    }, []);
+  }
 
   // Return different primitives based on precipitation type
   if (type === 'rain') {
