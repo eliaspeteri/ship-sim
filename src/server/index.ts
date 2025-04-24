@@ -15,10 +15,62 @@ import {
   verifySocketAuth,
   authenticateUser,
   registerAdminUser,
+  UserAuth,
 } from './authService';
+import { socketHasPermission } from './middleware/authorization';
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
+
+// Type definitions for Socket.IO communication
+interface SimulationUpdateData {
+  vessels: Record<string, VesselState>;
+  environment?: EnvironmentState;
+  partial?: boolean;
+  timestamp?: number;
+}
+
+interface VesselState {
+  position: { x: number; y: number; z: number };
+  orientation: { heading: number; roll: number; pitch: number };
+  velocity: { surge: number; sway: number; heave: number };
+  throttle: number;
+  rudderAngle: number;
+}
+
+interface VesselJoinedData {
+  userId: string;
+  username: string;
+  position: { x: number; y: number; z: number };
+  orientation: { heading: number; roll: number; pitch: number };
+}
+
+interface VesselLeftData {
+  userId: string;
+}
+
+interface VesselUpdateData {
+  position?: { x: number; y: number; z: number };
+  orientation?: { heading: number; roll: number; pitch: number };
+  velocity?: { surge: number; sway: number; heave: number };
+}
+
+interface VesselControlData {
+  throttle?: number;
+  rudderAngle?: number;
+}
+
+interface EnvironmentState {
+  wind: {
+    speed: number;
+    direction: number;
+  };
+  current: {
+    speed: number;
+    direction: number;
+  };
+  seaState: number;
+}
 
 // Type definitions for Socket.IO
 type ServerToClientEvents = {
@@ -49,7 +101,7 @@ type ClientToServerEvents = {
       success: boolean;
       token?: string;
       username?: string;
-      isAdmin?: boolean;
+      roles?: string[];
       error?: string;
     }) => void,
   ) => void;
@@ -59,100 +111,54 @@ type ClientToServerEvents = {
       success: boolean;
       token?: string;
       username?: string;
-      isAdmin?: boolean;
+      roles?: string[];
       error?: string;
     }) => void,
   ) => void;
+  'auth:logout': () => void;
 };
 
+// Define Socket.IO interface
 interface InterServerEvents {
-  ping: () => void;
+  // Custom inter-server events would go here if needed
+  _placeholder?: boolean; // Placeholder to make TypeScript happy
 }
 
-interface SocketData {
-  userId: string;
-  username?: string;
-  vesselType?: string;
-  isAdmin?: boolean;
+interface SocketData extends UserAuth {
+  // Additional socket data properties would go here if needed
+  _socketSpecific?: boolean; // Placeholder to make TypeScript happy
 }
 
-// Define data interface types
-interface SimulationUpdateData {
-  timestamp: number;
-  vessels: Record<string, VesselState>;
-  environment: EnvironmentState;
-}
-
-interface VesselState {
-  id: string;
-  position: { x: number; y: number; z: number };
-  orientation: { heading: number; roll: number; pitch: number };
-  velocity: { surge: number; sway: number; heave: number };
-}
-
-interface EnvironmentState {
-  wind: {
-    speed: number;
-    direction: number;
-    gusting?: boolean;
-    gustFactor?: number;
-  };
-  current: {
-    speed: number;
-    direction: number;
-    variability?: number;
-  };
-  seaState: number;
-  waterDepth?: number;
-  waveHeight?: number;
-  waveDirection?: number;
-  waveLength?: number;
-  visibility?: number;
-  timeOfDay?: number;
-  precipitation?: 'none' | 'rain' | 'snow' | 'fog';
-  precipitationIntensity?: number;
-  name?: string;
-}
-
-interface VesselJoinedData {
-  id: string;
-  name: string;
-  vesselType: string;
-}
-
-interface VesselLeftData {
-  id: string;
-}
-
-interface VesselUpdateData {
-  id: string;
-  position?: { x: number; y: number; z: number };
-  orientation?: { heading: number; roll: number; pitch: number };
-  velocity?: { surge: number; sway: number; heave: number };
-}
-
-interface VesselControlData {
-  id: string;
-  throttle?: number;
-  rudderAngle?: number;
-}
-
-// Weather system variables
-let targetWeather: WeatherPattern | null = null;
-let currentWeatherTick = 0;
-const WEATHER_TRANSITION_TICKS = 600; // 60 seconds at 10 ticks/s
-// Using underscore prefix to indicate intentionally unused variable for future use
-let _weatherUpdateInterval: NodeJS.Timeout | null = null;
-let randomWeatherEnabled = true;
-
-// Global state to track connected vessels and environment
+// Application state
 const globalState = {
-  vessels: {} as Record<string, VesselState>,
-  environment: getWeatherPattern('moderate') as EnvironmentState,
-  lastUpdate: Date.now(),
-  lastWeatherChange: Date.now(),
-  weatherTransitionStart: Date.now(),
+  vessels: {} as Record<
+    string,
+    {
+      position: { x: number; y: number; z: number };
+      orientation: { heading: number; roll: number; pitch: number };
+      velocity: { surge: number; sway: number; heave: number };
+      throttle: number;
+      rudderAngle: number;
+    }
+  >,
+  environment: {
+    wind: {
+      speed: 5,
+      direction: 0,
+    },
+    current: {
+      speed: 0.5,
+      direction: Math.PI / 4,
+    },
+    seaState: 3,
+  },
 };
+
+// Weather system state
+let weatherUpdateInterval: NodeJS.Timeout | null = null;
+let randomWeatherEnabled = false;
+let weatherTransitionInterval: NodeJS.Timeout | null = null;
+let targetWeather: WeatherPattern | null = null;
 
 // Create Express app
 const app = express();
@@ -162,7 +168,7 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// API routes
+// Routes
 app.use('/api', apiRoutes);
 
 // Create HTTP server
@@ -181,72 +187,127 @@ const io = new Server<
   },
 });
 
-// Socket.IO connection handler
+// Handle Socket.IO connections
 io.on('connection', async socket => {
   try {
-    // Authenticate the user based on socket handshake
-    const authResult = await verifySocketAuth(socket.handshake.auth);
+    // Authenticate socket connection
+    const authData = socket.handshake.auth;
+    const userData = await verifySocketAuth(authData);
 
-    // If authentication fails, use a generated ID and no admin rights
-    const userId =
-      authResult?.userId ||
-      `user_${Math.random().toString(36).substring(2, 9)}`;
+    if (!userData) {
+      socket.disconnect();
+      return;
+    }
+
+    // Store user data in socket
+    const { userId, username, roles, permissions } = userData;
+    socket.data = { userId, username, roles, permissions };
 
     console.info(
-      `Socket connected: ${userId}${authResult?.isAdmin ? ' (admin)' : ''}`,
+      `User connected: ${username} (${userId}) with roles: ${roles.join(', ')}`,
     );
 
-    // Set the socket data with authenticated info
-    socket.data.userId = userId;
-    socket.data.username =
-      authResult?.username || socket.handshake.auth.username || 'Anonymous';
-    socket.data.vesselType = socket.handshake.auth.vesselType || 'default';
-    socket.data.isAdmin = authResult?.isAdmin || false;
+    // Add vessel to global state if it doesn't exist
+    if (!globalState.vessels[userId]) {
+      // Try to load vessel state from database
+      try {
+        const savedState = await prisma.vesselState.findUnique({
+          where: { userId },
+        });
 
-    // Add user to global state
-    globalState.vessels[userId] = {
-      id: userId,
-      position: { x: 0, y: 0, z: 0 },
-      orientation: { heading: 0, roll: 0, pitch: 0 },
-      velocity: { surge: 0, sway: 0, heave: 0 },
-    };
+        if (savedState) {
+          // Restore vessel state from database
+          globalState.vessels[userId] = {
+            position: {
+              x: savedState.positionX,
+              y: savedState.positionY,
+              z: savedState.positionZ,
+            },
+            orientation: {
+              heading: savedState.heading,
+              roll: savedState.roll,
+              pitch: savedState.pitch,
+            },
+            velocity: {
+              surge: savedState.velocityX,
+              sway: savedState.velocityY,
+              heave: savedState.velocityZ,
+            },
+            throttle: savedState.throttle,
+            rudderAngle: savedState.rudderAngle,
+          };
+        } else {
+          // Create new vessel state
+          globalState.vessels[userId] = {
+            position: { x: 0, y: 0, z: 0 },
+            orientation: { heading: 0, roll: 0, pitch: 0 },
+            velocity: { surge: 0, sway: 0, heave: 0 },
+            throttle: 0,
+            rudderAngle: 0,
+          };
+        }
+      } catch (error) {
+        console.error(`Error loading vessel state for ${userId}:`, error);
+        // Create default vessel state
+        globalState.vessels[userId] = {
+          position: { x: 0, y: 0, z: 0 },
+          orientation: { heading: 0, roll: 0, pitch: 0 },
+          velocity: { surge: 0, sway: 0, heave: 0 },
+          throttle: 0,
+          rudderAngle: 0,
+        };
+      }
+    }
 
-    // Notify all clients about the new vessel
-    io.emit('vessel:joined', {
-      id: userId,
-      name: socket.data.username,
-      vesselType: socket.data.vesselType,
+    // Notify other clients of new vessel
+    socket.broadcast.emit('vessel:joined', {
+      userId,
+      username,
+      position: globalState.vessels[userId].position,
+      orientation: globalState.vessels[userId].orientation,
     });
 
-    // Send current environment state to the new client
-    socket.emit('environment:update', globalState.environment);
+    // Send initial state to new client
+    socket.emit('simulation:update', {
+      vessels: globalState.vessels,
+      environment: globalState.environment,
+    });
 
-    // Listen for vessel updates from client
+    // Handle vessel:update events
     socket.on('vessel:update', data => {
-      if (data.id !== userId) {
-        // Ignore updates for other vessels (security measure)
+      if (!socketHasPermission(socket, 'vessel', 'update')) {
+        socket.emit('error', 'Not authorized to update vessel state');
         return;
       }
 
-      // Update vessel state
-      if (data.position) globalState.vessels[userId].position = data.position;
-      if (data.orientation)
-        globalState.vessels[userId].orientation = data.orientation;
-      if (data.velocity) globalState.vessels[userId].velocity = data.velocity;
-
-      // Periodic state persistence to database (every 5 minutes)
-      const now = Date.now();
-      if (now - globalState.lastUpdate > 5 * 60 * 1000) {
-        persistState();
-        globalState.lastUpdate = now;
+      // Update global state
+      if (globalState.vessels[userId]) {
+        if (data.position) globalState.vessels[userId].position = data.position;
+        if (data.orientation)
+          globalState.vessels[userId].orientation = data.orientation;
+        if (data.velocity) globalState.vessels[userId].velocity = data.velocity;
       }
+
+      // Broadcast update to other clients (except sender)
+      socket.broadcast.emit('simulation:update', {
+        vessels: { [userId]: globalState.vessels[userId] },
+        partial: true,
+      });
     });
 
-    // Listen for vessel control updates
+    // Handle vessel:control events
     socket.on('vessel:control', data => {
-      if (data.id !== userId) {
-        // Ignore updates for other vessels (security measure)
+      if (!socketHasPermission(socket, 'vessel', 'control')) {
+        socket.emit('error', 'Not authorized to control vessel');
         return;
+      }
+
+      // Update vessel control state
+      if (globalState.vessels[userId]) {
+        if (data.throttle !== undefined)
+          globalState.vessels[userId].throttle = data.throttle;
+        if (data.rudderAngle !== undefined)
+          globalState.vessels[userId].rudderAngle = data.rudderAngle;
       }
 
       // In a multi-user scenario, we'd broadcast this to other users
@@ -256,19 +317,24 @@ io.on('connection', async socket => {
 
     // Handle simulation state changes
     socket.on('simulation:state', data => {
+      if (!socketHasPermission(socket, 'simulation', 'control')) {
+        socket.emit('error', 'Not authorized to control simulation');
+        return;
+      }
+
       console.info(`Simulation state update from ${userId}:`, data);
       // In a full implementation, this would affect the global simulation
     });
 
     // Handle admin weather control
     socket.on('admin:weather', data => {
-      // Only admins can change the weather
-      if (!socket.data.isAdmin) {
+      // Only users with environment:manage permission can change the weather
+      if (!socketHasPermission(socket, 'environment', 'manage')) {
         socket.emit('error', 'Not authorized to change weather');
         return;
       }
 
-      console.info(`Weather update from admin ${userId}:`, data);
+      console.info(`Weather update from ${username}:`, data);
 
       if (data.pattern) {
         // Set specific weather pattern
@@ -281,48 +347,57 @@ io.on('connection', async socket => {
         targetWeather = getWeatherByCoordinates(lat, lng);
         startWeatherTransition();
         randomWeatherEnabled = false;
-      } else {
-        // Enable random weather
-        randomWeatherEnabled = true;
-        scheduleRandomWeather();
+      }
+    });
+
+    // Handle chat messages
+    socket.on('chat:message', data => {
+      if (!socketHasPermission(socket, 'chat', 'send')) {
+        socket.emit('error', 'Not authorized to send chat messages');
+        return;
       }
 
-      // Notify all clients about the weather change
+      const message = data.message.trim();
+
+      // Prevent empty or overly long messages
+      if (!message || message.length > 500) {
+        return;
+      }
+
+      // Broadcast message to all clients
       io.emit('chat:message', {
-        userId: 'system',
-        username: 'Weather System',
-        message: `Weather is changing to ${targetWeather?.name || 'a random pattern'}`,
+        userId,
+        username,
+        message,
       });
     });
 
-    // Handle authentication request
+    // Handle authentication requests
     socket.on('auth:login', async (data, callback) => {
       try {
         const { username, password } = data;
 
-        // Authenticate the user
+        // Authenticate user
         const authResult = await authenticateUser(username, password);
 
         if (!authResult) {
-          callback({ success: false, error: 'Invalid credentials' });
+          callback({ success: false, error: 'Invalid username or password' });
           return;
         }
 
-        // Update socket data with authenticated info
-        socket.data.userId = authResult.userId;
-        socket.data.username = authResult.username;
-        socket.data.isAdmin = authResult.isAdmin;
+        // Update socket data with authenticated user info
+        socket.data = authResult;
 
         // Return success with token and user info
         callback({
           success: true,
           token: authResult.token,
           username: authResult.username,
-          isAdmin: authResult.isAdmin,
+          roles: authResult.roles,
         });
 
         console.info(
-          `User authenticated: ${authResult.username} (Admin: ${authResult.isAdmin})`,
+          `User authenticated: ${authResult.username} (Roles: ${authResult.roles.join(', ')})`,
         );
       } catch (error) {
         console.error('Authentication error:', error);
@@ -346,12 +421,15 @@ io.on('connection', async socket => {
           return;
         }
 
+        // Update socket data with authenticated user info
+        socket.data = authResult;
+
         // Return success with token and user info
         callback({
           success: true,
           token: authResult.token,
           username: authResult.username,
-          isAdmin: authResult.isAdmin,
+          roles: authResult.roles,
         });
 
         console.info(`Admin user registered: ${authResult.username}`);
@@ -361,123 +439,122 @@ io.on('connection', async socket => {
       }
     });
 
-    // Handle chat messages
-    socket.on(
-      'chat:message',
-      (
-        data, // Broadcast chat message to all clients
-      ) =>
-        // Broadcast chat message to all clients
-        io.emit('chat:message', {
-          userId,
-          username: socket.data.username,
-          message: data.message,
-        }),
-    );
-
-    // Handle disconnection
+    // Handle disconnect
     socket.on('disconnect', () => {
-      console.info(`Socket disconnected: ${userId}`);
+      console.info(`User disconnected: ${username} (${userId})`);
 
-      // Remove user from global state
-      delete globalState.vessels[userId];
+      // Notify other clients of vessel departure
+      socket.broadcast.emit('vessel:left', { userId });
 
-      // Notify all clients about the vessel leaving
-      io.emit('vessel:left', { id: userId });
-
-      // Persist state on disconnection
-      persistState();
+      // In a production app, we'd persist the vessel state here
+      // but keep it in memory for some time in case they reconnect
     });
   } catch (error) {
     console.error('Error handling socket connection:', error);
+    socket.disconnect();
   }
 });
 
-// Start the weather system
-function startWeatherSystem() {
-  // Schedule initial random weather if enabled
-  if (randomWeatherEnabled) {
-    scheduleRandomWeather();
-  }
+// Start the server
+server.listen(PORT, () => {
+  console.info(`Server listening on port ${PORT}`);
 
-  // Update weather every 100ms (for smooth transitions)
-  _weatherUpdateInterval = setInterval(() => updateWeather(), 100);
-}
+  // Start simulation and persistence loops
+  startSimulation();
+});
 
-// Schedule a random weather change
-function scheduleRandomWeather() {
-  // Random interval between 5-15 minutes
-  const delay = 5 * 60 * 1000 + Math.random() * 10 * 60 * 1000;
-
-  setTimeout(() => {
-    // Only change if random weather is still enabled
+// Start weather simulation (simplified)
+function startSimulation() {
+  // Update weather periodically (every 30 seconds)
+  weatherUpdateInterval = setInterval(() => {
     if (randomWeatherEnabled) {
-      console.info('Generating new random weather pattern');
-      targetWeather = generateRandomWeather();
-      startWeatherTransition();
-
-      // Notify all clients
-      io.emit('chat:message', {
-        userId: 'system',
-        username: 'Weather System',
-        message: `Weather is changing to ${targetWeather.name}`,
-      });
-
-      // Schedule the next change
-      scheduleRandomWeather();
+      // Generate random weather changes
+      const weather = generateRandomWeather();
+      updateWeather(weather);
     }
-  }, delay);
-}
+  }, 30000);
 
-// Start weather transition
-function startWeatherTransition() {
-  currentWeatherTick = 0;
-  globalState.weatherTransitionStart = Date.now();
-}
-
-// Update weather (called every tick)
-function updateWeather() {
-  // Skip if no target weather or already at target
-  if (!targetWeather || currentWeatherTick >= WEATHER_TRANSITION_TICKS) {
-    return;
-  }
-
-  // Calculate progress (0-1)
-  currentWeatherTick++;
-  const progress = currentWeatherTick / WEATHER_TRANSITION_TICKS;
-
-  // Transition to target weather
-  const transitionedWeather = transitionWeather(
-    globalState.environment as WeatherPattern,
-    targetWeather,
-    progress,
+  // Persist state periodically (every 5 minutes)
+  setInterval(
+    () => {
+      persistState();
+    },
+    5 * 60 * 1000,
   );
 
-  // Update global state
-  globalState.environment = transitionedWeather;
-
-  // Broadcast environment update to all clients
-  io.emit('environment:update', globalState.environment);
-
-  // If transition complete, clear target
-  if (currentWeatherTick >= WEATHER_TRANSITION_TICKS) {
-    console.info(`Weather transition to ${targetWeather.name} complete`);
-
-    // If using random weather, schedule the next change
-    if (randomWeatherEnabled) {
-      globalState.lastWeatherChange = Date.now();
-    }
-  }
+  console.info('Simulation started');
 }
 
-// Broadcast updates to all clients every 100ms
-setInterval(() => {
-  io.emit('simulation:update', {
-    timestamp: Date.now(),
-    vessels: globalState.vessels,
-    environment: globalState.environment,
-  });
-}, 100);
+// Update global weather state and broadcast changes
+function updateWeather(weather: WeatherPattern) {
+  globalState.environment = {
+    wind: {
+      speed: weather.wind.speed,
+      direction: weather.wind.direction,
+    },
+    current: {
+      speed: weather.current.speed,
+      direction: weather.current.direction,
+    },
+    seaState: weather.seaState,
+  };
+
+  io.emit('environment:update', globalState.environment);
+}
+
+// Start transition to target weather
+function startWeatherTransition() {
+  if (!targetWeather) return;
+
+  if (weatherTransitionInterval) {
+    clearInterval(weatherTransitionInterval);
+  }
+
+  const currentWeather = {
+    name: 'Current Weather',
+    wind: {
+      speed: globalState.environment.wind.speed,
+      direction: globalState.environment.wind.direction,
+      gusting: false,
+      gustFactor: 1.0,
+    },
+    current: {
+      speed: globalState.environment.current.speed,
+      direction: globalState.environment.current.direction,
+      variability: 0.1,
+    },
+    seaState: globalState.environment.seaState,
+    waterDepth: 100,
+    waveHeight: 0.5,
+    waveDirection: 0,
+    waveLength: 50,
+    visibility: 10,
+    timeOfDay: 12,
+    precipitation: 'none' as const,
+    precipitationIntensity: 0,
+  };
+
+  // Transition over 2 minutes with updates every 5 seconds
+  let progress = 0;
+  weatherTransitionInterval = setInterval(() => {
+    progress += 0.1; // 10% each time
+    if (progress >= 1) {
+      // Final update with exact target values
+      updateWeather(targetWeather!);
+      clearInterval(weatherTransitionInterval!);
+      weatherTransitionInterval = null;
+      return;
+    }
+
+    // Calculate intermediate values
+    const intermediateWeather = transitionWeather(
+      currentWeather,
+      targetWeather!,
+      progress,
+    );
+    updateWeather(intermediateWeather);
+  }, 5000);
+}
 
 // Persist state to database
 async function persistState() {
@@ -540,11 +617,20 @@ async function persistState() {
   }
 }
 
-// Start server
-server.listen(PORT, () => {
-  console.info(`Server running on port ${PORT}`);
-  // Start the weather system after server is running
-  startWeatherSystem();
-});
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.info('Shutting down server...');
 
-export default server;
+  // Clear intervals
+  if (weatherUpdateInterval) clearInterval(weatherUpdateInterval);
+  if (weatherTransitionInterval) clearInterval(weatherTransitionInterval);
+
+  // Persist final state
+  await persistState();
+
+  // Close database connection
+  await prisma.$disconnect();
+
+  // Exit process
+  process.exit(0);
+});

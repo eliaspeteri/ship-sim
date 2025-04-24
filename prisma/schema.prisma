@@ -31,20 +31,68 @@ model Vessel {
     vesselStates VesselState[]
 }
 
+// Role model for access control
+model Role {
+    id          String   @id @default(uuid())
+    name        String   @unique
+    description String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    permissions RolePermission[]
+    userRoles   UserRole[]
+}
+
+// Permission model defining allowed actions
+model Permission {
+    id          String   @id @default(uuid())
+    name        String   @unique
+    resource    String // The resource this permission applies to (vessels, environment, etc.)
+    action      String // The action allowed (read, write, control, etc.)
+    description String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    rolePermissions RolePermission[]
+}
+
+// Many-to-many relation between roles and permissions
+model RolePermission {
+    roleId       String
+    permissionId String
+
+    role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+    permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+    @@id([roleId, permissionId])
+}
+
 // User model
 model User {
     id           String   @id @default(uuid()) // Changed to String for UUID compatibility
     username     String   @unique
     email        String   @unique
-    password     String? // Keeping for backward compatibility
-    passwordHash String // Added for secure password storage
-    isAdmin      Boolean  @default(false) // Added to track admin privileges
+    passwordHash String
     createdAt    DateTime @default(now())
     updatedAt    DateTime @updatedAt
 
     // Relations
+    roles        UserRole[]
     settings     UserSettings?
     vesselStates VesselState[]
+}
+
+// Many-to-many relation between users and roles
+model UserRole {
+    userId String
+    roleId String
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+    @@id([userId, roleId])
 }
 
 // Vessel state for simulation persistence
