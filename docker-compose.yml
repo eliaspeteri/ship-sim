@@ -43,7 +43,14 @@ services:
         limits:
           memory: 1G
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "
+        npx prisma migrate deploy &&
+        node scripts/create-admin.js &&
+        npx tsx src/server/index.ts
+      "
     networks:
       - ship-sim-network
     restart: unless-stopped
