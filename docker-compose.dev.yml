@@ -3,51 +3,37 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+    volumes:
+      # mount the whole project into /app
+      - ./:/app
+      # keep container’s node_modules
+      - /app/node_modules
     ports:
       - '3000:3000'
     environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_WEBSOCKET_URL=http://localhost:3001
-    volumes:
-      - ./public:/app/public
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-    depends_on:
-      - server
-    networks:
-      - ship-sim-network
-    restart: unless-stopped
+      - NODE_ENV=development
+    command: npm run dev
 
   server:
     build:
       context: .
       dockerfile: Dockerfile.server
+    volumes:
+      - ./:/app
+      - /app/node_modules
     ports:
       - '3001:3001'
     environment:
-      - NODE_ENV=production
-      - PORT=3001
+      - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/ship_sim
       - JWT_SECRET=secure_jwt_secret_for_ship_sim_2025
       - AUTH_SECRET=ship-sim-auth-secret-2025
-      # Admin credentials for initial setup
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=ship_sim_admin
       - ADMIN_EMAIL=admin@shipsim.com
-    volumes:
-      - ./prisma:/app/prisma
-      - ./scripts:/app/scripts
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-    depends_on:
-      - db
-    networks:
-      - ship-sim-network
-    restart: unless-stopped
+    # run in “dev” mode (tsx will reload on changes)
+    entrypoint: ['sh', '-c']
+    command: npx tsx --watch src/server/index.ts
 
   db:
     image: postgres:14-alpine
@@ -59,18 +45,14 @@ services:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    deploy:
-      resources:
-        limits:
-          memory: 512M
     networks:
       - ship-sim-network
-    restart: unless-stopped
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
 networks:
   ship-sim-network:

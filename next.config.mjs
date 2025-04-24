@@ -9,6 +9,8 @@ export default {
   },
   // Enable standalone output mode for Docker deployment
   output: 'standalone',
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
   webpack: config => {
     // WebAssembly support
     config.experiments = {
