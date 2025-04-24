@@ -50,16 +50,20 @@ export const EventLog: React.FC = () => {
           ) : (
             <table className="table table-compact w-full">
               <tbody>
-                {eventLog.map((event, index) => (
-                  <tr key={index} className="hover">
-                    <td className="font-mono text-xs opacity-70 whitespace-nowrap">
-                      {new Date(event.timestamp).toLocaleString()}
-                    </td>
-                    <td className={`${getEventSeverityClass(event.severity)}`}>
-                      {event.message}
-                    </td>
-                  </tr>
-                ))}
+                {eventLog
+                  .sort((a, b) => b.timestamp - a.timestamp) // Sort in descending order
+                  .map((event, index) => (
+                    <tr key={index} className="hover">
+                      <td className="font-mono text-xs opacity-70 whitespace-nowrap">
+                        {new Date(event.timestamp).toLocaleString()}
+                      </td>
+                      <td
+                        className={`${getEventSeverityClass(event.severity)}`}
+                      >
+                        {event.message}
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           )}
