@@ -29,7 +29,7 @@ npx prisma migrate deploy
 
 # Create initial admin user if needed
 echo "Setting up initial admin user..."
-node scripts/create-admin.js
+npx tsx scripts/create-admin.ts
 
 # Start the server
 echo "Starting server..."

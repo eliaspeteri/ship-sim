@@ -136,10 +136,19 @@ export function verifyAuthToken(token: string): Promise<UserAuth | null> {
 }
 
 /**
+ * Auth data structure that might be passed during socket connections
+ */
+interface SocketAuthData {
+  token?: string;
+  userId?: string;
+  username?: string;
+}
+
+/**
  * Verify a user's socket connection based on auth data
  */
 export async function verifySocketAuth(
-  authData: any,
+  authData: SocketAuthData,
 ): Promise<UserAuth | null> {
   try {
     // Check if token is provided

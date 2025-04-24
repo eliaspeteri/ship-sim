@@ -48,7 +48,7 @@ services:
     command: >
       sh -c "
         npx prisma migrate deploy &&
-        node scripts/create-admin.js &&
+        npx tsx scripts/create-admin.ts &&
         npx tsx src/server/index.ts
       "
     networks:

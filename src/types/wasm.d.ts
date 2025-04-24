@@ -44,7 +44,7 @@ export interface WasmModule {
   __unpin: (ptr: number) => void;
   __collect: () => void;
   __allocArray: (id: number, values: number[]) => number;
-  __getArray: (ptr: number) => any;
+  __getArray: (ptr: number) => number[];
   __getArrayBuffer: (ptr: number) => ArrayBuffer;
   __getArrayView: (ptr: number) => ArrayBufferView;
 

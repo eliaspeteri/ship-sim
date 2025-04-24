@@ -223,8 +223,8 @@ interface SimulationState {
   setWasmVesselPtr: (ptr: number | null) => void;
 
   // WASM exports for interacting with the WebAssembly module
-  wasmExports?: any;
-  setWasmExports?: (exports: any) => void;
+  wasmExports?: ShipSimWasmExports;
+  setWasmExports?: (exports: ShipSimWasmExports) => void;
 
   // Apply vessel controls
   applyVesselControls: (controls: {
@@ -233,6 +233,34 @@ interface SimulationState {
     ballast?: number;
     bowThruster?: number;
   }) => void;
+}
+
+// Define the WebAssembly exports interface
+interface ShipSimWasmExports {
+  memory: WebAssembly.Memory;
+  createVessel: () => number;
+  updateVesselState: (
+    vesselPtr: number,
+    dt: number,
+    windSpeed?: number,
+    windDirection?: number,
+    currentSpeed?: number,
+    currentDirection?: number,
+    seaState?: number,
+  ) => number;
+  setThrottle: (vesselPtr: number, throttle: number) => void;
+  setRudderAngle: (vesselPtr: number, angle: number) => void;
+  setBallast: (vesselPtr: number, level: number) => void;
+  getVesselX: (vesselPtr: number) => number;
+  getVesselY: (vesselPtr: number) => number;
+  getVesselHeading: (vesselPtr: number) => number;
+  getVesselSpeed: (vesselPtr: number) => number;
+  getVesselEngineRPM: (vesselPtr: number) => number;
+  getVesselFuelLevel: (vesselPtr: number) => number;
+  getVesselFuelConsumption: (vesselPtr: number) => number;
+  getVesselGM: (vesselPtr: number) => number;
+  getVesselCenterOfGravityY: (vesselPtr: number) => number;
+  // Add any other exported functions here
 }
 
 // Default states

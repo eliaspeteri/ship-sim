@@ -3,6 +3,52 @@ import { PrismaClient } from '@prisma/client';
 import { authenticateRequest, requireAuth } from './middleware/authentication';
 import { requirePermission, requireRole } from './middleware/authorization';
 
+// First, define proper types for the database models
+interface VesselState {
+  id: number;
+  userId: string;
+  vesselId?: number | null;
+  positionX: number;
+  positionY: number;
+  positionZ: number;
+  heading: number;
+  roll: number;
+  pitch: number;
+  velocityX: number;
+  velocityY: number;
+  velocityZ: number;
+  mass: number | null;
+  length: number | null;
+  beam: number | null;
+  draft: number | null;
+  throttle: number;
+  rudderAngle: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface EnvironmentState {
+  id: number;
+  windSpeed: number;
+  windDirection: number;
+  currentSpeed: number;
+  currentDirection: number;
+  seaState: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface UserSettings {
+  id: number;
+  userId: string;
+  cameraMode: string;
+  soundEnabled: boolean;
+  showHUD: boolean;
+  timeScale: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Create a router instance
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -34,7 +80,7 @@ router.get('/vessels/:userId', requireAuth, function (req, res) {
     .findUnique({
       where: { userId },
     })
-    .then((vesselState: any) => {
+    .then((vesselState: VesselState | null) => {
       if (!vesselState) {
         return res.status(404).json({ error: 'Vessel state not found' });
       }
@@ -91,7 +137,7 @@ router.post(
           draft: properties?.draft || 3,
         },
       })
-      .then((vesselState: any) => {
+      .then((vesselState: VesselState) => {
         res.json(vesselState);
       })
       .catch((error: unknown) => {
@@ -129,7 +175,7 @@ router.get('/environment', function (req, res) {
     .findUnique({
       where: { id: 1 },
     })
-    .then((environmentState: any) => {
+    .then((environmentState: EnvironmentState | null) => {
       if (!environmentState) {
         return res.status(404).json({ error: 'Environment state not found' });
       }
@@ -180,7 +226,7 @@ router.post(
           seaState: seaState || 3,
         },
       })
-      .then((environmentState: any) => {
+      .then((environmentState: EnvironmentState) => {
         res.json({
           wind: {
             speed: environmentState.windSpeed,
@@ -208,7 +254,7 @@ router.get('/settings/:userId', requireAuth, function (req, res) {
     .findUnique({
       where: { userId },
     })
-    .then((settings: any) => {
+    .then((settings: UserSettings | null) => {
       if (!settings) {
         return res.status(404).json({ error: 'Settings not found' });
       }
@@ -243,7 +289,7 @@ router.post('/settings/:userId', requireAuth, function (req, res) {
         timeScale: timeScale || 1.0,
       },
     })
-    .then((settings: any) => {
+    .then((settings: UserSettings) => {
       res.json(settings);
     })
     .catch((error: unknown) => {
@@ -264,7 +310,7 @@ router.get(
         orderBy: { updatedAt: 'desc' },
       }),
     ])
-      .then(([vesselCount, latestVessel]: [number, any]) => {
+      .then(([vesselCount, latestVessel]: [number, VesselState | null]) => {
         res.json({
           vesselCount,
           lastUpdate: latestVessel?.updatedAt || null,
@@ -379,7 +425,7 @@ router.post(
   '/users/:userId/roles',
   requireAuth,
   requirePermission('user', 'manage'),
-  async (req, res, next) => {
+  async (req, res, _next) => {
     const { userId } = req.params;
     const { roleId } = req.body;
 

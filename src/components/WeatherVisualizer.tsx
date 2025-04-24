@@ -1,126 +1,136 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import socketManager from '../networking/socket';
+import useStore from '../store';
+import Precipitation from './Precipitation';
 
-// Weather visualization component
-export const WeatherVisualizer: React.FC<{ weatherState: any }> = ({
-  weatherState,
+interface WeatherVisualizerProps {
+  onWeatherChange: (weatherData: WeatherData) => void;
+}
+
+interface WeatherData {
+  wind: WindData;
+  current: CurrentData;
+  seaState: number;
+  precipitation?: 'none' | 'rain' | 'snow' | 'fog';
+  precipitationIntensity?: number;
+}
+
+interface WindData {
+  speed: number;
+  direction: number;
+}
+
+interface CurrentData {
+  speed: number;
+  direction: number;
+}
+
+const WeatherVisualizer: React.FC<WeatherVisualizerProps> = ({
+  onWeatherChange,
 }) => {
-  const { wind, seaState, precipitation, timeOfDay, visibility } = weatherState;
+  const [weather, setWeather] = useState<WeatherData>({
+    wind: { speed: 5, direction: 0 },
+    current: { speed: 0.5, direction: Math.PI / 4 },
+    seaState: 3,
+  });
 
-  // Convert time of day to an appropriate color scheme
-  const getTimeColor = () => {
-    // Night (deep blue)
-    if (timeOfDay < 5 || timeOfDay > 21) {
-      return '#1a365d';
+  // Listen for weather updates from the store
+  useEffect(() => {
+    // Initial setup to get current environment state from the store
+    const environment = useStore.getState().environment;
+    if (environment) {
+      setWeather(environment);
+      if (onWeatherChange) {
+        onWeatherChange(environment);
+      }
     }
-    // Dawn/Dusk (purple/orange)
-    if (timeOfDay < 7 || timeOfDay > 19) {
-      return timeOfDay < 7 ? '#553c9a' : '#dd6b20';
-    }
-    // Day (blue)
-    return '#3182ce';
-  };
 
-  // Get weather icon based on conditions
-  const getWeatherIcon = () => {
-    if (precipitation === 'rain') {
-      return '🌧️';
-    } else if (precipitation === 'snow') {
-      return '❄️';
-    } else if (precipitation === 'fog') {
-      return '🌫️';
-    } else if (seaState > 6) {
-      return '🌊';
-    } else if (wind.speed > 15) {
-      return '💨';
-    } else if (visibility < 5) {
-      return '🌫️';
-    } else {
-      return '☀️';
-    }
-  };
+    // Subscribe to store updates
+    const unsubscribe = useStore.subscribe(state => {
+      const newEnvironment = state.environment;
+      if (newEnvironment) {
+        setWeather(newEnvironment);
+        if (onWeatherChange) {
+          onWeatherChange(newEnvironment);
+        }
+      }
+    });
 
-  // Get wind icon based on direction and speed
-  const getWindArrow = () => {
-    const directions = ['↑', '↗️', '→', '↘️', '↓', '↙️', '←', '↖️'];
-    const index =
-      Math.floor(((wind.direction * 180) / Math.PI + 22.5) / 45) % 8;
-    const arrow = directions[index];
+    return () => {
+      unsubscribe();
+    };
+  }, [onWeatherChange]);
 
-    return wind.speed < 2 ? '🔄' : arrow;
-  };
+  // Weather visualization logic would go here
+  // For now, just show values and precipitation if sea state is high
 
-  // Calculate sea state visual height
-  const waveHeight = Math.min(90, (seaState / 12) * 100);
+  let precipitationType: 'rain' | 'fog' | null = null;
+  let precipitationIntensity = 0.5;
+
+  // Use the precipitation data from the server if available
+  if (weather.precipitation && weather.precipitation !== 'none') {
+    precipitationType =
+      weather.precipitation === 'snow' ? 'rain' : weather.precipitation;
+    precipitationIntensity = weather.precipitationIntensity || 0.5;
+  } else if (weather.seaState >= 6) {
+    precipitationType = 'rain';
+    precipitationIntensity = Math.min((weather.seaState - 5) / 4, 1);
+  } else if (weather.seaState >= 4) {
+    precipitationType = 'fog';
+    precipitationIntensity = Math.min((weather.seaState - 3) / 4, 0.8);
+  }
 
   return (
-    <div
-      className="relative w-full mb-4 overflow-hidden rounded-lg border border-gray-700"
-      style={{ height: '100px' }}
-    >
-      {/* Sky */}
-      <div
-        className="absolute inset-0 transition-colors duration-1000"
-        style={{
-          backgroundColor: getTimeColor(),
-          opacity: visibility / 10,
-        }}
-      />
+    <div className="weather-visualizer">
+      <div className="weather-data">
+        <div className="wind-info">
+          <h4>Wind</h4>
+          <p>Speed: {weather.wind.speed.toFixed(1)} m/s</p>
+          <p>
+            Direction: {(weather.wind.direction * (180 / Math.PI)).toFixed(0)}°
+          </p>
+        </div>
+        <div className="current-info">
+          <h4>Current</h4>
+          <p>Speed: {weather.current.speed.toFixed(1)} m/s</p>
+          <p>
+            Direction:{' '}
+            {(weather.current.direction * (180 / Math.PI)).toFixed(0)}°
+          </p>
+        </div>
+        <div className="sea-state">
+          <h4>Sea State</h4>
+          <p>
+            {weather.seaState} ({getSeaStateDescription(weather.seaState)})
+          </p>
+        </div>
+      </div>
 
-      {/* Precipitation overlay */}
-      {precipitation !== 'none' && (
-        <div
-          className="absolute inset-0 bg-repeat"
-          style={{
-            backgroundImage:
-              precipitation === 'rain'
-                ? 'radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px)'
-                : precipitation === 'snow'
-                  ? 'radial-gradient(circle, rgba(255,255,255,0.5) 2px, transparent 2px)'
-                  : 'linear-gradient(rgba(200,200,200,0.2), rgba(200,200,200,0.2))',
-            backgroundSize: precipitation === 'rain' ? '8px 8px' : '12px 12px',
-            opacity: Math.min(
-              1,
-              Math.max(0.3, weatherState.precipitationIntensity),
-            ),
-          }}
+      {precipitationType && (
+        <Precipitation
+          type={precipitationType}
+          intensity={precipitationIntensity}
         />
       )}
-
-      {/* Sea */}
-      <div
-        className="absolute bottom-0 w-full transition-all duration-700"
-        style={{
-          height: `${waveHeight}%`,
-          backgroundColor: '#2c5282',
-          backgroundImage: 'linear-gradient(0deg, #2a4365 0%, #3182ce 100%)',
-        }}
-      >
-        {/* Wave pattern */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              'radial-gradient(ellipse at center, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)',
-            backgroundSize: `${20 + seaState * 5}px ${10 + seaState * 2}px`,
-            backgroundRepeat: 'repeat',
-            animation: `wave ${Math.max(1, 5 - seaState * 0.3)}s infinite linear`,
-          }}
-        />
-      </div>
-
-      {/* Weather and wind indicators */}
-      <div className="absolute top-2 right-2 flex items-center space-x-2">
-        <span className="text-2xl">{getWeatherIcon()}</span>
-        <span className="text-2xl">{getWindArrow()}</span>
-      </div>
-
-      {/* Time indicator */}
-      <div className="absolute top-2 left-2 text-white text-sm">
-        {Math.floor(timeOfDay)}:
-        {Math.floor((timeOfDay % 1) * 60)
-          .toString()
-          .padStart(2, '0')}
-      </div>
     </div>
   );
 };
+
+function getSeaStateDescription(seaState: number): string {
+  const descriptions = [
+    'Calm (glassy)',
+    'Calm (rippled)',
+    'Smooth',
+    'Slight',
+    'Moderate',
+    'Rough',
+    'Very rough',
+    'High',
+    'Very high',
+    'Phenomenal',
+  ];
+
+  return descriptions[Math.min(seaState, descriptions.length - 1)];
+}
+
+export default WeatherVisualizer;

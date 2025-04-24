@@ -93,24 +93,30 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
     const instance = await WebAssembly.instantiate(module, imports);
 
     // Get the raw exports
-    const exports = instance.exports as any;
+    const exports = instance.exports as WebAssembly.Exports;
 
-    // Create a wrapper object instead of modifying the original
+    // Create a wrapper object with proper type casting
     const wrapper: ShipSimWasm = {
       // Pass through memory
-      memory: exports.memory,
+      memory: exports.memory as WebAssembly.Memory,
 
       // Runtime functions
-      __setArgumentsLength: exports.__setArgumentsLength,
-      __new: exports.__new,
-      __pin: exports.__pin,
-      __unpin: exports.__unpin,
-      __collect: exports.__collect,
-      __getArray: exports.__getArray,
+      __setArgumentsLength: exports.__setArgumentsLength as
+        | ((length: number) => void)
+        | undefined,
+      __new: exports.__new as
+        | ((size: number, id: number) => number)
+        | undefined,
+      __pin: exports.__pin as ((ptr: number) => number) | undefined,
+      __unpin: exports.__unpin as ((ptr: number) => void) | undefined,
+      __collect: exports.__collect as (() => void) | undefined,
+      __getArray: exports.__getArray as
+        | ((ptr: number) => unknown[])
+        | undefined,
 
       // Math functions
-      add: exports.add,
-      multiply: exports.multiply,
+      add: exports.add as (a: number, b: number) => number,
+      multiply: exports.multiply as (a: number, b: number) => number,
 
       // Wrap updateVesselState to handle arguments
       updateVesselState: (
@@ -159,17 +165,19 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
               : 0.0;
 
           // Set the correct argument count - the compiled WebAssembly only expects 4 parameters
-          if (exports.__setArgumentsLength) {
-            exports.__setArgumentsLength(4);
+          if (wrapper.__setArgumentsLength) {
+            wrapper.__setArgumentsLength(4);
           }
 
           // Only pass the parameters that the WASM function actually accepts
-          return exports.updateVesselState(
-            vesselPtr,
-            dt,
-            safeWindSpeed,
-            safeWindDirection,
-          );
+          const updateFn = exports.updateVesselState as (
+            vesselPtr: number,
+            dt: number,
+            windSpeed: number,
+            windDirection: number,
+          ) => number;
+
+          return updateFn(vesselPtr, dt, safeWindSpeed, safeWindDirection);
         } catch (error) {
           // Update error tracking
           errorCount++;
@@ -203,23 +211,42 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
       },
 
       // Vessel management
-      createVessel: exports.createVessel,
+      createVessel: exports.createVessel as () => number,
 
       // Control functions
-      setThrottle: exports.setThrottle,
-      setRudderAngle: exports.setRudderAngle,
-      setBallast: exports.setBallast,
+      setThrottle: exports.setThrottle as (
+        vesselPtr: number,
+        throttle: number,
+      ) => void,
+      setRudderAngle: exports.setRudderAngle as (
+        vesselPtr: number,
+        angle: number,
+      ) => void,
+      setBallast: exports.setBallast as (
+        vesselPtr: number,
+        level: number,
+      ) => void,
 
       // State access
-      getVesselX: exports.getVesselX,
-      getVesselY: exports.getVesselY,
-      getVesselHeading: exports.getVesselHeading,
-      getVesselSpeed: exports.getVesselSpeed,
-      getVesselEngineRPM: exports.getVesselEngineRPM,
-      getVesselFuelLevel: exports.getVesselFuelLevel,
-      getVesselFuelConsumption: exports.getVesselFuelConsumption,
-      getVesselGM: exports.getVesselGM,
-      getVesselCenterOfGravityY: exports.getVesselCenterOfGravityY,
+      getVesselX: exports.getVesselX as (vesselPtr: number) => number,
+      getVesselY: exports.getVesselY as (vesselPtr: number) => number,
+      getVesselHeading: exports.getVesselHeading as (
+        vesselPtr: number,
+      ) => number,
+      getVesselSpeed: exports.getVesselSpeed as (vesselPtr: number) => number,
+      getVesselEngineRPM: exports.getVesselEngineRPM as (
+        vesselPtr: number,
+      ) => number,
+      getVesselFuelLevel: exports.getVesselFuelLevel as (
+        vesselPtr: number,
+      ) => number,
+      getVesselFuelConsumption: exports.getVesselFuelConsumption as (
+        vesselPtr: number,
+      ) => number,
+      getVesselGM: exports.getVesselGM as (vesselPtr: number) => number,
+      getVesselCenterOfGravityY: exports.getVesselCenterOfGravityY as (
+        vesselPtr: number,
+      ) => number,
     };
 
     // Store the wrapper

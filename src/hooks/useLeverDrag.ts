@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 interface UseLeverDragProps {
@@ -17,9 +18,8 @@ interface UseLeverDragReturn {
   /**
    * Mouse down event handler to initiate dragging.
    * Attach this to the draggable element (e.g., lever handle or SVG area).
-   * Uses React.MouseEventHandler<any> to accept any target.
    */
-  handleMouseDown: React.MouseEventHandler<any>;
+  handleMouseDown: React.MouseEventHandler<HTMLDivElement>;
 }
 
 /**
@@ -54,8 +54,8 @@ export const useLeverDrag = ({
   }, [initialValue, isDragging]);
 
   // Callback to initiate the drag sequence on mouse down.
-  const handleMouseDown: React.MouseEventHandler<any> = useCallback(
-    (e: React.MouseEvent<any>) => {
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
       setIsDragging(true);
       startPosRef.current = { x: e.clientX, y: e.clientY };
       // Store the value at the moment dragging starts.

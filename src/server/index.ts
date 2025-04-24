@@ -557,37 +557,59 @@ function startWeatherTransition() {
 }
 
 // Persist state to database
-async function persistState() {
+async function persistState(): Promise<void> {
   try {
     // Save vessel states
     for (const [userId, vessel] of Object.entries(globalState.vessels)) {
-      await prisma.vesselState.upsert({
-        where: { userId },
-        update: {
-          positionX: vessel.position.x,
-          positionY: vessel.position.y,
-          positionZ: vessel.position.z,
-          heading: vessel.orientation.heading,
-          roll: vessel.orientation.roll,
-          pitch: vessel.orientation.pitch,
-          velocityX: vessel.velocity.surge,
-          velocityY: vessel.velocity.sway,
-          velocityZ: vessel.velocity.heave,
-          updatedAt: new Date(),
-        },
-        create: {
-          userId,
-          positionX: vessel.position.x,
-          positionY: vessel.position.y,
-          positionZ: vessel.position.z,
-          heading: vessel.orientation.heading,
-          roll: vessel.orientation.roll,
-          pitch: vessel.orientation.pitch,
-          velocityX: vessel.velocity.surge,
-          velocityY: vessel.velocity.sway,
-          velocityZ: vessel.velocity.heave,
-        },
-      });
+      // Skip vessel states for dynamically generated IDs (anonymous users)
+      if (userId.startsWith('user_')) {
+        continue;
+      }
+
+      try {
+        // First check if the user exists in the database
+        const userExists = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true }
+        });
+
+        // Only persist state for users that exist in the database
+        if (userExists) {
+          await prisma.vesselState.upsert({
+            where: { userId },
+            update: {
+              positionX: vessel.position.x,
+              positionY: vessel.position.y,
+              positionZ: vessel.position.z,
+              heading: vessel.orientation.heading,
+              roll: vessel.orientation.roll,
+              pitch: vessel.orientation.pitch,
+              velocityX: vessel.velocity.surge,
+              velocityY: vessel.velocity.sway,
+              velocityZ: vessel.velocity.heave,
+              throttle: vessel.throttle,
+              rudderAngle: vessel.rudderAngle,
+              updatedAt: new Date(),
+            },
+            create: {
+              userId,
+              positionX: vessel.position.x,
+              positionY: vessel.position.y,
+              positionZ: vessel.position.z,
+              heading: vessel.orientation.heading,
+              roll: vessel.orientation.roll,
+              pitch: vessel.orientation.pitch,
+              velocityX: vessel.velocity.surge,
+              velocityY: vessel.velocity.sway,
+              velocityZ: vessel.velocity.heave,
+              throttle: vessel.throttle,
+              rudderAngle: vessel.rudderAngle,
+            },
+          });
+        }
+      } catch (userError) {
+        console.error(`Error persisting vessel state for user ${userId}:`, userError);
+      }
     }
 
     // Save environment state
