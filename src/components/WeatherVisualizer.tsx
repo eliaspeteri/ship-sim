@@ -24,7 +24,7 @@ interface CurrentData {
   direction: number;
 }
 
-const WeatherVisualizer: React.FC<WeatherVisualizerProps> = ({
+export const WeatherVisualizer: React.FC<WeatherVisualizerProps> = ({
   onWeatherChange,
 }) => {
   const [weather, setWeather] = useState<WeatherData>({

@@ -75,6 +75,19 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
     }
   };
 
+  const handleWeatherChange = (weatherData: any) => {
+    setWindSpeed(weatherData.wind.speed);
+    setWindDirection(weatherData.wind.direction);
+    setWindGusting(weatherData.wind.gusting || false);
+    setCurrentSpeed(weatherData.current.speed);
+    setCurrentDirection(weatherData.current.direction);
+    setSeaState(weatherData.seaState);
+    setVisibility(weatherData.visibility || 10);
+    setTimeOfDay(weatherData.timeOfDay || 12);
+    setPrecipitation(weatherData.precipitation || 'none');
+    setPrecipitationIntensity(weatherData.precipitationIntensity || 0);
+  };
+
   // Convert radians to degrees for display
   const radToDeg = (rad: number) => Math.round((rad * 180) / Math.PI);
 
@@ -85,7 +98,11 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
       <h2 className="mb-3 text-xl font-bold">Environment Status</h2>
 
       {/* Environment visualizer */}
-      <WeatherVisualizer weatherState={environment} />
+      <WeatherVisualizer
+        onWeatherChange={weatherData => {
+          handleWeatherChange(weatherData);
+        }}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         {/* Wind Information */}
