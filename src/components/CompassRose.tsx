@@ -44,7 +44,7 @@ export const CompassRose: React.FC<CompassRoseProps> = ({
   // Radii relative to center
   const goldenRingOuterRadius = size / 2;
   const goldenRingInnerRadius = goldenRingOuterRadius - outerRingWidth;
-  const fixedTickOuterRadius = goldenRingOuterRadius * 0.9; // Ticks slightly inside the edge
+  const fixedTickOuterRadius = goldenRingOuterRadius * 0.85; // Ticks slightly inside the edge
   const fixedTickInnerRadius = goldenRingInnerRadius * 1.02; // Ticks slightly inside the inner edge
   const fixedNumberRadius =
     (goldenRingOuterRadius + goldenRingInnerRadius) / 1.9; // Numbers centered on the ring
