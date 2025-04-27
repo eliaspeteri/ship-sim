@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ship Simulator WASM Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f0f0f0;
+      }
+      .control-panel {
+        background-color: #ffffff;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .control-group {
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #eee;
+      }
+      button {
+        background-color: #4caf50;
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      button.stop {
+        background-color: #f44336;
+      }
+      .indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+      }
+      .indicator.on {
+        background-color: #4caf50;
+      }
+      .indicator.off {
+        background-color: #f44336;
+      }
+      .value-display {
+        font-family: monospace;
+        font-size: 16px;
+        margin: 5px 0;
+      }
+      .slider-container {
+        margin: 10px 0;
+      }
+      .slider {
+        width: 100%;
+      }
+      .log-panel {
+        background-color: #333;
+        color: #f0f0f0;
+        border-radius: 8px;
+        padding: 15px;
+        height: 200px;
+        overflow-y: auto;
+        font-family: monospace;
+      }
+      .log-entry {
+        margin: 3px 0;
+        line-height: 1.3;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Ship Simulator WASM Test</h1>
+
+    <div class="control-panel">
+      <h2>Engine Controls</h2>
+
+      <div class="control-group">
+        <h3>Engine Status</h3>
+        <div>
+          <span class="indicator off" id="engineIndicator"></span>
+          <span id="engineStatus">Stopped</span>
+        </div>
+        <div class="value-display">RPM: <span id="rpmValue">0</span></div>
+        <div class="value-display">Fuel: <span id="fuelValue">100</span>%</div>
+        <div class="value-display">
+          Fuel Consumption: <span id="fuelConsumption">0</span> kg/h
+        </div>
+
+        <div>
+          <button id="startEngine">Start Engine</button>
+          <button id="stopEngine" class="stop">Stop Engine</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>Throttle Control</h3>
+        <div class="slider-container">
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value="0"
+            class="slider"
+            id="throttleSlider"
+          />
+          <div class="value-display">
+            Throttle: <span id="throttleValue">0</span>%
+          </div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>Vessel Status</h3>
+        <div class="value-display">Position X: <span id="posX">0</span> m</div>
+        <div class="value-display">Position Y: <span id="posY">0</span> m</div>
+        <div class="value-display">Speed: <span id="speed">0</span> m/s</div>
+        <div class="value-display">Heading: <span id="heading">0</span>°</div>
+      </div>
+
+      <div class="control-group">
+        <h3>Simulation</h3>
+        <div>
+          <button id="runSimStep">Run Simulation Step</button>
+          <button id="resetSim">Reset Simulation</button>
+        </div>
+        <div class="value-display">
+          Time Step:
+          <input
+            type="number"
+            id="timeStep"
+            value="1"
+            min="0.1"
+            max="10"
+            step="0.1"
+          />
+          seconds
+        </div>
+      </div>
+    </div>
+
+    <div class="log-panel" id="logPanel">
+      <div class="log-entry">
+        WASM test console initialized. Waiting for module to load...
+      </div>
+    </div>
+
+    <script>
+      // Log function for the console panel
+      function log(message) {
+        const logPanel = document.getElementById('logPanel');
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log-entry';
+        logEntry.textContent = message;
+        logPanel.appendChild(logEntry);
+        logPanel.scrollTop = logPanel.scrollHeight;
+      }
+
+      // WASM module state
+      let wasmModule = null;
+      let vesselPtr = null;
+
+      // Initialize WASM module
+      async function initWasm() {
+        try {
+          // Create memory import
+          const memory = new WebAssembly.Memory({
+            initial: 16,
+            maximum: 100,
+            shared: false,
+          });
+
+          const wasmImports = {
+            env: {
+              memory: memory,
+              abort: function () {
+                log('WASM Abort called!');
+                console.error('WASM Abort called!');
+              },
+            },
+          };
+
+          log(
+            'Attempting to load WASM directly from local path: ./ship_sim.wasm',
+          );
+
+          try {
+            // Try directly loading from file path
+            const response = await fetch('./ship_sim.wasm');
+            if (!response.ok) {
+              throw new Error(
+                `Failed to load WASM module: ${response.statusText}`,
+              );
+            }
+
+            const bytes = await response.arrayBuffer();
+            log('WASM file loaded successfully, instantiating...');
+
+            // Instantiate the module
+            const result = await WebAssembly.instantiate(bytes, wasmImports);
+            wasmModule = result.instance.exports;
+
+            log('WASM module instantiated successfully!');
+            log('Available exports: ' + Object.keys(wasmModule).join(', '));
+
+            // Create vessel instance
+            log('Creating vessel...');
+            vesselPtr = wasmModule.createVessel();
+            log(`Vessel created with pointer: ${vesselPtr}`);
+
+            // Enable controls now that WASM is loaded
+            enableControls(true);
+
+            // Initialize UI with vessel state
+            updateUI();
+
+            // Add event listeners for controls
+            setupEventListeners();
+
+            // Dump the initial vessel state
+            dumpVesselState();
+          } catch (err) {
+            log(`Error loading WASM file: ${err.message}`);
+            log(
+              'This is likely a CORS issue. You need to serve these files from a web server.',
+            );
+            log('Try using one of these options:');
+            log('1. Use a simple HTTP server like: python -m http.server');
+            log('2. Use the "Live Server" extension in VS Code');
+            log('3. Use Node.js to serve the files: npx serve .');
+
+            throw err;
+          }
+        } catch (error) {
+          log(`Error initializing WASM: ${error.message}`);
+          console.error('WASM initialization error:', error);
+        }
+      }
+
+      // Setup UI event listeners
+      function setupEventListeners() {
+        // Engine control buttons
+        document
+          .getElementById('startEngine')
+          .addEventListener('click', startEngine);
+        document
+          .getElementById('stopEngine')
+          .addEventListener('click', stopEngine);
+
+        // Throttle slider
+        document
+          .getElementById('throttleSlider')
+          .addEventListener('input', updateThrottle);
+
+        // Simulation controls
+        document
+          .getElementById('runSimStep')
+          .addEventListener('click', runSimulationStep);
+        document
+          .getElementById('resetSim')
+          .addEventListener('click', resetSimulation);
+      }
+
+      // Enable or disable controls based on WASM loading state
+      function enableControls(enabled) {
+        const controls = [
+          'startEngine',
+          'stopEngine',
+          'throttleSlider',
+          'runSimStep',
+          'resetSim',
+          'timeStep',
+        ];
+
+        controls.forEach(id => {
+          document.getElementById(id).disabled = !enabled;
+        });
+      }
+
+      // Start the engine
+      function startEngine() {
+        if (!wasmModule || vesselPtr === null) return;
+
+        log('Starting engine...');
+
+        // Use setThrottle with special value -2.0 to start engine
+        if (typeof wasmModule.setThrottle === 'function') {
+          wasmModule.setThrottle(vesselPtr, -2.0);
+          log('Engine started using setThrottle(-2.0)');
+        } else {
+          log('WARNING: setThrottle function not available in WASM module');
+        }
+
+        // Update the UI
+        updateUI();
+      }
+
+      // Stop the engine
+      function stopEngine() {
+        if (!wasmModule || vesselPtr === null) return;
+
+        log('Stopping engine...');
+
+        // Use setThrottle with special value -1.0 to stop engine
+        if (typeof wasmModule.setThrottle === 'function') {
+          wasmModule.setThrottle(vesselPtr, -1.0);
+          log('Engine stopped using setThrottle(-1.0)');
+        } else {
+          log('WARNING: setThrottle function not available in WASM module');
+        }
+
+        // Reset throttle to 0
+        document.getElementById('throttleSlider').value = 0;
+        updateThrottle();
+
+        // Update the UI
+        updateUI();
+      }
+
+      // Update throttle based on slider value
+      function updateThrottle() {
+        if (!wasmModule || vesselPtr === null) return;
+
+        const throttleSlider = document.getElementById('throttleSlider');
+        const throttleValue = parseInt(throttleSlider.value) / 100;
+
+        log(`Setting throttle to ${throttleValue.toFixed(2)}`);
+
+        // Set throttle in WASM
+        if (typeof wasmModule.setThrottle === 'function') {
+          wasmModule.setThrottle(vesselPtr, throttleValue);
+        } else {
+          log('WARNING: setThrottle function not available in WASM module');
+        }
+
+        // Update throttle display
+        document.getElementById('throttleValue').textContent =
+          throttleSlider.value;
+
+        // Update the UI
+        updateUI();
+      }
+
+      // Run a single simulation step
+      function runSimulationStep() {
+        if (!wasmModule || vesselPtr === null) return;
+
+        const timeStep = parseFloat(document.getElementById('timeStep').value);
+        log(`Running simulation step with dt=${timeStep}s`);
+
+        // Default environment values
+        const windSpeed = 2.0;
+        const windDirection = 0.0;
+        const currentSpeed = 0.5;
+        const currentDirection = 0.0;
+        const seaState = 1.0;
+
+        // Run physics update
+        if (typeof wasmModule.updateVesselState === 'function') {
+          wasmModule.updateVesselState(
+            vesselPtr,
+            timeStep,
+            windSpeed,
+            windDirection,
+            currentSpeed,
+            currentDirection,
+            seaState,
+          );
+
+          log('Physics step completed');
+        } else {
+          log(
+            'WARNING: updateVesselState function not available in WASM module',
+          );
+        }
+
+        // Update the UI
+        updateUI();
+      }
+
+      // Reset the simulation
+      function resetSimulation() {
+        if (!wasmModule) return;
+
+        log('Resetting simulation...');
+
+        // Create new vessel
+        vesselPtr = wasmModule.createVessel();
+        log(`New vessel created with pointer: ${vesselPtr}`);
+
+        // Reset controls
+        document.getElementById('throttleSlider').value = 0;
+
+        // Update the UI
+        updateUI();
+      }
+
+      // Update UI with current vessel state
+      function updateUI() {
+        if (!wasmModule || vesselPtr === null) return;
+
+        try {
+          // Check engine status
+          let engineRunning = false;
+          if (typeof wasmModule.isEngineRunning === 'function') {
+            engineRunning = wasmModule.isEngineRunning(vesselPtr);
+          }
+
+          // Update engine status indicator
+          const engineIndicator = document.getElementById('engineIndicator');
+          const engineStatus = document.getElementById('engineStatus');
+
+          if (engineRunning) {
+            engineIndicator.className = 'indicator on';
+            engineStatus.textContent = 'Running';
+          } else {
+            engineIndicator.className = 'indicator off';
+            engineStatus.textContent = 'Stopped';
+          }
+
+          // Update RPM
+          if (typeof wasmModule.getVesselEngineRPM === 'function') {
+            const rpm = wasmModule.getVesselEngineRPM(vesselPtr);
+            document.getElementById('rpmValue').textContent = rpm.toFixed(0);
+          }
+
+          // Update fuel
+          if (typeof wasmModule.getVesselFuelLevel === 'function') {
+            const fuel = wasmModule.getVesselFuelLevel(vesselPtr) * 100;
+            document.getElementById('fuelValue').textContent = fuel.toFixed(0);
+          }
+
+          // Update fuel consumption
+          if (typeof wasmModule.getVesselFuelConsumption === 'function') {
+            const consumption = wasmModule.getVesselFuelConsumption(vesselPtr);
+            document.getElementById('fuelConsumption').textContent =
+              consumption.toFixed(1);
+          }
+
+          // Update position and orientation
+          if (typeof wasmModule.getVesselX === 'function') {
+            const x = wasmModule.getVesselX(vesselPtr);
+            document.getElementById('posX').textContent = x.toFixed(1);
+          }
+
+          if (typeof wasmModule.getVesselY === 'function') {
+            const y = wasmModule.getVesselY(vesselPtr);
+            document.getElementById('posY').textContent = y.toFixed(1);
+          }
+
+          if (typeof wasmModule.getVesselSpeed === 'function') {
+            const speed = wasmModule.getVesselSpeed(vesselPtr);
+            document.getElementById('speed').textContent = speed.toFixed(2);
+          }
+
+          if (typeof wasmModule.getVesselHeading === 'function') {
+            const headingRad = wasmModule.getVesselHeading(vesselPtr);
+            const headingDeg = ((headingRad * 180) / Math.PI) % 360;
+            document.getElementById('heading').textContent =
+              headingDeg.toFixed(0);
+          }
+        } catch (error) {
+          log(`Error updating UI: ${error.message}`);
+          console.error('UI update error:', error);
+        }
+      }
+
+      // Add function to dump the vessel state for debugging
+      function dumpVesselState() {
+        if (!wasmModule || vesselPtr === null) return;
+
+        try {
+          let state = {};
+
+          // Collect all available state information
+          const getters = {
+            X: 'getVesselX',
+            Y: 'getVesselY',
+            Z: 'getVesselZ',
+            Heading: 'getVesselHeading',
+            Speed: 'getVesselSpeed',
+            EngineRPM: 'getVesselEngineRPM',
+            FuelLevel: 'getVesselFuelLevel',
+            FuelConsumption: 'getVesselFuelConsumption',
+          };
+
+          for (const [key, funcName] of Object.entries(getters)) {
+            if (typeof wasmModule[funcName] === 'function') {
+              state[key] = wasmModule[funcName](vesselPtr);
+            }
+          }
+
+          // Check if engine is running
+          if (typeof wasmModule.isEngineRunning === 'function') {
+            state['EngineRunning'] = wasmModule.isEngineRunning(vesselPtr);
+          }
+
+          log('Vessel State: ' + JSON.stringify(state, null, 2));
+          return state;
+        } catch (error) {
+          log(`Error dumping vessel state: ${error.message}`);
+          console.error('State dump error:', error);
+        }
+      }
+
+      // Add keyboard shortcuts
+      document.addEventListener('keydown', event => {
+        if (event.key === 'F9') {
+          dumpVesselState();
+        } else if (event.key === 'F5') {
+          runSimulationStep();
+        }
+      });
+
+      // Initialize when the page loads
+      window.addEventListener('load', initWasm);
+
+      // Add debug button
+      window.dumpState = dumpVesselState;
+      window.runStep = runSimulationStep;
+    </script>
+
+    <div style="margin-top: 20px; text-align: center">
+      <p>
+        Press F9 to dump vessel state to console | F5 to run a simulation step
+      </p>
+      <button onclick="window.dumpState()">Dump Vessel State</button>
+      <button onclick="window.runStep()">Run Step</button>
+    </div>
+  </body>
+</html>
