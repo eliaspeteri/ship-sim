@@ -43,6 +43,7 @@ const EXPECTED_EXPORTS: string[] = [
 
   // Wave calculations
   'calculateWaveHeightAtPosition',
+  'calculateWaveHeight',
   'getWaveHeight',
   'getWaveFrequency',
 
