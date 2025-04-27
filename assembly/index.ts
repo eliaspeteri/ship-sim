@@ -284,10 +284,10 @@ function calculateFuelConsumption(vessel: VesselState, torque: f64): f64 {
   return (powerFactor * sfc) / 1000.0;
 }
 
-// Calculate maneuvering forces based on rudder angle and speed
-function calculateManeuveringForces(vessel: VesselState): f64[] {
+// Calculate rudder drag force
+function calculateRudderDrag(vessel: VesselState): f64 {
   const speed = Math.sqrt(vessel.u * vessel.u + vessel.v * vessel.v);
-  if (speed < 0.01) return [0.0, 0.0, 0.0];
+  if (speed < 0.01) return 0.0;
 
   // Rudder characteristics
   const aspectRatio = 1.5;
@@ -301,70 +301,50 @@ function calculateManeuveringForces(vessel: VesselState): f64[] {
     speed *
     speed;
 
+  // Calculate drag force in x direction
+  return Math.abs(rudderLift) * Math.sin(Math.abs(vessel.rudderAngle));
+}
+
+// Calculate rudder force in Y direction (sway force)
+function calculateRudderForceY(vessel: VesselState): f64 {
+  const speed = Math.sqrt(vessel.u * vessel.u + vessel.v * vessel.v);
+  if (speed < 0.01) return 0.0;
+
+  // Rudder characteristics
+  const aspectRatio = 1.5;
+  const rudderArea = 0.02 * vessel.length * vessel.draft;
+  const rudderLift =
+    ((Math.PI * aspectRatio) / (1.0 + aspectRatio)) *
+    vessel.rudderAngle *
+    rudderArea *
+    0.5 *
+    vessel.waterDensity *
+    speed *
+    speed;
+
+  // Sway force from rudder
+  return rudderLift * Math.cos(vessel.rudderAngle);
+}
+
+// Calculate rudder moment around Z axis (yaw moment)
+function calculateRudderMomentZ(vessel: VesselState): f64 {
+  const rudderForceY = calculateRudderForceY(vessel);
+
   // Rudder location (typically near stern)
   const rudderLeverArm = -0.45 * vessel.length;
 
-  // Sway force and yaw moment from rudder
-  const rudderForceY = rudderLift * Math.cos(vessel.rudderAngle);
-  const rudderMomentZ = rudderForceY * rudderLeverArm;
-
-  // Also calculate drag force in x direction
-  const rudderDrag =
-    Math.abs(rudderLift) * Math.sin(Math.abs(vessel.rudderAngle));
-
-  return [rudderDrag, rudderForceY, rudderMomentZ];
+  // Yaw moment from rudder
+  return rudderForceY * rudderLeverArm;
 }
 
-// Calculate wind force based on wind speed and direction
-function calculateWindForce(
-  vessel: VesselState,
-  windSpeed: f64,
-  windDirection: f64,
-): f64[] {
-  // Relative wind direction (0 = head wind, PI = following wind)
-  const relativeDirection = windDirection - vessel.psi;
+// Calculate maneuvering forces based on rudder angle and speed
+// Kept for backward compatibility, but deprecated
+function calculateManeuveringForces(vessel: VesselState): f64[] {
+  const rudderDrag = calculateRudderDrag(vessel);
+  const rudderForceY = calculateRudderForceY(vessel);
+  const rudderMomentZ = calculateRudderMomentZ(vessel);
 
-  // Projected areas (simplified)
-  const projectedAreaFront = vessel.beam * vessel.draft * 1.5; // Include superstructure
-  const projectedAreaSide = vessel.length * vessel.draft * 1.5; // Include superstructure
-
-  // Wind coefficients
-  const windCoefficientX = 0.5 + 0.4 * Math.abs(Math.cos(relativeDirection));
-  const windCoefficientY = 0.7 * Math.abs(Math.sin(relativeDirection));
-  const windCoefficientN = 0.1 * Math.sin(2.0 * relativeDirection);
-
-  // Air density
-  const airDensity = 1.225; // kg/m³
-
-  // Calculate wind forces
-  const windForceX =
-    0.5 *
-    airDensity *
-    windSpeed *
-    windSpeed *
-    projectedAreaFront *
-    windCoefficientX *
-    Math.cos(relativeDirection);
-
-  const windForceY =
-    0.5 *
-    airDensity *
-    windSpeed *
-    windSpeed *
-    projectedAreaSide *
-    windCoefficientY *
-    Math.sin(relativeDirection);
-
-  const windMomentN =
-    0.5 *
-    airDensity *
-    windSpeed *
-    windSpeed *
-    projectedAreaSide *
-    vessel.length *
-    windCoefficientN;
-
-  return [windForceX, windForceY, windMomentN];
+  return [rudderDrag, rudderForceY, rudderMomentZ];
 }
 
 // Calculate current effects on the vessel
@@ -481,35 +461,20 @@ export function calculateWaveHeight(seaState: f64): f64 {
 }
 
 /** @external */
-export function calculateWaveLength(seaState: f64): f64 {
+function calculateWaveLength(seaState: f64): f64 {
   const wavePeriod = 3.0 + seaState * 0.8; // Very rough approximation
   return 1.56 * wavePeriod * wavePeriod;
 }
 
 /** @external */
-export function calculateWaveFrequency(seaState: f64): f64 {
+function calculateWaveFrequency(seaState: f64): f64 {
   const wavePeriod = 3.0 + seaState * 0.8;
   return (2.0 * Math.PI) / wavePeriod;
 }
 
 /** @external */
-export function calculateWaveDirection(windDirection: f64): f64 {
+function calculateWaveDirection(windDirection: f64): f64 {
   return windDirection - Math.PI * 0.1;
-}
-
-// Original function now calls the individual functions
-/** @external */
-export function calculateWaveProperties(
-  seaState: f64,
-  windSpeed: f64,
-  windDirection: f64,
-): f64[] {
-  const waveHeight = calculateWaveHeight(seaState);
-  const waveLength = calculateWaveLength(seaState);
-  const waveFrequency = calculateWaveFrequency(seaState);
-  const waveDirection = calculateWaveDirection(windDirection);
-
-  return [waveHeight, waveLength, waveFrequency, waveDirection];
 }
 
 // Calculate wave height at specific location and time - simplified for export compatibility
@@ -551,15 +516,9 @@ function calculateWaveForce(
 ): f64[] {
   if (seaState < 0.5) return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 
-  // Get wave properties
-  const waveProps = calculateWaveProperties(
-    seaState,
-    0.0,
-    vessel.waveDirection,
-  );
-  const waveHeight = waveProps[0];
-  const waveLength = waveProps[1];
-  const waveFrequency = waveProps[2];
+  const waveHeight = calculateWaveHeight(seaState);
+  const waveLength = calculateWaveLength(seaState);
+  const waveFrequency = calculateWaveFrequency(seaState);
 
   // Update vessel's wave state data
   vessel.waveHeight = waveHeight;
@@ -648,10 +607,9 @@ export function updateVesselState(
   const propulsionForce = calculatePropellerThrust(vessel);
 
   // Calculate maneuvering forces
-  const rudderForces = calculateManeuveringForces(vessel);
-  const rudderDrag = rudderForces[0];
-  const rudderSway = rudderForces[1];
-  const rudderYaw = rudderForces[2];
+  const rudderDrag = calculateRudderDrag(vessel);
+  const rudderSway = calculateRudderForceY(vessel);
+  const rudderYaw = calculateRudderMomentZ(vessel);
 
   // Calculate environmental forces
   const windForces = calculateWindForce(vessel, windSpeed, windDirection);
@@ -949,4 +907,56 @@ export function getVesselGM(vesselPtr: usize): f64 {
 export function getVesselCenterOfGravityY(vesselPtr: usize): f64 {
   const vessel = changetype<VesselState>(vesselPtr);
   return vessel.centerOfGravityY;
+}
+
+// Calculate wind force based on wind speed and direction
+function calculateWindForce(
+  vessel: VesselState,
+  windSpeed: f64,
+  windDirection: f64,
+): f64[] {
+  // Relative wind direction (0 = head wind, PI = following wind)
+  const relativeDirection = windDirection - vessel.psi;
+
+  // Projected areas (simplified)
+  const projectedAreaFront = vessel.beam * vessel.draft * 1.5; // Include superstructure
+  const projectedAreaSide = vessel.length * vessel.draft * 1.5; // Include superstructure
+
+  // Wind coefficients
+  const windCoefficientX = 0.5 + 0.4 * Math.abs(Math.cos(relativeDirection));
+  const windCoefficientY = 0.7 * Math.abs(Math.sin(relativeDirection));
+  const windCoefficientN = 0.1 * Math.sin(2.0 * relativeDirection);
+
+  // Air density
+  const airDensity = 1.225; // kg/m³
+
+  // Calculate wind forces
+  const windForceX =
+    0.5 *
+    airDensity *
+    windSpeed *
+    windSpeed *
+    projectedAreaFront *
+    windCoefficientX *
+    Math.cos(relativeDirection);
+
+  const windForceY =
+    0.5 *
+    airDensity *
+    windSpeed *
+    windSpeed *
+    projectedAreaSide *
+    windCoefficientY *
+    Math.sin(relativeDirection);
+
+  const windMomentN =
+    0.5 *
+    airDensity *
+    windSpeed *
+    windSpeed *
+    projectedAreaSide *
+    vessel.length *
+    windCoefficientN;
+
+  return [windForceX, windForceY, windMomentN];
 }
