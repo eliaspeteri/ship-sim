@@ -174,13 +174,12 @@ export class WasmBridge {
 
   public calculateWaveProperties(
     seaState: number,
-    windSpeed: number,
     windDirection: number,
   ): number[] {
     const waveHeight = this.getWaveHeight(seaState);
     const wavePeriod = 3.0 + seaState * 0.8;
     const waveLength = 1.56 * wavePeriod * wavePeriod;
-    const waveFrequency = (2.0 * Math.PI) / wavePeriod;
+    const waveFrequency = this.getWaveFrequency(seaState);
     const waveDirectionValue = windDirection - Math.PI * 0.1;
 
     return [waveHeight, waveLength, waveFrequency, waveDirectionValue];

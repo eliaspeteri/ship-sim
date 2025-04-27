@@ -359,7 +359,6 @@ export class SimulationLoop {
       // Get wave properties from physics calculations
       const waveProps = this.wasmBridge.calculateWaveProperties(
         seaState,
-        wind.speed,
         wind.direction,
       );
 
