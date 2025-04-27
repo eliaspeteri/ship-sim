@@ -86,6 +86,10 @@ interface WasmExports {
   setThrottle: (vesselPtr: number, throttle: number) => void;
   setRudderAngle: (vesselPtr: number, angle: number) => void;
   setBallast: (vesselPtr: number, level: number) => void;
+  setEngineRunning: (vesselPtr: number, running: boolean) => void;
+
+  // Engine state checks
+  isEngineRunning: (vesselPtr: number) => boolean;
 
   // Vessel state accessors
   getVesselX: (vesselPtr: number) => number;
@@ -289,18 +293,18 @@ export class SimulationLoop {
   private updatePhysics(deltaTime: number): void {
     if (!this.wasmExports) return;
 
-    const _state = useStore.getState();
-    const vesselPtr = _state.wasmVesselPtr;
+    const state = useStore.getState();
+    const vesselPtr = state.wasmVesselPtr;
 
     if (vesselPtr === null) return;
 
     // Get environment state
-    const { wind, current, seaState } = _state.environment;
+    const { wind, current, seaState } = state.environment;
 
     // Ensure vessel.controls exists before accessing its properties
-    if (!_state.vessel.controls) {
+    if (!state.vessel.controls) {
       // Initialize controls with safe defaults if missing
-      _state.updateVessel({
+      state.updateVessel({
         controls: {
           throttle: 0,
           rudderAngle: 0,
@@ -312,7 +316,7 @@ export class SimulationLoop {
     }
 
     // Get control inputs
-    const { throttle, rudderAngle, ballast } = _state.vessel.controls;
+    const { throttle, rudderAngle, ballast } = state.vessel.controls;
 
     // Update controls in WASM
     if (typeof this.wasmExports.setThrottle === 'function') {
@@ -325,7 +329,6 @@ export class SimulationLoop {
       this.wasmExports.setBallast(vesselPtr, ballast);
     }
 
-    // Update vessel physics in WASM
     this.wasmExports.updateVesselState(
       vesselPtr,
       deltaTime,
@@ -337,7 +340,7 @@ export class SimulationLoop {
     );
 
     // Handle machinery failures by adjusting physics behavior
-    const { failures } = _state.machinerySystems;
+    const { failures } = state.machinerySystems;
     if (failures.engineFailure) {
       // If engine failure, force throttle to 0
       this.wasmExports.setThrottle(vesselPtr, 0);
@@ -351,6 +354,11 @@ export class SimulationLoop {
 
   /**
    * Apply vessel controls to the physics engine
+   * @param controls - Object containing throttle, rudder angle, and ballast values
+   * @param controls.throttle - Throttle value (0 to 1)
+   * @param controls.rudderAngle - Rudder angle in degrees
+   * @param controls.ballast - Ballast value (0 to 1)
+   * @returns void
    */
   applyControls(controls: {
     throttle?: number;
@@ -550,8 +558,15 @@ export class SimulationLoop {
         oilPressure: 5.0,
         load: 0,
         running: false,
-        hours: 0,
+        hours: _state.vessel.engineState.hours || 0, // Preserve engine hours
       };
+
+      // Check engine running state if available
+      if (typeof this.wasmExports.isEngineRunning === 'function') {
+        engineUpdate.running = this.wasmExports.isEngineRunning(vesselPtr);
+        console.info(`WASM engine running state: ${engineUpdate.running}`);
+        hasEngineUpdate = true;
+      }
 
       // Only add engine values if they're available
       if (typeof this.wasmExports.getVesselEngineRPM === 'function') {
@@ -568,6 +583,22 @@ export class SimulationLoop {
         engineUpdate.fuelConsumption =
           this.wasmExports.getVesselFuelConsumption(vesselPtr);
         hasEngineUpdate = true;
+      }
+
+      // Calculate load based on throttle and RPM
+      if (engineUpdate.rpm > 0) {
+        const maxRpm = 1200; // Maximum RPM
+        const normalizedRPM = Math.min(engineUpdate.rpm / maxRpm, 1);
+
+        // Calculate engine load based on RPM and current throttle setting
+        const throttleValue = _state.vessel.controls?.throttle || 0;
+        engineUpdate.load = normalizedRPM * (0.5 + throttleValue * 0.5);
+
+        // Adjust temperature based on load
+        engineUpdate.temperature = 25 + 65 * engineUpdate.load;
+
+        // Adjust oil pressure based on RPM
+        engineUpdate.oilPressure = 2.0 + 3.0 * normalizedRPM;
       }
 
       if (hasEngineUpdate) {

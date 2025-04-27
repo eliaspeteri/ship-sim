@@ -25,6 +25,7 @@ declare module 'wasm/ship_sim' {
   export function setThrottle(vesselPtr: number, throttle: number): void;
   export function setRudderAngle(vesselPtr: number, angle: number): void;
   export function setBallast(vesselPtr: number, level: number): void;
+  export function setEngineRunning(vesselPtr: number, running: boolean): void;
 
   // State access functions
   export function getVesselX(vesselPtr: number): number;
@@ -36,6 +37,7 @@ declare module 'wasm/ship_sim' {
   export function getVesselFuelConsumption(vesselPtr: number): number;
   export function getVesselGM(vesselPtr: number): number;
   export function getVesselCenterOfGravityY(vesselPtr: number): number;
+  export function isEngineRunning(vesselPtr: number): boolean;
 }
 
 export interface WasmModule {
@@ -77,6 +79,7 @@ export interface WasmModule {
   setThrottle: (vesselPtr: number, throttle: number) => void;
   setRudderAngle: (vesselPtr: number, angle: number) => void;
   setBallast: (vesselPtr: number, level: number) => void;
+  setEngineRunning: (vesselPtr: number, running: boolean) => void;
 
   // State access - basic
   getVesselX: (vesselPtr: number) => number;

@@ -28,13 +28,14 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
   const [startAirValveOpen, setStartAirValveOpen] = useState(false);
 
   // Engine state
-  const engineRunning = vessel.engineState.running;
-  const engineRPM = vessel.engineState.rpm;
-  const engineLoad = vessel.engineState.load;
-  const fuelLevel = vessel.engineState.fuelLevel;
-  const fuelConsumption = vessel.engineState.fuelConsumption;
-  const engineTemp = vessel.engineState.temperature;
-  const oilPressure = vessel.engineState.oilPressure;
+  const engineState = vessel.engineState;
+  const engineRunning = engineState.running;
+  const engineRPM = engineState.rpm;
+  const engineLoad = engineState.load;
+  const fuelLevel = engineState.fuelLevel;
+  const fuelConsumption = engineState.fuelConsumption;
+  const engineTemp = engineState.temperature;
+  const oilPressure = engineState.oilPressure;
 
   // Health values
   const engineHealth = machinerySystems.engineHealth;
@@ -217,90 +218,104 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
     addEvent,
   ]);
 
-  // Handle engine start
-  const handleEngineStart = () => {
-    // Check if we can start the engine
-    if (!fuelValveOpen || !fuelPumpRunning || fuelLevel <= 0.05) {
-      addEvent({
-        category: 'engine',
-        type: 'start_failed',
-        message: !fuelValveOpen
-          ? 'Engine start failed: Fuel valve closed'
-          : !fuelPumpRunning
-            ? 'Engine start failed: Fuel pump not running'
-            : 'Engine start failed: Low fuel level',
-        severity: 'warning',
-      });
+  /**
+   * Handle engine start
+   */
+  const handleStartEngine = () => {
+    if (!engineState) return;
+
+    // Need air and fuel to start
+    if (!startAirValveOpen || fuelValveOpen === false) {
+      if (!startAirValveOpen) {
+        addEvent({
+          category: 'engine',
+          type: 'engine_start_failed',
+          message: 'Engine start failed: Start air valve closed',
+          severity: 'warning',
+        });
+      }
+
+      if (fuelValveOpen === false) {
+        addEvent({
+          category: 'engine',
+          type: 'engine_start_failed',
+          message: 'Engine start failed: Fuel valve closed',
+          severity: 'warning',
+        });
+      }
       return;
     }
 
-    if (!startAirValveOpen) {
-      addEvent({
-        category: 'engine',
-        type: 'start_failed',
-        message: 'Engine start failed: Start air valve closed',
-        severity: 'info',
-      });
-      return;
+    // Directly update WASM engine state
+    const vesselPtr = useStore.getState().wasmVesselPtr;
+    const wasmExports = (window as any).wasmExports;
+
+    if (
+      vesselPtr !== null &&
+      wasmExports &&
+      typeof wasmExports.setEngineRunning === 'function'
+    ) {
+      console.info('Setting engine running state to TRUE in WASM');
+      wasmExports.setEngineRunning(vesselPtr, true);
+    } else {
+      console.warn(
+        'Could not set engine running state in WASM - missing exports or functions',
+      );
     }
 
-    // Start sequence
-    addEvent({
-      category: 'engine',
-      type: 'start_sequence',
-      message: 'Engine start sequence initiated',
-      severity: 'info',
-    });
-
-    // Apply minimal throttle to start turning the engine
-    setTimeout(() => {
-      applyVesselControls({
-        throttle: 0.1,
-        rudderAngle: vessel.controls?.rudderAngle || 0,
-        ballast: vessel.controls?.ballast || 0.5,
-      });
-    }, 0);
-
-    // Set engine running status
+    // Update UI state
     useStore.getState().updateVessel({
       engineState: {
-        ...vessel.engineState,
+        ...engineState,
         running: true,
       },
     });
 
-    // Close the start air valve after 2 seconds
-    setTimeout(() => {
-      setStartAirValveOpen(false);
-      addEvent({
-        category: 'engine',
-        type: 'start_complete',
-        message: 'Engine started successfully',
-        severity: 'info',
-      });
-    }, 2000);
+    // Log the event
+    addEvent({
+      category: 'engine',
+      type: 'engine_start',
+      message: 'Engine started',
+      severity: 'info',
+    });
   };
 
-  // Handle engine stop
-  const handleEngineStop = () => {
-    // Stop the engine by setting throttle to zero
-    applyVesselControls({
-      throttle: 0,
-      rudderAngle: vessel.controls?.rudderAngle || 0,
-      ballast: vessel.controls?.ballast || 0.5,
-    });
+  /**
+   * Handle engine stop
+   */
+  const handleStopEngine = () => {
+    if (!engineState) return;
 
-    // Set engine running status
+    // Directly update WASM engine state
+    const vesselPtr = useStore.getState().wasmVesselPtr;
+    const wasmExports = (window as any).wasmExports;
+
+    if (
+      vesselPtr !== null &&
+      wasmExports &&
+      typeof wasmExports.setEngineRunning === 'function'
+    ) {
+      console.info('Setting engine running state to FALSE in WASM');
+      wasmExports.setEngineRunning(vesselPtr, false);
+    } else {
+      console.warn(
+        'Could not set engine running state in WASM - missing exports or functions',
+      );
+    }
+
+    // Update UI state
     useStore.getState().updateVessel({
       engineState: {
-        ...vessel.engineState,
+        ...engineState,
         running: false,
+        rpm: 0,
       },
     });
 
+    // Log the event
     addEvent({
       category: 'engine',
-      type: 'stop',
+      type: 'engine_stop',
       message: 'Engine stopped',
       severity: 'info',
     });
@@ -470,7 +485,7 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
           <div className="mt-4 flex justify-center gap-4">
             <button
               className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md disabled:opacity-50"
-              onClick={handleEngineStart}
+              onClick={handleStartEngine}
               disabled={engineRunning}
             >
               Start Engine
@@ -478,7 +493,7 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
 
             <button
               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md disabled:opacity-50"
-              onClick={handleEngineStop}
+              onClick={handleStopEngine}
               disabled={!engineRunning}
             >
               Stop Engine
