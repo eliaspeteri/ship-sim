@@ -1,11 +1,5 @@
 /** Exported memory */
 export declare const memory: WebAssembly.Memory;
-// Exported runtime interface
-export declare function __new(size: number, id: number): number;
-export declare function __pin(ptr: number): number;
-export declare function __unpin(ptr: number): void;
-export declare function __collect(): void;
-export declare const __rtti_base: number;
 /**
  * assembly/index/add
  * @param a `f64`
@@ -21,6 +15,25 @@ export declare function add(a: number, b: number): number;
  */
 export declare function multiply(a: number, b: number): number;
 /**
+ * assembly/index/calculateWaveHeight
+ * @param seaState `f64`
+ * @returns `f64`
+ */
+export declare function calculateWaveHeight(seaState: number): number;
+/**
+ * assembly/index/calculateWaveHeightAtPosition
+ * @param x `f64`
+ * @param y `f64`
+ * @param time `f64`
+ * @param waveHeight `f64`
+ * @param waveLength `f64`
+ * @param waveFrequency `f64`
+ * @param waveDirection `f64`
+ * @param seaState `f64`
+ * @returns `f64`
+ */
+export declare function calculateWaveHeightAtPosition(x: number, y: number, time: number, waveHeight: number, waveLength: number, waveFrequency: number, waveDirection: number, seaState: number): number;
+/**
  * assembly/index/updateVesselState
  * @param vesselPtr `usize`
  * @param dt `f64`
@@ -31,15 +44,7 @@ export declare function multiply(a: number, b: number): number;
  * @param seaState `f64`
  * @returns `usize`
  */
-export declare function updateVesselState(
-  vesselPtr: number,
-  dt: number,
-  windSpeed?: number,
-  windDirection?: number,
-  currentSpeed?: number,
-  currentDirection?: number,
-  seaState?: number,
-): number;
+export declare function updateVesselState(vesselPtr: number, dt: number, windSpeed: number, windDirection: number, currentSpeed: number, currentDirection: number, seaState: number): number;
 /**
  * assembly/index/createVessel
  * @returns `usize`
@@ -51,6 +56,13 @@ export declare function createVessel(): number;
  * @param throttle `f64`
  */
 export declare function setThrottle(vesselPtr: number, throttle: number): void;
+/**
+ * assembly/index/setWaveData
+ * @param vesselPtr `usize`
+ * @param height `f64`
+ * @param phase `f64`
+ */
+export declare function setWaveData(vesselPtr: number, height: number, phase: number): void;
 /**
  * assembly/index/setRudderAngle
  * @param vesselPtr `usize`
@@ -64,6 +76,42 @@ export declare function setRudderAngle(vesselPtr: number, angle: number): void;
  */
 export declare function setBallast(vesselPtr: number, level: number): void;
 /**
+ * assembly/index/getWaveHeight
+ * @param seaState `f64`
+ * @returns `f64`
+ */
+export declare function getWaveHeight(seaState: number): number;
+/**
+ * assembly/index/getWaveFrequency
+ * @param seaState `f64`
+ * @returns `f64`
+ */
+export declare function getWaveFrequency(seaState: number): number;
+/**
+ * assembly/index/getVesselWaveHeight
+ * @param vesselPtr `usize`
+ * @returns `f64`
+ */
+export declare function getVesselWaveHeight(vesselPtr: number): number;
+/**
+ * assembly/index/getVesselWavePhase
+ * @param vesselPtr `usize`
+ * @returns `f64`
+ */
+export declare function getVesselWavePhase(vesselPtr: number): number;
+/**
+ * assembly/index/getVesselRollAngle
+ * @param vesselPtr `usize`
+ * @returns `f64`
+ */
+export declare function getVesselRollAngle(vesselPtr: number): number;
+/**
+ * assembly/index/getVesselPitchAngle
+ * @param vesselPtr `usize`
+ * @returns `f64`
+ */
+export declare function getVesselPitchAngle(vesselPtr: number): number;
+/**
  * assembly/index/getVesselX
  * @param vesselPtr `usize`
  * @returns `f64`
@@ -75,6 +123,12 @@ export declare function getVesselX(vesselPtr: number): number;
  * @returns `f64`
  */
 export declare function getVesselY(vesselPtr: number): number;
+/**
+ * assembly/index/getVesselZ
+ * @param vesselPtr `usize`
+ * @returns `f64`
+ */
+export declare function getVesselZ(vesselPtr: number): number;
 /**
  * assembly/index/getVesselHeading
  * @param vesselPtr `usize`
