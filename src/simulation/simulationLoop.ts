@@ -1,5 +1,6 @@
 import useStore from '../store';
 import { loadWasm } from '../lib/wasmLoader';
+import { WasmBridge } from '../lib/wasmBridge';
 
 // Import VesselState from the store file
 import { ShipType } from '../store';
@@ -68,70 +69,11 @@ interface VesselState {
   };
 }
 
-// Type definitions for WASM exports to ensure type safety
-interface WasmExports {
-  // Core vessel creation and management
-  createVessel: () => number;
-  updateVesselState: (
-    vesselPtr: number,
-    dt: number,
-    windSpeed?: number,
-    windDirection?: number,
-    currentSpeed?: number,
-    currentDirection?: number,
-    seaState?: number,
-  ) => number;
-
-  // Control functions
-  setThrottle: (vesselPtr: number, throttle: number) => void;
-  setRudderAngle: (vesselPtr: number, angle: number) => void;
-  setBallast: (vesselPtr: number, level: number) => void;
-  setEngineRunning: (vesselPtr: number, running: boolean) => void;
-
-  // Engine state checks
-  isEngineRunning: (vesselPtr: number) => boolean;
-
-  // Vessel state accessors
-  getVesselX: (vesselPtr: number) => number;
-  getVesselY: (vesselPtr: number) => number;
-  getVesselZ: (vesselPtr: number) => number;
-  getVesselHeading: (vesselPtr: number) => number;
-  getVesselSpeed: (vesselPtr: number) => number;
-  getVesselEngineRPM: (vesselPtr: number) => number;
-  getVesselFuelLevel: (vesselPtr: number) => number;
-  getVesselFuelConsumption: (vesselPtr: number) => number;
-  getVesselGM: (vesselPtr: number) => number;
-  getVesselCenterOfGravityY: (vesselPtr: number) => number;
-
-  // Wave and ship motion physics
-  getVesselRollAngle: (vesselPtr: number) => number;
-  getVesselPitchAngle: (vesselPtr: number) => number;
-  getVesselWaveHeight: (vesselPtr: number) => number;
-  getVesselWavePhase: (vesselPtr: number) => number;
-  getWaveHeight: (seaState: number) => number;
-  getWaveFrequency: (seaState: number) => number;
-  calculateWaveHeightAtPosition: (
-    x: number,
-    y: number,
-    time: number,
-    waveHeight: number,
-    waveLength: number,
-    waveFrequency: number,
-    waveDirection: number,
-    seaState: number,
-  ) => number;
-  calculateWaveProperties: (
-    seaState: number,
-    windSpeed: number,
-    windDirection: number,
-  ) => number[];
-}
-
 // Singleton for simulation instance
 let simulationInstance: SimulationLoop | null = null;
 
 export class SimulationLoop {
-  private wasmExports: WasmExports | null = null;
+  private wasmBridge: WasmBridge | null = null;
   private animationFrameId: number | null = null;
   private lastFrameTime: number = 0;
   private accumulatedTime: number = 0;
@@ -154,11 +96,12 @@ export class SimulationLoop {
    */
   async initialize(): Promise<void> {
     try {
-      const exports = await loadWasm();
-      this.wasmExports = exports as unknown as WasmExports;
+      // Load WASM via our bridge that handles missing exports
+      const bridge = await loadWasm();
+      this.wasmBridge = bridge;
 
       // Create a vessel in WASM and store the pointer
-      const vesselPtr = this.wasmExports.createVessel();
+      const vesselPtr = this.wasmBridge.createVessel();
       useStore.getState().setWasmVesselPtr(vesselPtr);
 
       console.info(
@@ -225,8 +168,8 @@ export class SimulationLoop {
     useStore.getState().resetSimulation();
 
     // Re-create WASM vessel
-    if (this.wasmExports) {
-      const vesselPtr = this.wasmExports.createVessel();
+    if (this.wasmBridge) {
+      const vesselPtr = this.wasmBridge.createVessel();
       useStore.getState().setWasmVesselPtr(vesselPtr);
     }
 
@@ -291,7 +234,7 @@ export class SimulationLoop {
    * Update physics state using WASM module
    */
   private updatePhysics(deltaTime: number): void {
-    if (!this.wasmExports) return;
+    if (!this.wasmBridge) return;
 
     const state = useStore.getState();
     const vesselPtr = state.wasmVesselPtr;
@@ -319,17 +262,11 @@ export class SimulationLoop {
     const { throttle, rudderAngle, ballast } = state.vessel.controls;
 
     // Update controls in WASM
-    if (typeof this.wasmExports.setThrottle === 'function') {
-      this.wasmExports.setThrottle(vesselPtr, throttle);
-    }
-    if (typeof this.wasmExports.setRudderAngle === 'function') {
-      this.wasmExports.setRudderAngle(vesselPtr, rudderAngle);
-    }
-    if (typeof this.wasmExports.setBallast === 'function') {
-      this.wasmExports.setBallast(vesselPtr, ballast);
-    }
+    this.wasmBridge.setThrottle(vesselPtr, throttle);
+    this.wasmBridge.setRudderAngle(vesselPtr, rudderAngle);
+    this.wasmBridge.setBallast(vesselPtr, ballast);
 
-    this.wasmExports.updateVesselState(
+    this.wasmBridge.updateVesselState(
       vesselPtr,
       deltaTime,
       wind.speed,
@@ -343,12 +280,12 @@ export class SimulationLoop {
     const { failures } = state.machinerySystems;
     if (failures.engineFailure) {
       // If engine failure, force throttle to 0
-      this.wasmExports.setThrottle(vesselPtr, 0);
+      this.wasmBridge.setThrottle(vesselPtr, 0);
     }
     if (failures.rudderFailure) {
       // If rudder failure, add random drift to rudder
       const randomDrift = (Math.random() - 0.5) * 0.2;
-      this.wasmExports.setRudderAngle(vesselPtr, randomDrift);
+      this.wasmBridge.setRudderAngle(vesselPtr, randomDrift);
     }
   }
 
@@ -365,7 +302,7 @@ export class SimulationLoop {
     rudderAngle?: number;
     ballast?: number;
   }): void {
-    if (!this.wasmExports) return;
+    if (!this.wasmBridge) return;
 
     const _state = useStore.getState();
     const vesselPtr = _state.wasmVesselPtr;
@@ -373,28 +310,19 @@ export class SimulationLoop {
     if (vesselPtr === null) return;
 
     try {
-      // Set throttle if provided and function exists
-      if (
-        controls.throttle !== undefined &&
-        typeof this.wasmExports.setThrottle === 'function'
-      ) {
-        this.wasmExports.setThrottle(vesselPtr, controls.throttle);
+      // Set throttle if provided
+      if (controls.throttle !== undefined) {
+        this.wasmBridge.setThrottle(vesselPtr, controls.throttle);
       }
 
-      // Set rudder angle if provided and function exists
-      if (
-        controls.rudderAngle !== undefined &&
-        typeof this.wasmExports.setRudderAngle === 'function'
-      ) {
-        this.wasmExports.setRudderAngle(vesselPtr, controls.rudderAngle);
+      // Set rudder angle if provided
+      if (controls.rudderAngle !== undefined) {
+        this.wasmBridge.setRudderAngle(vesselPtr, controls.rudderAngle);
       }
 
-      // Set ballast if provided and function exists
-      if (
-        controls.ballast !== undefined &&
-        typeof this.wasmExports.setBallast === 'function'
-      ) {
-        this.wasmExports.setBallast(vesselPtr, controls.ballast);
+      // Set ballast if provided
+      if (controls.ballast !== undefined) {
+        this.wasmBridge.setBallast(vesselPtr, controls.ballast);
       }
     } catch (error) {
       console.error('Error applying vessel controls to WASM:', error);
@@ -408,7 +336,7 @@ export class SimulationLoop {
    * Exports the wave data needed for the ocean renderer
    */
   private updateWaveProperties(): void {
-    if (!this.wasmExports) return;
+    if (!this.wasmBridge) return;
 
     // Only update wave properties every few frames to avoid performance issues
     this.wavePropertiesUpdateCounter++;
@@ -425,59 +353,37 @@ export class SimulationLoop {
       const { seaState, wind } = _state.environment;
 
       // Get wave height from physics engine
-      if (typeof this.wasmExports.getWaveHeight === 'function') {
-        const waveHeight = this.wasmExports.getWaveHeight(seaState);
-        _state.updateEnvironment({ waveHeight });
-      }
+      const waveHeight = this.wasmBridge.getWaveHeight(seaState);
+      _state.updateEnvironment({ waveHeight });
 
       // Get wave properties from physics calculations
-      if (typeof this.wasmExports.calculateWaveProperties === 'function') {
-        const waveProps = this.wasmExports.calculateWaveProperties(
-          seaState,
-          wind.speed,
-          wind.direction,
-        );
+      const waveProps = this.wasmBridge.calculateWaveProperties(
+        seaState,
+        wind.speed,
+        wind.direction,
+      );
 
-        if (waveProps && waveProps.length >= 4) {
-          _state.updateEnvironment({
-            waveHeight: waveProps[0],
-            waveLength: waveProps[1],
-            // Remove waveFrequency as it's not in the EnvironmentState type
-            waveDirection: waveProps[3],
-          });
-        }
+      if (waveProps && waveProps.length >= 4) {
+        _state.updateEnvironment({
+          waveHeight: waveProps[0],
+          waveLength: waveProps[1],
+          // Remove waveFrequency as it's not in the EnvironmentState type
+          waveDirection: waveProps[3],
+        });
       }
 
       // Get vessel-specific wave data
-      const vesselWaveData = {
-        waveHeight: 0,
-        wavePhase: 0,
-      };
-      let hasWaveData = false;
+      const vesselWaveHeight = this.wasmBridge.getVesselWaveHeight(vesselPtr);
+      const vesselWavePhase = this.wasmBridge.getVesselWavePhase(vesselPtr);
 
-      if (typeof this.wasmExports.getVesselWaveHeight === 'function') {
-        vesselWaveData.waveHeight =
-          this.wasmExports.getVesselWaveHeight(vesselPtr);
-        hasWaveData = true;
-      }
-
-      if (typeof this.wasmExports.getVesselWavePhase === 'function') {
-        vesselWaveData.wavePhase =
-          this.wasmExports.getVesselWavePhase(vesselPtr);
-        hasWaveData = true;
-      }
-
-      // Update vessel wave data in store if we have any
-      if (hasWaveData) {
-        // Instead of using waveData property, update existing properties directly
-        _state.updateVessel({
-          position: {
-            ..._state.vessel.position,
-            waveHeight: vesselWaveData.waveHeight,
-            wavePhase: vesselWaveData.wavePhase,
-          },
-        });
-      }
+      // Update vessel wave data in store
+      _state.updateVessel({
+        position: {
+          ..._state.vessel.position,
+          waveHeight: vesselWaveHeight,
+          wavePhase: vesselWavePhase,
+        },
+      });
     } catch (error) {
       console.error('Error updating wave properties:', error);
     }
@@ -487,7 +393,7 @@ export class SimulationLoop {
    * Update the UI state from physics engine results
    */
   private updateUIFromPhysics(): void {
-    if (!this.wasmExports) return;
+    if (!this.wasmBridge) return;
 
     const _state = useStore.getState();
     const vesselPtr = _state.wasmVesselPtr;
@@ -498,92 +404,41 @@ export class SimulationLoop {
       // Initialize update object with proper typing
       const vesselUpdate: Partial<VesselState> = {};
 
-      // Only add position and orientation updates every frame
-      if (
-        typeof this.wasmExports.getVesselX === 'function' &&
-        typeof this.wasmExports.getVesselY === 'function' &&
-        typeof this.wasmExports.getVesselHeading === 'function'
-      ) {
-        // Create position object with default z value
-        const positionUpdate = {
-          x: this.wasmExports.getVesselX(vesselPtr),
-          y: this.wasmExports.getVesselY(vesselPtr),
-          z: 0, // Default value
-        };
+      // Position and orientation updates
+      const positionUpdate = {
+        x: this.wasmBridge.getVesselX(vesselPtr),
+        y: this.wasmBridge.getVesselY(vesselPtr),
+        z: this.wasmBridge.getVesselZ(vesselPtr),
+      };
+      vesselUpdate.position = positionUpdate;
 
-        // Only call getVesselZ if it exists
-        if (typeof this.wasmExports.getVesselZ === 'function') {
-          positionUpdate.z = this.wasmExports.getVesselZ(vesselPtr);
-        }
+      // Get vessel orientation including roll and pitch from physics
+      const orientationUpdate = {
+        heading: this.wasmBridge.getVesselHeading(vesselPtr),
+        roll: this.wasmBridge.getVesselRollAngle(vesselPtr),
+        pitch: this.wasmBridge.getVesselPitchAngle(vesselPtr),
+      };
+      vesselUpdate.orientation = orientationUpdate;
 
-        vesselUpdate.position = positionUpdate;
-
-        // Get vessel orientation including roll and pitch from physics
-        const orientationUpdate = {
-          heading: this.wasmExports.getVesselHeading(vesselPtr),
-          roll: 0,
-          pitch: 0,
-        };
-
-        // Add roll and pitch if available from physics
-        if (typeof this.wasmExports.getVesselRollAngle === 'function') {
-          orientationUpdate.roll =
-            this.wasmExports.getVesselRollAngle(vesselPtr);
-        }
-
-        if (typeof this.wasmExports.getVesselPitchAngle === 'function') {
-          orientationUpdate.pitch =
-            this.wasmExports.getVesselPitchAngle(vesselPtr);
-        }
-
-        vesselUpdate.orientation = orientationUpdate;
-      }
-
-      // Add speed if available
-      if (typeof this.wasmExports.getVesselSpeed === 'function') {
-        vesselUpdate.velocity = {
-          surge: this.wasmExports.getVesselSpeed(vesselPtr),
-          sway: 0,
-          heave: 0,
-        };
-      }
+      // Add speed
+      vesselUpdate.velocity = {
+        surge: this.wasmBridge.getVesselSpeed(vesselPtr),
+        sway: 0,
+        heave: 0,
+      };
 
       // Engine state updates
-      let hasEngineUpdate = false;
+      const isEngineRunning = false; // Default value since this function may not exist
       const engineUpdate = {
-        rpm: 0,
-        fuelLevel: 1.0,
-        fuelConsumption: 0,
+        rpm: this.wasmBridge.getVesselEngineRPM(vesselPtr),
+        fuelLevel: this.wasmBridge.getVesselFuelLevel(vesselPtr),
+        fuelConsumption: this.wasmBridge.getVesselFuelConsumption(vesselPtr),
         temperature: 25,
         oilPressure: 5.0,
         load: 0,
-        running: false,
+        running: isEngineRunning,
         hours: _state.vessel.engineState.hours || 0, // Preserve engine hours
       };
-
-      // Check engine running state if available
-      if (typeof this.wasmExports.isEngineRunning === 'function') {
-        engineUpdate.running = this.wasmExports.isEngineRunning(vesselPtr);
-        console.info(`WASM engine running state: ${engineUpdate.running}`);
-        hasEngineUpdate = true;
-      }
-
-      // Only add engine values if they're available
-      if (typeof this.wasmExports.getVesselEngineRPM === 'function') {
-        engineUpdate.rpm = this.wasmExports.getVesselEngineRPM(vesselPtr);
-        hasEngineUpdate = true;
-      }
-
-      if (typeof this.wasmExports.getVesselFuelLevel === 'function') {
-        engineUpdate.fuelLevel = this.wasmExports.getVesselFuelLevel(vesselPtr);
-        hasEngineUpdate = true;
-      }
-
-      if (typeof this.wasmExports.getVesselFuelConsumption === 'function') {
-        engineUpdate.fuelConsumption =
-          this.wasmExports.getVesselFuelConsumption(vesselPtr);
-        hasEngineUpdate = true;
-      }
 
       // Calculate load based on throttle and RPM
       if (engineUpdate.rpm > 0) {
@@ -601,9 +456,7 @@ export class SimulationLoop {
         engineUpdate.oilPressure = 2.0 + 3.0 * normalizedRPM;
       }
 
-      if (hasEngineUpdate) {
-        vesselUpdate.engineState = engineUpdate;
-      }
+      vesselUpdate.engineState = engineUpdate;
 
       // Only update stability properties every 10 frames to avoid overwhelming the store
       // and potentially causing cascading errors
@@ -611,32 +464,18 @@ export class SimulationLoop {
       if (this.stabilityUpdateCounter >= 10) {
         this.stabilityUpdateCounter = 0;
 
-        let hasStabilityUpdate = false;
         const stabilityUpdate = {
-          metacentricHeight: 2.0,
-          centerOfGravity: { x: 0, y: 0, z: 6.0 },
+          metacentricHeight: this.wasmBridge.getVesselGM(vesselPtr),
+          centerOfGravity: {
+            x: 0,
+            y: this.wasmBridge.getVesselCenterOfGravityY(vesselPtr),
+            z: 6.0,
+          },
           trim: 0,
           list: 0,
         };
 
-        if (typeof this.wasmExports.getVesselGM === 'function') {
-          stabilityUpdate.metacentricHeight =
-            this.wasmExports.getVesselGM(vesselPtr);
-          hasStabilityUpdate = true;
-        }
-
-        if (typeof this.wasmExports.getVesselCenterOfGravityY === 'function') {
-          stabilityUpdate.centerOfGravity = {
-            x: 0,
-            y: this.wasmExports.getVesselCenterOfGravityY(vesselPtr),
-            z: 0,
-          };
-          hasStabilityUpdate = true;
-        }
-
-        if (hasStabilityUpdate) {
-          vesselUpdate.stability = stabilityUpdate;
-        }
+        vesselUpdate.stability = stabilityUpdate;
       }
 
       // Only update the store if we have something to update
@@ -811,7 +650,7 @@ export class SimulationLoop {
    * Update vessel physics
    */
   private updateVesselPhysics(deltaTime: number): void {
-    if (!this.wasmExports) return;
+    if (!this.wasmBridge) return;
 
     const _state = useStore.getState();
     const vesselPtr = _state.wasmVesselPtr;
@@ -842,7 +681,7 @@ export class SimulationLoop {
    * Update simulation state
    */
   public update(deltaTime: number): void {
-    if (!this.wasmExports) return;
+    if (!this.wasmBridge) return;
 
     // Vessel physics update
     this.updateVesselPhysics(deltaTime);

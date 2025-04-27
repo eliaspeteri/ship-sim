@@ -12,8 +12,8 @@
     "lint:fix": "eslint . --fix",
     "lint:errors": "eslint . --max-warnings 0",
     "format": "prettier --write .",
-    "asbuild:debug": "asc assembly/index.ts --target debug",
-    "asbuild:release": "asc assembly/index.ts --target release",
+    "asbuild:debug": "asc assembly/index.ts --target debug --exportTable --exportRuntime",
+    "asbuild:release": "asc assembly/index.ts --target release --exportTable --optimizeLevel 1 --shrinkLevel 0 --converge false --exportRuntime --exportStart * --measure",
     "asbuild": "npm run asbuild:debug && npm run asbuild:release",
     "server": "npx tsx src/server/index.ts",
     "prepare": "husky"

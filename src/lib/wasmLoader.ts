@@ -8,16 +8,18 @@
 // Import our custom loader
 import { loadWasmModule, unloadWasmModule } from './customWasmLoader';
 import { WasmModule } from '../types/wasm';
+import { WasmBridge } from './wasmBridge';
 
-// Cache the loaded module
+// Cache the loaded module and bridge
 let wasmModule: WasmModule | null = null;
+let wasmBridge: WasmBridge | null = null;
 
 /**
  * Load and initialize the WASM module
  */
-export async function loadWasm(): Promise<WasmModule> {
-  if (wasmModule) {
-    return wasmModule;
+export async function loadWasm(): Promise<WasmBridge> {
+  if (wasmBridge) {
+    return wasmBridge;
   }
 
   try {
@@ -51,8 +53,11 @@ export async function loadWasm(): Promise<WasmModule> {
     // Cache the module for future use
     wasmModule = enhancedExports;
 
+    // Create and cache our bridge that implements missing functions
+    wasmBridge = new WasmBridge(wasmModule);
+
     console.info('WASM physics engine loaded and enhanced successfully');
-    return enhancedExports;
+    return wasmBridge;
   } catch (error) {
     console.error('Failed to load WASM physics engine:', error);
     throw error;
@@ -66,6 +71,7 @@ export function cleanupWasm() {
   if (wasmModule) {
     unloadWasmModule();
     wasmModule = null;
+    wasmBridge = null;
   }
 }
 

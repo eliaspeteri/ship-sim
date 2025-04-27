@@ -8,7 +8,8 @@
       "importMemory": true,
       "initialMemory": 16,
       "maximumMemory": 100,
-      "runtime": "stub"
+      "runtime": "stub",
+      "noTreeShaking": true
     },
     "release": {
       "outFile": "public/wasm/ship_sim.wasm",
@@ -21,7 +22,8 @@
       "initialMemory": 16,
       "maximumMemory": 100,
       "runtime": "stub",
-      "noAssert": true
+      "noAssert": true,
+      "noTreeShaking": true
     }
   },
   "options": {
