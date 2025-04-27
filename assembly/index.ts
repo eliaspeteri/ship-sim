@@ -457,7 +457,7 @@ function calculateGM(vessel: VesselState): f64 {
 /** @external */
 export function calculateWaveHeight(seaState: f64): f64 {
   const index = Math.min(Math.max(0, Math.floor(seaState)), 12);
-  return BEAUFORT_WAVE_HEIGHTS[index];
+  return BEAUFORT_WAVE_HEIGHTS[index as i32];
 }
 
 /** @external */
@@ -470,11 +470,6 @@ function calculateWaveLength(seaState: f64): f64 {
 function calculateWaveFrequency(seaState: f64): f64 {
   const wavePeriod = 3.0 + seaState * 0.8;
   return (2.0 * Math.PI) / wavePeriod;
-}
-
-/** @external */
-function calculateWaveDirection(windDirection: f64): f64 {
-  return windDirection - Math.PI * 0.1;
 }
 
 // Calculate wave height at specific location and time - simplified for export compatibility
@@ -823,7 +818,7 @@ export function setBallast(vesselPtr: usize, level: f64): void {
 export function getWaveHeight(seaState: f64): f64 {
   if (seaState < 0.5) return 0.0;
   const index = Math.min(Math.max(0, Math.floor(seaState)), 12);
-  return BEAUFORT_WAVE_HEIGHTS[index];
+  return BEAUFORT_WAVE_HEIGHTS[index as i32];
 }
 
 /** @external */
