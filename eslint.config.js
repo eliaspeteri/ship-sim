@@ -36,8 +36,8 @@ export default [
       '**/coverage/**',
       '**/public/**',
       '**/.vercel/**',
-      '**/tests/index.test.ts', // Temporary ignore until parse error is fixed
       '**/assembly/**', // Ignore AssemblyScript files
+      '**/scripts/**', // Ignore scripts directory
     ],
   },
 
