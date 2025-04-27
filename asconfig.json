@@ -4,39 +4,19 @@
       "outFile": "build/debug.wasm",
       "textFile": "build/debug.wat",
       "sourceMap": true,
-      "debug": true,
-      "importMemory": true,
-      "initialMemory": 16,
-      "maximumMemory": 100,
-      "runtime": "stub",
-      "noTreeShaking": true,
-      "exportStart": "*",
-      "exportTable": true,
-      "converge": false,
-      "optimizeLevel": 0
+      "debug": true
     },
     "release": {
       "outFile": "public/wasm/ship_sim.wasm",
       "textFile": "public/wasm/ship_sim.wat",
       "sourceMap": true,
-      "optimizeLevel": 1,
+      "optimizeLevel": 3,
       "shrinkLevel": 0,
       "converge": false,
-      "importMemory": true,
-      "initialMemory": 16,
-      "maximumMemory": 100,
-      "runtime": "stub",
-      "noAssert": true,
-      "noTreeShaking": true,
-      "exportStart": "*",
-      "exportTable": true
+      "noAssert": false
     }
   },
   "options": {
-    "bindings": "raw",
-    "exportRuntime": true,
-    "exportStart": "*",
-    "showConfig": true,
-    "measure": true
+    "bindings": "esm"
   }
 }
