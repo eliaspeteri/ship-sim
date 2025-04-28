@@ -22,7 +22,7 @@ import {
   verifyRefreshToken,
 } from './authService';
 import { socketHasPermission } from './middleware/authorization';
-import { SimpleVesselState } from '../types/vesselTypes';
+import { SimpleVesselState } from '../types/vessel.types';
 
 // Initialize Prisma client
 const prisma = new PrismaClient();

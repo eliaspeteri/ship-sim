@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { getSimulationLoop } from '../simulation/simulationLoop';
-import { VesselState, ShipType } from '../types/vesselTypes';
+import { VesselState, ShipType } from '../types/vessel.types';
 import { WasmModule } from '../types/wasm';
 
 // Environment state interface with enhanced weather

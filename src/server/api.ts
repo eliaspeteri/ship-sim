@@ -2,7 +2,7 @@ import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateRequest, requireAuth } from './middleware/authentication';
 import { requirePermission, requireRole } from './middleware/authorization';
-import { VesselState, ShipType } from '../types/vesselTypes';
+import { VesselState, ShipType } from '../types/vessel.types';
 
 // First, define proper types for the database models
 interface DBVesselState {

@@ -1,7 +1,7 @@
 import useStore from '../store';
 import { loadWasm } from '../lib/wasmLoader';
 import { WasmBridge } from '../lib/wasmBridge';
-import { VesselState } from '../types/vesselTypes';
+import { VesselState } from '../types/vessel.types';
 
 // Singleton for simulation instance
 let simulationInstance: SimulationLoop | null = null;

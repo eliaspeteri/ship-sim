@@ -6,7 +6,7 @@ import {
   VesselLeftData,
   VesselUpdateData,
   VesselControlData,
-} from '../types/vesselTypes';
+} from '../types/vessel.types';
 
 // Define data interface types
 interface SimulationUpdateData {
