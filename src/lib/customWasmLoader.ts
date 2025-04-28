@@ -22,10 +22,6 @@ export interface ShipSimWasm {
   __collect?: () => void;
   __getArray?: (ptr: number) => unknown[];
 
-  // Basic math (testing functions)
-  add: (a: number, b: number) => number;
-  multiply: (a: number, b: number) => number;
-
   // Vessel management
   createVessel: () => number;
   updateVesselState: (
@@ -113,10 +109,6 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
       __getArray: exports.__getArray as
         | ((ptr: number) => unknown[])
         | undefined,
-
-      // Math functions
-      add: exports.add as (a: number, b: number) => number,
-      multiply: exports.multiply as (a: number, b: number) => number,
 
       // Wrap updateVesselState to handle arguments
       updateVesselState: (

@@ -4,9 +4,6 @@
  */
 
 declare module 'wasm/ship_sim' {
-  export function add(a: number, b: number): number;
-  export function multiply(a: number, b: number): number;
-
   // Enhanced physics functions
   export function updateVesselState(
     vesselPtr: number,

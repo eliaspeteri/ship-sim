@@ -27,10 +27,6 @@ const RELEASE_WASM_PATH = path.join(
 
 // Define expected functions that should be exported
 const EXPECTED_EXPORTS: string[] = [
-  // Basic test functions
-  'add',
-  'multiply',
-
   // Vessel management
   'createVessel',
   'updateVesselState',

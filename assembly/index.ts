@@ -3,17 +3,6 @@
 // IMPORTANT: Keep a reference to a single vessel state to avoid memory leaks
 let globalVessel: VesselState | null = null;
 
-// Basic math operations (for testing)
-/** @external */
-export function add(a: f64, b: f64): f64 {
-  return a + b;
-}
-
-/** @external */
-export function multiply(a: f64, b: f64): f64 {
-  return a * b;
-}
-
 // Vessel state representation
 class VesselState {
   // Position and orientation

@@ -24,15 +24,6 @@ export class WasmBridge {
     this.wasmModule = module as ExtendedWasmModule;
   }
 
-  // Directly mapped functions - these are already exported by the WASM module
-  public add(a: number, b: number): number {
-    return this.wasmModule.add ? this.wasmModule.add(a, b) : a + b;
-  }
-
-  public multiply(a: number, b: number): number {
-    return this.wasmModule.multiply ? this.wasmModule.multiply(a, b) : a * b;
-  }
-
   public updateVesselState(
     vesselPtr: number,
     dt: number,
