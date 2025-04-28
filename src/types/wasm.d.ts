@@ -123,6 +123,8 @@ export interface WasmModule {
 
   // Wave calculations
   calculateWaveHeight: (seaState: number) => number;
+  calculateWaveLength: (seaState: number) => number;
+  calculateWaveFrequency: (seaState: number) => number;
   calculateBeaufortScale: (windSpeed: number) => number;
   calculateWaveHeightAtPosition: (
     x: number,

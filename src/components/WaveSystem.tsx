@@ -25,7 +25,6 @@ const WaveSystem: React.FC<WaveSystemProps> = ({
 }) => {
   // References to mesh and material
   const meshRef = useRef<THREE.Mesh>(null);
-  console.info('WaveSystem component initialized');
 
   // Get environment state from store
   const environment = useStore(state => state.environment);
@@ -241,22 +240,20 @@ const WaveSystem: React.FC<WaveSystemProps> = ({
 
         // Calculate wave properties for the current location
         if (
-          wasmExports.calculateWaveProperties &&
+          wasmExports.calculateWaveHeight &&
+          wasmExports.calculateWaveLength &&
+          wasmExports.calculateWaveFrequency &&
           wasmExports.calculateWaveHeightAtPosition
         ) {
-          // Get wave properties based on environment conditions
-          const waveProps = wasmExports.calculateWaveProperties(
+          const waveHeight = wasmExports.calculateWaveHeight(
             environment.seaState,
-            environment.wind.speed,
-            environment.wind.direction,
           );
-          console.info('Wave properties:', waveProps);
-
-          // Extract wave properties from returned array
-          const waveHeight = waveProps[0];
-          const waveLength = waveProps[1];
-          const waveFrequency = waveProps[2];
-          const waveDirection = waveProps[3];
+          const waveLength = wasmExports.calculateWaveLength(
+            environment.seaState,
+          );
+          const waveFrequency = wasmExports.calculateWaveFrequency(
+            environment.seaState,
+          );
 
           // Use the physics engine to calculate actual wave height at vessel position
           const height = wasmExports.calculateWaveHeightAtPosition(
@@ -266,15 +263,15 @@ const WaveSystem: React.FC<WaveSystemProps> = ({
             waveHeight,
             waveLength,
             waveFrequency,
-            waveDirection,
+            environment.wind.direction,
             environment.seaState,
           );
           console.info('Wave height at vessel position:', height);
 
           // Get current phase based on position and time
           const k = (2.0 * Math.PI) / waveLength;
-          const dirX = Math.cos(waveDirection);
-          const dirY = Math.sin(waveDirection);
+          const dirX = Math.cos(environment.wind.direction);
+          const dirY = Math.sin(environment.wind.direction);
           const dot = samplePos.x * dirX + samplePos.z * dirY;
           const phase = k * dot - waveFrequency * material.uniforms.uTime.value;
 
