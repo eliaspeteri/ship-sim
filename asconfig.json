@@ -4,6 +4,14 @@
       "outFile": "build/debug.wasm",
       "textFile": "build/debug.wat",
       "sourceMap": true,
+      "importMemory": true,
+      "initialMemory": 16,
+      "maximumMemory": 100,
+      "runtime": "stub",
+      "noTreeShaking": true,
+      "exportTable": true,
+      "converge": false,
+      "optimizeLevel": 0,
       "debug": true
     },
     "release": {
@@ -13,10 +21,17 @@
       "optimizeLevel": 3,
       "shrinkLevel": 0,
       "converge": false,
-      "noAssert": false
+      "importMemory": true,
+      "initialMemory": 16,
+      "maximumMemory": 100,
+      "runtime": "stub",
+      "noAssert": false,
+      "noTreeShaking": true,
+      "exportTable": true
     }
   },
   "options": {
-    "bindings": "esm"
+    "bindings": "esm",
+    "measure": true
   }
 }
