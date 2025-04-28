@@ -1,8 +1,8 @@
 {
   "targets": {
     "debug": {
-      "outFile": "build/debug.wasm",
-      "textFile": "build/debug.wat",
+      "outFile": "public/wasm/debug.wasm",
+      "textFile": "public/wasm/debug.wat",
       "sourceMap": true,
       "importMemory": true,
       "initialMemory": 16,

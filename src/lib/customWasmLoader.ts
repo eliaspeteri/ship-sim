@@ -81,6 +81,27 @@ export interface ShipSimWasm {
 let wasmInstance: ShipSimWasm | null = null;
 
 /**
+ * Determine if we're running in development mode
+ */
+function isDevelopmentMode(): boolean {
+  return process.env.NODE_ENV === 'development';
+}
+
+/**
+ * Get the appropriate WASM file path based on the current environment
+ */
+function getWasmPath(): string {
+  // In development mode, use the debug build
+  if (isDevelopmentMode()) {
+    console.info('Loading debug WASM build for development');
+    return '/wasm/debug.wasm';
+  }
+
+  // In production, use the optimized build
+  return '/wasm/ship_sim.wasm';
+}
+
+/**
  * Load the WebAssembly module directly
  */
 export async function loadWasmModule(): Promise<ShipSimWasm> {
@@ -91,8 +112,17 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
   try {
     console.info('Loading WASM physics engine...');
 
-    // Fetch the WebAssembly binary
-    const response = await fetch('/wasm/ship_sim.wasm');
+    // Fetch the WebAssembly binary from the appropriate location
+    const wasmPath = getWasmPath();
+    console.info(`Using WASM from: ${wasmPath}`);
+
+    const response = await fetch(wasmPath);
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch WASM module from ${wasmPath}: ${response.status} ${response.statusText}`,
+      );
+    }
+
     const buffer = await response.arrayBuffer();
 
     // Create WebAssembly memory with sizes matching asconfig.json

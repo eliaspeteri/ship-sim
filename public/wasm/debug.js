@@ -74,4 +74,4 @@ export const {
     else { return await globalThis.WebAssembly.compileStreaming(globalThis.fetch(url)); }
   })(), {
   }
-))(new URL("ship_sim.wasm", import.meta.url));
+))(new URL("debug.wasm", import.meta.url));

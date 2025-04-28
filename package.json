@@ -4,8 +4,8 @@
   "description": "A realistic motor vessel simulator running in the browser.",
   "main": "src/index.js",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "npm run asbuild:debug && next dev",
+    "build": "npm run asbuild:release && next build",
     "start": "next start",
     "test": "jest",
     "lint": "eslint .",
