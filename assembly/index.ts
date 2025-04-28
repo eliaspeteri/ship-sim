@@ -326,8 +326,12 @@ function calculateRudderMomentZ(vessel: VesselState): f64 {
   return rudderForceY * rudderLeverArm;
 }
 
-// Calculate maneuvering forces based on rudder angle and speed
-// Kept for backward compatibility, but deprecated
+/**
+ * Calculate maneuvering forces on the vessel based on rudder angle and speed.
+ * @deprecated Use calculateRudderDrag, calculateRudderForceY, and calculateRudderMomentZ instead.
+ * @param vessel - The vessel state object containing properties like speed, rudder angle, etc.
+ * @returns An array of forces and moments: [rudderDrag, rudderForceY, rudderMomentZ]
+ */
 function calculateManeuveringForces(vessel: VesselState): f64[] {
   const rudderDrag = calculateRudderDrag(vessel);
   const rudderForceY = calculateRudderForceY(vessel);
