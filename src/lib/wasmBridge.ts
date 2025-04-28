@@ -42,15 +42,68 @@ export class WasmBridge {
     currentDirection: number,
     seaState: number,
   ): number {
-    return this.wasmModule.updateVesselState(
-      vesselPtr,
-      dt,
-      windSpeed,
-      windDirection,
-      currentSpeed,
-      currentDirection,
-      seaState,
-    );
+    if (
+      !this.wasmModule ||
+      typeof this.wasmModule.updateVesselState !== 'function'
+    ) {
+      console.warn('updateVesselState function not available in WASM module');
+      return vesselPtr;
+    }
+
+    try {
+      // Validate vessel pointer
+      if (!Number.isInteger(vesselPtr) || vesselPtr <= 0) {
+        console.warn(
+          'Invalid vessel pointer for updateVesselState:',
+          vesselPtr,
+        );
+        return vesselPtr;
+      }
+
+      // Validate and sanitize parameters
+      const safeDt =
+        typeof dt === 'number' && isFinite(dt) && dt > 0
+          ? Math.min(dt, 1.0) // Cap at 1 second to prevent instability
+          : 0.016; // Default to ~60fps if invalid
+
+      const safeWindSpeed =
+        typeof windSpeed === 'number' && isFinite(windSpeed)
+          ? Math.max(0, Math.min(50, windSpeed)) // Cap at 50 m/s (strong hurricane)
+          : 0;
+
+      const safeWindDirection =
+        typeof windDirection === 'number' && isFinite(windDirection)
+          ? windDirection % (2 * Math.PI) // Normalize to [0, 2π)
+          : 0;
+
+      const safeCurrentSpeed =
+        typeof currentSpeed === 'number' && isFinite(currentSpeed)
+          ? Math.max(0, Math.min(10, currentSpeed)) // Cap at 10 m/s (very strong current)
+          : 0;
+
+      const safeCurrentDirection =
+        typeof currentDirection === 'number' && isFinite(currentDirection)
+          ? currentDirection % (2 * Math.PI) // Normalize to [0, 2π)
+          : 0;
+
+      const safeSeaState =
+        typeof seaState === 'number' && isFinite(seaState)
+          ? Math.max(0, Math.min(12, seaState)) // Beaufort scale 0-12
+          : 0;
+
+      return this.wasmModule.updateVesselState(
+        vesselPtr,
+        safeDt,
+        safeWindSpeed,
+        safeWindDirection,
+        safeCurrentSpeed,
+        safeCurrentDirection,
+        safeSeaState,
+      );
+    } catch (error) {
+      console.error('Error in updateVesselState:', error);
+      return vesselPtr; // Return original pointer to prevent errors downstream
+    }
   }
 
   /**
@@ -67,7 +120,28 @@ export class WasmBridge {
    * @param throttle - Throttle value (0-1)
    */
   public setThrottle(vesselPtr: number, throttle: number): void {
-    this.wasmModule.setThrottle(vesselPtr, throttle);
+    if (!this.wasmModule || typeof this.wasmModule.setThrottle !== 'function') {
+      console.warn('setThrottle function not available in WASM module');
+      return;
+    }
+
+    try {
+      // Validate vessel pointer
+      if (!Number.isInteger(vesselPtr) || vesselPtr <= 0) {
+        console.warn('Invalid vessel pointer for setThrottle:', vesselPtr);
+        return;
+      }
+
+      // Clamp throttle between 0 and 1
+      const safeThrottle =
+        typeof throttle === 'number' && isFinite(throttle)
+          ? Math.max(0, Math.min(1, throttle))
+          : 0; // Default to 0 if invalid
+
+      this.wasmModule.setThrottle(vesselPtr, safeThrottle);
+    } catch (error) {
+      console.error('Error in setThrottle:', error);
+    }
   }
 
   /**
@@ -76,7 +150,32 @@ export class WasmBridge {
    * @param angle - Rudder angle in radians
    */
   public setRudderAngle(vesselPtr: number, angle: number): void {
-    this.wasmModule.setRudderAngle(vesselPtr, angle);
+    if (
+      !this.wasmModule ||
+      typeof this.wasmModule.setRudderAngle !== 'function'
+    ) {
+      console.warn('setRudderAngle function not available in WASM module');
+      return;
+    }
+
+    try {
+      // Validate vessel pointer
+      if (!Number.isInteger(vesselPtr) || vesselPtr <= 0) {
+        console.warn('Invalid vessel pointer for setRudderAngle:', vesselPtr);
+        return;
+      }
+
+      // Ensure angle is a valid number, typically should be within ±0.6 radians (±35°)
+      // but we'll clamp to a slightly wider range for safety
+      const safeAngle =
+        typeof angle === 'number' && isFinite(angle)
+          ? Math.max(-1.0, Math.min(1.0, angle)) // Clamp between -1.0 and 1.0 radians
+          : 0; // Default to 0 if invalid
+
+      this.wasmModule.setRudderAngle(vesselPtr, safeAngle);
+    } catch (error) {
+      console.error('Error in setRudderAngle:', error);
+    }
   }
 
   /**
@@ -85,7 +184,29 @@ export class WasmBridge {
    * @param level - Ballast level (0-1)
    */
   public setBallast(vesselPtr: number, level: number): void {
-    this.wasmModule.setBallast(vesselPtr, level);
+    if (!this.wasmModule || typeof this.wasmModule.setBallast !== 'function') {
+      console.warn('setBallast function not available in WASM module');
+      return;
+    }
+
+    try {
+      // Ensure valid parameters
+      if (typeof vesselPtr !== 'number' || vesselPtr <= 0) {
+        console.warn('Invalid vessel pointer for setBallast:', vesselPtr);
+        return;
+      }
+
+      // Clamp ballast level between 0 and 1
+      const safeLevel =
+        typeof level === 'number' && isFinite(level)
+          ? Math.max(0, Math.min(1, level))
+          : 0.5; // Default to 0.5 if invalid
+
+      this.wasmModule.setBallast(vesselPtr, safeLevel);
+    } catch (error) {
+      console.error('Error in setBallast:', error);
+      // Don't rethrow to prevent simulation crash
+    }
   }
 
   /**
@@ -203,7 +324,34 @@ export class WasmBridge {
    * @param phase - Wave phase in radians
    */
   public setWaveData(vesselPtr: number, height: number, phase: number): void {
-    this.wasmModule.setWaveData(vesselPtr, height, phase);
+    if (!this.wasmModule || typeof this.wasmModule.setWaveData !== 'function') {
+      console.warn('setWaveData function not available in WASM module');
+      return;
+    }
+
+    try {
+      // Validate vessel pointer
+      if (!Number.isInteger(vesselPtr) || vesselPtr <= 0) {
+        console.warn('Invalid vessel pointer for setWaveData:', vesselPtr);
+        return;
+      }
+
+      // Sanitize wave height (typically between 0 and 15m)
+      const safeHeight =
+        typeof height === 'number' && isFinite(height)
+          ? Math.max(0, Math.min(15, height))
+          : 0;
+
+      // Normalize phase to [0, 2π)
+      const safePhase =
+        typeof phase === 'number' && isFinite(phase)
+          ? phase % (2 * Math.PI)
+          : 0;
+
+      this.wasmModule.setWaveData(vesselPtr, safeHeight, safePhase);
+    } catch (error) {
+      console.error('Error in setWaveData:', error);
+    }
   }
 
   /**

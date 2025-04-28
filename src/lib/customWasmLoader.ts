@@ -147,11 +147,11 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
       updateVesselState: (
         vesselPtr: number,
         dt: number,
-        windSpeed?: number,
-        windDirection?: number,
-        currentSpeed?: number,
-        currentDirection?: number,
-        seaState?: number,
+        windSpeed: number,
+        windDirection: number,
+        currentSpeed: number,
+        currentDirection: number,
+        seaState: number,
       ) => {
         // Check if we've had too many errors - temporarily disable function
         const now = Date.now();
@@ -167,14 +167,25 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
         }
 
         try {
+          // Validate function exists in exports
+          const updateFn = exports.updateVesselState;
+          if (typeof updateFn !== 'function') {
+            console.error(
+              'updateVesselState function not found in WASM exports',
+            );
+            return vesselPtr;
+          }
+
           // Ensure parameters are within reasonable bounds to avoid WASM errors
           // Pointer must be positive integer
-          if (vesselPtr <= 0 || !Number.isInteger(vesselPtr)) {
+          if (!Number.isInteger(vesselPtr) || vesselPtr <= 0) {
+            console.warn('Invalid vessel pointer:', vesselPtr);
             return vesselPtr;
           }
 
           // Delta time must be positive and reasonable
-          if (dt <= 0 || dt > 1.0) {
+          if (dt <= 0 || dt > 1.0 || !isFinite(dt)) {
+            console.warn('Invalid delta time:', dt);
             return vesselPtr;
           }
 
@@ -206,20 +217,10 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
 
           // Set the correct argument count for the function
           if (wrapper.__setArgumentsLength) {
-            wrapper.__setArgumentsLength(7); // All 7 parameters are now supported
+            wrapper.__setArgumentsLength(7); // All 7 parameters are required
           }
 
           // Call the function with properly sanitized parameters
-          const updateFn = exports.updateVesselState as (
-            vesselPtr: number,
-            dt: number,
-            windSpeed: number,
-            windDirection: number,
-            currentSpeed: number,
-            currentDirection: number,
-            seaState: number,
-          ) => number;
-
           return updateFn(
             vesselPtr,
             dt,
@@ -245,15 +246,6 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
           // Only log once per second to avoid flooding console
           if (now - lastErrorTime > 1000 || errorCount <= 3) {
             console.error('Error in WASM updateVesselState:', error);
-            console.error('Parameters:', {
-              vesselPtr,
-              dt,
-              windSpeed,
-              windDirection,
-              currentSpeed,
-              currentDirection,
-              seaState,
-            });
           }
 
           // Return the vessel pointer as fallback to prevent simulation crash
