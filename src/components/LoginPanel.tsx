@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import useStore from '../store';
 
 /**
  * Login panel component for user authentication using REST API endpoints
