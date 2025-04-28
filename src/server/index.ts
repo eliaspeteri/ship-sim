@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
@@ -210,166 +210,182 @@ const refreshTokenCookieOptions = {
 app.use('/api', apiRoutes);
 
 // Auth refresh endpoint
-app.post('/auth/refresh', async (req, res) => {
-  try {
-    const refreshToken = req.cookies['refresh_token'];
+app.post('/auth/refresh', (req: Request, res: Response) => {
+  (async () => {
+    try {
+      const refreshToken = req.cookies['refresh_token'];
 
-    if (!refreshToken) {
+      if (!refreshToken) {
+        return res
+          .status(401)
+          .json({ success: false, error: 'No refresh token provided' });
+      }
+
+      // Verify the refresh token
+      const tokenPayload = await verifyRefreshToken(refreshToken);
+
+      if (!tokenPayload) {
+        // Clear the cookies if token is invalid
+        res.clearCookie('access_token', accessTokenCookieOptions);
+        res.clearCookie('refresh_token', refreshTokenCookieOptions);
+        return res
+          .status(401)
+          .json({ success: false, error: 'Invalid refresh token' });
+      }
+
+      // Generate new tokens
+      const newTokens = await refreshAuthToken(refreshToken);
+
+      if (!newTokens) {
+        // Clear the cookies
+        res.clearCookie('access_token', accessTokenCookieOptions);
+        res.clearCookie('refresh_token', refreshTokenCookieOptions);
+        return res
+          .status(403)
+          .json({ success: false, error: 'Failed to refresh tokens' });
+      }
+
+      // Set the new tokens as cookies
+      res.cookie(
+        'access_token',
+        newTokens.accessToken,
+        accessTokenCookieOptions,
+      );
+      res.cookie(
+        'refresh_token',
+        newTokens.refreshToken,
+        refreshTokenCookieOptions,
+      );
+
+      // Return only necessary info to client
+      return res.json({
+        success: true,
+        username: tokenPayload.username,
+        roles: tokenPayload.roles,
+        // Also send tokens in response body for Socket.IO connections
+        tokens: {
+          accessToken: newTokens.accessToken,
+          refreshToken: newTokens.refreshToken,
+        },
+      });
+    } catch (error) {
+      console.error('Error refreshing tokens:', error);
       return res
-        .status(401)
-        .json({ success: false, error: 'No refresh token provided' });
+        .status(500)
+        .json({ success: false, error: 'Token refresh failed' });
     }
-
-    // Verify the refresh token
-    const tokenPayload = await verifyRefreshToken(refreshToken);
-
-    if (!tokenPayload) {
-      // Clear the cookies if token is invalid
-      res.clearCookie('access_token', accessTokenCookieOptions);
-      res.clearCookie('refresh_token', refreshTokenCookieOptions);
-      return res
-        .status(401)
-        .json({ success: false, error: 'Invalid refresh token' });
-    }
-
-    // Generate new tokens
-    const newTokens = await refreshAuthToken(refreshToken);
-
-    if (!newTokens) {
-      // Clear the cookies
-      res.clearCookie('access_token', accessTokenCookieOptions);
-      res.clearCookie('refresh_token', refreshTokenCookieOptions);
-      return res
-        .status(403)
-        .json({ success: false, error: 'Failed to refresh tokens' });
-    }
-
-    // Set the new tokens as cookies
-    res.cookie('access_token', newTokens.accessToken, accessTokenCookieOptions);
-    res.cookie(
-      'refresh_token',
-      newTokens.refreshToken,
-      refreshTokenCookieOptions,
-    );
-
-    // Return only necessary info to client
-    return res.json({
-      success: true,
-      username: tokenPayload.username,
-      roles: tokenPayload.roles,
-      // Also send tokens in response body for Socket.IO connections
-      tokens: {
-        accessToken: newTokens.accessToken,
-        refreshToken: newTokens.refreshToken,
-      },
-    });
-  } catch (error) {
-    console.error('Error refreshing tokens:', error);
-    return res
-      .status(500)
-      .json({ success: false, error: 'Token refresh failed' });
-  }
+  })();
 });
 
 // Login endpoint
-app.post('/auth/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
+app.post('/auth/login', (req: Request, res: Response) => {
+  (async () => {
+    try {
+      const { username, password } = req.body;
 
-    if (!username || !password) {
-      return res
-        .status(400)
-        .json({ success: false, error: 'Username and password are required' });
+      if (!username || !password) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            error: 'Username and password are required',
+          });
+      }
+
+      // Authenticate user
+      const authResult = await authenticateUser(username, password);
+
+      if (!authResult || !authResult.token || !authResult.refreshToken) {
+        return res
+          .status(401)
+          .json({ success: false, error: 'Invalid credentials' });
+      }
+
+      // Set cookies
+      res.cookie('access_token', authResult.token, accessTokenCookieOptions);
+      res.cookie(
+        'refresh_token',
+        authResult.refreshToken,
+        refreshTokenCookieOptions,
+      );
+
+      // Return success with user info
+      return res.json({
+        success: true,
+        username: authResult.username,
+        roles: authResult.roles,
+        // Also send tokens in response body for Socket.IO connections
+        tokens: {
+          accessToken: authResult.token,
+          refreshToken: authResult.refreshToken,
+        },
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      return res.status(500).json({ success: false, error: 'Login failed' });
     }
-
-    // Authenticate user
-    const authResult = await authenticateUser(username, password);
-
-    if (!authResult || !authResult.token || !authResult.refreshToken) {
-      return res
-        .status(401)
-        .json({ success: false, error: 'Invalid credentials' });
-    }
-
-    // Set cookies
-    res.cookie('access_token', authResult.token, accessTokenCookieOptions);
-    res.cookie(
-      'refresh_token',
-      authResult.refreshToken,
-      refreshTokenCookieOptions,
-    );
-
-    // Return success with user info
-    return res.json({
-      success: true,
-      username: authResult.username,
-      roles: authResult.roles,
-      // Also send tokens in response body for Socket.IO connections
-      tokens: {
-        accessToken: authResult.token,
-        refreshToken: authResult.refreshToken,
-      },
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    return res.status(500).json({ success: false, error: 'Login failed' });
-  }
+  })();
 });
 
 // Register endpoint
-app.post('/auth/register', async (req, res) => {
-  try {
-    const { username, password } = req.body;
+app.post('/auth/register', (req: Request, res: Response) => {
+  (async () => {
+    try {
+      const { username, password } = req.body;
 
-    if (!username || !password) {
+      if (!username || !password) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            error: 'Username and password are required',
+          });
+      }
+
+      // Register new user
+      const authResult = await registerAdminUser(username, password);
+
+      if (!authResult || !authResult.token || !authResult.refreshToken) {
+        return res
+          .status(400)
+          .json({ success: false, error: 'Registration failed' });
+      }
+
+      // Set cookies
+      res.cookie('access_token', authResult.token, accessTokenCookieOptions);
+      res.cookie(
+        'refresh_token',
+        authResult.refreshToken,
+        refreshTokenCookieOptions,
+      );
+
+      // Return success with user info
+      return res.json({
+        success: true,
+        username: authResult.username,
+        roles: authResult.roles,
+        // Also send tokens in response body for Socket.IO connections
+        tokens: {
+          accessToken: authResult.token,
+          refreshToken: authResult.refreshToken,
+        },
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
       return res
-        .status(400)
-        .json({ success: false, error: 'Username and password are required' });
-    }
-
-    // Register new user
-    const authResult = await registerAdminUser(username, password);
-
-    if (!authResult || !authResult.token || !authResult.refreshToken) {
-      return res
-        .status(400)
+        .status(500)
         .json({ success: false, error: 'Registration failed' });
     }
-
-    // Set cookies
-    res.cookie('access_token', authResult.token, accessTokenCookieOptions);
-    res.cookie(
-      'refresh_token',
-      authResult.refreshToken,
-      refreshTokenCookieOptions,
-    );
-
-    // Return success with user info
-    return res.json({
-      success: true,
-      username: authResult.username,
-      roles: authResult.roles,
-      // Also send tokens in response body for Socket.IO connections
-      tokens: {
-        accessToken: authResult.token,
-        refreshToken: authResult.refreshToken,
-      },
-    });
-  } catch (error) {
-    console.error('Registration error:', error);
-    return res
-      .status(500)
-      .json({ success: false, error: 'Registration failed' });
-  }
+  })();
 });
 
 // Logout endpoint
-app.post('/auth/logout', (req, res) => {
+app.post('/auth/logout', (_req: Request, res: Response) => {
   // Clear auth cookies
   res.clearCookie('access_token', accessTokenCookieOptions);
   res.clearCookie('refresh_token', refreshTokenCookieOptions);
 
-  return res.json({ success: true, message: 'Logged out successfully' });
+  res.json({ success: true, message: 'Logged out successfully' });
 });
 
 // Create HTTP server
