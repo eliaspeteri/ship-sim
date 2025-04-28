@@ -6,7 +6,7 @@
  */
 
 // Import our custom loader
-import { loadWasmModule, unloadWasmModule } from './customWasmLoader';
+import { loadWasmModule } from './customWasmLoader';
 import { WasmModule } from '../types/wasm';
 import { WasmBridge } from './wasmBridge';
 
@@ -62,37 +62,4 @@ export async function loadWasm(): Promise<WasmBridge> {
     console.error('Failed to load WASM physics engine:', error);
     throw error;
   }
-}
-
-/**
- * Cleanup WASM resources when no longer needed
- */
-export function cleanupWasm() {
-  if (wasmModule) {
-    unloadWasmModule();
-    wasmModule = null;
-    wasmBridge = null;
-  }
-}
-
-/**
- * Helper function to convert JS arrays to WASM memory
- * Note: This is a stub function since we're not using the full AssemblyScript runtime
- */
-export function arrayToWasm<T>(
-  _module: WasmModule,
-  _array: T[],
-  _createArrayFn: (length: number) => number,
-): number {
-  console.warn('arrayToWasm called but not implemented with custom loader');
-  return 0;
-}
-
-/**
- * Helper function to retrieve arrays from WASM memory
- * Note: This is a stub function since we're not using the full AssemblyScript runtime
- */
-export function wasmToArray<T>(_module: WasmModule, _ptr: number): T[] {
-  console.warn('wasmToArray called but not implemented with custom loader');
-  return [] as T[];
 }
