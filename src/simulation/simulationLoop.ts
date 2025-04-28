@@ -118,27 +118,27 @@ export class SimulationLoop {
     const deltaTime = (currentTime - this.lastFrameTime) / 1000; // in seconds
     this.lastFrameTime = currentTime;
 
-    const _state = useStore.getState();
+    const state = useStore.getState();
 
     // Ensure state.simulation is properly initialized with default values if needed
-    if (!_state.simulation) {
+    if (!state.simulation) {
       console.error('Simulation state is null, reinitializing');
-      _state.resetSimulation();
+      state.resetSimulation();
       return;
     }
 
     // Initialize elapsedTime if it's null
     if (
-      _state.simulation.elapsedTime === null ||
-      _state.simulation.elapsedTime === undefined
+      state.simulation.elapsedTime === null ||
+      state.simulation.elapsedTime === undefined
     ) {
-      _state.incrementTime(0); // This will set elapsedTime to 0
+      state.incrementTime(0); // This will set elapsedTime to 0
     }
 
     // Only update if simulation is running and not paused
-    if (_state.simulation.isRunning && !_state.simulation.paused) {
+    if (state.simulation.isRunning && !state.simulation.paused) {
       // Scale delta time by time scale factor
-      const scaledDeltaTime = deltaTime * (_state.simulation.timeScale || 1.0);
+      const scaledDeltaTime = deltaTime * (state.simulation.timeScale || 1.0);
       this.accumulatedTime += scaledDeltaTime;
 
       // Run fixed timestep physics updates
@@ -148,7 +148,7 @@ export class SimulationLoop {
       }
 
       // Increment simulation time - ensure this is always called when running
-      _state.incrementTime(scaledDeltaTime);
+      state.incrementTime(scaledDeltaTime);
 
       // Update UI state from physics state
       this.updateUIFromPhysics();
@@ -168,22 +168,22 @@ export class SimulationLoop {
    * Update physics state using WASM module
    */
   private updatePhysics(dt: number): void {
-    const _state = useStore.getState();
-    if (!_state || !this.wasmBridge || !_state.wasmVesselPtr) return;
+    const state = useStore.getState();
+    if (!state || !this.wasmBridge || !state.wasmVesselPtr) return;
 
-    const { wind, current } = _state.environment;
+    const { wind, current } = state.environment;
 
     // Calculate the actual sea state based on wind speed
     const calculatedSeaState = this.wasmBridge.calculateSeaState(wind.speed);
 
     // Update the state with the calculated sea state
-    if (_state.environment.seaState !== calculatedSeaState) {
-      _state.environment.seaState = calculatedSeaState;
+    if (state.environment.seaState !== calculatedSeaState) {
+      state.environment.seaState = calculatedSeaState;
     }
 
     // Update vessel state in WASM - store the updated pointer in case it changes
     const updatedVesselPtr = this.wasmBridge.updateVesselState(
-      _state.wasmVesselPtr,
+      state.wasmVesselPtr,
       dt,
       wind.speed,
       wind.direction,
@@ -193,20 +193,20 @@ export class SimulationLoop {
     );
 
     // Update vessel pointer if it changed
-    if (updatedVesselPtr !== _state.wasmVesselPtr) {
-      _state.setWasmVesselPtr(updatedVesselPtr);
+    if (updatedVesselPtr !== state.wasmVesselPtr) {
+      state.setWasmVesselPtr(updatedVesselPtr);
     }
 
     // Handle machinery failures by adjusting physics behavior
-    const { failures } = _state.machinerySystems;
+    const { failures } = state.machinerySystems;
     if (failures.engineFailure && this.wasmBridge) {
       // If engine failure, force throttle to 0
-      this.wasmBridge.setThrottle(_state.wasmVesselPtr, 0);
+      this.wasmBridge.setThrottle(state.wasmVesselPtr, 0);
     }
     if (failures.rudderFailure && this.wasmBridge) {
       // If rudder failure, add random drift to rudder
       const randomDrift = (Math.random() - 0.5) * 0.2;
-      this.wasmBridge.setRudderAngle(_state.wasmVesselPtr, randomDrift);
+      this.wasmBridge.setRudderAngle(state.wasmVesselPtr, randomDrift);
     }
   }
 
@@ -225,8 +225,8 @@ export class SimulationLoop {
   }): void {
     if (!this.wasmBridge) return;
 
-    const _state = useStore.getState();
-    const vesselPtr = _state.wasmVesselPtr;
+    const state = useStore.getState();
+    const vesselPtr = state.wasmVesselPtr;
 
     if (vesselPtr === null) return;
 
@@ -264,18 +264,18 @@ export class SimulationLoop {
     if (this.wavePropertiesUpdateCounter < 5) return; // Update every 5 frames
     this.wavePropertiesUpdateCounter = 0;
 
-    const _state = useStore.getState();
-    const vesselPtr = _state.wasmVesselPtr;
+    const state = useStore.getState();
+    const vesselPtr = state.wasmVesselPtr;
 
     if (vesselPtr === null) return;
 
     try {
       // Get environment parameters
-      const { seaState, wind } = _state.environment;
+      const { seaState, wind } = state.environment;
 
       // Get wave height from physics engine
       const waveHeight = this.wasmBridge.getWaveHeight(seaState);
-      _state.updateEnvironment({ waveHeight });
+      state.updateEnvironment({ waveHeight });
 
       // Get wave properties from physics calculations
       const waveProps = this.wasmBridge.calculateWaveProperties(
@@ -284,7 +284,7 @@ export class SimulationLoop {
       );
 
       if (waveProps && waveProps.length >= 4) {
-        _state.updateEnvironment({
+        state.updateEnvironment({
           waveHeight: waveProps[0],
           waveLength: waveProps[1],
           // Remove waveFrequency as it's not in the EnvironmentState type
@@ -297,9 +297,9 @@ export class SimulationLoop {
       const vesselWavePhase = this.wasmBridge.getVesselWavePhase(vesselPtr);
 
       // Update vessel wave data in store
-      _state.updateVessel({
+      state.updateVessel({
         position: {
-          ..._state.vessel.position,
+          ...state.vessel.position,
           waveHeight: vesselWaveHeight,
           wavePhase: vesselWavePhase,
         },
@@ -315,8 +315,8 @@ export class SimulationLoop {
   private updateUIFromPhysics(): void {
     if (!this.wasmBridge) return;
 
-    const _state = useStore.getState();
-    const vesselPtr = _state.wasmVesselPtr;
+    const state = useStore.getState();
+    const vesselPtr = state.wasmVesselPtr;
 
     if (vesselPtr === null) return;
 
@@ -357,7 +357,7 @@ export class SimulationLoop {
         oilPressure: 5.0,
         load: 0,
         running: isEngineRunning,
-        hours: _state.vessel.engineState.hours || 0, // Preserve engine hours
+        hours: state.vessel.engineState.hours || 0, // Preserve engine hours
       };
 
       // Calculate load based on throttle and RPM
@@ -366,7 +366,7 @@ export class SimulationLoop {
         const normalizedRPM = Math.min(engineUpdate.rpm / maxRpm, 1);
 
         // Calculate engine load based on RPM and current throttle setting
-        const throttleValue = _state.vessel.controls?.throttle || 0;
+        const throttleValue = state.vessel.controls?.throttle || 0;
         engineUpdate.load = normalizedRPM * (0.5 + throttleValue * 0.5);
 
         // Adjust temperature based on load
@@ -401,7 +401,7 @@ export class SimulationLoop {
       // Only update the store if we have something to update
       if (Object.keys(vesselUpdate).length > 0) {
         // Update the store with the collected values
-        _state.updateVessel(vesselUpdate);
+        state.updateVessel(vesselUpdate);
       }
 
       // Check for low fuel alarm - with null safety
@@ -410,17 +410,17 @@ export class SimulationLoop {
         engineState &&
         engineState.fuelLevel !== undefined &&
         engineState.fuelLevel < 0.1 &&
-        !_state.vessel?.alarms?.lowFuel
+        !state.vessel?.alarms?.lowFuel
       ) {
-        _state.updateVessel({
+        state.updateVessel({
           alarms: {
-            ...(_state.vessel?.alarms || {}),
+            ...(state.vessel?.alarms || {}),
             lowFuel: true,
           },
         });
 
         // Add event to log
-        _state.addEvent({
+        state.addEvent({
           category: 'alarm',
           type: 'low_fuel',
           message: 'Fuel level critical: Less than 10% remaining',
@@ -434,17 +434,17 @@ export class SimulationLoop {
         stability &&
         stability.metacentricHeight !== undefined &&
         stability.metacentricHeight < 0.5 &&
-        !_state.vessel?.alarms?.stabilityWarning
+        !state.vessel?.alarms?.stabilityWarning
       ) {
-        _state.updateVessel({
+        state.updateVessel({
           alarms: {
-            ...(_state.vessel?.alarms || {}),
+            ...(state.vessel?.alarms || {}),
             stabilityWarning: true,
           },
         });
 
         // Add event to log
-        _state.addEvent({
+        state.addEvent({
           category: 'alarm',
           type: 'stability_warning',
           message: 'Vessel stability compromised: Low GM value',
@@ -461,7 +461,7 @@ export class SimulationLoop {
         this.lastStateUpdateTime = now;
 
         // Log the error as an event
-        _state.addEvent({
+        state.addEvent({
           category: 'system',
           type: 'critical_error',
           message: `Critical error in physics update: ${
@@ -477,25 +477,25 @@ export class SimulationLoop {
    * Process simulation events like machinery failures
    */
   private processEvents(deltaTime: number): void {
-    const _state = useStore.getState();
+    const state = useStore.getState();
 
     // Increment engine hours if running
-    if (_state.vessel.engineState.running) {
+    if (state.vessel.engineState.running) {
       const hourIncrement = deltaTime / 3600; // convert seconds to hours
-      _state.updateVessel({
+      state.updateVessel({
         engineState: {
-          ..._state.vessel.engineState,
-          hours: _state.vessel.engineState.hours + hourIncrement,
+          ...state.vessel.engineState,
+          hours: state.vessel.engineState.hours + hourIncrement,
         },
       });
 
       // Increase generator output when engine is running
       // Add null-safety check for state.vessel.controls
-      if (_state.vessel.controls) {
-        _state.updateVessel({
+      if (state.vessel.controls) {
+        state.updateVessel({
           electricalSystem: {
-            ..._state.vessel.electricalSystem,
-            generatorOutput: 200 * (_state.vessel.controls.throttle || 0),
+            ...state.vessel.electricalSystem,
+            generatorOutput: 200 * (state.vessel.controls.throttle || 0),
           },
         });
       }
@@ -503,14 +503,14 @@ export class SimulationLoop {
 
     // Random failures based on engine hours or other conditions
     // This is a simplified model - real implementation would be more complex
-    const engineHours = _state.vessel.engineState.hours;
-    const machinerySystems = _state.machinerySystems;
+    const engineHours = state.vessel.engineState.hours;
+    const machinerySystems = state.machinerySystems;
 
     // Engine failure probability increases with engine hours
     if (engineHours > 100 && !machinerySystems.failures.engineFailure) {
       const failureChance = (engineHours - 100) / 10000; // Very small chance per update
       if (Math.random() < failureChance * deltaTime) {
-        _state.triggerFailure('engineFailure', true);
+        state.triggerFailure('engineFailure', true);
       }
     }
 
@@ -522,18 +522,18 @@ export class SimulationLoop {
    * Update weather conditions dynamically
    */
   private updateWeather(deltaTime: number): void {
-    const _state = useStore.getState();
+    const state = useStore.getState();
 
     // Gradually change wind direction and speed
     const windVariation = (Math.random() - 0.5) * 0.1 * deltaTime;
     const windSpeedChange = (Math.random() - 0.5) * 0.2 * deltaTime;
 
-    _state.updateEnvironment({
+    state.updateEnvironment({
       wind: {
-        ..._state.environment.wind,
+        ...state.environment.wind,
         direction:
-          (_state.environment.wind.direction + windVariation) % (2 * Math.PI),
-        speed: Math.max(0, _state.environment.wind.speed + windSpeedChange),
+          (state.environment.wind.direction + windVariation) % (2 * Math.PI),
+        speed: Math.max(0, state.environment.wind.speed + windSpeedChange),
       },
     });
 
@@ -541,14 +541,13 @@ export class SimulationLoop {
     if (Math.random() < 0.01 * deltaTime) {
       const gustDuration = 5 + Math.random() * 10; // 5-15 seconds
       const gustStrength =
-        _state.environment.wind.speed *
-        (_state.environment.wind.gustFactor - 1);
+        state.environment.wind.speed * (state.environment.wind.gustFactor - 1);
 
-      _state.updateEnvironment({
+      state.updateEnvironment({
         wind: {
-          ..._state.environment.wind,
+          ...state.environment.wind,
           gusting: true,
-          speed: _state.environment.wind.speed + gustStrength,
+          speed: state.environment.wind.speed + gustStrength,
         },
       });
 
@@ -572,8 +571,8 @@ export class SimulationLoop {
   private updateVesselPhysics(deltaTime: number): void {
     if (!this.wasmBridge) return;
 
-    const _state = useStore.getState();
-    const vesselPtr = _state.wasmVesselPtr;
+    const state = useStore.getState();
+    const vesselPtr = state.wasmVesselPtr;
 
     if (vesselPtr === null) return;
 
@@ -588,8 +587,6 @@ export class SimulationLoop {
    * Update environment physics
    */
   private updateEnvironmentPhysics(deltaTime: number): void {
-    const _state = useStore.getState();
-
     // Update weather conditions
     this.updateWeather(deltaTime);
 
