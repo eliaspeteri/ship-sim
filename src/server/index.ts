@@ -18,24 +18,17 @@ import {
   UserAuth,
 } from './authService';
 import { socketHasPermission } from './middleware/authorization';
+import { SimpleVesselState } from '../types/vesselTypes';
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
 
 // Type definitions for Socket.IO communication
 interface SimulationUpdateData {
-  vessels: Record<string, VesselState>;
+  vessels: Record<string, SimpleVesselState>;
   environment?: EnvironmentState;
   partial?: boolean;
   timestamp?: number;
-}
-
-interface VesselState {
-  position: { x: number; y: number; z: number };
-  orientation: { heading: number; roll: number; pitch: number };
-  velocity: { surge: number; sway: number; heave: number };
-  throttle: number;
-  rudderAngle: number;
 }
 
 interface VesselJoinedData {
@@ -134,6 +127,7 @@ const globalState = {
   vessels: {} as Record<
     string,
     {
+      id: string; // Add id field to satisfy SimpleVesselState interface
       position: { x: number; y: number; z: number };
       orientation: { heading: number; roll: number; pitch: number };
       velocity: { surge: number; sway: number; heave: number };
@@ -218,6 +212,7 @@ io.on('connection', async socket => {
         if (savedState) {
           // Restore vessel state from database
           globalState.vessels[userId] = {
+            id: userId, // Add id field to satisfy SimpleVesselState interface
             position: {
               x: savedState.positionX,
               y: savedState.positionY,
@@ -239,6 +234,7 @@ io.on('connection', async socket => {
         } else {
           // Create new vessel state
           globalState.vessels[userId] = {
+            id: userId,
             position: { x: 0, y: 0, z: 0 },
             orientation: { heading: 0, roll: 0, pitch: 0 },
             velocity: { surge: 0, sway: 0, heave: 0 },
@@ -250,6 +246,7 @@ io.on('connection', async socket => {
         console.error(`Error loading vessel state for ${userId}:`, error);
         // Create default vessel state
         globalState.vessels[userId] = {
+          id: userId,
           position: { x: 0, y: 0, z: 0 },
           orientation: { heading: 0, roll: 0, pitch: 0 },
           velocity: { surge: 0, sway: 0, heave: 0 },
@@ -570,7 +567,7 @@ async function persistState(): Promise<void> {
         // First check if the user exists in the database
         const userExists = await prisma.user.findUnique({
           where: { id: userId },
-          select: { id: true }
+          select: { id: true },
         });
 
         // Only persist state for users that exist in the database
@@ -608,7 +605,10 @@ async function persistState(): Promise<void> {
           });
         }
       } catch (userError) {
-        console.error(`Error persisting vessel state for user ${userId}:`, userError);
+        console.error(
+          `Error persisting vessel state for user ${userId}:`,
+          userError,
+        );
       }
     }
 

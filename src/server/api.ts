@@ -2,9 +2,10 @@ import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateRequest, requireAuth } from './middleware/authentication';
 import { requirePermission, requireRole } from './middleware/authorization';
+import { VesselState, ShipType } from '../types/vesselTypes';
 
 // First, define proper types for the database models
-interface VesselState {
+interface DBVesselState {
   id: number;
   userId: string;
   vesselId?: number | null;
@@ -25,6 +26,77 @@ interface VesselState {
   rudderAngle: number;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Conversion helpers for transforming between DB and unified models
+function dbVesselStateToUnified(dbState: DBVesselState): VesselState {
+  return {
+    position: {
+      x: dbState.positionX,
+      y: dbState.positionY,
+      z: dbState.positionZ,
+    },
+    orientation: {
+      heading: dbState.heading,
+      roll: dbState.roll,
+      pitch: dbState.pitch,
+    },
+    velocity: {
+      surge: dbState.velocityX,
+      sway: dbState.velocityY,
+      heave: dbState.velocityZ,
+    },
+    angularVelocity: { yaw: 0, roll: 0, pitch: 0 },
+    controls: {
+      throttle: dbState.throttle,
+      rudderAngle: dbState.rudderAngle,
+      ballast: 0.5, // Default value
+    },
+    properties: {
+      name: 'Unknown Vessel',
+      type: ShipType.DEFAULT,
+      mass: dbState.mass || 50000,
+      length: dbState.length || 200,
+      beam: dbState.beam || 32,
+      draft: dbState.draft || 12,
+      blockCoefficient: 0.8,
+      maxSpeed: 25,
+    },
+    engineState: {
+      rpm: 0,
+      fuelLevel: 1.0,
+      fuelConsumption: 0,
+      temperature: 25,
+      oilPressure: 5.0,
+      load: 0,
+      running: false,
+      hours: 0,
+    },
+    electricalSystem: {
+      mainBusVoltage: 440,
+      generatorOutput: 0,
+      batteryLevel: 1.0,
+      powerConsumption: 50,
+      generatorRunning: true,
+    },
+    stability: {
+      metacentricHeight: 2.0,
+      centerOfGravity: { x: 0, y: 0, z: 6.0 },
+      trim: 0,
+      list: 0,
+    },
+    alarms: {
+      engineOverheat: false,
+      lowOilPressure: false,
+      lowFuel: false,
+      fireDetected: false,
+      collisionAlert: false,
+      stabilityWarning: false,
+      generatorFault: false,
+      blackout: false,
+      otherAlarms: {},
+    },
+  };
 }
 
 interface EnvironmentState {
@@ -80,10 +152,12 @@ router.get('/vessels/:userId', requireAuth, function (req, res) {
     .findUnique({
       where: { userId },
     })
-    .then((vesselState: VesselState | null) => {
-      if (!vesselState) {
+    .then(dbVesselState => {
+      if (!dbVesselState) {
         return res.status(404).json({ error: 'Vessel state not found' });
       }
+      // Convert DB vessel state to unified vessel state
+      const vesselState = dbVesselStateToUnified(dbVesselState);
       res.json(vesselState);
     })
     .catch((error: unknown) => {
@@ -137,7 +211,7 @@ router.post(
           draft: properties?.draft || 3,
         },
       })
-      .then((vesselState: VesselState) => {
+      .then((vesselState: DBVesselState) => {
         res.json(vesselState);
       })
       .catch((error: unknown) => {
@@ -310,7 +384,7 @@ router.get(
         orderBy: { updatedAt: 'desc' },
       }),
     ])
-      .then(([vesselCount, latestVessel]: [number, VesselState | null]) => {
+      .then(([vesselCount, latestVessel]: [number, DBVesselState | null]) => {
         res.json({
           vesselCount,
           lastUpdate: latestVessel?.updatedAt || null,

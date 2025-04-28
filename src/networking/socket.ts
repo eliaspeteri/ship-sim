@@ -1,41 +1,18 @@
 import io from 'socket.io-client';
 import useStore from '../store';
+import {
+  SimpleVesselState,
+  VesselJoinedData,
+  VesselLeftData,
+  VesselUpdateData,
+  VesselControlData,
+} from '../types/vesselTypes';
 
 // Define data interface types
 interface SimulationUpdateData {
   timestamp: number;
-  vessels: Record<string, VesselState>;
+  vessels: Record<string, SimpleVesselState>;
   environment: EnvironmentUpdateData;
-}
-
-interface VesselState {
-  id: string;
-  position: { x: number; y: number; z: number };
-  orientation: { heading: number; roll: number; pitch: number };
-  velocity: { surge: number; sway: number; heave: number };
-}
-
-interface VesselJoinedData {
-  id: string;
-  name: string;
-  vesselType: string;
-}
-
-interface VesselLeftData {
-  id: string;
-}
-
-interface VesselUpdateData {
-  id: string;
-  position?: { x: number; y: number; z: number };
-  orientation?: { heading: number; roll: number; pitch: number };
-  velocity?: { surge: number; sway: number; heave: number };
-}
-
-interface VesselControlData {
-  id: string;
-  throttle?: number;
-  rudderAngle?: number;
 }
 
 interface EnvironmentUpdateData {
@@ -426,7 +403,7 @@ class SocketManager {
   // Update vessel position with both parameters properly prefixed with underscore
   updateVesselPosition(
     _position: { x: number; y: number; z: number },
-    _vesselData: VesselState,
+    _vesselData: SimpleVesselState,
   ) {
     // Function implementation
   }

@@ -1,73 +1,7 @@
 import useStore from '../store';
 import { loadWasm } from '../lib/wasmLoader';
 import { WasmBridge } from '../lib/wasmBridge';
-
-// Import VesselState from the store file
-import { ShipType } from '../store';
-
-// Define VesselState interface here as it's not exported from store
-interface VesselState {
-  position: {
-    x: number;
-    y: number;
-    z: number;
-    waveHeight?: number;
-    wavePhase?: number;
-  };
-  orientation: { heading: number; roll: number; pitch: number };
-  velocity: { surge: number; sway: number; heave: number };
-  angularVelocity: { yaw: number; roll: number; pitch: number };
-  controls: {
-    throttle: number;
-    rudderAngle: number;
-    ballast: number;
-    bowThruster?: number;
-  };
-  properties: {
-    name: string;
-    type: ShipType;
-    mass: number;
-    length: number;
-    beam: number;
-    draft: number;
-    blockCoefficient: number;
-    maxSpeed: number;
-  };
-  engineState: {
-    rpm: number;
-    fuelLevel: number;
-    fuelConsumption: number;
-    temperature: number;
-    oilPressure: number;
-    load: number;
-    running: boolean;
-    hours: number;
-  };
-  electricalSystem: {
-    mainBusVoltage: number;
-    generatorOutput: number;
-    batteryLevel: number;
-    powerConsumption: number;
-    generatorRunning: boolean;
-  };
-  stability: {
-    metacentricHeight: number;
-    centerOfGravity: { x: number; y: number; z: number };
-    trim: number;
-    list: number;
-  };
-  alarms: {
-    engineOverheat: boolean;
-    lowOilPressure: boolean;
-    lowFuel: boolean;
-    fireDetected: boolean;
-    collisionAlert: boolean;
-    stabilityWarning: boolean;
-    generatorFault: boolean;
-    blackout: boolean;
-    otherAlarms: Record<string, boolean>;
-  };
-}
+import { VesselState } from '../types/vesselTypes';
 
 // Singleton for simulation instance
 let simulationInstance: SimulationLoop | null = null;
