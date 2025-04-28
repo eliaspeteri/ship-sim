@@ -15,6 +15,7 @@
     "asbuild:debug": "asc assembly/index.ts --config asconfig.json --target debug --measure",
     "asbuild:release": "asc assembly/index.ts --config asconfig.json --target release --measure",
     "asbuild": "npm run asbuild:debug && npm run asbuild:release",
+    "astest": "as-test",
     "wasm:check-exports": "npm run asbuild && npx tsx scripts/check-wasm-exports.ts",
     "server": "npx tsx src/server/index.ts",
     "prepare": "husky"

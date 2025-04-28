@@ -33,7 +33,7 @@ import {
 
 // Use u64 or u32 for pointer types if usize is not directly available
 // Or define usize = u64; if appropriate for the target architecture
-type usize = u64; // Assuming 64-bit pointers
+type usize = u32; // Assuming 32-bit pointers for compatibility with functions
 
 test('calculateBeaufortScale boundary values', () => {
   // Test lower boundaries
@@ -181,7 +181,7 @@ let vesselPtr: usize = 0; // Use the defined usize type
 test('createVessel creates a valid pointer', () => {
   vesselPtr = createVessel();
   // Use expect<boolean> for boolean checks
-  expect<boolean>(vesselPtr != (0 as usize)).equal(true);
+  expect<boolean>(vesselPtr != 0).equal(true);
 });
 
 test('initial vessel state getters', () => {
@@ -303,7 +303,7 @@ test('updateVesselState turns vessel with rudder', () => {
   // Reset position/heading/speed
   // This requires direct state manipulation or a reset function, which we don't have.
   // We'll create a new vessel for a clean state.
-  const turnVesselPtr = createVessel(); // Use a fresh vessel
+  const turnVesselPtr: usize = createVessel(); // Use a fresh vessel
   setThrottle(turnVesselPtr, 0.5);
   setRudderAngle(turnVesselPtr, 0.3); // Apply rudder
   const initialHeading = getVesselHeading(turnVesselPtr);
@@ -367,7 +367,7 @@ test('updateVesselState stops engine when out of fuel', () => {
 test('updateVesselState includes wind effect', () => {
   if (!vesselPtr) vesselPtr = createVessel();
   // Reset state if possible, or use new vessel
-  const windVesselPtr = createVessel();
+  const windVesselPtr: usize = createVessel();
   setThrottle(windVesselPtr, 0.1); // Low throttle to see wind effect
   setRudderAngle(windVesselPtr, 0.0);
 
@@ -396,7 +396,7 @@ test('updateVesselState includes wind effect', () => {
 
 test('updateVesselState includes current effect', () => {
   if (!vesselPtr) vesselPtr = createVessel();
-  const currentVesselPtr = createVessel();
+  const currentVesselPtr: usize = createVessel();
   setThrottle(currentVesselPtr, 0.0); // No engine thrust
   setRudderAngle(currentVesselPtr, 0.0);
 
@@ -425,12 +425,12 @@ test('updateVesselState includes current effect', () => {
   // Beam current should push the vessel sideways (positive Y)
   expect<f64>(finalY).greaterThan(initialY);
   // Should be minimal movement in X if current is purely lateral
-  expect<f64>(finalX).closeTo(getVesselX(initialX), 4); // Compare finalX to current X, or initialX if needed
+  expect<f64>(finalX).closeTo(initialX, 0.0001);
 });
 
 test('updateVesselState includes wave effect (roll/pitch)', () => {
   if (!vesselPtr) vesselPtr = createVessel();
-  const waveVesselPtr = createVessel();
+  const waveVesselPtr: usize = createVessel();
   setThrottle(waveVesselPtr, 0.1);
   setRudderAngle(waveVesselPtr, 0.0);
 
