@@ -2,20 +2,21 @@
  (type $0 (func (param i32) (result f64)))
  (type $1 (func (param f64) (result f64)))
  (type $2 (func (param i32 f64)))
- (type $3 (func (param i32) (result i32)))
- (type $4 (func (param i32 i32) (result i32)))
- (type $5 (func (result i32)))
- (type $6 (func (param i32 i32 i32 i32)))
- (type $7 (func (param i32 i32) (result f64)))
- (type $8 (func (param f64) (result i32)))
- (type $9 (func (param i64) (result i32)))
- (type $10 (func (param f64 f64 f64 f64 f64 f64 f64 f64) (result f64)))
- (type $11 (func (param f64 f64) (result f64)))
+ (type $3 (func (param i32 i32) (result i32)))
+ (type $4 (func (result i32)))
+ (type $5 (func (param i32 i32 i32 i32)))
+ (type $6 (func (param i32 i32) (result f64)))
+ (type $7 (func (param f64) (result i32)))
+ (type $8 (func (param i64) (result i32)))
+ (type $9 (func (param f64 f64 f64 f64 f64 f64 f64 f64) (result f64)))
+ (type $10 (func (param f64 f64) (result f64)))
+ (type $11 (func (param i32) (result i32)))
  (type $12 (func (param i32 i32 f64)))
  (type $13 (func (param i32 f64 f64) (result i32)))
- (type $14 (func (param i32 f64 f64 f64 f64 f64 f64) (result i32)))
- (type $15 (func (param i32 f64 f64)))
- (type $16 (func))
+ (type $14 (func (param i32)))
+ (type $15 (func (param i32 f64 f64 f64 f64 f64 f64) (result i32)))
+ (type $16 (func (param i32 f64 f64)))
+ (type $17 (func))
  (import "env" "memory" (memory $0 16 100))
  (import "env" "abort" (func $~lib/builtins/abort (param i32 i32 i32 i32)))
  (global $assembly/index/globalVessel (mut i32) (i32.const 0))
@@ -2691,105 +2692,90 @@
   call $~lib/array/Array<f64>#__set
   local.get $0
  )
- (func $assembly/index/calculateCenterOfGravity (param $0 i32) (result i32)
+ (func $assembly/index/calculateCenterOfGravity (param $0 i32)
   (local $1 f64)
   (local $2 f64)
   (local $3 f64)
   (local $4 f64)
   (local $5 f64)
   (local $6 f64)
+  (local $7 f64)
+  local.get $0
+  f64.load offset=136
+  local.tee $5
+  f64.const 0.5
+  f64.mul
+  local.set $2
   local.get $0
   f64.load offset=112
-  local.tee $1
+  local.tee $3
   f64.const 0.7
   f64.mul
-  local.tee $4
-  local.get $1
+  local.tee $6
+  local.get $3
   f64.const 0.1
   f64.mul
   local.get $0
   f64.load offset=248
   f64.mul
-  local.tee $5
+  local.tee $1
   f64.add
-  local.get $1
+  local.get $3
   f64.const 0.2
   f64.mul
   local.get $0
   f64.load offset=256
   f64.mul
-  local.tee $6
+  local.tee $7
   f64.add
-  local.set $3
-  local.get $4
+  local.set $4
+  local.get $0
+  local.get $6
   f64.const 0
   f64.mul
-  local.tee $1
-  local.get $5
+  local.tee $3
+  local.get $1
   local.get $0
   f64.load offset=120
   f64.const -0.2
   f64.mul
   f64.mul
   f64.add
-  local.get $3
+  local.get $4
   f64.div
-  local.set $2
-  local.get $4
+  f64.store offset=192
   local.get $0
-  f64.load offset=136
-  local.tee $4
-  f64.const 0.5
-  f64.mul
-  f64.mul
-  local.get $5
+  local.get $3
   local.get $4
+  f64.div
+  f64.store offset=200
+  local.get $0
+  local.get $6
+  local.get $2
+  f64.mul
+  local.get $1
+  local.get $5
   f64.const 0.3
   f64.mul
   f64.mul
   f64.add
-  local.get $6
-  local.get $4
+  local.get $7
+  local.get $5
   f64.const 0.1
   f64.mul
   f64.mul
   f64.add
-  local.get $3
-  f64.div
-  local.set $4
-  local.get $0
-  local.get $3
-  f64.store offset=112
-  i32.const 3
-  i32.const 0
-  call $~lib/rt/__newArray
-  local.tee $0
-  i32.load offset=4
-  drop
-  local.get $0
-  i32.const 0
-  local.get $2
-  call $~lib/array/Array<f64>#__set
-  local.get $0
-  i32.const 1
-  local.get $1
-  local.get $3
-  f64.div
-  call $~lib/array/Array<f64>#__set
-  local.get $0
-  i32.const 2
   local.get $4
-  call $~lib/array/Array<f64>#__set
+  f64.div
+  f64.store offset=208
   local.get $0
+  local.get $4
+  f64.store offset=112
  )
  (func $assembly/index/calculateGM (param $0 i32) (result f64)
   (local $1 f64)
-  (local $2 f64)
   local.get $0
   call $assembly/index/calculateCenterOfGravity
-  i32.const 2
-  call $~lib/array/Array<f64>#__get
-  local.set $2
   local.get $0
   f64.load offset=136
   local.get $0
@@ -2811,7 +2797,8 @@
   f64.mul
   f64.div
   f64.add
-  local.get $2
+  local.get $0
+  f64.load offset=208
   f64.sub
  )
  (func $assembly/index/updateVesselState (param $0 i32) (param $1 f64) (param $2 f64) (param $3 f64) (param $4 f64) (param $5 f64) (param $6 f64) (result i32)
@@ -4433,7 +4420,6 @@
   global.set $assembly/index/globalVessel
  )
  (func $assembly/index/setBallast (param $0 i32) (param $1 f64)
-  (local $2 i32)
   local.get $0
   f64.const 1
   f64.const 0
@@ -4448,22 +4434,7 @@
   select
   f64.store offset=256
   local.get $0
-  local.get $0
   call $assembly/index/calculateCenterOfGravity
-  local.tee $2
-  i32.const 0
-  call $~lib/array/Array<f64>#__get
-  f64.store offset=192
-  local.get $0
-  local.get $2
-  i32.const 1
-  call $~lib/array/Array<f64>#__get
-  f64.store offset=200
-  local.get $0
-  local.get $2
-  i32.const 2
-  call $~lib/array/Array<f64>#__get
-  f64.store offset=208
   local.get $0
   global.set $assembly/index/globalVessel
  )

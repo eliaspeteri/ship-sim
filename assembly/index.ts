@@ -391,7 +391,8 @@ function calculateCurrentForce(
 }
 
 // Calculate center of gravity based on fuel, ballast, and cargo
-function calculateCenterOfGravity(vessel: VesselState): f64[] {
+// Directly update vessel CG values instead of returning an array to avoid memory allocation issues
+function calculateCenterOfGravity(vessel: VesselState): void {
   // Base CG position without variable weights
   const baseCGX = 0.0;
   const baseCGY = 0.0;
@@ -414,23 +415,25 @@ function calculateCenterOfGravity(vessel: VesselState): f64[] {
   // Calculate combined center of gravity
   const totalMass = emptyMass + fuelMass + ballastMass;
 
-  const cgX = (emptyMass * baseCGX + fuelMass * fuelCGX) / totalMass;
-  const cgY = (emptyMass * baseCGY) / totalMass; // Assuming symmetry in Y
-  const cgZ =
+  // Update vessel CG directly
+  vessel.centerOfGravityX =
+    (emptyMass * baseCGX + fuelMass * fuelCGX) / totalMass;
+  vessel.centerOfGravityY = (emptyMass * baseCGY) / totalMass; // Assuming symmetry in Y
+  vessel.centerOfGravityZ =
     (emptyMass * baseCGZ + fuelMass * fuelCGZ + ballastMass * ballastCGZ) /
     totalMass;
 
   // Update vessel mass based on fuel and ballast levels
   vessel.mass = totalMass;
-
-  return [cgX, cgY, cgZ];
 }
 
 // Calculate metacentric height (GM) - a measure of stability
 function calculateGM(vessel: VesselState): f64 {
-  // Get current CG
-  const cg = calculateCenterOfGravity(vessel);
-  const cgZ = cg[2];
+  // Update CG values directly on the vessel
+  calculateCenterOfGravity(vessel);
+
+  // Use the CG values from the vessel
+  const cgZ = vessel.centerOfGravityZ;
 
   // Calculate second moment of area of the waterplane
   const waterplaneArea = vessel.length * vessel.beam;
@@ -827,10 +830,7 @@ export function setBallast(vesselPtr: usize, level: f64): void {
   vessel.ballastLevel = level > 1.0 ? 1.0 : level < 0.0 ? 0.0 : level;
 
   // Update the center of gravity based on new ballast
-  const newCG = calculateCenterOfGravity(vessel);
-  vessel.centerOfGravityX = newCG[0];
-  vessel.centerOfGravityY = newCG[1];
-  vessel.centerOfGravityZ = newCG[2];
+  calculateCenterOfGravity(vessel);
 
   globalVessel = vessel;
 }
