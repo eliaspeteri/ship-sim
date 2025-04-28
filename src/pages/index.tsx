@@ -12,6 +12,10 @@ import {
 } from '../simulation';
 import socketManager from '../networking/socket';
 
+/**
+ * Home component for the Ship Simulator application
+ * Manages application state and authentication flow
+ */
 const Home = () => {
   // Get relevant state from Zustand store
   const vessel = useStore(state => state.vessel);
@@ -21,11 +25,34 @@ const Home = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showUserPanel, setShowUserPanel] = useState(false);
+  const [currentUsername, setCurrentUsername] = useState('Anonymous');
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check authentication status from localStorage
+  const checkAuthStatus = (): boolean => {
+    try {
+      const storedAuth = localStorage.getItem('ship-sim-auth');
+      if (storedAuth) {
+        const auth = JSON.parse(storedAuth);
+        if (auth.accessToken) {
+          setCurrentUsername(auth.username || 'Anonymous');
+          setIsAdmin(auth.isAdmin || false);
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+      return false;
+    }
+  };
 
   // Session expiry handling
   useEffect(() => {
     const handleSessionExpired = () => {
       setIsAuthenticated(false);
+      setCurrentUsername('Anonymous');
+      setIsAdmin(false);
       useStore.getState().addEvent({
         category: 'system',
         type: 'auth',
@@ -52,8 +79,8 @@ const Home = () => {
         // Initialize WebSocket connection
         socketManager.connect();
 
-        // Check if user is already authenticated (token stored in localStorage)
-        setIsAuthenticated(socketManager.isAuthenticated());
+        // Check if user is already authenticated (from localStorage)
+        setIsAuthenticated(checkAuthStatus());
 
         setLoading(false);
       } catch (error) {
@@ -66,7 +93,8 @@ const Home = () => {
 
     // Set up auth change listener
     const handleAuthChange = () => {
-      setIsAuthenticated(socketManager.isAuthenticated());
+      const isAuth = checkAuthStatus();
+      setIsAuthenticated(isAuth);
     };
 
     // Subscribe to auth state changes
@@ -127,7 +155,12 @@ const Home = () => {
             onClick={toggleUserPanel}
             className="fixed top-4 right-24 z-10 rounded bg-gray-800 bg-opacity-70 px-4 py-2 text-white hover:bg-gray-700 transition-colors"
           >
-            {socketManager.getUsername()}
+            {currentUsername}
+            {isAdmin && (
+              <span className="ml-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                Admin
+              </span>
+            )}
           </button>
 
           {/* User Panel */}

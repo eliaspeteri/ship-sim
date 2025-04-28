@@ -284,12 +284,10 @@ app.post('/auth/login', (req: Request, res: Response) => {
       const { username, password } = req.body;
 
       if (!username || !password) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: 'Username and password are required',
-          });
+        return res.status(400).json({
+          success: false,
+          error: 'Username and password are required',
+        });
       }
 
       // Authenticate user
@@ -334,12 +332,10 @@ app.post('/auth/register', (req: Request, res: Response) => {
       const { username, password } = req.body;
 
       if (!username || !password) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: 'Username and password are required',
-          });
+        return res.status(400).json({
+          success: false,
+          error: 'Username and password are required',
+        });
       }
 
       // Register new user
