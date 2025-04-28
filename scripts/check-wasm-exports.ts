@@ -42,6 +42,7 @@ const EXPECTED_EXPORTS: string[] = [
   'calculateWaveHeight',
   'getWaveHeight',
   'getWaveFrequency',
+  'calculateBeaufortScale',
 
   // Vessel state access functions
   'getVesselX',

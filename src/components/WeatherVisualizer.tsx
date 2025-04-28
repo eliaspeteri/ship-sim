@@ -1,136 +1,239 @@
 import React, { useEffect, useState } from 'react';
 import useStore from '../store';
-import Precipitation from './Precipitation';
+import { WasmBridge } from '../lib/wasmBridge';
+import { loadWasm } from '../lib/wasmLoader';
 
 interface WeatherVisualizerProps {
-  onWeatherChange: (weatherData: WeatherData) => void;
+  className?: string;
 }
 
-interface WeatherData {
-  wind: WindData;
-  current: CurrentData;
+interface WeatherState {
+  wind: {
+    speed: number;
+    direction: number;
+    gustFactor: number;
+    gusting: boolean;
+  };
+  current: {
+    speed: number;
+    direction: number;
+  };
   seaState: number;
-  precipitation?: 'none' | 'rain' | 'snow' | 'fog';
-  precipitationIntensity?: number;
 }
 
-interface WindData {
-  speed: number;
-  direction: number;
-}
+/**
+ * Component for visualizing weather conditions
+ */
+export function WeatherVisualizer({ className = '' }: WeatherVisualizerProps) {
+  // Use local state for wasmBridge
+  const [wasmBridge, setWasmBridge] = useState<WasmBridge | null>(null);
+  const environment = useStore(state => state.environment);
 
-interface CurrentData {
-  speed: number;
-  direction: number;
-}
-
-export const WeatherVisualizer: React.FC<WeatherVisualizerProps> = ({
-  onWeatherChange,
-}) => {
-  const [weather, setWeather] = useState<WeatherData>({
-    wind: { speed: 5, direction: 0 },
-    current: { speed: 0.5, direction: Math.PI / 4 },
-    seaState: 3,
-  });
-
-  // Listen for weather updates from the store
+  // Load wasmBridge once on component mount
   useEffect(() => {
-    // Initial setup to get current environment state from the store
-    const environment = useStore.getState().environment;
-    if (environment) {
-      setWeather(environment);
-      if (onWeatherChange) {
-        onWeatherChange(environment);
-      }
-    }
-
-    // Subscribe to store updates
-    const unsubscribe = useStore.subscribe(state => {
-      const newEnvironment = state.environment;
-      if (newEnvironment) {
-        setWeather(newEnvironment);
-        if (onWeatherChange) {
-          onWeatherChange(newEnvironment);
+    let mounted = true;
+    const initWasmBridge = async () => {
+      try {
+        const bridge = await loadWasm();
+        if (mounted) {
+          setWasmBridge(bridge);
         }
+      } catch (error) {
+        console.error(
+          'Failed to load WASM bridge in WeatherVisualizer:',
+          error,
+        );
       }
-    });
+    };
+
+    initWasmBridge();
 
     return () => {
-      unsubscribe();
+      mounted = false;
     };
-  }, [onWeatherChange]);
+  }, []);
 
-  // Weather visualization logic would go here
-  // For now, just show values and precipitation if sea state is high
+  // Default values for initial render
+  const defaultWeather: WeatherState = {
+    wind: {
+      speed: 5,
+      direction: 0,
+      gustFactor: 1.5,
+      gusting: false,
+    },
+    current: {
+      speed: 0.5,
+      direction: Math.PI / 4,
+    },
+    seaState: 3,
+  };
 
-  let precipitationType: 'rain' | 'fog' | null = null;
-  let precipitationIntensity = 0.5;
+  // Use environment state or fallback to default
+  const weather = environment || defaultWeather;
 
-  // Use the precipitation data from the server if available
-  if (weather.precipitation && weather.precipitation !== 'none') {
-    precipitationType =
-      weather.precipitation === 'snow' ? 'rain' : weather.precipitation;
-    precipitationIntensity = weather.precipitationIntensity || 0.5;
+  // Calculate the Beaufort scale sea state based on wind speed
+  const calculatedSeaState = wasmBridge
+    ? wasmBridge.calculateSeaState(weather.wind.speed)
+    : Math.min(Math.floor(weather.wind.speed / 3), 12);
+
+  // Format values with appropriate units and directions
+  const windSpeedKmh = (weather.wind.speed * 3.6).toFixed(1);
+  const windDirectionDeg = ((weather.wind.direction * 180) / Math.PI).toFixed(
+    0,
+  );
+  const windDirectionCardinal = degreesToCardinal(parseFloat(windDirectionDeg));
+
+  const currentSpeedKnots = (weather.current.speed * 1.94384).toFixed(1);
+  const currentDirectionDeg = (
+    (weather.current.direction * 180) /
+    Math.PI
+  ).toFixed(0);
+  const currentDirectionCardinal = degreesToCardinal(
+    parseFloat(currentDirectionDeg),
+  );
+
+  // Determine if we show precipitation
+  let precipitationType = '';
+  let precipitationIntensity = 0;
+
+  if (weather.wind.speed >= 20) {
+    // Strong winds - show heavy rain
+    precipitationType = 'rain';
+    precipitationIntensity = Math.min((weather.wind.speed - 15) / 15, 1);
   } else if (weather.seaState >= 6) {
+    // High sea state - show rain
     precipitationType = 'rain';
     precipitationIntensity = Math.min((weather.seaState - 5) / 4, 1);
   } else if (weather.seaState >= 4) {
-    precipitationType = 'fog';
+    // Moderate sea state - show light rain
+    precipitationType = 'drizzle';
     precipitationIntensity = Math.min((weather.seaState - 3) / 4, 0.8);
   }
 
   return (
-    <div className="weather-visualizer">
-      <div className="weather-data">
-        <div className="wind-info">
-          <h4>Wind</h4>
-          <p>Speed: {weather.wind.speed.toFixed(1)} m/s</p>
-          <p>
-            Direction: {(weather.wind.direction * (180 / Math.PI)).toFixed(0)}°
-          </p>
-        </div>
-        <div className="current-info">
-          <h4>Current</h4>
-          <p>Speed: {weather.current.speed.toFixed(1)} m/s</p>
-          <p>
-            Direction:{' '}
-            {(weather.current.direction * (180 / Math.PI)).toFixed(0)}°
-          </p>
-        </div>
-        <div className="sea-state">
-          <h4>Sea State</h4>
-          <p>
-            {weather.seaState} ({getSeaStateDescription(weather.seaState)})
-          </p>
-        </div>
-      </div>
+    <div
+      className={`weather-visualizer p-4 bg-gray-800 text-white rounded-lg shadow-lg ${className}`}
+    >
+      <h2 className="text-xl font-bold mb-3">Weather Conditions</h2>
 
-      {precipitationType && (
-        <Precipitation
-          type={precipitationType}
-          intensity={precipitationIntensity}
-          inCanvas={false}
-        />
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="weather-data">
+          <h3 className="text-lg font-semibold mb-2">Wind</h3>
+          <div className="mb-1">
+            <span className="font-medium">Speed:</span> {windSpeedKmh} km/h
+          </div>
+          <div className="mb-1">
+            <span className="font-medium">Direction:</span> {windDirectionDeg}°{' '}
+            {windDirectionCardinal}
+          </div>
+          <div className="mb-1">
+            <span className="font-medium">Gusting:</span>{' '}
+            {weather.wind.gusting ? 'Yes' : 'No'}
+          </div>
+        </div>
+
+        <div className="weather-data">
+          <h3 className="text-lg font-semibold mb-2">Sea State</h3>
+          <div className="mb-1">
+            <span className="font-medium">Beaufort Scale:</span>{' '}
+            {calculatedSeaState} ({getSeaStateDescription(calculatedSeaState)})
+          </div>
+          <div className="mb-1">
+            <span className="font-medium">Based on Wind:</span> {windSpeedKmh}{' '}
+            km/h → Beaufort {calculatedSeaState}
+          </div>
+          <div className="mb-1">
+            <span className="font-medium">Wave Height:</span>{' '}
+            {(
+              environment.waveHeight || calculateWaveHeight(calculatedSeaState)
+            ).toFixed(1)}{' '}
+            m
+          </div>
+        </div>
+
+        <div className="weather-data">
+          <h3 className="text-lg font-semibold mb-2">Current</h3>
+          <div className="mb-1">
+            <span className="font-medium">Speed:</span> {currentSpeedKnots}{' '}
+            knots
+          </div>
+          <div className="mb-1">
+            <span className="font-medium">Direction:</span>{' '}
+            {currentDirectionDeg}° {currentDirectionCardinal}
+          </div>
+        </div>
+
+        {precipitationType && (
+          <div className="weather-data">
+            <h3 className="text-lg font-semibold mb-2">Precipitation</h3>
+            <div className="mb-1">
+              <span className="font-medium">Type:</span>{' '}
+              {precipitationType.charAt(0).toUpperCase() +
+                precipitationType.slice(1)}
+            </div>
+            <div className="mb-1">
+              <span className="font-medium">Intensity:</span>{' '}
+              {precipitationIntensity < 0.3
+                ? 'Light'
+                : precipitationIntensity < 0.7
+                  ? 'Moderate'
+                  : 'Heavy'}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
-};
+}
 
+// Convert degrees to cardinal direction
+function degreesToCardinal(degrees: number): string {
+  const cardinals = [
+    'N',
+    'NNE',
+    'NE',
+    'ENE',
+    'E',
+    'ESE',
+    'SE',
+    'SSE',
+    'S',
+    'SSW',
+    'SW',
+    'WSW',
+    'W',
+    'WNW',
+    'NW',
+    'NNW',
+  ];
+  const index = Math.round((degrees % 360) / 22.5) % 16;
+  return cardinals[index];
+}
+
+// Get description for sea state (Beaufort scale)
 function getSeaStateDescription(seaState: number): string {
   const descriptions = [
-    'Calm (glassy)',
-    'Calm (rippled)',
-    'Smooth',
-    'Slight',
-    'Moderate',
-    'Rough',
-    'Very rough',
-    'High',
-    'Very high',
-    'Phenomenal',
+    'Calm',
+    'Light Air',
+    'Light Breeze',
+    'Gentle Breeze',
+    'Moderate Breeze',
+    'Fresh Breeze',
+    'Strong Breeze',
+    'Near Gale',
+    'Gale',
+    'Strong Gale',
+    'Storm',
+    'Violent Storm',
+    'Hurricane',
   ];
-
   return descriptions[Math.min(seaState, descriptions.length - 1)];
 }
 
-export default WeatherVisualizer;
+// Calculate approximate wave height based on sea state
+function calculateWaveHeight(seaState: number): number {
+  const waveHeights = [
+    0.0, 0.1, 0.2, 0.6, 1.0, 2.0, 3.0, 4.0, 5.5, 7.0, 9.0, 11.5, 14.0,
+  ];
+  return waveHeights[Math.min(Math.floor(seaState), waveHeights.length - 1)];
+}

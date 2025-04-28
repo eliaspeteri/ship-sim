@@ -454,6 +454,24 @@ export function calculateWaveHeight(seaState: f64): f64 {
 }
 
 /** @external */
+export function calculateBeaufortScale(windSpeed: f64): i32 {
+  // Convert wind speed to appropriate Beaufort scale number based on m/s
+  if (windSpeed < 0.5) return 0; // Calm: < 0.5 m/s
+  if (windSpeed < 1.5) return 1; // Light Air: 0.5-1.5 m/s
+  if (windSpeed < 3.3) return 2; // Light Breeze: 1.6-3.3 m/s
+  if (windSpeed < 5.5) return 3; // Gentle Breeze: 3.4-5.5 m/s
+  if (windSpeed < 8.0) return 4; // Moderate Breeze: 5.6-8.0 m/s
+  if (windSpeed < 10.8) return 5; // Fresh Breeze: 8.1-10.8 m/s
+  if (windSpeed < 13.9) return 6; // Strong Breeze: 10.9-13.9 m/s
+  if (windSpeed < 17.2) return 7; // Near Gale: 13.9-17.2 m/s
+  if (windSpeed < 20.8) return 8; // Gale: 17.2-20.8 m/s
+  if (windSpeed < 24.5) return 9; // Strong Gale: 20.8-24.5 m/s
+  if (windSpeed < 28.5) return 10; // Storm: 24.5-28.5 m/s
+  if (windSpeed < 32.7) return 11; // Violent Storm: 28.5-32.7 m/s
+  return 12; // Hurricane: ≥ 32.7 m/s
+}
+
+/** @external */
 function calculateWaveLength(seaState: f64): f64 {
   const wavePeriod = 3.0 + seaState * 0.8; // Very rough approximation
   return 1.56 * wavePeriod * wavePeriod;
@@ -579,14 +597,21 @@ export function updateVesselState(
 ): usize {
   const vessel = changetype<VesselState>(vesselPtr);
 
+  // Calculate the actual sea state based on wind speed
+  const calculatedSeaState = calculateBeaufortScale(windSpeed);
+
+  // Use the calculated sea state instead of the input parameter
+  // This keeps backward compatibility while fixing the issue
+  const effectiveSeaState = f64(calculatedSeaState);
+
   // Calculate vessel speed
   const speed = Math.sqrt(vessel.u * vessel.u + vessel.v * vessel.v);
 
   // Calculate hull resistance
   const resistance = calculateHullResistance(vessel, speed);
 
-  // Calculate wave resistance based on sea state
-  const waveResistance = calculateWaveResistance(vessel, seaState);
+  // Calculate wave resistance based on calculated sea state
+  const waveResistance = calculateWaveResistance(vessel, effectiveSeaState);
 
   // Total resistance
   const totalResistance = resistance + waveResistance;
@@ -616,7 +641,11 @@ export function updateVesselState(
 
   // Calculate wave forces (time-dependent)
   const simulationTime = dt * 100.0; // Use scaled time for wave frequency
-  const waveForces = calculateWaveForce(vessel, seaState, simulationTime);
+  const waveForces = calculateWaveForce(
+    vessel,
+    effectiveSeaState,
+    simulationTime,
+  );
   const waveSurge = waveForces[0];
   const waveSway = waveForces[1];
   const waveHeave = waveForces[2];

@@ -233,59 +233,46 @@ export class SimulationLoop {
   /**
    * Update physics state using WASM module
    */
-  private updatePhysics(deltaTime: number): void {
-    if (!this.wasmBridge) return;
+  private updatePhysics(dt: number): void {
+    const _state = useStore.getState();
+    if (!_state || !this.wasmBridge || !_state.wasmVesselPtr) return;
 
-    const state = useStore.getState();
-    const vesselPtr = state.wasmVesselPtr;
+    const { wind, current } = _state.environment;
 
-    if (vesselPtr === null) return;
+    // Calculate the actual sea state based on wind speed
+    const calculatedSeaState = this.wasmBridge.calculateSeaState(wind.speed);
 
-    // Get environment state
-    const { wind, current, seaState } = state.environment;
-
-    // Ensure vessel.controls exists before accessing its properties
-    if (!state.vessel.controls) {
-      // Initialize controls with safe defaults if missing
-      state.updateVessel({
-        controls: {
-          throttle: 0,
-          rudderAngle: 0,
-          ballast: 0.5,
-          bowThruster: 0,
-        },
-      });
-      return; // Skip this physics update until controls are available
+    // Update the state with the calculated sea state
+    if (_state.environment.seaState !== calculatedSeaState) {
+      _state.environment.seaState = calculatedSeaState;
     }
 
-    // Get control inputs
-    const { throttle, rudderAngle, ballast } = state.vessel.controls;
-
-    // Update controls in WASM
-    this.wasmBridge.setThrottle(vesselPtr, throttle);
-    this.wasmBridge.setRudderAngle(vesselPtr, rudderAngle);
-    this.wasmBridge.setBallast(vesselPtr, ballast);
-
-    this.wasmBridge.updateVesselState(
-      vesselPtr,
-      deltaTime,
+    // Update vessel state in WASM - store the updated pointer in case it changes
+    const updatedVesselPtr = this.wasmBridge.updateVesselState(
+      _state.wasmVesselPtr,
+      dt,
       wind.speed,
       wind.direction,
       current.speed,
       current.direction,
-      seaState,
+      calculatedSeaState, // Pass calculated sea state instead of using it directly from state
     );
 
-    // Handle machinery failures by adjusting physics behavior
-    const { failures } = state.machinerySystems;
-    if (failures.engineFailure) {
-      // If engine failure, force throttle to 0
-      this.wasmBridge.setThrottle(vesselPtr, 0);
+    // Update vessel pointer if it changed
+    if (updatedVesselPtr !== _state.wasmVesselPtr) {
+      _state.setWasmVesselPtr(updatedVesselPtr);
     }
-    if (failures.rudderFailure) {
+
+    // Handle machinery failures by adjusting physics behavior
+    const { failures } = _state.machinerySystems;
+    if (failures.engineFailure && this.wasmBridge) {
+      // If engine failure, force throttle to 0
+      this.wasmBridge.setThrottle(_state.wasmVesselPtr, 0);
+    }
+    if (failures.rudderFailure && this.wasmBridge) {
       // If rudder failure, add random drift to rudder
       const randomDrift = (Math.random() - 0.5) * 0.2;
-      this.wasmBridge.setRudderAngle(vesselPtr, randomDrift);
+      this.wasmBridge.setRudderAngle(_state.wasmVesselPtr, randomDrift);
     }
   }
 

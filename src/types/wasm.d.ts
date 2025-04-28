@@ -120,8 +120,10 @@ export interface WasmModule {
   ) => void;
   getVesselWaveHeight: (vesselPtr: number) => number;
   getVesselWavePhase: (vesselPtr: number) => number;
-  getWaveHeight: (seaState: number) => number;
-  getWaveFrequency: (seaState: number) => number;
+
+  // Wave calculations
+  calculateWaveHeight: (seaState: number) => number;
+  calculateBeaufortScale: (windSpeed: number) => number;
   calculateWaveHeightAtPosition: (
     x: number,
     y: number,
@@ -132,6 +134,8 @@ export interface WasmModule {
     waveDirection: number,
     seaState: number,
   ) => number;
+  getWaveHeight: (seaState: number) => number;
+  getWaveFrequency: (seaState: number) => number;
 }
 
 // Simplified vessel state interface for physics updates
