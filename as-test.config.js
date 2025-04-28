@@ -23,7 +23,7 @@ module.exports = {
           if (runtime.exports) {
             let arrbuf = runtime.exports.__getArrayBuffer(ptr);
             let str = Buffer.from(arrbuf).toString('utf8');
-            console.log(str);
+            console.info(str);
           }
         },
       },
