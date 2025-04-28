@@ -95,9 +95,16 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
     const response = await fetch('/wasm/ship_sim.wasm');
     const buffer = await response.arrayBuffer();
 
+    // Create WebAssembly memory with sizes matching asconfig.json
+    const memory = new WebAssembly.Memory({
+      initial: 16, // 16 pages = 1MB
+      maximum: 100, // 100 pages = 6.25MB
+    });
+
     // Create imports object with environment
     const imports = {
       env: {
+        memory: memory,
         abort: (
           messagePtr: number,
           fileNamePtr: number,
@@ -120,7 +127,7 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
     // Create a wrapper object with proper type casting
     const wrapper: ShipSimWasm = {
       // Pass through memory
-      memory: exports.memory as WebAssembly.Memory,
+      memory: memory,
 
       // Runtime functions
       __setArgumentsLength: exports.__setArgumentsLength as
