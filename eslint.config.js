@@ -63,6 +63,7 @@ export default [
         cancelAnimationFrame: 'readonly',
         MouseEvent: 'readonly',
         HTMLDivElement: 'readonly',
+        HTMLInputElement: 'readonly',
         NodeJS: 'readonly', // Added NodeJS global
         Buffer: 'readonly', // Added Buffer global
         URLSearchParams: 'readonly', // Added URLSearchParams global

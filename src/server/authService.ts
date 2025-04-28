@@ -118,12 +118,16 @@ export function verifyAuthToken(token: string): Promise<UserAuth | null> {
 
     // Verify hash is valid
     if (hash !== expectedHash) {
+      console.error('Invalid token hash');
+
       return Promise.resolve(null);
     }
 
     // Check if token is expired (24 hour validity)
     const tokenTimestamp = parseInt(timestamp, 10);
     if (Date.now() - tokenTimestamp > 24 * 60 * 60 * 1000) {
+      console.error('Token expired');
+
       return Promise.resolve(null);
     }
 
@@ -131,7 +135,37 @@ export function verifyAuthToken(token: string): Promise<UserAuth | null> {
     return getUserWithPermissions(userId);
   } catch (error) {
     console.error('Token verification error:', error);
+
     return Promise.resolve(null);
+  }
+}
+
+/**
+ * Refresh an authentication token
+ */
+export async function refreshAuthToken(
+  token: string,
+): Promise<UserAuth | null> {
+  try {
+    // First verify the current token
+    const userData = await verifyAuthToken(token);
+
+    // If token is invalid or user doesn't exist, return null
+    if (!userData) {
+      return null;
+    }
+
+    // Generate a new token for the user
+    const newToken = generateAuthToken(userData.userId);
+
+    // Return user data with the new token
+    return {
+      ...userData,
+      token: newToken,
+    };
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    return null;
   }
 }
 
@@ -153,6 +187,7 @@ export async function verifySocketAuth(
   try {
     // Check if token is provided
     if (authData.token) {
+      console.info('Verifying socket auth with token:', authData.token);
       return verifyAuthToken(authData.token);
     }
 

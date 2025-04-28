@@ -20,6 +20,26 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showUserPanel, setShowUserPanel] = useState(false);
+
+  // Session expiry handling
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setIsAuthenticated(false);
+      useStore.getState().addEvent({
+        category: 'system',
+        type: 'auth',
+        message: 'Your session has expired. Please log in again.',
+        severity: 'warning',
+      });
+    };
+
+    window.addEventListener('session-expired', handleSessionExpired);
+
+    return () => {
+      window.removeEventListener('session-expired', handleSessionExpired);
+    };
+  }, []);
 
   // Initialize simulation on component mount
   useEffect(() => {
@@ -45,22 +65,18 @@ const Home = () => {
     init();
 
     // Set up auth change listener
-    const handleAuthChange = (isLoggedIn: boolean) => {
-      setIsAuthenticated(isLoggedIn);
+    const handleAuthChange = () => {
+      setIsAuthenticated(socketManager.isAuthenticated());
     };
 
     // Subscribe to auth state changes
-    window.addEventListener('auth-changed', () =>
-      handleAuthChange(socketManager.isAuthenticated()),
-    );
+    window.addEventListener('auth-changed', handleAuthChange);
 
     // Clean up on unmount
     return () => {
       stopSimulation();
       socketManager.disconnect();
-      window.removeEventListener('auth-changed', () =>
-        handleAuthChange(socketManager.isAuthenticated()),
-      );
+      window.removeEventListener('auth-changed', handleAuthChange);
     };
   }, []);
 
@@ -74,6 +90,11 @@ const Home = () => {
   // Toggle settings panel
   const toggleSettings = () => {
     setShowSettings(!showSettings);
+  };
+
+  // Toggle user panel
+  const toggleUserPanel = () => {
+    setShowUserPanel(!showUserPanel);
   };
 
   return (
@@ -100,6 +121,21 @@ const Home = () => {
         <>
           {/* 3D Scene */}
           <Scene vesselPosition={vesselPosition} />
+
+          {/* User Account Button */}
+          <button
+            onClick={toggleUserPanel}
+            className="fixed top-4 right-24 z-10 rounded bg-gray-800 bg-opacity-70 px-4 py-2 text-white hover:bg-gray-700 transition-colors"
+          >
+            {socketManager.getUsername()}
+          </button>
+
+          {/* User Panel */}
+          {showUserPanel && (
+            <div className="fixed top-16 right-24 z-10 w-64">
+              <LoginPanel className="mx-auto" />
+            </div>
+          )}
 
           {/* Settings Button */}
           <button

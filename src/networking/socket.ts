@@ -64,6 +64,8 @@ class SocketManager {
   private reconnectTimer: NodeJS.Timeout | null = null;
   private connectionAttempts = 0;
   private maxReconnectAttempts = 5;
+  private tokenRefreshTimer: NodeJS.Timeout | null = null;
+  private stayLoggedIn: boolean = false; // Flag to determine if auto-refresh should occur
 
   constructor() {
     this.userId = this.generateUserId();
@@ -84,7 +86,13 @@ class SocketManager {
         this.userId = auth.userId;
         this.username = auth.username;
         this.isAdmin = auth.isAdmin;
+        this.stayLoggedIn = auth.stayLoggedIn || false;
         console.info(`Restored authentication for ${this.username}`);
+
+        // Set up token refresh if stay logged in is enabled
+        if (this.stayLoggedIn && this.authToken) {
+          this.setupTokenRefresh();
+        }
       }
     } catch (error) {
       console.error('Failed to restore authentication from storage:', error);
@@ -97,11 +105,18 @@ class SocketManager {
     userId: string;
     username: string;
     isAdmin: boolean;
+    stayLoggedIn?: boolean;
   }): void {
     if (typeof window === 'undefined') return;
 
     try {
-      localStorage.setItem('ship-sim-auth', JSON.stringify(authData));
+      localStorage.setItem(
+        'ship-sim-auth',
+        JSON.stringify({
+          ...authData,
+          stayLoggedIn: this.stayLoggedIn,
+        }),
+      );
       window.dispatchEvent(new Event('auth-changed'));
     } catch (error) {
       console.error('Failed to save authentication to storage:', error);
@@ -257,8 +272,138 @@ class SocketManager {
     this.socket.emit('vessel:control', controlData);
   }
 
+  // Set up token refresh mechanism
+  private setupTokenRefresh(): void {
+    // Clear any existing refresh timer
+    if (this.tokenRefreshTimer) {
+      clearTimeout(this.tokenRefreshTimer);
+      this.tokenRefreshTimer = null;
+    }
+
+    // If not logged in or not set to stay logged in, don't schedule refresh
+    if (!this.authToken || !this.stayLoggedIn) return;
+
+    try {
+      // Parse token to get expiry time
+      const payload = JSON.parse(this.authToken.split('.')[1]);
+      const exp = payload.exp * 1000; // Convert to milliseconds
+      const now = Date.now();
+
+      // Calculate time until 90% of the way to expiry (to refresh before it expires)
+      const timeUntilExpiry = exp - now;
+      const refreshTime = timeUntilExpiry * 0.9; // Refresh when 90% of the way to expiry
+
+      // Only set up refresh if the token is still valid and refresh time is positive
+      if (timeUntilExpiry > 0 && refreshTime > 0) {
+        console.info(
+          `Token refresh scheduled in ${Math.round(refreshTime / 1000 / 60)} minutes`,
+        );
+        this.tokenRefreshTimer = setTimeout(async () => {
+          await this.refreshToken();
+        }, refreshTime);
+      } else if (this.stayLoggedIn) {
+        // Token already expired, try to refresh immediately
+        this.refreshToken();
+      }
+    } catch (error) {
+      console.error('Error setting up token refresh:', error);
+    }
+  }
+
+  // Refresh the authentication token
+  async refreshToken(): Promise<boolean> {
+    return new Promise(resolve => {
+      if (!this.socket?.connected) {
+        console.warn('Cannot refresh token: socket not connected');
+        resolve(false);
+        return;
+      }
+
+      console.info('Attempting to refresh authentication token');
+
+      this.socket.emit(
+        'auth:refresh',
+        { token: this.authToken },
+        (response: AuthResponse) => {
+          if (response.success && response.token) {
+            // Update auth info with new token
+            this.authToken = response.token;
+
+            // Save to localStorage
+            this.saveAuthToStorage({
+              token: response.token,
+              userId: this.userId,
+              username: this.username,
+              isAdmin: this.isAdmin,
+              stayLoggedIn: this.stayLoggedIn,
+            });
+
+            console.info('Authentication token refreshed successfully');
+
+            // Set up the next token refresh
+            this.setupTokenRefresh();
+
+            resolve(true);
+          } else {
+            console.error('Failed to refresh token:', response.error);
+
+            // If configured to stay logged in, notify the user their session expired
+            if (this.stayLoggedIn) {
+              useStore.getState().addEvent({
+                category: 'system',
+                type: 'auth',
+                message: 'Session expired. Please log in again.',
+                severity: 'warning',
+              });
+            }
+
+            // Clear expired auth data
+            this.authToken = null;
+            this.clearAuthFromStorage();
+            window.dispatchEvent(new Event('session-expired'));
+
+            resolve(false);
+          }
+        },
+      );
+    });
+  }
+
+  // Set if the user wants to stay logged in
+  setStayLoggedIn(stayLoggedIn: boolean): void {
+    this.stayLoggedIn = stayLoggedIn;
+
+    if (this.authToken) {
+      // Update storage with the new preference
+      this.saveAuthToStorage({
+        token: this.authToken,
+        userId: this.userId,
+        username: this.username,
+        isAdmin: this.isAdmin,
+        stayLoggedIn: this.stayLoggedIn,
+      });
+
+      // Set up token refresh if enabled
+      if (stayLoggedIn) {
+        this.setupTokenRefresh();
+      } else if (this.tokenRefreshTimer) {
+        clearTimeout(this.tokenRefreshTimer);
+        this.tokenRefreshTimer = null;
+      }
+    }
+  }
+
+  // Get stay logged in preference
+  getStayLoggedIn(): boolean {
+    return this.stayLoggedIn;
+  }
+
   // Authenticate user with username and password
-  async login(username: string, password: string): Promise<AuthResponse> {
+  async login(
+    username: string,
+    password: string,
+    stayLoggedIn: boolean = false,
+  ): Promise<AuthResponse> {
     return new Promise((resolve, reject) => {
       if (!this.socket?.connected) {
         reject(new Error('Not connected to server'));
@@ -274,6 +419,7 @@ class SocketManager {
             this.authToken = response.token;
             this.username = response.username || username;
             this.isAdmin = response.isAdmin || false;
+            this.stayLoggedIn = stayLoggedIn;
 
             // Save to localStorage for persistence
             this.saveAuthToStorage({
@@ -281,7 +427,13 @@ class SocketManager {
               userId: this.userId,
               username: this.username,
               isAdmin: this.isAdmin,
+              stayLoggedIn: this.stayLoggedIn,
             });
+
+            // Set up token refresh if stay logged in is enabled
+            if (stayLoggedIn) {
+              this.setupTokenRefresh();
+            }
 
             // Add login event to the event log
             useStore.getState().addEvent({
@@ -303,7 +455,11 @@ class SocketManager {
   }
 
   // Register a new user (admin for testing purposes)
-  async register(username: string, password: string): Promise<AuthResponse> {
+  async register(
+    username: string,
+    password: string,
+    stayLoggedIn: boolean = false,
+  ): Promise<AuthResponse> {
     return new Promise((resolve, reject) => {
       if (!this.socket?.connected) {
         reject(new Error('Not connected to server'));
@@ -319,6 +475,7 @@ class SocketManager {
             this.authToken = response.token;
             this.username = response.username || username;
             this.isAdmin = response.isAdmin || false;
+            this.stayLoggedIn = stayLoggedIn;
 
             // Save to localStorage for persistence
             this.saveAuthToStorage({
@@ -326,7 +483,13 @@ class SocketManager {
               userId: this.userId,
               username: this.username,
               isAdmin: this.isAdmin,
+              stayLoggedIn: this.stayLoggedIn,
             });
+
+            // Set up token refresh if stay logged in is enabled
+            if (stayLoggedIn) {
+              this.setupTokenRefresh();
+            }
 
             // Add registration event to the event log
             useStore.getState().addEvent({
@@ -357,6 +520,13 @@ class SocketManager {
     this.authToken = null;
     this.username = 'Anonymous';
     this.isAdmin = false;
+    this.stayLoggedIn = false;
+
+    // Clear token refresh timer if exists
+    if (this.tokenRefreshTimer) {
+      clearTimeout(this.tokenRefreshTimer);
+      this.tokenRefreshTimer = null;
+    }
 
     // Clear from storage
     this.clearAuthFromStorage();
@@ -467,6 +637,46 @@ class SocketManager {
   // Check if user is authenticated with a token
   isAuthenticated(): boolean {
     return !!this.authToken;
+  }
+
+  // Check if token is expired
+  isTokenExpired(): boolean {
+    if (!this.authToken) return true;
+
+    try {
+      const payload = JSON.parse(this.authToken.split('.')[1]);
+      const exp = payload.exp * 1000; // Convert to milliseconds
+      const isExpired = Date.now() > exp;
+
+      // If token is expired but we're set to stay logged in, try to refresh it
+      if (isExpired && this.stayLoggedIn) {
+        this.refreshToken().catch(() => {
+          // Token refresh failed, stay logged out
+        });
+      }
+
+      return isExpired;
+    } catch (error) {
+      console.error('Error checking token expiry:', error);
+      return true;
+    }
+  }
+
+  // Check if token will expire soon (within next 10 minutes)
+  willTokenExpireSoon(): boolean {
+    if (!this.authToken) return false;
+
+    try {
+      const payload = JSON.parse(this.authToken.split('.')[1]);
+      const exp = payload.exp * 1000; // Convert to milliseconds
+
+      // Check if token expires within the next 10 minutes
+      const expiresInMinutes = (exp - Date.now()) / (1000 * 60);
+      return expiresInMinutes < 10 && expiresInMinutes > 0;
+    } catch (error) {
+      console.error('Error checking token expiry time:', error);
+      return false;
+    }
   }
 }
 

@@ -16,6 +16,7 @@ import {
   authenticateUser,
   registerAdminUser,
   UserAuth,
+  refreshAuthToken,
 } from './authService';
 import { socketHasPermission } from './middleware/authorization';
 import { SimpleVesselState } from '../types/vesselTypes';
@@ -108,6 +109,16 @@ type ClientToServerEvents = {
       error?: string;
     }) => void,
   ) => void;
+  'auth:refresh': (
+    data: { token: string },
+    callback: (response: {
+      success: boolean;
+      token?: string;
+      username?: string;
+      roles?: string[];
+      error?: string;
+    }) => void,
+  ) => void;
   'auth:logout': () => void;
 };
 
@@ -189,9 +200,15 @@ io.on('connection', async socket => {
     const userData = await verifySocketAuth(authData);
 
     if (!userData) {
+      console.info('Socket authentication failed. No user data found.');
+
       socket.disconnect();
       return;
     }
+
+    console.info(
+      `Socket authenticated: ${userData.username} (${userData.userId})`,
+    );
 
     // Store user data in socket
     const { userId, username, roles, permissions } = userData;
@@ -433,6 +450,46 @@ io.on('connection', async socket => {
       } catch (error) {
         console.error('Registration error:', error);
         callback({ success: false, error: 'Registration failed' });
+      }
+    });
+
+    // Handle auth:refresh events
+    socket.on('auth:refresh', async (data, callback) => {
+      try {
+        // Validate that a token was provided
+        if (!data.token) {
+          callback({ success: false, error: 'No token provided' });
+          return;
+        }
+
+        // Attempt to refresh the token
+        const refreshResult = await refreshAuthToken(data.token);
+
+        if (!refreshResult || !refreshResult.token) {
+          callback({ success: false, error: 'Could not refresh token' });
+          return;
+        }
+
+        // Update socket data with refreshed info
+        socket.data = {
+          userId: refreshResult.userId,
+          username: refreshResult.username,
+          roles: refreshResult.roles,
+          permissions: refreshResult.permissions,
+        };
+
+        // Return the new token
+        callback({
+          success: true,
+          token: refreshResult.token,
+          username: refreshResult.username,
+          roles: refreshResult.roles,
+        });
+
+        console.info(`Token refreshed for ${refreshResult.username}`);
+      } catch (error) {
+        console.error('Token refresh error:', error);
+        callback({ success: false, error: 'Token refresh failed' });
       }
     });
 
