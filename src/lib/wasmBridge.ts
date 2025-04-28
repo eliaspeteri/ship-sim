@@ -1,41 +1,47 @@
 /**
  * Bridge module for AssemblyScript WASM exports
  *
- * This module bridges the gap between what's expected by the TypeScript
- * definitions and what's actually exported by the WebAssembly module.
- * It implements missing functions in JavaScript when they can't be exported
- * directly from AssemblyScript due to compiler limitations.
+ * This module provides a unified interface to the WebAssembly functions.
+ * It directly maps to WASM function calls since all functions are now properly exported.
  */
 
 import { WasmModule } from '../types/wasm';
 
-// Additional interface to extend WasmModule with test functions
-interface ExtendedWasmModule extends WasmModule {
-  add?: (a: number, b: number) => number;
-  multiply?: (a: number, b: number) => number;
-}
-
+/**
+ * WasmBridge provides a clean interface to the underlying WebAssembly physics engine
+ * It ensures consistent function calls to the WASM module and handles any necessary conversions
+ */
 export class WasmBridge {
-  private wasmModule: ExtendedWasmModule;
-  private cachedSeaState: number = 0;
-  private cachedWindDirection: number = 0;
+  private wasmModule: WasmModule;
 
+  /**
+   * Create a new WasmBridge instance
+   * @param module - The loaded WebAssembly module
+   */
   constructor(module: WasmModule) {
-    this.wasmModule = module as ExtendedWasmModule;
+    this.wasmModule = module as WasmModule;
   }
 
+  /**
+   * Update the vessel state in the physics engine
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @param dt - Time step in seconds
+   * @param windSpeed - Wind speed in m/s
+   * @param windDirection - Wind direction in radians
+   * @param currentSpeed - Current speed in m/s
+   * @param currentDirection - Current direction in radians
+   * @param seaState - Sea state on Beaufort scale (0-12)
+   * @returns Pointer to updated vessel
+   */
   public updateVesselState(
     vesselPtr: number,
     dt: number,
-    windSpeed?: number,
-    windDirection?: number,
-    currentSpeed?: number,
-    currentDirection?: number,
-    seaState?: number,
+    windSpeed: number,
+    windDirection: number,
+    currentSpeed: number,
+    currentDirection: number,
+    seaState: number,
   ): number {
-    if (seaState !== undefined) this.cachedSeaState = seaState;
-    if (windDirection !== undefined) this.cachedWindDirection = windDirection;
-
     return this.wasmModule.updateVesselState(
       vesselPtr,
       dt,
@@ -47,135 +53,207 @@ export class WasmBridge {
     );
   }
 
+  /**
+   * Create a new vessel in the physics engine
+   * @returns Pointer to vessel in WASM memory
+   */
   public createVessel(): number {
     return this.wasmModule.createVessel();
   }
 
+  /**
+   * Set the vessel throttle
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @param throttle - Throttle value (0-1)
+   */
   public setThrottle(vesselPtr: number, throttle: number): void {
     this.wasmModule.setThrottle(vesselPtr, throttle);
   }
 
+  /**
+   * Set the vessel rudder angle
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @param angle - Rudder angle in radians
+   */
   public setRudderAngle(vesselPtr: number, angle: number): void {
     this.wasmModule.setRudderAngle(vesselPtr, angle);
   }
 
+  /**
+   * Set the vessel ballast level
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @param level - Ballast level (0-1)
+   */
   public setBallast(vesselPtr: number, level: number): void {
     this.wasmModule.setBallast(vesselPtr, level);
   }
 
+  /**
+   * Get vessel X position
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns X position in meters
+   */
   public getVesselX(vesselPtr: number): number {
     return this.wasmModule.getVesselX(vesselPtr);
   }
 
+  /**
+   * Get vessel Y position
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Y position in meters
+   */
   public getVesselY(vesselPtr: number): number {
     return this.wasmModule.getVesselY(vesselPtr);
   }
 
+  /**
+   * Get vessel Z position (height)
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Z position in meters
+   */
+  public getVesselZ(vesselPtr: number): number {
+    return this.wasmModule.getVesselZ(vesselPtr);
+  }
+
+  /**
+   * Get vessel heading
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Heading in radians
+   */
   public getVesselHeading(vesselPtr: number): number {
     return this.wasmModule.getVesselHeading(vesselPtr);
   }
 
+  /**
+   * Get vessel speed
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Speed in m/s
+   */
   public getVesselSpeed(vesselPtr: number): number {
     return this.wasmModule.getVesselSpeed(vesselPtr);
   }
 
+  /**
+   * Get vessel roll angle
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Roll angle in radians
+   */
+  public getVesselRollAngle(vesselPtr: number): number {
+    return this.wasmModule.getVesselRollAngle(vesselPtr);
+  }
+
+  /**
+   * Get vessel pitch angle
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Pitch angle in radians
+   */
+  public getVesselPitchAngle(vesselPtr: number): number {
+    return this.wasmModule.getVesselPitchAngle(vesselPtr);
+  }
+
+  /**
+   * Get vessel engine RPM
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Engine RPM
+   */
   public getVesselEngineRPM(vesselPtr: number): number {
     return this.wasmModule.getVesselEngineRPM(vesselPtr);
   }
 
+  /**
+   * Get vessel fuel level
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Fuel level (0-1)
+   */
   public getVesselFuelLevel(vesselPtr: number): number {
     return this.wasmModule.getVesselFuelLevel(vesselPtr);
   }
 
+  /**
+   * Get vessel fuel consumption
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Fuel consumption in kg/h
+   */
   public getVesselFuelConsumption(vesselPtr: number): number {
     return this.wasmModule.getVesselFuelConsumption(vesselPtr);
   }
 
+  /**
+   * Get vessel metacentric height (stability indicator)
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns GM value in meters
+   */
   public getVesselGM(vesselPtr: number): number {
     return this.wasmModule.getVesselGM(vesselPtr);
   }
 
+  /**
+   * Get vessel center of gravity Y coordinate
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Center of gravity Y coordinate in meters
+   */
   public getVesselCenterOfGravityY(vesselPtr: number): number {
     return this.wasmModule.getVesselCenterOfGravityY(vesselPtr);
   }
 
-  // Missing functions implemented in JavaScript
+  /**
+   * Set wave data for the vessel
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @param height - Wave height in meters
+   * @param phase - Wave phase in radians
+   */
   public setWaveData(vesselPtr: number, height: number, phase: number): void {
-    // Store the wave data in JavaScript and use it when needed
-    this.setVesselProperty(vesselPtr, 'waveHeight', height);
-    this.setVesselProperty(vesselPtr, 'wavePhase', phase);
+    this.wasmModule.setWaveData(vesselPtr, height, phase);
   }
 
-  public getVesselZ(vesselPtr: number): number {
-    // Approximate based on wave height if available
-    const waveHeight = this.getVesselWaveHeight(vesselPtr);
-    return Math.max(0, waveHeight * 0.3); // Approximate vertical position based on wave
-  }
-
-  public getVesselRollAngle(vesselPtr: number): number {
-    // Approximate based on wave height and phase
-    const waveHeight = this.getVesselWaveHeight(vesselPtr);
-    const wavePhase = this.getVesselWavePhase(vesselPtr);
-    return Math.sin(wavePhase) * waveHeight * 0.1; // Simplified roll estimation
-  }
-
-  public getVesselPitchAngle(vesselPtr: number): number {
-    // Approximate based on wave height and phase
-    const waveHeight = this.getVesselWaveHeight(vesselPtr);
-    const wavePhase = this.getVesselWavePhase(vesselPtr);
-    return Math.cos(wavePhase) * waveHeight * 0.05; // Simplified pitch estimation
-  }
-
-  public getWaveHeight(seaState: number): number {
-    // Implement the BEAUFORT_WAVE_HEIGHTS lookup in JavaScript
-    const BEAUFORT_WAVE_HEIGHTS = [
-      0.0, 0.1, 0.2, 0.6, 1.0, 2.0, 3.0, 4.0, 5.5, 7.0, 9.0, 11.5, 14.0,
-    ];
-
-    if (seaState < 0.5) return 0.0;
-    const index = Math.min(Math.max(0, Math.floor(seaState)), 12);
-    return BEAUFORT_WAVE_HEIGHTS[index];
-  }
-
-  public getWaveFrequency(seaState: number): number {
-    if (seaState < 0.5) return 0.0;
-    const wavePeriod = 3.0 + seaState * 0.8;
-    return (2.0 * Math.PI) / wavePeriod;
-  }
-
+  /**
+   * Get wave height at vessel position
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Wave height in meters
+   */
   public getVesselWaveHeight(vesselPtr: number): number {
-    // Either use the cached wave height or estimate from sea state
-    const vesselProperty = this.getVesselProperty(vesselPtr, 'waveHeight');
-    if (vesselProperty !== undefined) return vesselProperty;
-    return this.getWaveHeight(this.cachedSeaState);
+    return this.wasmModule.getVesselWaveHeight(vesselPtr);
   }
 
+  /**
+   * Get wave phase at vessel position
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Wave phase in radians
+   */
   public getVesselWavePhase(vesselPtr: number): number {
-    // Either use the cached wave phase or estimate
-    const vesselProperty = this.getVesselProperty(vesselPtr, 'wavePhase');
-    if (vesselProperty !== undefined) return vesselProperty;
-
-    // Estimate phase based on position if we have no cached value
-    const x = this.getVesselX(vesselPtr);
-    const y = this.getVesselY(vesselPtr);
-    const dirX = Math.cos(this.cachedWindDirection);
-    const dirY = Math.sin(this.cachedWindDirection);
-    return (x * dirX + y * dirY) * 0.1; // Simple approximation
+    return this.wasmModule.getVesselWavePhase(vesselPtr);
   }
 
-  public calculateWaveProperties(
-    seaState: number,
-    windDirection: number,
-  ): number[] {
-    const waveHeight = this.getWaveHeight(seaState);
-    const wavePeriod = 3.0 + seaState * 0.8;
-    const waveLength = 1.56 * wavePeriod * wavePeriod;
-    const waveFrequency = this.getWaveFrequency(seaState);
-    const waveDirectionValue = windDirection - Math.PI * 0.1;
-
-    return [waveHeight, waveLength, waveFrequency, waveDirectionValue];
+  /**
+   * Get wave height for a given sea state
+   * @param seaState - Sea state on Beaufort scale (0-12)
+   * @returns Wave height in meters
+   */
+  public getWaveHeight(seaState: number): number {
+    return this.wasmModule.getWaveHeight(seaState);
   }
 
+  /**
+   * Get wave frequency for a given sea state
+   * @param seaState - Sea state on Beaufort scale (0-12)
+   * @returns Wave frequency in rad/s
+   */
+  public getWaveFrequency(seaState: number): number {
+    return this.wasmModule.getWaveFrequency(seaState);
+  }
+
+  /**
+   * Calculate wave height at a specific position
+   * @param x - X position in meters
+   * @param y - Y position in meters
+   * @param time - Time in seconds
+   * @param waveHeight - Wave height in meters
+   * @param waveLength - Wave length in meters
+   * @param waveFrequency - Wave frequency in rad/s
+   * @param waveDirection - Wave direction in radians
+   * @param seaState - Sea state on Beaufort scale (0-12)
+   * @returns Wave height in meters at the specified position
+   */
   public calculateWaveHeightAtPosition(
     x: number,
     y: number,
@@ -186,41 +264,33 @@ export class WasmBridge {
     waveDirection: number,
     seaState: number,
   ): number {
-    if (seaState < 0.5) return 0.0;
-
-    // Calculate wave number
-    const k = (2.0 * Math.PI) / waveLength;
-
-    // Direction vector
-    const dirX = Math.cos(waveDirection);
-    const dirY = Math.sin(waveDirection);
-
-    // Dot product of position and direction
-    const dot = x * dirX + y * dirY;
-
-    // Primary wave
-    const phase = k * dot - waveFrequency * time;
-    return waveHeight * 0.5 * Math.sin(phase);
+    return this.wasmModule.calculateWaveHeightAtPosition(
+      x,
+      y,
+      time,
+      waveHeight,
+      waveLength,
+      waveFrequency,
+      waveDirection,
+      seaState,
+    );
   }
 
-  // Utility methods for internal state management
-  private vesselProperties: Map<number, Map<string, number>> = new Map();
+  /**
+   * Calculate wave properties for a given sea state and wind direction
+   * @param seaState - Sea state on Beaufort scale (0-12)
+   * @param windDirection - Wind direction in radians
+   * @returns Array with [waveHeight, waveLength, waveFrequency, waveDirection]
+   */
+  public calculateWaveProperties(
+    seaState: number,
+    windDirection: number,
+  ): [number, number, number, number] {
+    const waveHeight = this.getWaveHeight(seaState);
+    const waveLength = 1.56 * Math.pow(3.0 + seaState * 0.8, 2); // Approximate wave length calculation
+    const waveFrequency = this.getWaveFrequency(seaState);
+    const waveDirectionValue = windDirection - Math.PI * 0.1;
 
-  private setVesselProperty(
-    vesselPtr: number,
-    property: string,
-    value: number,
-  ): void {
-    if (!this.vesselProperties.has(vesselPtr)) {
-      this.vesselProperties.set(vesselPtr, new Map<string, number>());
-    }
-    this.vesselProperties.get(vesselPtr)?.set(property, value);
-  }
-
-  private getVesselProperty(
-    vesselPtr: number,
-    property: string,
-  ): number | undefined {
-    return this.vesselProperties.get(vesselPtr)?.get(property);
+    return [waveHeight, waveLength, waveFrequency, waveDirectionValue];
   }
 }

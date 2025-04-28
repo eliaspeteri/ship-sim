@@ -81,12 +81,15 @@ export interface WasmModule {
   // State access - basic
   getVesselX: (vesselPtr: number) => number;
   getVesselY: (vesselPtr: number) => number;
-  getVesselZ?: (vesselPtr: number) => number;
+  getVesselZ: (vesselPtr: number) => number;
   getVesselHeading: (vesselPtr: number) => number;
-  getVesselRoll?: (vesselPtr: number) => number;
-  getVesselPitch?: (vesselPtr: number) => number;
+  getVesselRoll: (vesselPtr: number) => number;
+  getVesselPitch: (vesselPtr: number) => number;
   getVesselSpeed: (vesselPtr: number) => number;
-  getVesselYawRate?: (vesselPtr: number) => number;
+  getVesselYawRate: (vesselPtr: number) => number;
+  getVesselPitchAngle: (vesselPtr: number) => number;
+  getVesselRollRate: (vesselPtr: number) => number;
+  getVesselRollAngle: (vesselPtr: number) => number;
 
   // State access - enhanced
   getVesselEngineRPM: (vesselPtr: number) => number;
@@ -96,18 +99,39 @@ export interface WasmModule {
   getVesselCenterOfGravityY: (vesselPtr: number) => number;
 
   // Advanced physics (optional)
-  applyForce?: (
+  applyForce: (
     vesselPtr: number,
     forceX: number,
     forceY: number,
     forceZ: number,
   ) => void;
-  applyTorque?: (
+  applyTorque: (
     vesselPtr: number,
     torqueX: number,
     torqueY: number,
     torqueZ: number,
   ) => void;
+
+  // Wave physics
+  setWaveData: (
+    vesselPtr: number,
+    waveHeight: number,
+    wavePhase: number,
+  ) => void;
+  getVesselWaveHeight: (vesselPtr: number) => number;
+  getVesselWavePhase: (vesselPtr: number) => number;
+  getWaveHeight: (seaState: number) => number;
+  getWaveFrequency: (seaState: number) => number;
+  calculateWaveHeightAtPosition: (
+    x: number,
+    y: number,
+    time: number,
+    waveHeight: number,
+    waveLength: number,
+    waveFrequency: number,
+    waveDirection: number,
+    seaState: number,
+  ) => number;
 }
 
 // Simplified vessel state interface for physics updates

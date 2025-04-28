@@ -27,21 +27,23 @@ export interface ShipSimWasm {
   updateVesselState: (
     vesselPtr: number,
     dt: number,
-    windSpeed?: number,
-    windDirection?: number,
-    currentSpeed?: number,
-    currentDirection?: number,
-    seaState?: number,
+    windSpeed: number,
+    windDirection: number,
+    currentSpeed: number,
+    currentDirection: number,
+    seaState: number,
   ) => number;
 
   // Control inputs
   setThrottle: (vesselPtr: number, throttle: number) => void;
   setRudderAngle: (vesselPtr: number, angle: number) => void;
   setBallast: (vesselPtr: number, level: number) => void;
+  setWaveData: (vesselPtr: number, height: number, phase: number) => void;
 
   // State access
   getVesselX: (vesselPtr: number) => number;
   getVesselY: (vesselPtr: number) => number;
+  getVesselZ: (vesselPtr: number) => number;
   getVesselHeading: (vesselPtr: number) => number;
   getVesselSpeed: (vesselPtr: number) => number;
   getVesselEngineRPM: (vesselPtr: number) => number;
@@ -49,6 +51,30 @@ export interface ShipSimWasm {
   getVesselFuelConsumption: (vesselPtr: number) => number;
   getVesselGM: (vesselPtr: number) => number;
   getVesselCenterOfGravityY: (vesselPtr: number) => number;
+  getVesselRollAngle: (vesselPtr: number) => number;
+  getVesselPitchAngle: (vesselPtr: number) => number;
+  getVesselWaveHeight: (vesselPtr: number) => number;
+  getVesselWavePhase: (vesselPtr: number) => number;
+
+  // Wave physics
+  getWaveHeight: (seaState: number) => number;
+  getWaveFrequency: (seaState: number) => number;
+  calculateWaveHeight: (seaState: number) => number;
+  calculateWaveHeightAtPosition: (
+    x: number,
+    y: number,
+    time: number,
+    waveHeight: number,
+    waveLength: number,
+    waveFrequency: number,
+    waveDirection: number,
+    seaState: number,
+  ) => number;
+
+  // Rudder forces
+  calculateRudderDrag: (vesselPtr: number) => number;
+  calculateRudderForceY: (vesselPtr: number) => number;
+  calculateRudderMomentZ: (vesselPtr: number) => number;
 }
 
 // Keep a cached instance of the module
@@ -156,20 +182,46 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
               ? windDirection % (2 * Math.PI) // Normalize to [0, 2π)
               : 0.0;
 
-          // Set the correct argument count - the compiled WebAssembly only expects 4 parameters
+          const safeCurrentSpeed =
+            typeof currentSpeed === 'number' && isFinite(currentSpeed)
+              ? Math.max(0, Math.min(10, currentSpeed)) // Clamp between 0-10 m/s for currents
+              : 0.0;
+
+          const safeCurrentDirection =
+            typeof currentDirection === 'number' && isFinite(currentDirection)
+              ? currentDirection % (2 * Math.PI) // Normalize to [0, 2π)
+              : 0.0;
+
+          const safeSeaState =
+            typeof seaState === 'number' && isFinite(seaState)
+              ? Math.max(0, Math.min(12, seaState)) // Beaufort scale 0-12
+              : 0.0;
+
+          // Set the correct argument count for the function
           if (wrapper.__setArgumentsLength) {
-            wrapper.__setArgumentsLength(4);
+            wrapper.__setArgumentsLength(7); // All 7 parameters are now supported
           }
 
-          // Only pass the parameters that the WASM function actually accepts
+          // Call the function with properly sanitized parameters
           const updateFn = exports.updateVesselState as (
             vesselPtr: number,
             dt: number,
             windSpeed: number,
             windDirection: number,
+            currentSpeed: number,
+            currentDirection: number,
+            seaState: number,
           ) => number;
 
-          return updateFn(vesselPtr, dt, safeWindSpeed, safeWindDirection);
+          return updateFn(
+            vesselPtr,
+            dt,
+            safeWindSpeed,
+            safeWindDirection,
+            safeCurrentSpeed,
+            safeCurrentDirection,
+            safeSeaState,
+          );
         } catch (error) {
           // Update error tracking
           errorCount++;
@@ -218,10 +270,16 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
         vesselPtr: number,
         level: number,
       ) => void,
+      setWaveData: exports.setWaveData as (
+        vesselPtr: number,
+        height: number,
+        phase: number,
+      ) => void,
 
       // State access
       getVesselX: exports.getVesselX as (vesselPtr: number) => number,
       getVesselY: exports.getVesselY as (vesselPtr: number) => number,
+      getVesselZ: exports.getVesselZ as (vesselPtr: number) => number,
       getVesselHeading: exports.getVesselHeading as (
         vesselPtr: number,
       ) => number,
@@ -237,6 +295,48 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
       ) => number,
       getVesselGM: exports.getVesselGM as (vesselPtr: number) => number,
       getVesselCenterOfGravityY: exports.getVesselCenterOfGravityY as (
+        vesselPtr: number,
+      ) => number,
+      getVesselRollAngle: exports.getVesselRollAngle as (
+        vesselPtr: number,
+      ) => number,
+      getVesselPitchAngle: exports.getVesselPitchAngle as (
+        vesselPtr: number,
+      ) => number,
+      getVesselWaveHeight: exports.getVesselWaveHeight as (
+        vesselPtr: number,
+      ) => number,
+      getVesselWavePhase: exports.getVesselWavePhase as (
+        vesselPtr: number,
+      ) => number,
+
+      // Wave physics
+      getWaveHeight: exports.getWaveHeight as (seaState: number) => number,
+      getWaveFrequency: exports.getWaveFrequency as (
+        seaState: number,
+      ) => number,
+      calculateWaveHeight: exports.calculateWaveHeight as (
+        seaState: number,
+      ) => number,
+      calculateWaveHeightAtPosition: exports.calculateWaveHeightAtPosition as (
+        x: number,
+        y: number,
+        time: number,
+        waveHeight: number,
+        waveLength: number,
+        waveFrequency: number,
+        waveDirection: number,
+        seaState: number,
+      ) => number,
+
+      // Rudder forces
+      calculateRudderDrag: exports.calculateRudderDrag as (
+        vesselPtr: number,
+      ) => number,
+      calculateRudderForceY: exports.calculateRudderForceY as (
+        vesselPtr: number,
+      ) => number,
+      calculateRudderMomentZ: exports.calculateRudderMomentZ as (
         vesselPtr: number,
       ) => number,
     };
