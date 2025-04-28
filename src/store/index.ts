@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { getSimulationLoop } from '../simulation/simulationLoop';
 import { VesselState, ShipType } from '../types/vessel.types';
 import { WasmModule } from '../types/wasm';
+import { EventLogEntry } from '../types/events.types';
 
 // Environment state interface with enhanced weather
 interface EnvironmentState {
@@ -32,23 +33,6 @@ interface EnvironmentState {
   timeOfDay: number; // 0-24 hours
   precipitation: 'none' | 'rain' | 'snow' | 'fog';
   precipitationIntensity: number; // 0-1
-}
-
-// Event system for logging and scenarios
-interface EventLogEntry {
-  id: string;
-  timestamp: number; // Simulation time
-  category:
-    | 'navigation'
-    | 'engine'
-    | 'alarm'
-    | 'environmental'
-    | 'system'
-    | 'crew';
-  type: string; // Specific event type
-  message: string;
-  severity: 'info' | 'warning' | 'critical';
-  data?: Record<string, unknown>; // Additional event data
 }
 
 // Simulation control with enhanced features
