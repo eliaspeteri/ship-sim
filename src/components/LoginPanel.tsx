@@ -33,8 +33,8 @@ const LoginPanel: React.FC<{ className?: string }> = ({ className = '' }) => {
     // Check immediately
     checkSessionStatus();
 
-    // Set up interval to check periodically
-    const interval = setInterval(checkSessionStatus, 60000); // Check every minute
+    // Set up interval to check periodically (every minute)
+    const interval = setInterval(checkSessionStatus, 60000);
 
     // Handle session expired event
     const handleSessionExpired = () => {
@@ -79,7 +79,7 @@ const LoginPanel: React.FC<{ className?: string }> = ({ className = '' }) => {
   const handleRefreshSession = async () => {
     setLoading(true);
     try {
-      const success = await socketManager.refreshToken();
+      const success = await socketManager.refreshTokenAsync();
       if (success) {
         setSessionExpiring(false);
       } else {

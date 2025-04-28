@@ -3,6 +3,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import apiRoutes from './api';
 import {
   generateRandomWeather,
@@ -17,12 +18,19 @@ import {
   registerAdminUser,
   UserAuth,
   refreshAuthToken,
+  verifyAccessToken,
+  verifyRefreshToken,
 } from './authService';
 import { socketHasPermission } from './middleware/authorization';
 import { SimpleVesselState } from '../types/vesselTypes';
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
+
+// Environment settings
+const PRODUCTION = process.env.NODE_ENV === 'production';
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || 'localhost';
+const SECURE_COOKIES = PRODUCTION;
 
 // Type definitions for Socket.IO communication
 interface SimulationUpdateData {
@@ -94,6 +102,7 @@ type ClientToServerEvents = {
     callback: (response: {
       success: boolean;
       token?: string;
+      refreshToken?: string;
       username?: string;
       roles?: string[];
       error?: string;
@@ -104,16 +113,18 @@ type ClientToServerEvents = {
     callback: (response: {
       success: boolean;
       token?: string;
+      refreshToken?: string;
       username?: string;
       roles?: string[];
       error?: string;
     }) => void,
   ) => void;
   'auth:refresh': (
-    data: { token: string },
+    data: { refreshToken: string },
     callback: (response: {
       success: boolean;
       token?: string;
+      refreshToken?: string;
       username?: string;
       roles?: string[];
       error?: string;
@@ -170,11 +181,196 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: PRODUCTION ? process.env.FRONTEND_URL || true : true,
+    credentials: true, // Enable cookies with CORS
+  }),
+);
 app.use(express.json());
+app.use(cookieParser()); // Add cookie parser middleware
+
+// Auth cookie options
+const accessTokenCookieOptions = {
+  httpOnly: true,
+  secure: SECURE_COOKIES,
+  sameSite: PRODUCTION ? 'strict' : 'lax',
+  domain: COOKIE_DOMAIN,
+  maxAge: 3600 * 1000, // 1 hour in milliseconds
+  path: '/',
+} as const;
+
+const refreshTokenCookieOptions = {
+  ...accessTokenCookieOptions,
+  maxAge: 30 * 24 * 3600 * 1000, // 30 days in milliseconds
+  path: '/auth/refresh',
+} as const;
 
 // Routes
 app.use('/api', apiRoutes);
+
+// Auth refresh endpoint
+app.post('/auth/refresh', async (req, res) => {
+  try {
+    const refreshToken = req.cookies['refresh_token'];
+
+    if (!refreshToken) {
+      return res
+        .status(401)
+        .json({ success: false, error: 'No refresh token provided' });
+    }
+
+    // Verify the refresh token
+    const tokenPayload = await verifyRefreshToken(refreshToken);
+
+    if (!tokenPayload) {
+      // Clear the cookies if token is invalid
+      res.clearCookie('access_token', accessTokenCookieOptions);
+      res.clearCookie('refresh_token', refreshTokenCookieOptions);
+      return res
+        .status(401)
+        .json({ success: false, error: 'Invalid refresh token' });
+    }
+
+    // Generate new tokens
+    const newTokens = await refreshAuthToken(refreshToken);
+
+    if (!newTokens) {
+      // Clear the cookies
+      res.clearCookie('access_token', accessTokenCookieOptions);
+      res.clearCookie('refresh_token', refreshTokenCookieOptions);
+      return res
+        .status(403)
+        .json({ success: false, error: 'Failed to refresh tokens' });
+    }
+
+    // Set the new tokens as cookies
+    res.cookie('access_token', newTokens.accessToken, accessTokenCookieOptions);
+    res.cookie(
+      'refresh_token',
+      newTokens.refreshToken,
+      refreshTokenCookieOptions,
+    );
+
+    // Return only necessary info to client
+    return res.json({
+      success: true,
+      username: tokenPayload.username,
+      roles: tokenPayload.roles,
+      // Also send tokens in response body for Socket.IO connections
+      tokens: {
+        accessToken: newTokens.accessToken,
+        refreshToken: newTokens.refreshToken,
+      },
+    });
+  } catch (error) {
+    console.error('Error refreshing tokens:', error);
+    return res
+      .status(500)
+      .json({ success: false, error: 'Token refresh failed' });
+  }
+});
+
+// Login endpoint
+app.post('/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res
+        .status(400)
+        .json({ success: false, error: 'Username and password are required' });
+    }
+
+    // Authenticate user
+    const authResult = await authenticateUser(username, password);
+
+    if (!authResult || !authResult.token || !authResult.refreshToken) {
+      return res
+        .status(401)
+        .json({ success: false, error: 'Invalid credentials' });
+    }
+
+    // Set cookies
+    res.cookie('access_token', authResult.token, accessTokenCookieOptions);
+    res.cookie(
+      'refresh_token',
+      authResult.refreshToken,
+      refreshTokenCookieOptions,
+    );
+
+    // Return success with user info
+    return res.json({
+      success: true,
+      username: authResult.username,
+      roles: authResult.roles,
+      // Also send tokens in response body for Socket.IO connections
+      tokens: {
+        accessToken: authResult.token,
+        refreshToken: authResult.refreshToken,
+      },
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    return res.status(500).json({ success: false, error: 'Login failed' });
+  }
+});
+
+// Register endpoint
+app.post('/auth/register', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res
+        .status(400)
+        .json({ success: false, error: 'Username and password are required' });
+    }
+
+    // Register new user
+    const authResult = await registerAdminUser(username, password);
+
+    if (!authResult || !authResult.token || !authResult.refreshToken) {
+      return res
+        .status(400)
+        .json({ success: false, error: 'Registration failed' });
+    }
+
+    // Set cookies
+    res.cookie('access_token', authResult.token, accessTokenCookieOptions);
+    res.cookie(
+      'refresh_token',
+      authResult.refreshToken,
+      refreshTokenCookieOptions,
+    );
+
+    // Return success with user info
+    return res.json({
+      success: true,
+      username: authResult.username,
+      roles: authResult.roles,
+      // Also send tokens in response body for Socket.IO connections
+      tokens: {
+        accessToken: authResult.token,
+        refreshToken: authResult.refreshToken,
+      },
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    return res
+      .status(500)
+      .json({ success: false, error: 'Registration failed' });
+  }
+});
+
+// Logout endpoint
+app.post('/auth/logout', (req, res) => {
+  // Clear auth cookies
+  res.clearCookie('access_token', accessTokenCookieOptions);
+  res.clearCookie('refresh_token', refreshTokenCookieOptions);
+
+  return res.json({ success: true, message: 'Logged out successfully' });
+});
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -187,8 +383,8 @@ const io = new Server<
   SocketData
 >(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
+    origin: PRODUCTION ? process.env.FRONTEND_URL || true : true,
+    credentials: true,
   },
 });
 
@@ -406,6 +602,7 @@ io.on('connection', async socket => {
         callback({
           success: true,
           token: authResult.token,
+          refreshToken: authResult.refreshToken,
           username: authResult.username,
           roles: authResult.roles,
         });
@@ -419,7 +616,7 @@ io.on('connection', async socket => {
       }
     });
 
-    // Handle registration request (for testing only - would be restricted in production)
+    // Handle registration request
     socket.on('auth:register', async (data, callback) => {
       try {
         const { username, password } = data;
@@ -442,6 +639,7 @@ io.on('connection', async socket => {
         callback({
           success: true,
           token: authResult.token,
+          refreshToken: authResult.refreshToken,
           username: authResult.username,
           roles: authResult.roles,
         });
@@ -456,41 +654,61 @@ io.on('connection', async socket => {
     // Handle auth:refresh events
     socket.on('auth:refresh', async (data, callback) => {
       try {
-        // Validate that a token was provided
-        if (!data.token) {
-          callback({ success: false, error: 'No token provided' });
+        // Validate that a refresh token was provided
+        if (!data.refreshToken) {
+          callback({ success: false, error: 'No refresh token provided' });
           return;
         }
 
-        // Attempt to refresh the token
-        const refreshResult = await refreshAuthToken(data.token);
+        // Attempt to refresh the tokens
+        const newTokens = await refreshAuthToken(data.refreshToken);
 
-        if (!refreshResult || !refreshResult.token) {
+        if (!newTokens) {
           callback({ success: false, error: 'Could not refresh token' });
           return;
         }
 
-        // Update socket data with refreshed info
-        socket.data = {
-          userId: refreshResult.userId,
-          username: refreshResult.username,
-          roles: refreshResult.roles,
-          permissions: refreshResult.permissions,
-        };
+        // Verify the new access token to get user data
+        const userData = await verifyAccessToken(newTokens.accessToken);
 
-        // Return the new token
+        if (!userData) {
+          callback({ success: false, error: 'Invalid access token' });
+          return;
+        }
+
+        // Update socket data with refreshed info
+        socket.data = userData;
+
+        // Return the new tokens
         callback({
           success: true,
-          token: refreshResult.token,
-          username: refreshResult.username,
-          roles: refreshResult.roles,
+          token: newTokens.accessToken,
+          refreshToken: newTokens.refreshToken,
+          username: userData.username,
+          roles: userData.roles,
         });
 
-        console.info(`Token refreshed for ${refreshResult.username}`);
+        console.info(`Token refreshed for ${userData.username}`);
       } catch (error) {
         console.error('Token refresh error:', error);
         callback({ success: false, error: 'Token refresh failed' });
       }
+    });
+
+    // Handle logout
+    socket.on('auth:logout', () => {
+      // Clear authentication data from socket
+      if (socket.data) {
+        socket.data.userId = `user_${Math.random().toString(36).substring(2, 9)}`;
+        socket.data.username = 'Anonymous';
+        socket.data.roles = ['guest'];
+        socket.data.permissions = [
+          { resource: 'vessel', action: 'view' },
+          { resource: 'environment', action: 'view' },
+        ];
+      }
+
+      console.info(`User logged out: ${username} (${userId})`);
     });
 
     // Handle disconnect
@@ -499,9 +717,6 @@ io.on('connection', async socket => {
 
       // Notify other clients of vessel departure
       socket.broadcast.emit('vessel:left', { userId });
-
-      // In a production app, we'd persist the vessel state here
-      // but keep it in memory for some time in case they reconnect
     });
   } catch (error) {
     console.error('Error handling socket connection:', error);

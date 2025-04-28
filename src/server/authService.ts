@@ -4,6 +4,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
@@ -30,11 +31,30 @@ export interface UserAuth {
     resource: string;
     action: string;
   }[];
-  token?: string;
+  token?: string; // Access token
+  refreshToken?: string; // Refresh token
 }
 
-// Get secret key from environment variables, with fallback for development
-const AUTH_SECRET = process.env.AUTH_SECRET || 'ship-sim-auth-secret-2025';
+// JWT Token payload structure
+export interface JWTPayload {
+  sub: string; // Subject (userId)
+  username: string;
+  roles: string[];
+  permissions?: { resource: string; action: string }[];
+  iat?: number; // Issued at
+  exp?: number; // Expires at
+  type?: 'access' | 'refresh'; // Token type
+}
+
+// Get secret keys from environment variables, with fallback for development
+const ACCESS_TOKEN_SECRET =
+  process.env.ACCESS_TOKEN_SECRET || 'ship-sim-access-token-secret-2025';
+const REFRESH_TOKEN_SECRET =
+  process.env.REFRESH_TOKEN_SECRET || 'ship-sim-refresh-token-secret-2025';
+
+// Token expiration times (in seconds)
+const ACCESS_TOKEN_EXPIRY = 3600; // 1 hour
+const REFRESH_TOKEN_EXPIRY = 30 * 24 * 3600; // 30 days
 
 /**
  * Authenticate a user based on provided credentials
@@ -86,15 +106,21 @@ export async function authenticateUser(
       })),
     );
 
-    // Generate authentication token
-    const token = generateAuthToken(user.id);
+    // Generate authentication tokens
+    const { accessToken, refreshToken } = generateTokens(
+      user.id,
+      user.username,
+      roles,
+      permissions,
+    );
 
     return {
       userId: user.id,
       username: user.username,
       roles,
       permissions,
-      token,
+      token: accessToken,
+      refreshToken,
     };
   } catch (error) {
     console.error('Authentication error:', error);
@@ -103,39 +129,81 @@ export async function authenticateUser(
 }
 
 /**
+ * Generate both access and refresh tokens for a user
+ */
+function generateTokens(
+  userId: string,
+  username: string,
+  roles: string[],
+  permissions: { resource: string; action: string }[],
+): { accessToken: string; refreshToken: string } {
+  // Create access token with short expiry and all user data
+  const accessTokenPayload: JWTPayload = {
+    sub: userId,
+    username,
+    roles,
+    permissions,
+    type: 'access',
+  };
+
+  const accessToken = jwt.sign(accessTokenPayload, ACCESS_TOKEN_SECRET, {
+    expiresIn: ACCESS_TOKEN_EXPIRY,
+  });
+
+  // Create refresh token with longer expiry but limited data
+  const refreshTokenPayload: JWTPayload = {
+    sub: userId,
+    username,
+    roles,
+    type: 'refresh',
+  };
+
+  const refreshToken = jwt.sign(refreshTokenPayload, REFRESH_TOKEN_SECRET, {
+    expiresIn: REFRESH_TOKEN_EXPIRY,
+  });
+
+  return { accessToken, refreshToken };
+}
+
+/**
  * Verify an authentication token
  */
-export function verifyAuthToken(token: string): Promise<UserAuth | null> {
+export function verifyAccessToken(token: string): Promise<UserAuth | null> {
   try {
-    // In a production system, this would verify JWT or other token
-    // For this implementation, we're using a simple token format
-    const [userId, timestamp, hash] = token.split('.');
+    // Verify JWT token
+    const payload = jwt.verify(token, ACCESS_TOKEN_SECRET) as JWTPayload;
 
-    const expectedHash = crypto
-      .createHmac('sha256', AUTH_SECRET)
-      .update(`${userId}.${timestamp}`)
-      .digest('hex');
-
-    // Verify hash is valid
-    if (hash !== expectedHash) {
-      console.error('Invalid token hash');
-
+    // Validate token is the correct type
+    if (payload.type !== 'access') {
+      console.error('Invalid token type');
       return Promise.resolve(null);
     }
 
-    // Check if token is expired (24 hour validity)
-    const tokenTimestamp = parseInt(timestamp, 10);
-    if (Date.now() - tokenTimestamp > 24 * 60 * 60 * 1000) {
-      console.error('Token expired');
-
-      return Promise.resolve(null);
-    }
-
-    // Get user with their roles and permissions
-    return getUserWithPermissions(userId);
+    // Get complete user data with roles and permissions
+    return getUserWithPermissions(payload.sub);
   } catch (error) {
     console.error('Token verification error:', error);
+    return Promise.resolve(null);
+  }
+}
 
+/**
+ * Verify a refresh token
+ */
+export function verifyRefreshToken(token: string): Promise<JWTPayload | null> {
+  try {
+    // Verify JWT refresh token
+    const payload = jwt.verify(token, REFRESH_TOKEN_SECRET) as JWTPayload;
+
+    // Validate token is the correct type
+    if (payload.type !== 'refresh') {
+      console.error('Invalid token type');
+      return Promise.resolve(null);
+    }
+
+    return Promise.resolve(payload);
+  } catch (error) {
+    console.error('Refresh token verification error:', error);
     return Promise.resolve(null);
   }
 }
@@ -144,25 +212,32 @@ export function verifyAuthToken(token: string): Promise<UserAuth | null> {
  * Refresh an authentication token
  */
 export async function refreshAuthToken(
-  token: string,
-): Promise<UserAuth | null> {
+  refreshToken: string,
+): Promise<{ accessToken: string; refreshToken: string } | null> {
   try {
-    // First verify the current token
-    const userData = await verifyAuthToken(token);
+    // Verify the refresh token
+    const payload = await verifyRefreshToken(refreshToken);
 
-    // If token is invalid or user doesn't exist, return null
+    // If token is invalid, return null
+    if (!payload) {
+      return null;
+    }
+
+    // Get complete user data
+    const userData = await getUserWithPermissions(payload.sub);
+
+    // If user doesn't exist anymore, return null
     if (!userData) {
       return null;
     }
 
-    // Generate a new token for the user
-    const newToken = generateAuthToken(userData.userId);
-
-    // Return user data with the new token
-    return {
-      ...userData,
-      token: newToken,
-    };
+    // Generate new tokens
+    return generateTokens(
+      userData.userId,
+      userData.username,
+      userData.roles,
+      userData.permissions,
+    );
   } catch (error) {
     console.error('Token refresh error:', error);
     return null;
@@ -174,6 +249,7 @@ export async function refreshAuthToken(
  */
 interface SocketAuthData {
   token?: string;
+  refreshToken?: string;
   userId?: string;
   username?: string;
 }
@@ -187,8 +263,8 @@ export async function verifySocketAuth(
   try {
     // Check if token is provided
     if (authData.token) {
-      console.info('Verifying socket auth with token:', authData.token);
-      return verifyAuthToken(authData.token);
+      console.info('Verifying socket auth with token');
+      return verifyAccessToken(authData.token);
     }
 
     // Fallback for existing connections
@@ -270,22 +346,6 @@ async function getUserWithPermissions(
     console.error('Error fetching user with permissions:', error);
     return null;
   }
-}
-
-/**
- * Generate an authentication token for a user
- */
-function generateAuthToken(userId: string): string {
-  const timestamp = Date.now().toString();
-
-  // Create hash using userId and timestamp
-  const hash = crypto
-    .createHmac('sha256', AUTH_SECRET)
-    .update(`${userId}.${timestamp}`)
-    .digest('hex');
-
-  // Format: userId.timestamp.hash
-  return `${userId}.${timestamp}.${hash}`;
 }
 
 /**
@@ -389,22 +449,31 @@ export async function registerAdminUser(
       return user;
     });
 
-    // Generate token
-    const token = generateAuthToken(newUser.id);
+    // Generate tokens
+    const adminRoles = ['admin'];
+    const adminPermissions = [
+      { resource: 'user', action: 'manage' },
+      { resource: 'role', action: 'manage' },
+      { resource: 'vessel', action: 'manage' },
+      { resource: 'environment', action: 'manage' },
+      { resource: 'system', action: 'manage' },
+    ];
+
+    const { accessToken, refreshToken } = generateTokens(
+      newUser.id,
+      newUser.username,
+      adminRoles,
+      adminPermissions,
+    );
 
     // Return complete user auth data
     return {
       userId: newUser.id,
       username: newUser.username,
-      roles: ['admin'],
-      permissions: [
-        { resource: 'user', action: 'manage' },
-        { resource: 'role', action: 'manage' },
-        { resource: 'vessel', action: 'manage' },
-        { resource: 'environment', action: 'manage' },
-        { resource: 'system', action: 'manage' },
-      ],
-      token,
+      roles: adminRoles,
+      permissions: adminPermissions,
+      token: accessToken,
+      refreshToken,
     };
   } catch (error) {
     console.error('Error registering admin user:', error);

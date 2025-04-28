@@ -49,9 +49,21 @@ interface ChatMessageData {
 interface AuthResponse {
   success: boolean;
   token?: string;
+  refreshToken?: string;
   username?: string;
   isAdmin?: boolean;
+  roles?: string[];
   error?: string;
+}
+
+// JWT token payload interface
+interface JWTPayload {
+  sub: string; // Subject (userId)
+  username: string;
+  roles: string[];
+  iat: number; // Issued at timestamp
+  exp: number; // Expiration timestamp
+  type: 'access' | 'refresh'; // Token type
 }
 
 // Socket.IO Client Manager
@@ -59,13 +71,15 @@ class SocketManager {
   private socket: ReturnType<typeof io> | null = null;
   private userId: string;
   private isAdmin: boolean = false;
-  private authToken: string | null = null;
+  private accessToken: string | null = null;
+  private refreshToken: string | null = null;
   private username: string = 'Anonymous';
   private reconnectTimer: NodeJS.Timeout | null = null;
   private connectionAttempts = 0;
   private maxReconnectAttempts = 5;
   private tokenRefreshTimer: NodeJS.Timeout | null = null;
   private stayLoggedIn: boolean = false; // Flag to determine if auto-refresh should occur
+  private refreshingToken: boolean = false; // Flag to prevent multiple concurrent refresh attempts
 
   constructor() {
     this.userId = this.generateUserId();
@@ -82,7 +96,8 @@ class SocketManager {
       const storedAuth = localStorage.getItem('ship-sim-auth');
       if (storedAuth) {
         const auth = JSON.parse(storedAuth);
-        this.authToken = auth.token;
+        this.accessToken = auth.accessToken;
+        this.refreshToken = auth.refreshToken;
         this.userId = auth.userId;
         this.username = auth.username;
         this.isAdmin = auth.isAdmin;
@@ -90,7 +105,7 @@ class SocketManager {
         console.info(`Restored authentication for ${this.username}`);
 
         // Set up token refresh if stay logged in is enabled
-        if (this.stayLoggedIn && this.authToken) {
+        if (this.stayLoggedIn && this.accessToken) {
           this.setupTokenRefresh();
         }
       }
@@ -101,7 +116,8 @@ class SocketManager {
 
   // Save authentication to storage
   private saveAuthToStorage(authData: {
-    token: string;
+    accessToken: string;
+    refreshToken: string;
     userId: string;
     username: string;
     isAdmin: boolean;
@@ -152,7 +168,7 @@ class SocketManager {
       auth: {
         userId: this.userId,
         username: this.username,
-        token: this.authToken,
+        token: this.accessToken,
       },
     });
 
@@ -160,7 +176,7 @@ class SocketManager {
     this.setupEventListeners();
   }
 
-  // Set up Socket.IO event listeners
+  // Setup Socket.IO event listeners
   private setupEventListeners(): void {
     if (!this.socket) return;
 
@@ -272,111 +288,175 @@ class SocketManager {
     this.socket.emit('vessel:control', controlData);
   }
 
+  // Parse JWT token to get payload
+  private parseJwtToken(token: string): JWTPayload | null {
+    try {
+      // Split the token into parts
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+
+      // Decode the payload
+      const payload = JSON.parse(
+        Buffer.from(parts[1], 'base64').toString('utf8'),
+      );
+
+      return payload as JWTPayload;
+    } catch (error) {
+      console.error('Error parsing JWT token:', error);
+      return null;
+    }
+  }
+
   // Set up token refresh mechanism
   private setupTokenRefresh(): void {
     // Clear any existing refresh timer
-    if (this.tokenRefreshTimer) {
-      clearTimeout(this.tokenRefreshTimer);
-      this.tokenRefreshTimer = null;
-    }
+    this.clearTokenRefreshTimer();
 
     // If not logged in or not set to stay logged in, don't schedule refresh
-    if (!this.authToken || !this.stayLoggedIn) return;
+    if (!this.accessToken || !this.stayLoggedIn) return;
 
     try {
       // Parse token to get expiry time
-      const payload = JSON.parse(this.authToken.split('.')[1]);
-      const exp = payload.exp * 1000; // Convert to milliseconds
-      const now = Date.now();
-
-      // Calculate time until 90% of the way to expiry (to refresh before it expires)
-      const timeUntilExpiry = exp - now;
-      const refreshTime = timeUntilExpiry * 0.9; // Refresh when 90% of the way to expiry
-
-      // Only set up refresh if the token is still valid and refresh time is positive
-      if (timeUntilExpiry > 0 && refreshTime > 0) {
-        console.info(
-          `Token refresh scheduled in ${Math.round(refreshTime / 1000 / 60)} minutes`,
-        );
-        this.tokenRefreshTimer = setTimeout(async () => {
-          await this.refreshToken();
-        }, refreshTime);
-      } else if (this.stayLoggedIn) {
-        // Token already expired, try to refresh immediately
-        this.refreshToken();
+      const payload = this.parseJwtToken(this.accessToken);
+      if (!payload) {
+        console.error('Failed to parse access token for refresh');
+        return;
       }
+
+      // Calculate time before the token expires (in milliseconds)
+      const now = Math.floor(Date.now() / 1000); // Current time in seconds
+      const expiresIn = payload.exp - now;
+
+      // If token is already expired, try to refresh it immediately
+      if (expiresIn <= 0) {
+        console.info('Access token expired, attempting immediate refresh');
+        if (this.refreshToken) {
+          void this.refreshTokenAsync().catch(err => {
+            console.error('Failed to refresh expired token:', err);
+          });
+        }
+        return;
+      }
+
+      // Schedule refresh at 85% of the token's lifetime
+      // This gives us a good buffer before expiration
+      const refreshTime = expiresIn * 0.85 * 1000; // Convert to milliseconds
+      console.info(
+        `Token refresh scheduled in ${Math.round(refreshTime / 1000 / 60)} minutes`,
+      );
+
+      this.tokenRefreshTimer = setTimeout(() => {
+        if (this.refreshToken) {
+          void this.refreshTokenAsync().catch(err => {
+            console.error('Failed to refresh token:', err);
+          });
+        }
+      }, refreshTime);
     } catch (error) {
       console.error('Error setting up token refresh:', error);
     }
   }
 
+  // Clear token refresh timer
+  private clearTokenRefreshTimer(): void {
+    if (this.tokenRefreshTimer) {
+      clearTimeout(this.tokenRefreshTimer);
+      this.tokenRefreshTimer = null;
+    }
+  }
+
   // Refresh the authentication token
-  async refreshToken(): Promise<boolean> {
-    return new Promise(resolve => {
+  async refreshTokenAsync(): Promise<boolean> {
+    // Prevent multiple concurrent refresh attempts
+    if (this.refreshingToken || !this.refreshToken || !this.stayLoggedIn) {
+      return false;
+    }
+
+    this.refreshingToken = true;
+
+    try {
       if (!this.socket?.connected) {
         console.warn('Cannot refresh token: socket not connected');
-        resolve(false);
-        return;
+        this.refreshingToken = false;
+        return false;
       }
 
       console.info('Attempting to refresh authentication token');
 
-      this.socket.emit(
-        'auth:refresh',
-        { token: this.authToken },
-        (response: AuthResponse) => {
-          if (response.success && response.token) {
-            // Update auth info with new token
-            this.authToken = response.token;
+      return new Promise<boolean>(resolve => {
+        if (!this.socket) {
+          this.refreshingToken = false;
+          resolve(false);
+          return;
+        }
 
-            // Save to localStorage
-            this.saveAuthToStorage({
-              token: response.token,
-              userId: this.userId,
-              username: this.username,
-              isAdmin: this.isAdmin,
-              stayLoggedIn: this.stayLoggedIn,
-            });
+        this.socket.emit(
+          'auth:refresh',
+          { refreshToken: this.refreshToken },
+          (response: AuthResponse) => {
+            if (response.success && response.token && response.refreshToken) {
+              // Update auth tokens
+              this.accessToken = response.token;
+              this.refreshToken = response.refreshToken;
 
-            console.info('Authentication token refreshed successfully');
-
-            // Set up the next token refresh
-            this.setupTokenRefresh();
-
-            resolve(true);
-          } else {
-            console.error('Failed to refresh token:', response.error);
-
-            // If configured to stay logged in, notify the user their session expired
-            if (this.stayLoggedIn) {
-              useStore.getState().addEvent({
-                category: 'system',
-                type: 'auth',
-                message: 'Session expired. Please log in again.',
-                severity: 'warning',
+              // Save to localStorage
+              this.saveAuthToStorage({
+                accessToken: response.token,
+                refreshToken: response.refreshToken,
+                userId: this.userId,
+                username: this.username,
+                isAdmin: this.isAdmin,
+                stayLoggedIn: this.stayLoggedIn,
               });
+
+              console.info('Authentication token refreshed successfully');
+
+              // Set up the next token refresh
+              this.setupTokenRefresh();
+
+              this.refreshingToken = false;
+              resolve(true);
+            } else {
+              console.error('Failed to refresh token:', response.error);
+
+              // If configured to stay logged in, notify the user their session expired
+              if (this.stayLoggedIn) {
+                useStore.getState().addEvent({
+                  category: 'system',
+                  type: 'auth',
+                  message: 'Session expired. Please log in again.',
+                  severity: 'warning',
+                });
+              }
+
+              // Clear expired auth data
+              this.accessToken = null;
+              this.refreshToken = null;
+              this.clearAuthFromStorage();
+              window.dispatchEvent(new Event('session-expired'));
+
+              this.refreshingToken = false;
+              resolve(false);
             }
-
-            // Clear expired auth data
-            this.authToken = null;
-            this.clearAuthFromStorage();
-            window.dispatchEvent(new Event('session-expired'));
-
-            resolve(false);
-          }
-        },
-      );
-    });
+          },
+        );
+      });
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      this.refreshingToken = false;
+      return false;
+    }
   }
 
   // Set if the user wants to stay logged in
   setStayLoggedIn(stayLoggedIn: boolean): void {
     this.stayLoggedIn = stayLoggedIn;
 
-    if (this.authToken) {
+    if (this.accessToken) {
       // Update storage with the new preference
       this.saveAuthToStorage({
-        token: this.authToken,
+        accessToken: this.accessToken,
+        refreshToken: this.refreshToken || '',
         userId: this.userId,
         username: this.username,
         isAdmin: this.isAdmin,
@@ -386,9 +466,8 @@ class SocketManager {
       // Set up token refresh if enabled
       if (stayLoggedIn) {
         this.setupTokenRefresh();
-      } else if (this.tokenRefreshTimer) {
-        clearTimeout(this.tokenRefreshTimer);
-        this.tokenRefreshTimer = null;
+      } else {
+        this.clearTokenRefreshTimer();
       }
     }
   }
@@ -414,16 +493,24 @@ class SocketManager {
         'auth:login',
         { username, password },
         (response: AuthResponse) => {
-          if (response.success && response.token) {
+          if (response.success && response.token && response.refreshToken) {
             // Store the authentication info
-            this.authToken = response.token;
+            this.accessToken = response.token;
+            this.refreshToken = response.refreshToken;
             this.username = response.username || username;
-            this.isAdmin = response.isAdmin || false;
+            this.isAdmin = response.roles?.includes('admin') || false;
             this.stayLoggedIn = stayLoggedIn;
+
+            // Extract userId from token
+            const tokenPayload = this.parseJwtToken(response.token);
+            if (tokenPayload) {
+              this.userId = tokenPayload.sub;
+            }
 
             // Save to localStorage for persistence
             this.saveAuthToStorage({
-              token: response.token,
+              accessToken: response.token,
+              refreshToken: response.refreshToken,
               userId: this.userId,
               username: this.username,
               isAdmin: this.isAdmin,
@@ -470,16 +557,24 @@ class SocketManager {
         'auth:register',
         { username, password },
         (response: AuthResponse) => {
-          if (response.success && response.token) {
+          if (response.success && response.token && response.refreshToken) {
             // Store the authentication info
-            this.authToken = response.token;
+            this.accessToken = response.token;
+            this.refreshToken = response.refreshToken;
             this.username = response.username || username;
-            this.isAdmin = response.isAdmin || false;
+            this.isAdmin = response.roles?.includes('admin') || false;
             this.stayLoggedIn = stayLoggedIn;
+
+            // Extract userId from token
+            const tokenPayload = this.parseJwtToken(response.token);
+            if (tokenPayload) {
+              this.userId = tokenPayload.sub;
+            }
 
             // Save to localStorage for persistence
             this.saveAuthToStorage({
-              token: response.token,
+              accessToken: response.token,
+              refreshToken: response.refreshToken,
               userId: this.userId,
               username: this.username,
               isAdmin: this.isAdmin,
@@ -517,16 +612,14 @@ class SocketManager {
     }
 
     // Clear authentication data
-    this.authToken = null;
+    this.accessToken = null;
+    this.refreshToken = null;
     this.username = 'Anonymous';
     this.isAdmin = false;
     this.stayLoggedIn = false;
 
     // Clear token refresh timer if exists
-    if (this.tokenRefreshTimer) {
-      clearTimeout(this.tokenRefreshTimer);
-      this.tokenRefreshTimer = null;
-    }
+    this.clearTokenRefreshTimer();
 
     // Clear from storage
     this.clearAuthFromStorage();
@@ -636,21 +729,23 @@ class SocketManager {
 
   // Check if user is authenticated with a token
   isAuthenticated(): boolean {
-    return !!this.authToken;
+    return !!this.accessToken && !this.isTokenExpired();
   }
 
   // Check if token is expired
   isTokenExpired(): boolean {
-    if (!this.authToken) return true;
+    if (!this.accessToken) return true;
 
     try {
-      const payload = JSON.parse(this.authToken.split('.')[1]);
-      const exp = payload.exp * 1000; // Convert to milliseconds
-      const isExpired = Date.now() > exp;
+      const payload = this.parseJwtToken(this.accessToken);
+      if (!payload) return true;
 
-      // If token is expired but we're set to stay logged in, try to refresh it
-      if (isExpired && this.stayLoggedIn) {
-        this.refreshToken().catch(() => {
+      const isExpired = Math.floor(Date.now() / 1000) >= payload.exp;
+
+      // If token is expired but we're set to stay logged in and have a refresh token,
+      // try to refresh it
+      if (isExpired && this.stayLoggedIn && this.refreshToken) {
+        this.refreshTokenAsync().catch(() => {
           // Token refresh failed, stay logged out
         });
       }
@@ -662,17 +757,18 @@ class SocketManager {
     }
   }
 
-  // Check if token will expire soon (within next 10 minutes)
+  // Check if token will expire soon (within next 5 minutes)
   willTokenExpireSoon(): boolean {
-    if (!this.authToken) return false;
+    if (!this.accessToken) return false;
 
     try {
-      const payload = JSON.parse(this.authToken.split('.')[1]);
-      const exp = payload.exp * 1000; // Convert to milliseconds
+      const payload = this.parseJwtToken(this.accessToken);
+      if (!payload) return false;
 
-      // Check if token expires within the next 10 minutes
-      const expiresInMinutes = (exp - Date.now()) / (1000 * 60);
-      return expiresInMinutes < 10 && expiresInMinutes > 0;
+      // Check if token expires within the next 5 minutes
+      const now = Math.floor(Date.now() / 1000);
+      const expiresInSeconds = payload.exp - now;
+      return expiresInSeconds > 0 && expiresInSeconds < 300; // 5 minutes in seconds
     } catch (error) {
       console.error('Error checking token expiry time:', error);
       return false;

@@ -1,65 +1,77 @@
 /**
- * Authentication Middleware
- * Extracts and verifies user authentication from incoming requests
+ * Authentication middleware for Express routes
  */
-import { Response, NextFunction } from 'express';
-import { verifyAuthToken } from '../authService';
-import { AuthenticatedRequest } from './authorization';
+import { Request, Response, NextFunction } from 'express';
+import { verifyAccessToken } from '../authService';
 
 /**
- * Express middleware to extract and verify authentication token.
- * Attaches the authenticated user to the request object if valid.
+ * Extended Request interface with user authentication data
+ */
+export interface AuthenticatedRequest extends Request {
+  user?: {
+    userId: string;
+    username: string;
+    roles: string[];
+    permissions: Array<{ resource: string; action: string }>;
+  };
+}
+
+/**
+ * Middleware to authenticate requests
  */
 export async function authenticateRequest(
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
   try {
-    // Check for auth token in header or query param
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ')
-      ? authHeader.substring(7)
-      : (req.query.token as string);
+    // Get token from cookies (preferred) or from Authorization header
+    const token =
+      req.cookies?.access_token ||
+      (req.headers.authorization?.startsWith('Bearer ')
+        ? req.headers.authorization.split(' ')[1]
+        : undefined);
 
+    // If no token, continue without authentication
     if (!token) {
-      // No token provided - continue as unauthenticated
       return next();
     }
 
-    // Verify the token
-    const user = await verifyAuthToken(token);
+    // Verify token and get user data
+    const userData = await verifyAccessToken(token);
 
-    if (user) {
-      // Attach verified user to request
-      req.user = user;
+    // If token is invalid, continue without authentication
+    if (!userData) {
+      return next();
     }
 
-    // Continue with request processing
+    // Add user data to request
+    (req as AuthenticatedRequest).user = userData;
+
     next();
   } catch (error) {
-    console.error('Authentication middleware error:', error);
-    // Continue as unauthenticated on error
+    console.error('Authentication error:', error);
     next();
   }
 }
 
 /**
- * Express middleware to require authentication.
- * Must be applied after the authenticateRequest middleware.
+ * Middleware to require authentication for routes
  */
 export function requireAuth(
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction,
 ): void {
-  if (!req.user) {
+  // Check if user exists in request (set by authenticateRequest)
+  if (!(req as AuthenticatedRequest).user) {
     res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Authentication required for this resource',
+      success: false,
+      error: 'Authentication required',
     });
     return;
   }
 
+  // User is authenticated, proceed
   next();
 }

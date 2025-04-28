@@ -154,7 +154,8 @@ router.get('/vessels/:userId', requireAuth, function (req, res) {
     })
     .then(dbVesselState => {
       if (!dbVesselState) {
-        return res.status(404).json({ error: 'Vessel state not found' });
+        res.status(404).json({ error: 'Vessel state not found' });
+        return;
       }
       // Convert DB vessel state to unified vessel state
       const vesselState = dbVesselStateToUnified(dbVesselState);
@@ -251,7 +252,8 @@ router.get('/environment', function (req, res) {
     })
     .then((environmentState: EnvironmentState | null) => {
       if (!environmentState) {
-        return res.status(404).json({ error: 'Environment state not found' });
+        res.status(404).json({ error: 'Environment state not found' });
+        return;
       }
 
       res.json({
@@ -330,7 +332,8 @@ router.get('/settings/:userId', requireAuth, function (req, res) {
     })
     .then((settings: UserSettings | null) => {
       if (!settings) {
-        return res.status(404).json({ error: 'Settings not found' });
+        res.status(404).json({ error: 'Settings not found' });
+        return;
       }
       res.json(settings);
     })
