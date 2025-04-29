@@ -8,12 +8,12 @@
  (type $6 (func (param i32 i32) (result i32)))
  (type $7 (func (param i32 f64 f64) (result i32)))
  (type $8 (func (param i32 i32 i32 i32)))
- (type $9 (func (param i32 i32) (result f64)))
- (type $10 (func (param f64) (result i32)))
- (type $11 (func (param f64 i64) (result i32)))
- (type $12 (func (param f64 f64 f64 f64 f64 f64 f64 f64) (result f64)))
- (type $13 (func (param f64 f64) (result f64)))
- (type $14 (func (param i32)))
+ (type $9 (func (param i32)))
+ (type $10 (func (param i32 i32) (result f64)))
+ (type $11 (func (param f64) (result i32)))
+ (type $12 (func (param f64 i64) (result i32)))
+ (type $13 (func (param f64 f64 f64 f64 f64 f64 f64 f64) (result f64)))
+ (type $14 (func (param f64 f64) (result f64)))
  (type $15 (func (param i32 i32 i32) (result i32)))
  (type $16 (func (param i32 i32 i32)))
  (type $17 (func (param i32 i32 i32 i32) (result i32)))
@@ -5189,12 +5189,27 @@
   local.get $this
   f64.load offset=256
  )
+ (func $assembly/index/VesselState#set:centerOfGravityX (param $this i32) (param $centerOfGravityX f64)
+  local.get $this
+  local.get $centerOfGravityX
+  f64.store offset=192
+ )
+ (func $assembly/index/VesselState#set:centerOfGravityY (param $this i32) (param $centerOfGravityY f64)
+  local.get $this
+  local.get $centerOfGravityY
+  f64.store offset=200
+ )
+ (func $assembly/index/VesselState#set:centerOfGravityZ (param $this i32) (param $centerOfGravityZ f64)
+  local.get $this
+  local.get $centerOfGravityZ
+  f64.store offset=208
+ )
  (func $assembly/index/VesselState#set:mass (param $this i32) (param $mass f64)
   local.get $this
   local.get $mass
   f64.store offset=112
  )
- (func $assembly/index/calculateCenterOfGravity (param $vessel i32) (result i32)
+ (func $assembly/index/calculateCenterOfGravity (param $vessel i32)
   (local $baseCGZ f64)
   (local $emptyMass f64)
   (local $fuelTankMaxMass f64)
@@ -5205,11 +5220,6 @@
   (local $ballastMass f64)
   (local $ballastCGZ f64)
   (local $totalMass f64)
-  (local $cgX f64)
-  (local $cgY f64)
-  (local $cgZ f64)
-  (local $14 i32)
-  (local $15 i32)
   local.get $vessel
   call $assembly/index/VesselState#get:draft
   f64.const 0.5
@@ -5261,6 +5271,7 @@
   local.get $ballastMass
   f64.add
   local.set $totalMass
+  local.get $vessel
   local.get $emptyMass
   f64.const 0
   f64.mul
@@ -5270,13 +5281,15 @@
   f64.add
   local.get $totalMass
   f64.div
-  local.set $cgX
+  call $assembly/index/VesselState#set:centerOfGravityX
+  local.get $vessel
   local.get $emptyMass
   f64.const 0
   f64.mul
   local.get $totalMass
   f64.div
-  local.set $cgY
+  call $assembly/index/VesselState#set:centerOfGravityY
+  local.get $vessel
   local.get $emptyMass
   local.get $baseCGZ
   f64.mul
@@ -5290,36 +5303,16 @@
   f64.add
   local.get $totalMass
   f64.div
-  local.set $cgZ
+  call $assembly/index/VesselState#set:centerOfGravityZ
   local.get $vessel
   local.get $totalMass
   call $assembly/index/VesselState#set:mass
-  i32.const 3
-  i32.const 3
-  i32.const 5
-  i32.const 0
-  call $~lib/rt/__newArray
-  local.set $14
-  local.get $14
-  i32.load offset=4
-  local.set $15
-  local.get $14
-  i32.const 0
-  local.get $cgX
-  call $~lib/array/Array<f64>#__set
-  local.get $14
-  i32.const 1
-  local.get $cgY
-  call $~lib/array/Array<f64>#__set
-  local.get $14
-  i32.const 2
-  local.get $cgZ
-  call $~lib/array/Array<f64>#__set
-  local.get $14
-  return
+ )
+ (func $assembly/index/VesselState#get:centerOfGravityZ (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=208
  )
  (func $assembly/index/calculateGM (param $vessel i32) (result f64)
-  (local $cg i32)
   (local $cgZ f64)
   (local $waterplaneArea f64)
   (local $Iyy_waterplane f64)
@@ -5328,10 +5321,8 @@
   (local $GM f64)
   local.get $vessel
   call $assembly/index/calculateCenterOfGravity
-  local.set $cg
-  local.get $cg
-  i32.const 2
-  call $~lib/array/Array<f64>#__get
+  local.get $vessel
+  call $assembly/index/VesselState#get:centerOfGravityZ
   local.set $cgZ
   local.get $vessel
   call $assembly/index/VesselState#get:length
@@ -6079,21 +6070,6 @@
   local.get $propellerDiameter
   f64.store offset=184
  )
- (func $assembly/index/VesselState#set:centerOfGravityX (param $this i32) (param $centerOfGravityX f64)
-  local.get $this
-  local.get $centerOfGravityX
-  f64.store offset=192
- )
- (func $assembly/index/VesselState#set:centerOfGravityY (param $this i32) (param $centerOfGravityY f64)
-  local.get $this
-  local.get $centerOfGravityY
-  f64.store offset=200
- )
- (func $assembly/index/VesselState#set:centerOfGravityZ (param $this i32) (param $centerOfGravityZ f64)
-  local.get $this
-  local.get $centerOfGravityZ
-  f64.store offset=208
- )
  (func $assembly/index/VesselState#calculateDisplacement (param $this i32) (result f64)
   local.get $this
   call $assembly/index/VesselState#get:length
@@ -6534,7 +6510,6 @@
  )
  (func $assembly/index/setBallast (param $vesselPtr i32) (param $level f64)
   (local $vessel i32)
-  (local $newCG i32)
   local.get $vesselPtr
   local.set $vessel
   local.get $vessel
@@ -6556,22 +6531,6 @@
   call $assembly/index/VesselState#set:ballastLevel
   local.get $vessel
   call $assembly/index/calculateCenterOfGravity
-  local.set $newCG
-  local.get $vessel
-  local.get $newCG
-  i32.const 0
-  call $~lib/array/Array<f64>#__get
-  call $assembly/index/VesselState#set:centerOfGravityX
-  local.get $vessel
-  local.get $newCG
-  i32.const 1
-  call $~lib/array/Array<f64>#__get
-  call $assembly/index/VesselState#set:centerOfGravityY
-  local.get $vessel
-  local.get $newCG
-  i32.const 2
-  call $~lib/array/Array<f64>#__get
-  call $assembly/index/VesselState#set:centerOfGravityZ
   local.get $vessel
   global.set $assembly/index/globalVessel
  )
