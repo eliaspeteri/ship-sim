@@ -14,48 +14,9 @@ const LoginPanel: React.FC<{ className?: string }> = ({ className = '' }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUsername, setCurrentUsername] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [_, setAccessToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [tokenExpiry, setTokenExpiry] = useState<number | null>(null);
-
-  // Load authentication state from localStorage on component mount
-  useEffect(() => {
-    const loadAuthState = () => {
-      try {
-        const storedAuth = localStorage.getItem('ship-sim-auth');
-        if (storedAuth) {
-          const auth = JSON.parse(storedAuth);
-          setIsAuthenticated(true);
-          setCurrentUsername(auth.username || 'Anonymous');
-          setIsAdmin(auth.isAdmin || false);
-          setStayLoggedIn(auth.stayLoggedIn || false);
-          setAccessToken(auth.accessToken || null);
-          setRefreshToken(auth.refreshToken || null);
-
-          // Extract expiry from token if available
-          if (auth.accessToken) {
-            const expiry = parseJwtExpiry(auth.accessToken);
-            setTokenExpiry(expiry);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load authentication state:', error);
-      }
-    };
-
-    loadAuthState();
-
-    // Set up auth change listener
-    const handleAuthChanged = () => {
-      loadAuthState();
-    };
-
-    window.addEventListener('auth-changed', handleAuthChanged);
-
-    return () => {
-      window.removeEventListener('auth-changed', handleAuthChanged);
-    };
-  }, []);
 
   // Check for session expiration
   useEffect(() => {
@@ -87,7 +48,6 @@ const LoginPanel: React.FC<{ className?: string }> = ({ className = '' }) => {
     // Handle session expired event
     const handleSessionExpired = () => {
       setError('Your session has expired. Please log in again.');
-      clearAuthFromStorage();
       setIsAuthenticated(false);
       setCurrentUsername('');
       setIsAdmin(false);
@@ -118,33 +78,6 @@ const LoginPanel: React.FC<{ className?: string }> = ({ className = '' }) => {
     } catch (error) {
       console.error('Error parsing JWT token:', error);
       return null;
-    }
-  };
-
-  // Save auth state to localStorage
-  const saveAuthToStorage = (authData: {
-    accessToken: string;
-    refreshToken: string;
-    userId?: string;
-    username: string;
-    isAdmin: boolean;
-    stayLoggedIn: boolean;
-  }): void => {
-    try {
-      localStorage.setItem('ship-sim-auth', JSON.stringify(authData));
-      window.dispatchEvent(new Event('auth-changed'));
-    } catch (error) {
-      console.error('Failed to save authentication to storage:', error);
-    }
-  };
-
-  // Clear auth from localStorage
-  const clearAuthFromStorage = (): void => {
-    try {
-      localStorage.removeItem('ship-sim-auth');
-      window.dispatchEvent(new Event('auth-changed'));
-    } catch (error) {
-      console.error('Failed to clear authentication from storage:', error);
     }
   };
 
@@ -184,15 +117,6 @@ const LoginPanel: React.FC<{ className?: string }> = ({ className = '' }) => {
           setTokenExpiry(expiry);
         }
 
-        // Save auth data to storage
-        saveAuthToStorage({
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-          username: data.username || username,
-          isAdmin: data.roles?.includes('admin') || false,
-          stayLoggedIn,
-        });
-
         // Clear form fields after successful auth
         setUsername('');
         setPassword('');
@@ -222,9 +146,6 @@ const LoginPanel: React.FC<{ className?: string }> = ({ className = '' }) => {
       setAccessToken(null);
       setRefreshToken(null);
       setTokenExpiry(null);
-
-      // Clear from storage
-      clearAuthFromStorage();
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -258,17 +179,6 @@ const LoginPanel: React.FC<{ className?: string }> = ({ className = '' }) => {
           setTokenExpiry(expiry);
         }
 
-        // Save updated tokens to storage
-        const storedAuth = localStorage.getItem('ship-sim-auth');
-        if (storedAuth) {
-          const auth = JSON.parse(storedAuth);
-          saveAuthToStorage({
-            ...auth,
-            accessToken: tokens.accessToken,
-            refreshToken: tokens.refreshToken,
-          });
-        }
-
         setSessionExpiring(false);
       } else {
         throw new Error(data.error || 'Session refresh failed');
@@ -286,18 +196,6 @@ const LoginPanel: React.FC<{ className?: string }> = ({ className = '' }) => {
   const handleStayLoggedInChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.checked;
     setStayLoggedIn(newValue);
-
-    // If authenticated, update the stored preference
-    if (isAuthenticated && accessToken && refreshToken) {
-      const storedAuth = localStorage.getItem('ship-sim-auth');
-      if (storedAuth) {
-        const auth = JSON.parse(storedAuth);
-        saveAuthToStorage({
-          ...auth,
-          stayLoggedIn: newValue,
-        });
-      }
-    }
   };
 
   if (isAuthenticated) {
