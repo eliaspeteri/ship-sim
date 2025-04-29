@@ -4,36 +4,7 @@ import { getSimulationLoop } from '../simulation/simulationLoop';
 import { VesselState, ShipType } from '../types/vessel.types';
 import { WasmModule } from '../types/wasm';
 import { EventLogEntry } from '../types/events.types';
-
-// Environment state interface with enhanced weather
-interface EnvironmentState {
-  // Weather conditions
-  wind: {
-    speed: number; // m/s
-    direction: number; // Radians
-    gusting: boolean;
-    gustFactor: number; // Multiplier for gusts
-  };
-
-  current: {
-    speed: number; // m/s
-    direction: number; // Radians
-    variability: number; // How much current varies 0-1
-  };
-
-  // Sea conditions
-  seaState: number; // Beaufort scale (0-12)
-  waterDepth: number; // Meters
-  waveHeight: number; // Meters
-  waveDirection: number; // Radians
-  waveLength: number; // Meters
-
-  // Visibility and time
-  visibility: number; // Nautical miles
-  timeOfDay: number; // 0-24 hours
-  precipitation: 'none' | 'rain' | 'snow' | 'fog';
-  precipitationIntensity: number; // 0-1
-}
+import { EnvironmentState } from '../types/environment.types';
 
 // Simulation control with enhanced features
 interface SimulationControl {

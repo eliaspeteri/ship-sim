@@ -13,7 +13,6 @@ import {
 import {
   authenticateUser,
   registerAdminUser,
-  UserAuth,
   refreshAuthToken,
   verifyAccessToken,
   invalidateRefreshToken, // Added: For logout
@@ -21,11 +20,10 @@ import {
 import { authenticateRequest } from './middleware/authentication'; // Added: For /auth/status
 import { socketHasPermission } from './middleware/authorization';
 import {
-  SimulationUpdateData,
-  VesselJoinedData,
-  VesselLeftData,
-  VesselUpdateData,
-  VesselControlData,
+  ClientToServerEvents,
+  InterServerEvents,
+  ServerToClientEvents,
+  SocketData,
 } from '../types/socket.types';
 
 // Environment settings
@@ -33,54 +31,6 @@ const PRODUCTION = process.env.NODE_ENV === 'production';
 const COOKIE_DOMAIN =
   process.env.COOKIE_DOMAIN || (PRODUCTION ? undefined : 'localhost'); // Use undefined for default domain in prod
 const SECURE_COOKIES = PRODUCTION; // Use secure cookies in production
-
-export interface EnvironmentState {
-  wind: {
-    speed: number;
-    direction: number;
-  };
-  current: {
-    speed: number;
-    direction: number;
-  };
-  seaState: number;
-}
-
-// Type definitions for Socket.IO
-type ServerToClientEvents = {
-  'simulation:update': (data: SimulationUpdateData) => void;
-  'vessel:joined': (data: VesselJoinedData) => void;
-  'vessel:left': (data: VesselLeftData) => void;
-  'environment:update': (data: EnvironmentState) => void;
-  'chat:message': (data: {
-    userId: string;
-    username: string;
-    message: string;
-  }) => void;
-  error: (error: string) => void;
-};
-
-type ClientToServerEvents = {
-  'vessel:update': (data: VesselUpdateData) => void;
-  'vessel:control': (data: VesselControlData) => void;
-  'simulation:state': (data: { isRunning: boolean }) => void;
-  'admin:weather': (data: {
-    pattern?: string;
-    coordinates?: { lat: number; lng: number };
-  }) => void;
-  'chat:message': (data: { message: string }) => void;
-};
-
-// Define Socket.IO interface
-interface InterServerEvents {
-  // Custom inter-server events would go here if needed
-  _placeholder?: boolean; // Placeholder to make TypeScript happy
-}
-
-interface SocketData extends UserAuth {
-  // Additional socket data properties would go here if needed
-  _socketSpecific?: boolean; // Placeholder to make TypeScript happy
-}
 
 // Application state
 const globalState = {
@@ -99,12 +49,16 @@ const globalState = {
     wind: {
       speed: 5,
       direction: 0,
+      gustFactor: 1.5,
+      gusting: false,
     },
     current: {
       speed: 0.5,
       direction: Math.PI / 4,
+      variability: 0,
     },
     seaState: 3,
+    timeOfDay: 12, // 12 PM
   },
 };
 

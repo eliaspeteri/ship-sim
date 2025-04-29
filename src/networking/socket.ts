@@ -7,36 +7,13 @@ import {
   VesselUpdateData,
   VesselControlData,
 } from '../types/vessel.types';
+import { EnvironmentState } from '../types/environment.types';
 
 // Define data interface types
 interface SimulationUpdateData {
   timestamp: number;
   vessels: Record<string, SimpleVesselState>;
-  environment: EnvironmentUpdateData;
-}
-
-interface EnvironmentUpdateData {
-  wind: {
-    speed: number;
-    direction: number;
-    gusting: boolean;
-    gustFactor: number;
-  };
-  current: {
-    speed: number;
-    direction: number;
-    variability: number;
-  };
-  seaState: number;
-  waterDepth?: number;
-  waveHeight?: number;
-  waveDirection?: number;
-  waveLength?: number;
-  visibility?: number;
-  timeOfDay?: number;
-  precipitation?: 'none' | 'rain' | 'snow' | 'fog';
-  precipitationIntensity?: number;
-  name?: string;
+  environment: EnvironmentState;
 }
 
 interface ChatMessageData {
@@ -126,7 +103,7 @@ class SocketManager {
       // Handle vessel leaving
     });
 
-    this.socket.on('environment:update', (data: EnvironmentUpdateData) => {
+    this.socket.on('environment:update', (data: EnvironmentState) => {
       this.handleEnvironmentUpdate(data);
     });
 
@@ -160,7 +137,7 @@ class SocketManager {
   }
 
   // Handle environment updates from server
-  private handleEnvironmentUpdate(data: EnvironmentUpdateData): void {
+  private handleEnvironmentUpdate(data: EnvironmentState): void {
     const store = useStore.getState();
     store.updateEnvironment(data);
   }
