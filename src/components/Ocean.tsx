@@ -41,14 +41,23 @@ function Ocean({
 
   // Get environment state from the store
   const environment = useStore(state => state.environment);
+  const wasmVesselPtr = useStore(state => state.wasmVesselPtr);
+  const wasmExports = useStore(state => state.wasmExports);
+  const vesselPosition = useStore(state => state.vessel.position);
 
-  // Calculate wave parameters based on environment
+  // Compute sea state from wind speed (always in sync with physics engine)
+  const computedSeaState = useMemo(
+    () => calculateBeaufortScale(environment.wind.speed),
+    [environment.wind.speed],
+  );
+
+  // Calculate wave parameters based on computed sea state
   const waveHeight = useMemo(() => {
     return Math.min(
       MAX_WAVE_HEIGHT,
-      Math.max(0.1, environment.seaState * WAVE_HEIGHT_FACTOR),
+      Math.max(0.1, computedSeaState * WAVE_HEIGHT_FACTOR),
     );
-  }, [environment.seaState]);
+  }, [computedSeaState]);
 
   const waveSpeed = useMemo(() => {
     return environment.wind.speed * WAVE_SPEED_FACTOR;
@@ -95,10 +104,10 @@ function Ocean({
     return new THREE.CubeCamera(0.1, 1000, cubeRenderTarget);
   }, [cubeRenderTarget]);
 
-  // Generate wave patterns based on wind and sea state
+  // Generate wave patterns based on wind and computed sea state
   const [primaryWave, secondaryWave, tertiaryWave] = useMemo(() => {
     // Calculate wave patterns based on wind direction and sea state
-    const freqFactor = WAVE_FREQUENCY_FACTOR[Math.min(9, environment.seaState)];
+    const freqFactor = WAVE_FREQUENCY_FACTOR[Math.min(9, computedSeaState)];
 
     // Primary wave follows wind direction
     const primaryWave = {
@@ -106,8 +115,8 @@ function Ocean({
         Math.sin((windDirection * Math.PI) / 180),
         Math.cos((windDirection * Math.PI) / 180),
       ),
-      wavelength: 20.0 * (1 + environment.seaState * 0.2), // Longer waves in higher sea states
-      steepness: Math.min(0.6, 0.2 + environment.seaState * 0.05),
+      wavelength: 20.0 * (1 + computedSeaState * 0.2), // Longer waves in higher sea states
+      steepness: Math.min(0.6, 0.2 + computedSeaState * 0.05),
       frequency: freqFactor,
     };
 
@@ -118,7 +127,7 @@ function Ocean({
         Math.cos(((windDirection + 45) * Math.PI) / 180),
       ),
       wavelength: 30.0,
-      steepness: Math.min(0.3, 0.1 + environment.seaState * 0.02),
+      steepness: Math.min(0.3, 0.1 + computedSeaState * 0.02),
       frequency: freqFactor * 1.3,
     };
 
@@ -134,7 +143,7 @@ function Ocean({
     };
 
     return [primaryWave, secondaryWave, tertiaryWave];
-  }, [windDirection, environment.seaState]);
+  }, [windDirection, computedSeaState]);
 
   // Water material options
   const waterOptions = useMemo(() => {
@@ -178,11 +187,11 @@ function Ocean({
       context.fillStyle = 'white';
 
       // Create noise pattern based on sea state
-      const noiseCount = 1000 * (1 + environment.seaState * 0.3);
+      const noiseCount = 1000 * (1 + computedSeaState * 0.3);
       for (let i = 0; i < noiseCount; i++) {
         const x = Math.random() * canvas.width;
         const y = Math.random() * canvas.height;
-        const radius = Math.random() * (1 + environment.seaState * 0.2);
+        const radius = Math.random() * (1 + computedSeaState * 0.2);
 
         context.beginPath();
         context.arc(x, y, radius, 0, 2 * Math.PI);
@@ -198,7 +207,7 @@ function Ocean({
     disposables.current.push(texture);
 
     return texture;
-  }, [environment.seaState]);
+  }, [computedSeaState]);
 
   // Update shader when wave parameters change
   useEffect(() => {
@@ -293,10 +302,10 @@ function Ocean({
         );
 
         // Enhanced fragment shader with foam based on sea state
-        const seaStateDependent = environment.seaState >= 4 ? 0.4 : 0.2;
+        const seaStateDependent = computedSeaState >= 4 ? 0.4 : 0.2;
 
         material.fragmentShader = `${beforeFragColor}
-        // Calculate wave foam based on sea state ${environment.seaState}
+        // Calculate wave foam based on sea state ${computedSeaState}
         float waveHeight = vUv.y;
         float foamSpeed = time * ${(0.05 * waveSpeed).toFixed(3)};
         
@@ -314,12 +323,12 @@ function Ocean({
         
         // Foam color and application
         vec3 foamColor = vec3(1.0, 1.0, 1.0);
-        float foamThreshold = ${WAVE_FOAM_THRESHOLD.toFixed(2)} - (${(environment.seaState * 0.03).toFixed(3)});
+        float foamThreshold = ${WAVE_FOAM_THRESHOLD.toFixed(2)} - (${(computedSeaState * 0.03).toFixed(3)});
         float foamMask = smoothstep(foamThreshold, 0.95, foamFactor);
         
         // Mix water color with foam based on sea state
         vec3 waterColor = mix(reflectionSample, refractionSample, reflectance);
-        vec3 finalColor = mix(waterColor, foamColor, foamMask * ${waveHeight.toFixed(3)} * ${(0.3 + environment.seaState * 0.1).toFixed(2)});
+        vec3 finalColor = mix(waterColor, foamColor, foamMask * ${waveHeight.toFixed(3)} * ${(0.3 + computedSeaState * 0.1).toFixed(2)});
         
         // Add depth coloration
         float depth = 1.0 - reflectance;
@@ -337,7 +346,7 @@ function Ocean({
     primaryWave,
     secondaryWave,
     tertiaryWave,
-    environment.seaState,
+    computedSeaState,
   ]);
 
   // Cleanup function to dispose of all resources
@@ -376,7 +385,7 @@ function Ocean({
   }, [cleanup]);
 
   // Update water animation and reflections
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (ref.current) {
       // Hide water for reflection camera to avoid recursion
       ref.current.visible = false;
@@ -393,7 +402,7 @@ function Ocean({
       if (material.uniforms) {
         if (material.uniforms.time) {
           // Speed up waves in rough seas
-          const timeScale = waveSpeed * (1 + environment.seaState * 0.1);
+          const timeScale = waveSpeed * (1 + computedSeaState * 0.1);
           material.uniforms.time.value += delta * timeScale;
         }
 
@@ -422,12 +431,54 @@ function Ocean({
         }
       }
     }
+
+    // WASM-driven wave sync
+    // Use captured values from top-level hooks, not hooks inside useFrame
+    if (wasmVesselPtr && wasmExports && vesselPosition) {
+      const x = vesselPosition.x;
+      const z = vesselPosition.z;
+      const time =
+        ref.current &&
+        ref.current.material &&
+        (ref.current.material as any)?.uniforms?.time?.value
+          ? (ref.current.material as any).uniforms.time.value
+          : 0;
+      if (
+        wasmExports.calculateWaveHeight &&
+        wasmExports.calculateWaveLength &&
+        wasmExports.calculateWaveFrequency &&
+        wasmExports.calculateWaveHeightAtPosition &&
+        wasmExports.setWaveData
+      ) {
+        const seaState = computedSeaState;
+        const waveHeightVal = wasmExports.calculateWaveHeight(seaState);
+        const waveLength = wasmExports.calculateWaveLength(seaState);
+        const waveFrequency = wasmExports.calculateWaveFrequency(seaState);
+        const windDir = environment.wind.direction;
+        const height = wasmExports.calculateWaveHeightAtPosition(
+          x,
+          z,
+          time,
+          waveHeightVal,
+          waveLength,
+          waveFrequency,
+          windDir,
+          seaState,
+        );
+        const k = (2.0 * Math.PI) / waveLength;
+        const dirX = Math.cos(windDir);
+        const dirY = Math.sin(windDir);
+        const dot = x * dirX + z * dirY;
+        const phase = k * dot - waveFrequency * time;
+        wasmExports.setWaveData(wasmVesselPtr, height, phase);
+      }
+    }
   });
 
   // Calculate foam visibility based on sea state
   const foamOpacity = useMemo(() => {
-    return Math.min(0.7, environment.seaState * 0.08);
-  }, [environment.seaState]);
+    return Math.min(0.7, computedSeaState * 0.08);
+  }, [computedSeaState]);
 
   // Create geometries with ref tracking for disposal
   const mainPlaneGeometry = useMemo(() => {
@@ -476,7 +527,7 @@ function Ocean({
     const material = new THREE.MeshStandardMaterial({
       color: '#e0f0ff',
       transparent: true,
-      opacity: Math.min(0.5, (environment.seaState - 4) * 0.1),
+      opacity: Math.min(0.5, (computedSeaState - 4) * 0.1),
       depthWrite: false,
       map: foamTexture,
     });
@@ -485,7 +536,7 @@ function Ocean({
     disposables.current.push(material);
 
     return material;
-  }, [foamTexture, environment.seaState]);
+  }, [foamTexture, computedSeaState]);
 
   // Create the Water object instance
   const waterMeshObject = useMemo(() => {
@@ -510,7 +561,7 @@ function Ocean({
       />
 
       {/* Foam layer - intensity based on sea state */}
-      {environment.seaState > 2 && (
+      {computedSeaState > 2 && (
         <mesh
           position={[0, -0.3, 0]}
           rotation={[-Math.PI / 2, 0, 0]}
@@ -520,7 +571,7 @@ function Ocean({
       )}
 
       {/* Wave caps for high sea states */}
-      {environment.seaState >= 5 && (
+      {computedSeaState >= 5 && (
         <mesh
           position={[0, 0, 0]}
           rotation={[-Math.PI / 2, 0, 0]}
@@ -530,6 +581,27 @@ function Ocean({
       )}
     </>
   );
+}
+
+/**
+ * Converts wind speed (m/s) to Beaufort scale (sea state) using the same logic as the physics engine.
+ * @param windSpeed - Wind speed in m/s
+ * @returns Beaufort scale (0-12)
+ */
+function calculateBeaufortScale(windSpeed: number): number {
+  if (windSpeed < 0.5) return 0;
+  if (windSpeed < 1.5) return 1;
+  if (windSpeed < 3.3) return 2;
+  if (windSpeed < 5.5) return 3;
+  if (windSpeed < 8.0) return 4;
+  if (windSpeed < 10.8) return 5;
+  if (windSpeed < 13.9) return 6;
+  if (windSpeed < 17.2) return 7;
+  if (windSpeed < 20.8) return 8;
+  if (windSpeed < 24.5) return 9;
+  if (windSpeed < 28.5) return 10;
+  if (windSpeed < 32.7) return 11;
+  return 12;
 }
 
 export default Ocean;

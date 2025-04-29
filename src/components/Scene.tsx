@@ -22,7 +22,6 @@ import Ship from './Ship';
 import useStore from '../store';
 import MemoryMonitor from './MemoryMonitor';
 import Precipitation from './Precipitation';
-import WaveSystem from './WaveSystem';
 
 // Define interfaces for Ocean component props
 interface OceanProps {
@@ -325,23 +324,14 @@ export default function Scene({ vesselPosition }: SceneProps) {
         {/* Ocean */}
         <Suspense fallback={null}>
           <OceanComponent {...oceanProps} />
-
-          {/* Add WaveSystem for enhanced 3D waves in high sea states */}
-          {environment.seaState > 4 && isTabVisible && !lowPerformanceMode && (
-            <WaveSystem
-              resolution={Math.min(256, 64 + environment.seaState * 16)}
-              size={4000}
-              position={[0, -0.2, 0]}
-              followTarget={[vesselPosition.x, 0, vesselPosition.y]}
-            />
-          )}
         </Suspense>
 
         {/* Precipitation */}
         {environment.precipitation !== 'none' &&
+          environment.precipitationIntensity &&
           environment.precipitationIntensity > 0 && (
             <Precipitation
-              type={environment.precipitation}
+              type={environment.precipitation ?? 'none'}
               intensity={environment.precipitationIntensity}
               position={[vesselPosition.x, 0, vesselPosition.y]}
               area={2000}
