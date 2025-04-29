@@ -280,6 +280,19 @@ app.post('/auth/refresh', (req, res, next) => {
 // POST /auth/login - Authenticate user and set cookies
 app.post('/auth/login', (req: Request, res: Response, next) => {
   (async () => {
+    console.info(
+      `Login attempt. ${JSON.stringify(
+        {
+          body: req.body,
+          cookies: req.cookies,
+          headers: req.headers,
+          method: req.method,
+          url: req.url,
+        },
+        null,
+        2,
+      )}`,
+    );
     try {
       const { username, password } = req.body;
 
