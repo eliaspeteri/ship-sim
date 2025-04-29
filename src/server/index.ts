@@ -536,31 +536,31 @@ io.on('connection', async socket => {
 
     if (data.pattern) {
       targetWeather = getWeatherPattern(data.pattern);
-      // Start weather transition from current to target with progress 0
       transitionWeather(
         globalState.environment as WeatherPattern,
         targetWeather,
         0,
       );
+      io.emit('environment:update', globalState.environment);
     } else if (data.coordinates) {
       targetWeather = getWeatherByCoordinates(
         data.coordinates.lat,
         data.coordinates.lng,
       );
-      // Start weather transition from current to target with progress 0
       transitionWeather(
         globalState.environment as WeatherPattern,
         targetWeather,
         0,
       );
+      io.emit('environment:update', globalState.environment);
     } else {
-      // Default to enabling random weather if no specific pattern/coords
       if (weatherTransitionInterval) {
         clearInterval(weatherTransitionInterval);
         weatherTransitionInterval = null;
       }
       targetWeather = null;
       console.info('Random weather enabled.');
+      io.emit('environment:update', globalState.environment);
     }
   });
 
