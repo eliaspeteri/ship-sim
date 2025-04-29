@@ -20,7 +20,13 @@ import {
 } from './authService';
 import { authenticateRequest } from './middleware/authentication'; // Added: For /auth/status
 import { socketHasPermission } from './middleware/authorization';
-import { SimpleVesselState } from '../types/vessel.types';
+import {
+  SimulationUpdateData,
+  VesselJoinedData,
+  VesselLeftData,
+  VesselUpdateData,
+  VesselControlData,
+} from '../types/socket.types';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
@@ -28,37 +34,7 @@ const COOKIE_DOMAIN =
   process.env.COOKIE_DOMAIN || (PRODUCTION ? undefined : 'localhost'); // Use undefined for default domain in prod
 const SECURE_COOKIES = PRODUCTION; // Use secure cookies in production
 
-// Type definitions for Socket.IO communication
-interface SimulationUpdateData {
-  vessels: Record<string, SimpleVesselState>;
-  environment?: EnvironmentState;
-  partial?: boolean;
-  timestamp?: number;
-}
-
-interface VesselJoinedData {
-  userId: string;
-  username: string;
-  position: { x: number; y: number; z: number };
-  orientation: { heading: number; roll: number; pitch: number };
-}
-
-interface VesselLeftData {
-  userId: string;
-}
-
-interface VesselUpdateData {
-  position?: { x: number; y: number; z: number };
-  orientation?: { heading: number; roll: number; pitch: number };
-  velocity?: { surge: number; sway: number; heave: number };
-}
-
-interface VesselControlData {
-  throttle?: number;
-  rudderAngle?: number;
-}
-
-interface EnvironmentState {
+export interface EnvironmentState {
   wind: {
     speed: number;
     direction: number;
