@@ -58,3 +58,10 @@ export interface SocketData extends UserAuth {
   // Additional socket data properties would go here if needed
   _socketSpecific?: boolean; // Placeholder to make TypeScript happy
 }
+
+export interface ChatMessageData {
+  userId: string;
+  username: string;
+  message: string;
+  timestamp: number;
+}

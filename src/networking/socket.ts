@@ -8,19 +8,7 @@ import {
   VesselControlData,
 } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
-
-// Define data interface types
-interface SimulationUpdateData {
-  timestamp: number;
-  vessels: Record<string, SimpleVesselState>;
-  environment: EnvironmentState;
-}
-
-interface ChatMessageData {
-  userId: string;
-  username: string;
-  message: string;
-}
+import { ChatMessageData, SimulationUpdateData } from '../types/socket.types';
 
 // Socket.IO Client Manager
 class SocketManager {

@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { authenticateRequest, requireAuth } from './middleware/authentication';
 import { requirePermission, requireRole } from './middleware/authorization';
 import { VesselState, ShipType } from '../types/vessel.types';
+import { EnvironmentState } from '../types/environment.types';
 
 // First, define proper types for the database models
 interface DBVesselState {
@@ -97,17 +98,6 @@ function dbVesselStateToUnified(dbState: DBVesselState): VesselState {
       otherAlarms: {},
     },
   };
-}
-
-interface EnvironmentState {
-  id: number;
-  windSpeed: number;
-  windDirection: number;
-  currentSpeed: number;
-  currentDirection: number;
-  seaState: number;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 interface UserSettings {
@@ -245,29 +235,52 @@ router.delete(
 );
 
 // GET /api/environment
+/**
+ * Returns the current environment state in API format.
+ */
 router.get('/environment', function (req, res) {
   prisma.environmentState
     .findUnique({
       where: { id: 1 },
     })
-    .then((environmentState: EnvironmentState | null) => {
-      if (!environmentState) {
-        res.status(404).json({ error: 'Environment state not found' });
-        return;
-      }
+    .then(
+      (
+        dbEnvironmentState: {
+          id: number;
+          createdAt: Date;
+          updatedAt: Date;
+          windSpeed: number;
+          windDirection: number;
+          currentSpeed: number;
+          currentDirection: number;
+          seaState: number;
+        } | null,
+      ) => {
+        if (!dbEnvironmentState) {
+          res.status(404).json({ error: 'Environment state not found' });
+          return;
+        }
 
-      res.json({
-        wind: {
-          speed: environmentState.windSpeed,
-          direction: environmentState.windDirection,
-        },
-        current: {
-          speed: environmentState.currentSpeed,
-          direction: environmentState.currentDirection,
-        },
-        seaState: environmentState.seaState,
-      });
-    })
+        // Map DB fields to API EnvironmentState
+        const apiEnvironmentState: EnvironmentState = {
+          wind: {
+            speed: dbEnvironmentState.windSpeed,
+            direction: dbEnvironmentState.windDirection,
+            gusting: false,
+            gustFactor: 1,
+          },
+          current: {
+            speed: dbEnvironmentState.currentSpeed,
+            direction: dbEnvironmentState.currentDirection,
+            variability: 0,
+          },
+          seaState: dbEnvironmentState.seaState,
+          timeOfDay: 12,
+        };
+
+        res.json(apiEnvironmentState);
+      },
+    )
     .catch((error: unknown) => {
       console.error('Error fetching environment state:', error);
       res.status(500).json({ error: 'Failed to fetch environment state' });
@@ -302,18 +315,28 @@ router.post(
           seaState: seaState || 3,
         },
       })
-      .then((environmentState: EnvironmentState) => {
-        res.json({
+      .then(environmentState => {
+        if (!environmentState) {
+          res.status(404).json({ error: 'Environment state not found' });
+          return;
+        }
+        // Map DB fields to API EnvironmentState
+        const apiEnvironmentState: EnvironmentState = {
           wind: {
             speed: environmentState.windSpeed,
             direction: environmentState.windDirection,
+            gusting: false,
+            gustFactor: 1,
           },
           current: {
             speed: environmentState.currentSpeed,
             direction: environmentState.currentDirection,
+            variability: 0,
           },
           seaState: environmentState.seaState,
-        });
+          timeOfDay: 12,
+        };
+        res.json(apiEnvironmentState);
       })
       .catch((error: unknown) => {
         console.error('Error updating environment state:', error);

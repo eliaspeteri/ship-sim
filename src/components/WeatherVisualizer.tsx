@@ -2,23 +2,10 @@ import React, { useEffect, useState } from 'react';
 import useStore from '../store';
 import { WasmBridge } from '../lib/wasmBridge';
 import { loadWasm } from '../lib/wasmLoader';
+import { EnvironmentState } from '../types/environment.types';
 
 interface WeatherVisualizerProps {
   className?: string;
-}
-
-interface WeatherState {
-  wind: {
-    speed: number;
-    direction: number;
-    gustFactor: number;
-    gusting: boolean;
-  };
-  current: {
-    speed: number;
-    direction: number;
-  };
-  seaState: number;
 }
 
 /**
@@ -54,7 +41,7 @@ export function WeatherVisualizer({ className = '' }: WeatherVisualizerProps) {
   }, []);
 
   // Default values for initial render
-  const defaultWeather: WeatherState = {
+  const defaultWeather: EnvironmentState = {
     wind: {
       speed: 5,
       direction: 0,
@@ -64,8 +51,10 @@ export function WeatherVisualizer({ className = '' }: WeatherVisualizerProps) {
     current: {
       speed: 0.5,
       direction: Math.PI / 4,
+      variability: 0.1,
     },
     seaState: 3,
+    timeOfDay: 0,
   };
 
   // Use environment state or fallback to default
