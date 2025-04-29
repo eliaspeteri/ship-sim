@@ -5,6 +5,7 @@ import Scene from '../components/Scene';
 import Dashboard from '../components/Dashboard';
 import EnvironmentControls from '../components/EnvironmentControls';
 import useStore from '../store';
+import socketManager from '../networking/socket';
 
 /**
  * Simulation page for Ship Simulator.
@@ -21,7 +22,14 @@ const SimPage: React.FC = () => {
     if (status === 'loading') return;
     if (!session) {
       router.replace('/login');
+      return;
     }
+    // Connect to websocket server when entering sim page
+    socketManager.connect();
+    return () => {
+      // Disconnect when leaving sim page
+      socketManager.disconnect();
+    };
   }, [session, status, router]);
 
   if (status === 'loading' || !session) {
