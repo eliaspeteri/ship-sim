@@ -1,36 +1,33 @@
 import express, { Request, Response } from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
-import { PrismaClient } from '@prisma/client';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import apiRoutes from './api';
 import {
-  generateRandomWeather,
   getWeatherPattern,
   transitionWeather,
   getWeatherByCoordinates,
   WeatherPattern,
 } from './weatherSystem';
 import {
-  verifySocketAuth,
   authenticateUser,
   registerAdminUser,
   UserAuth,
   refreshAuthToken,
   verifyAccessToken,
-  verifyRefreshToken,
+  invalidateRefreshToken, // Added: For logout
 } from './authService';
+import { authenticateRequest } from './middleware/authentication'; // Added: For /auth/status
 import { socketHasPermission } from './middleware/authorization';
 import { SimpleVesselState } from '../types/vessel.types';
-
-// Initialize Prisma client
-const prisma = new PrismaClient();
+import { startSimulation } from '../simulation';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
-const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || 'localhost';
-const SECURE_COOKIES = PRODUCTION;
+const COOKIE_DOMAIN =
+  process.env.COOKIE_DOMAIN || (PRODUCTION ? undefined : 'localhost'); // Use undefined for default domain in prod
+const SECURE_COOKIES = PRODUCTION; // Use secure cookies in production
 
 // Type definitions for Socket.IO communication
 interface SimulationUpdateData {
@@ -97,40 +94,6 @@ type ClientToServerEvents = {
     coordinates?: { lat: number; lng: number };
   }) => void;
   'chat:message': (data: { message: string }) => void;
-  'auth:login': (
-    data: { username: string; password: string },
-    callback: (response: {
-      success: boolean;
-      token?: string;
-      refreshToken?: string;
-      username?: string;
-      roles?: string[];
-      error?: string;
-    }) => void,
-  ) => void;
-  'auth:register': (
-    data: { username: string; password: string },
-    callback: (response: {
-      success: boolean;
-      token?: string;
-      refreshToken?: string;
-      username?: string;
-      roles?: string[];
-      error?: string;
-    }) => void,
-  ) => void;
-  'auth:refresh': (
-    data: { refreshToken: string },
-    callback: (response: {
-      success: boolean;
-      token?: string;
-      refreshToken?: string;
-      username?: string;
-      roles?: string[];
-      error?: string;
-    }) => void,
-  ) => void;
-  'auth:logout': () => void;
 };
 
 // Define Socket.IO interface
@@ -170,9 +133,6 @@ const globalState = {
   },
 };
 
-// Weather system state
-let weatherUpdateInterval: NodeJS.Timeout | null = null;
-let randomWeatherEnabled = false;
 let weatherTransitionInterval: NodeJS.Timeout | null = null;
 let targetWeather: WeatherPattern | null = null;
 
@@ -183,102 +143,143 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(
   cors({
-    origin: PRODUCTION ? process.env.FRONTEND_URL || true : true,
-    credentials: true, // Enable cookies with CORS
+    origin: PRODUCTION ? process.env.FRONTEND_URL || true : true, // Allow specific origin in prod
+    credentials: true, // Crucial for cookies
   }),
 );
 app.use(express.json());
-app.use(cookieParser()); // Add cookie parser middleware
+app.use(cookieParser()); // Crucial for reading cookies
 
 // Auth cookie options
 const accessTokenCookieOptions = {
-  httpOnly: true,
-  secure: SECURE_COOKIES,
-  sameSite: PRODUCTION ? 'strict' : 'lax',
-  domain: COOKIE_DOMAIN,
-  maxAge: 3600 * 1000, // 1 hour in milliseconds
-  path: '/',
+  httpOnly: true, // Prevent client-side JS access
+  secure: SECURE_COOKIES, // Send only over HTTPS in production
+  sameSite: PRODUCTION ? 'strict' : 'lax', // CSRF protection
+  domain: COOKIE_DOMAIN, // Set domain appropriately
+  maxAge: 15 * 60 * 1000, // 15 minutes in milliseconds
+  path: '/', // Accessible for all API routes
 } as const;
 
 const refreshTokenCookieOptions = {
   ...accessTokenCookieOptions,
-  maxAge: 30 * 24 * 3600 * 1000, // 30 days in milliseconds
-  path: '/auth/refresh',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+  path: '/auth/refresh', // Only send for the refresh endpoint
 } as const;
 
-// Routes
-app.use('/api', apiRoutes);
+// --- Authentication Routes ---
 
-// Auth refresh endpoint
-app.post('/auth/refresh', (req: Request, res: Response) => {
+// GET /auth/status - Check authentication status via access token cookie
+app.get('/auth/status', authenticateRequest, (req: Request, res: Response) => {
+  // authenticateRequest middleware attaches user data if token is valid
+  if (req.user) {
+    res.json({
+      success: true,
+      username: req.user.username,
+      roles: req.user.roles,
+      // Optionally send expiry if needed by client for UI hints
+      // expiresIn: req.user.exp * 1000 // Convert seconds to milliseconds
+    });
+  } else {
+    res.json({ success: false });
+  }
+});
+
+// POST /auth/refresh - Refresh access token using refresh token cookie
+app.post('/auth/refresh', (req, res, next) => {
   (async () => {
+    const currentRefreshToken = req.cookies['refresh_token'];
+
+    if (!currentRefreshToken) {
+      console.warn('Refresh attempt without refresh token cookie.');
+      return res
+        .status(401)
+        .json({ success: false, error: 'No refresh token provided' });
+    }
+
     try {
-      const refreshToken = req.cookies['refresh_token'];
-
-      if (!refreshToken) {
-        return res
-          .status(401)
-          .json({ success: false, error: 'No refresh token provided' });
-      }
-
-      // Verify the refresh token
-      const tokenPayload = await verifyRefreshToken(refreshToken);
-
-      if (!tokenPayload) {
-        // Clear the cookies if token is invalid
-        res.clearCookie('access_token', accessTokenCookieOptions);
-        res.clearCookie('refresh_token', refreshTokenCookieOptions);
-        return res
-          .status(401)
-          .json({ success: false, error: 'Invalid refresh token' });
-      }
-
-      // Generate new tokens
-      const newTokens = await refreshAuthToken(refreshToken);
+      // Verify the refresh token AND get new tokens
+      const newTokens = await refreshAuthToken(currentRefreshToken);
 
       if (!newTokens) {
-        // Clear the cookies
-        res.clearCookie('access_token', accessTokenCookieOptions);
-        res.clearCookie('refresh_token', refreshTokenCookieOptions);
+        console.warn('Refresh attempt with invalid/expired refresh token.');
+        // Clear potentially invalid cookies if refresh fails
+        res.clearCookie('access_token', {
+          ...accessTokenCookieOptions,
+          path: '/',
+        });
+        res.clearCookie('refresh_token', {
+          ...refreshTokenCookieOptions,
+          path: '/auth/refresh',
+        });
         return res
           .status(403)
-          .json({ success: false, error: 'Failed to refresh tokens' });
+          .json({ success: false, error: 'Invalid or expired refresh token' });
       }
 
-      // Set the new tokens as cookies
+      // Verify the *new* access token to get user data (needed for response)
+      const tokenPayload = await verifyAccessToken(newTokens.accessToken);
+      if (!tokenPayload) {
+        // This case should ideally not happen if refreshAuthToken is correct
+        console.error(
+          'Failed to verify newly issued access token during refresh.',
+        );
+        res.clearCookie('access_token', {
+          ...accessTokenCookieOptions,
+          path: '/',
+        });
+        res.clearCookie('refresh_token', {
+          ...refreshTokenCookieOptions,
+          path: '/auth/refresh',
+        });
+        return res.status(500).json({
+          success: false,
+          error: 'Token verification failed after refresh',
+        });
+      }
+
+      // Set the new tokens as HttpOnly cookies
       res.cookie(
         'access_token',
         newTokens.accessToken,
         accessTokenCookieOptions,
       );
+      // Note: Refresh token might be rotated, so we set it again
       res.cookie(
         'refresh_token',
         newTokens.refreshToken,
         refreshTokenCookieOptions,
       );
 
-      // Return only necessary info to client
+      console.info(`Token refreshed for user: ${tokenPayload.username}`);
+      // Return success and user info (NO TOKENS in body)
       return res.json({
         success: true,
         username: tokenPayload.username,
         roles: tokenPayload.roles,
-        // Also send tokens in response body for Socket.IO connections
-        tokens: {
-          accessToken: newTokens.accessToken,
-          refreshToken: newTokens.refreshToken,
-        },
+        // Optionally send new expiry
+        // expiresIn: tokenPayload.exp * 1000
       });
     } catch (error) {
-      console.error('Error refreshing tokens:', error);
-      return res
-        .status(500)
-        .json({ success: false, error: 'Token refresh failed' });
+      console.error('Error during token refresh:', error);
+      // Clear potentially invalid cookies on error
+      res.clearCookie('access_token', {
+        ...accessTokenCookieOptions,
+        path: '/',
+      });
+      res.clearCookie('refresh_token', {
+        ...refreshTokenCookieOptions,
+        path: '/auth/refresh',
+      });
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error during token refresh',
+      });
     }
-  })();
+  })().catch(next);
 });
 
-// Login endpoint
-app.post('/auth/login', (req: Request, res: Response) => {
+// POST /auth/login - Authenticate user and set cookies
+app.post('/auth/login', (req: Request, res: Response, next) => {
   (async () => {
     try {
       const { username, password } = req.body;
@@ -290,7 +291,7 @@ app.post('/auth/login', (req: Request, res: Response) => {
         });
       }
 
-      // Authenticate user
+      // Authenticate user (gets user data and tokens)
       const authResult = await authenticateUser(username, password);
 
       if (!authResult || !authResult.token || !authResult.refreshToken) {
@@ -299,7 +300,7 @@ app.post('/auth/login', (req: Request, res: Response) => {
           .json({ success: false, error: 'Invalid credentials' });
       }
 
-      // Set cookies
+      // Set HttpOnly cookies
       res.cookie('access_token', authResult.token, accessTokenCookieOptions);
       res.cookie(
         'refresh_token',
@@ -307,26 +308,24 @@ app.post('/auth/login', (req: Request, res: Response) => {
         refreshTokenCookieOptions,
       );
 
-      // Return success with user info
+      console.info(`User logged in: ${authResult.username}`);
+      // Return success and user info (NO TOKENS in body)
       return res.json({
         success: true,
         username: authResult.username,
         roles: authResult.roles,
-        // Also send tokens in response body for Socket.IO connections
-        tokens: {
-          accessToken: authResult.token,
-          refreshToken: authResult.refreshToken,
-        },
+        // Optionally send expiry
+        // expiresIn: authResult.expiresIn // Assuming authService provides this
       });
     } catch (error) {
       console.error('Login error:', error);
       return res.status(500).json({ success: false, error: 'Login failed' });
     }
-  })();
+  })().catch(next);
 });
 
-// Register endpoint
-app.post('/auth/register', (req: Request, res: Response) => {
+// POST /auth/register - Register user and set cookies
+app.post('/auth/register', (req: Request, res: Response, next) => {
   (async () => {
     try {
       const { username, password } = req.body;
@@ -338,16 +337,17 @@ app.post('/auth/register', (req: Request, res: Response) => {
         });
       }
 
-      // Register new user
+      // Register new user (gets user data and tokens)
       const authResult = await registerAdminUser(username, password);
 
       if (!authResult || !authResult.token || !authResult.refreshToken) {
-        return res
-          .status(400)
-          .json({ success: false, error: 'Registration failed' });
+        return res.status(400).json({
+          success: false,
+          error: 'Registration failed (username might be taken)',
+        });
       }
 
-      // Set cookies
+      // Set HttpOnly cookies
       res.cookie('access_token', authResult.token, accessTokenCookieOptions);
       res.cookie(
         'refresh_token',
@@ -355,16 +355,14 @@ app.post('/auth/register', (req: Request, res: Response) => {
         refreshTokenCookieOptions,
       );
 
-      // Return success with user info
+      console.info(`User registered: ${authResult.username}`);
+      // Return success and user info (NO TOKENS in body)
       return res.json({
         success: true,
         username: authResult.username,
         roles: authResult.roles,
-        // Also send tokens in response body for Socket.IO connections
-        tokens: {
-          accessToken: authResult.token,
-          refreshToken: authResult.refreshToken,
-        },
+        // Optionally send expiry
+        // expiresIn: authResult.expiresIn
       });
     } catch (error) {
       console.error('Registration error:', error);
@@ -372,17 +370,37 @@ app.post('/auth/register', (req: Request, res: Response) => {
         .status(500)
         .json({ success: false, error: 'Registration failed' });
     }
-  })();
+  })().catch(next);
 });
 
-// Logout endpoint
-app.post('/auth/logout', (_req: Request, res: Response) => {
-  // Clear auth cookies
-  res.clearCookie('access_token', accessTokenCookieOptions);
-  res.clearCookie('refresh_token', refreshTokenCookieOptions);
+// POST /auth/logout - Clear cookies and invalidate refresh token
+app.post('/auth/logout', async (req: Request, res: Response) => {
+  const currentRefreshToken = req.cookies['refresh_token'];
 
+  // Attempt to invalidate the refresh token on the server-side
+  if (currentRefreshToken) {
+    try {
+      await invalidateRefreshToken(currentRefreshToken);
+      console.info('Refresh token invalidated on logout.');
+    } catch (error) {
+      console.error('Error invalidating refresh token during logout:', error);
+      // Proceed with clearing cookies even if invalidation fails
+    }
+  }
+
+  // Clear auth cookies - ensure options match how they were set
+  res.clearCookie('access_token', { ...accessTokenCookieOptions, path: '/' });
+  res.clearCookie('refresh_token', {
+    ...refreshTokenCookieOptions,
+    path: '/auth/refresh',
+  });
+
+  console.info('User logged out.');
   res.json({ success: true, message: 'Logged out successfully' });
 });
+
+// --- API Routes ---
+app.use('/api', apiRoutes); // These routes should use authenticateRequest middleware internally or apply it
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -392,551 +410,217 @@ const io = new Server<
   ClientToServerEvents,
   ServerToClientEvents,
   InterServerEvents,
-  SocketData
+  SocketData // SocketData might need adjustment if not storing auth info
 >(server, {
   cors: {
     origin: PRODUCTION ? process.env.FRONTEND_URL || true : true,
-    credentials: true,
+    credentials: true, // Allow cookies for socket connection if needed (less common now)
   },
+  // Consider cookie parsing for sockets if needed, requires extra setup
+  // cookie: {
+  //   name: "io",
+  //   httpOnly: true,
+  //   sameSite: "strict"
+  // }
 });
 
 // Handle Socket.IO connections
 io.on('connection', async socket => {
-  try {
-    // Authenticate socket connection
-    const authData = socket.handshake.auth;
-    const userData = await verifySocketAuth(authData);
+  // No direct authentication via socket handshake token anymore.
+  // We associate the socket with a user based on their authenticated HTTP session
+  // which is implicitly handled by the browser sending cookies with subsequent requests.
+  // If specific socket events need auth, they might need to re-verify via a REST call
+  // or a dedicated 'authenticate_socket' event after connection.
+  // For now, we'll assign a temporary ID and guest role.
+  // User info will be primarily managed via HTTP state.
 
-    if (!userData) {
-      console.info('Socket authentication failed. No user data found.');
+  const tempUserId = `guest_${Math.random().toString(36).substring(2, 9)}`;
+  const tempUsername = 'Guest';
+  socket.data = {
+    userId: tempUserId,
+    username: tempUsername,
+    roles: ['guest'],
+    permissions: [
+      /* default guest permissions */
+    ],
+  };
 
-      socket.disconnect();
-      return;
-    }
+  console.info(`Socket connected: ${tempUsername} (${tempUserId})`);
 
-    console.info(
-      `Socket authenticated: ${userData.username} (${userData.userId})`,
-    );
+  // Add vessel to global state if it doesn't exist (using tempUserId)
+  if (!globalState.vessels[tempUserId]) {
+    // Guests get a default state, not loaded from DB
+    globalState.vessels[tempUserId] = {
+      id: tempUserId,
+      position: { x: 0, y: 0, z: 0 },
+      orientation: { heading: 0, roll: 0, pitch: 0 },
+      velocity: { surge: 0, sway: 0, heave: 0 },
+      throttle: 0,
+      rudderAngle: 0,
+    };
+  }
 
-    // Store user data in socket
-    const { userId, username, roles, permissions } = userData;
-    socket.data = { userId, username, roles, permissions };
+  // Notify other clients of new vessel (Guest)
+  socket.broadcast.emit('vessel:joined', {
+    userId: tempUserId,
+    username: tempUsername,
+    position: globalState.vessels[tempUserId].position,
+    orientation: globalState.vessels[tempUserId].orientation,
+  });
 
-    console.info(
-      `User connected: ${username} (${userId}) with roles: ${roles.join(', ')}`,
-    );
+  // Send initial state to new client
+  socket.emit('simulation:update', {
+    vessels: globalState.vessels, // Send all vessels, including the new guest
+    environment: globalState.environment,
+  });
 
-    // Add vessel to global state if it doesn't exist
-    if (!globalState.vessels[userId]) {
-      // Try to load vessel state from database
-      try {
-        const savedState = await prisma.vesselState.findUnique({
-          where: { userId },
-        });
+  // Handle vessel:update events
+  socket.on('vessel:update', data => {
+    // Re-evaluate permission check: Does a guest update their own state?
+    // Or does this require an authenticated user context?
+    // For now, assume guest can update their temporary vessel state.
+    const currentUserId = socket.data.userId; // Use the ID from socket data
+    if (!currentUserId) return; // Should not happen
 
-        if (savedState) {
-          // Restore vessel state from database
-          globalState.vessels[userId] = {
-            id: userId, // Add id field to satisfy SimpleVesselState interface
-            position: {
-              x: savedState.positionX,
-              y: savedState.positionY,
-              z: savedState.positionZ,
-            },
-            orientation: {
-              heading: savedState.heading,
-              roll: savedState.roll,
-              pitch: savedState.pitch,
-            },
-            velocity: {
-              surge: savedState.velocityX,
-              sway: savedState.velocityY,
-              heave: savedState.velocityZ,
-            },
-            throttle: savedState.throttle,
-            rudderAngle: savedState.rudderAngle,
-          };
-        } else {
-          // Create new vessel state
-          globalState.vessels[userId] = {
-            id: userId,
-            position: { x: 0, y: 0, z: 0 },
-            orientation: { heading: 0, roll: 0, pitch: 0 },
-            velocity: { surge: 0, sway: 0, heave: 0 },
-            throttle: 0,
-            rudderAngle: 0,
-          };
-        }
-      } catch (error) {
-        console.error(`Error loading vessel state for ${userId}:`, error);
-        // Create default vessel state
-        globalState.vessels[userId] = {
-          id: userId,
-          position: { x: 0, y: 0, z: 0 },
-          orientation: { heading: 0, roll: 0, pitch: 0 },
-          velocity: { surge: 0, sway: 0, heave: 0 },
-          throttle: 0,
-          rudderAngle: 0,
-        };
-      }
-    }
-
-    // Notify other clients of new vessel
-    socket.broadcast.emit('vessel:joined', {
-      userId,
-      username,
-      position: globalState.vessels[userId].position,
-      orientation: globalState.vessels[userId].orientation,
-    });
-
-    // Send initial state to new client
-    socket.emit('simulation:update', {
-      vessels: globalState.vessels,
-      environment: globalState.environment,
-    });
-
-    // Handle vessel:update events
-    socket.on('vessel:update', data => {
-      if (!socketHasPermission(socket, 'vessel', 'update')) {
-        socket.emit('error', 'Not authorized to update vessel state');
-        return;
-      }
-
-      // Update global state
-      if (globalState.vessels[userId]) {
-        if (data.position) globalState.vessels[userId].position = data.position;
-        if (data.orientation)
-          globalState.vessels[userId].orientation = data.orientation;
-        if (data.velocity) globalState.vessels[userId].velocity = data.velocity;
-      }
+    // Update global state for this socket's user ID
+    if (globalState.vessels[currentUserId]) {
+      if (data.position)
+        globalState.vessels[currentUserId].position = data.position;
+      if (data.orientation)
+        globalState.vessels[currentUserId].orientation = data.orientation;
+      if (data.velocity)
+        globalState.vessels[currentUserId].velocity = data.velocity;
 
       // Broadcast update to other clients (except sender)
       socket.broadcast.emit('simulation:update', {
-        vessels: { [userId]: globalState.vessels[userId] },
+        vessels: { [currentUserId]: globalState.vessels[currentUserId] },
         partial: true,
       });
+    }
+  });
+
+  // Handle vessel:control events
+  socket.on('vessel:control', data => {
+    // Similar permission consideration as vessel:update
+    const currentUserId = socket.data.userId;
+    if (!currentUserId) return;
+
+    // Update vessel control state
+    if (globalState.vessels[currentUserId]) {
+      if (data.throttle !== undefined)
+        globalState.vessels[currentUserId].throttle = data.throttle;
+      if (data.rudderAngle !== undefined)
+        globalState.vessels[currentUserId].rudderAngle = data.rudderAngle;
+
+      // Log control update
+      console.info(
+        `Control update from ${socket.data.username} (${currentUserId}):`,
+        data,
+      );
+      // Broadcast if needed in multi-user scenario
+    }
+  });
+
+  // Handle simulation state changes
+  socket.on('simulation:state', data => {
+    // This likely requires admin privileges. The check needs context.
+    // A simple check on socket.data.roles might be insufficient if roles
+    // aren't updated after HTTP login. Consider fetching user roles via API if needed.
+    if (!socketHasPermission(socket, 'simulation', 'control')) {
+      // Check might need adjustment
+      socket.emit('error', 'Not authorized to control simulation');
+      return;
+    }
+    console.info(`Simulation state update from ${socket.data.username}:`, data);
+    // Apply global simulation change
+  });
+
+  // Handle admin weather control
+  socket.on('admin:weather', data => {
+    // Similar permission check considerations as simulation:state
+    if (!socketHasPermission(socket, 'environment', 'manage')) {
+      // Check might need adjustment
+      socket.emit('error', 'Not authorized to change weather');
+      return;
+    }
+
+    console.info(`Weather update from ${socket.data.username}:`, data);
+
+    if (data.pattern) {
+      targetWeather = getWeatherPattern(data.pattern);
+      // Start weather transition from current to target with progress 0
+      transitionWeather(
+        globalState.environment as WeatherPattern,
+        targetWeather,
+        0,
+      );
+    } else if (data.coordinates) {
+      targetWeather = getWeatherByCoordinates(
+        data.coordinates.lat,
+        data.coordinates.lng,
+      );
+      // Start weather transition from current to target with progress 0
+      transitionWeather(
+        globalState.environment as WeatherPattern,
+        targetWeather,
+        0,
+      );
+    } else {
+      // Default to enabling random weather if no specific pattern/coords
+      if (weatherTransitionInterval) {
+        clearInterval(weatherTransitionInterval);
+        weatherTransitionInterval = null;
+      }
+      targetWeather = null;
+      console.info('Random weather enabled.');
+    }
+  });
+
+  // Handle chat messages
+  socket.on('chat:message', data => {
+    // Permission check - guests might be allowed to chat
+    if (!socketHasPermission(socket, 'chat', 'send')) {
+      // Check might need adjustment
+      socket.emit('error', 'Not authorized to send chat messages');
+      return;
+    }
+
+    const message = data.message.trim();
+    if (!message || message.length > 500) return; // Basic validation
+
+    // Broadcast message with user info from socket.data
+    io.emit('chat:message', {
+      userId: socket.data.userId || 'unknown',
+      username: socket.data.username || 'Guest',
+      message,
     });
+  });
 
-    // Handle vessel:control events
-    socket.on('vessel:control', data => {
-      if (!socketHasPermission(socket, 'vessel', 'control')) {
-        socket.emit('error', 'Not authorized to control vessel');
-        return;
-      }
+  // Handle disconnect
+  socket.on('disconnect', () => {
+    const currentUserId = socket.data.userId;
+    const currentUsername = socket.data.username;
+    console.info(`Socket disconnected: ${currentUsername} (${currentUserId})`);
 
-      // Update vessel control state
-      if (globalState.vessels[userId]) {
-        if (data.throttle !== undefined)
-          globalState.vessels[userId].throttle = data.throttle;
-        if (data.rudderAngle !== undefined)
-          globalState.vessels[userId].rudderAngle = data.rudderAngle;
-      }
+    // Remove guest vessel state on disconnect
+    if (currentUserId && currentUserId.startsWith('guest_')) {
+      delete globalState.vessels[currentUserId];
+      console.info(`Removed guest vessel state for ${currentUserId}`);
+    }
+    // For authenticated users, state might persist based on DB logic
 
-      // In a multi-user scenario, we'd broadcast this to other users
-      // But for now, we just log it
-      console.info(`Control update from ${userId}:`, data);
-    });
-
-    // Handle simulation state changes
-    socket.on('simulation:state', data => {
-      if (!socketHasPermission(socket, 'simulation', 'control')) {
-        socket.emit('error', 'Not authorized to control simulation');
-        return;
-      }
-
-      console.info(`Simulation state update from ${userId}:`, data);
-      // In a full implementation, this would affect the global simulation
-    });
-
-    // Handle admin weather control
-    socket.on('admin:weather', data => {
-      // Only users with environment:manage permission can change the weather
-      if (!socketHasPermission(socket, 'environment', 'manage')) {
-        socket.emit('error', 'Not authorized to change weather');
-        return;
-      }
-
-      console.info(`Weather update from ${username}:`, data);
-
-      if (data.pattern) {
-        // Set specific weather pattern
-        targetWeather = getWeatherPattern(data.pattern);
-        startWeatherTransition();
-        randomWeatherEnabled = false;
-      } else if (data.coordinates) {
-        // Get weather based on Earth coordinates
-        const { lat, lng } = data.coordinates;
-        targetWeather = getWeatherByCoordinates(lat, lng);
-        startWeatherTransition();
-        randomWeatherEnabled = false;
-      }
-    });
-
-    // Handle chat messages
-    socket.on('chat:message', data => {
-      if (!socketHasPermission(socket, 'chat', 'send')) {
-        socket.emit('error', 'Not authorized to send chat messages');
-        return;
-      }
-
-      const message = data.message.trim();
-
-      // Prevent empty or overly long messages
-      if (!message || message.length > 500) {
-        return;
-      }
-
-      // Broadcast message to all clients
-      io.emit('chat:message', {
-        userId,
-        username,
-        message,
-      });
-    });
-
-    // Handle authentication requests
-    socket.on('auth:login', async (data, callback) => {
-      try {
-        const { username, password } = data;
-
-        // Authenticate user
-        const authResult = await authenticateUser(username, password);
-
-        if (!authResult) {
-          callback({ success: false, error: 'Invalid username or password' });
-          return;
-        }
-
-        // Update socket data with authenticated user info
-        socket.data = authResult;
-
-        // Return success with token and user info
-        callback({
-          success: true,
-          token: authResult.token,
-          refreshToken: authResult.refreshToken,
-          username: authResult.username,
-          roles: authResult.roles,
-        });
-
-        console.info(
-          `User authenticated: ${authResult.username} (Roles: ${authResult.roles.join(', ')})`,
-        );
-      } catch (error) {
-        console.error('Authentication error:', error);
-        callback({ success: false, error: 'Authentication failed' });
-      }
-    });
-
-    // Handle registration request
-    socket.on('auth:register', async (data, callback) => {
-      try {
-        const { username, password } = data;
-
-        // Register a new admin user
-        const authResult = await registerAdminUser(username, password);
-
-        if (!authResult) {
-          callback({
-            success: false,
-            error: 'Registration failed. Username may be taken.',
-          });
-          return;
-        }
-
-        // Update socket data with authenticated user info
-        socket.data = authResult;
-
-        // Return success with token and user info
-        callback({
-          success: true,
-          token: authResult.token,
-          refreshToken: authResult.refreshToken,
-          username: authResult.username,
-          roles: authResult.roles,
-        });
-
-        console.info(`Admin user registered: ${authResult.username}`);
-      } catch (error) {
-        console.error('Registration error:', error);
-        callback({ success: false, error: 'Registration failed' });
-      }
-    });
-
-    // Handle auth:refresh events
-    socket.on('auth:refresh', async (data, callback) => {
-      try {
-        // Validate that a refresh token was provided
-        if (!data.refreshToken) {
-          callback({ success: false, error: 'No refresh token provided' });
-          return;
-        }
-
-        // Attempt to refresh the tokens
-        const newTokens = await refreshAuthToken(data.refreshToken);
-
-        if (!newTokens) {
-          callback({ success: false, error: 'Could not refresh token' });
-          return;
-        }
-
-        // Verify the new access token to get user data
-        const userData = await verifyAccessToken(newTokens.accessToken);
-
-        if (!userData) {
-          callback({ success: false, error: 'Invalid access token' });
-          return;
-        }
-
-        // Update socket data with refreshed info
-        socket.data = userData;
-
-        // Return the new tokens
-        callback({
-          success: true,
-          token: newTokens.accessToken,
-          refreshToken: newTokens.refreshToken,
-          username: userData.username,
-          roles: userData.roles,
-        });
-
-        console.info(`Token refreshed for ${userData.username}`);
-      } catch (error) {
-        console.error('Token refresh error:', error);
-        callback({ success: false, error: 'Token refresh failed' });
-      }
-    });
-
-    // Handle logout
-    socket.on('auth:logout', () => {
-      // Clear authentication data from socket
-      if (socket.data) {
-        socket.data.userId = `user_${Math.random().toString(36).substring(2, 9)}`;
-        socket.data.username = 'Anonymous';
-        socket.data.roles = ['guest'];
-        socket.data.permissions = [
-          { resource: 'vessel', action: 'view' },
-          { resource: 'environment', action: 'view' },
-        ];
-      }
-
-      console.info(`User logged out: ${username} (${userId})`);
-    });
-
-    // Handle disconnect
-    socket.on('disconnect', () => {
-      console.info(`User disconnected: ${username} (${userId})`);
-
-      // Notify other clients of vessel departure
-      socket.broadcast.emit('vessel:left', { userId });
-    });
-  } catch (error) {
-    console.error('Error handling socket connection:', error);
-    socket.disconnect();
-  }
+    // Notify other clients of vessel departure
+    if (currentUserId) {
+      socket.broadcast.emit('vessel:left', { userId: currentUserId });
+    }
+  });
 });
 
 // Start the server
 server.listen(PORT, () => {
   console.info(`Server listening on port ${PORT}`);
-
-  // Start simulation and persistence loops
-  startSimulation();
+  startSimulation(); // Start simulation loops
 });
 
-// Start weather simulation (simplified)
-function startSimulation() {
-  // Update weather periodically (every 30 seconds)
-  weatherUpdateInterval = setInterval(() => {
-    if (randomWeatherEnabled) {
-      // Generate random weather changes
-      const weather = generateRandomWeather();
-      updateWeather(weather);
-    }
-  }, 30000);
-
-  // Persist state periodically (every 5 minutes)
-  setInterval(
-    () => {
-      persistState();
-    },
-    5 * 60 * 1000,
-  );
-
-  console.info('Simulation started');
-}
-
-// Update global weather state and broadcast changes
-function updateWeather(weather: WeatherPattern) {
-  globalState.environment = {
-    wind: {
-      speed: weather.wind.speed,
-      direction: weather.wind.direction,
-    },
-    current: {
-      speed: weather.current.speed,
-      direction: weather.current.direction,
-    },
-    seaState: weather.seaState,
-  };
-
-  io.emit('environment:update', globalState.environment);
-}
-
-// Start transition to target weather
-function startWeatherTransition() {
-  if (!targetWeather) return;
-
-  if (weatherTransitionInterval) {
-    clearInterval(weatherTransitionInterval);
-  }
-
-  const currentWeather = {
-    name: 'Current Weather',
-    wind: {
-      speed: globalState.environment.wind.speed,
-      direction: globalState.environment.wind.direction,
-      gusting: false,
-      gustFactor: 1.0,
-    },
-    current: {
-      speed: globalState.environment.current.speed,
-      direction: globalState.environment.current.direction,
-      variability: 0.1,
-    },
-    seaState: globalState.environment.seaState,
-    waterDepth: 100,
-    waveHeight: 0.5,
-    waveDirection: 0,
-    waveLength: 50,
-    visibility: 10,
-    timeOfDay: 12,
-    precipitation: 'none' as const,
-    precipitationIntensity: 0,
-  };
-
-  // Transition over 2 minutes with updates every 5 seconds
-  let progress = 0;
-  weatherTransitionInterval = setInterval(() => {
-    progress += 0.1; // 10% each time
-    if (progress >= 1) {
-      // Final update with exact target values
-      updateWeather(targetWeather!);
-      clearInterval(weatherTransitionInterval!);
-      weatherTransitionInterval = null;
-      return;
-    }
-
-    // Calculate intermediate values
-    const intermediateWeather = transitionWeather(
-      currentWeather,
-      targetWeather!,
-      progress,
-    );
-    updateWeather(intermediateWeather);
-  }, 5000);
-}
-
-// Persist state to database
-async function persistState(): Promise<void> {
-  try {
-    // Save vessel states
-    for (const [userId, vessel] of Object.entries(globalState.vessels)) {
-      // Skip vessel states for dynamically generated IDs (anonymous users)
-      if (userId.startsWith('user_')) {
-        continue;
-      }
-
-      try {
-        // First check if the user exists in the database
-        const userExists = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { id: true },
-        });
-
-        // Only persist state for users that exist in the database
-        if (userExists) {
-          await prisma.vesselState.upsert({
-            where: { userId },
-            update: {
-              positionX: vessel.position.x,
-              positionY: vessel.position.y,
-              positionZ: vessel.position.z,
-              heading: vessel.orientation.heading,
-              roll: vessel.orientation.roll,
-              pitch: vessel.orientation.pitch,
-              velocityX: vessel.velocity.surge,
-              velocityY: vessel.velocity.sway,
-              velocityZ: vessel.velocity.heave,
-              throttle: vessel.throttle,
-              rudderAngle: vessel.rudderAngle,
-              updatedAt: new Date(),
-            },
-            create: {
-              userId,
-              positionX: vessel.position.x,
-              positionY: vessel.position.y,
-              positionZ: vessel.position.z,
-              heading: vessel.orientation.heading,
-              roll: vessel.orientation.roll,
-              pitch: vessel.orientation.pitch,
-              velocityX: vessel.velocity.surge,
-              velocityY: vessel.velocity.sway,
-              velocityZ: vessel.velocity.heave,
-              throttle: vessel.throttle,
-              rudderAngle: vessel.rudderAngle,
-            },
-          });
-        }
-      } catch (userError) {
-        console.error(
-          `Error persisting vessel state for user ${userId}:`,
-          userError,
-        );
-      }
-    }
-
-    // Save environment state
-    await prisma.environmentState.upsert({
-      where: { id: 1 },
-      update: {
-        windSpeed: globalState.environment.wind.speed,
-        windDirection: globalState.environment.wind.direction,
-        currentSpeed: globalState.environment.current.speed,
-        currentDirection: globalState.environment.current.direction,
-        seaState: globalState.environment.seaState,
-        updatedAt: new Date(),
-      },
-      create: {
-        id: 1,
-        windSpeed: globalState.environment.wind.speed,
-        windDirection: globalState.environment.wind.direction,
-        currentSpeed: globalState.environment.current.speed,
-        currentDirection: globalState.environment.current.direction,
-        seaState: globalState.environment.seaState,
-      },
-    });
-
-    console.info('State persisted to database');
-  } catch (error) {
-    console.error('Failed to persist state:', error);
-  }
-}
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.info('Shutting down server...');
-
-  // Clear intervals
-  if (weatherUpdateInterval) clearInterval(weatherUpdateInterval);
-  if (weatherTransitionInterval) clearInterval(weatherTransitionInterval);
-
-  // Persist final state
-  await persistState();
-
-  // Close database connection
-  await prisma.$disconnect();
-
-  // Exit process
-  process.exit(0);
-});
+// Export the app and io for potential testing or extension
+export { app, io };

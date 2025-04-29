@@ -71,17 +71,16 @@ model RolePermission {
 
 // User model
 model User {
-    id           String   @id @default(uuid()) // Changed to String for UUID compatibility
-    username     String   @unique
-    email        String   @unique
-    passwordHash String
-    createdAt    DateTime @default(now())
-    updatedAt    DateTime @updatedAt
-
-    // Relations
-    roles        UserRole[]
-    settings     UserSettings?
-    vesselStates VesselState[]
+    id            String         @id @default(uuid())
+    username      String         @unique
+    email         String?        @unique
+    passwordHash  String
+    createdAt     DateTime       @default(now())
+    updatedAt     DateTime       @updatedAt
+    roles         UserRole[]
+    settings      UserSettings?
+    vesselState   VesselState?
+    refreshTokens RefreshToken[] // Add relation to RefreshToken
 }
 
 // Many-to-many relation between users and roles
@@ -198,4 +197,16 @@ model Scenario {
     // Timestamps
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
+}
+
+// Add the RefreshToken model
+model RefreshToken {
+    id        String   @id @default(uuid()) // Use UUID for the primary key
+    token     String   @unique // Store the signed token itself
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    expiresAt DateTime
+    createdAt DateTime @default(now())
+
+    @@index([userId]) // Index for faster user token lookups
 }
