@@ -248,7 +248,13 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
 
     // Directly update WASM engine state
     const vesselPtr = useStore.getState().wasmVesselPtr;
-    const wasmExports = (window as any).wasmExports;
+    const wasmExports = (
+      window as {
+        wasmExports?: {
+          setEngineRunning?: (vesselPtr: number, running: boolean) => void;
+        };
+      }
+    ).wasmExports;
 
     if (
       vesselPtr !== null &&
@@ -288,7 +294,13 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
 
     // Directly update WASM engine state
     const vesselPtr = useStore.getState().wasmVesselPtr;
-    const wasmExports = (window as any).wasmExports;
+    const wasmExports = (
+      window as {
+        wasmExports?: {
+          setEngineRunning?: (vesselPtr: number, running: boolean) => void;
+        };
+      }
+    ).wasmExports;
 
     if (
       vesselPtr !== null &&
