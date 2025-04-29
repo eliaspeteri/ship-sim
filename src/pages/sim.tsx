@@ -46,6 +46,10 @@ const SimPage: React.FC = () => {
 
   return (
     <div className="h-screen w-full">
+      <Dashboard className="fixed bottom-4 left-0 right-0 z-30" />
+      {showSettings && (
+        <EnvironmentControls className="fixed top-16 right-4 z-10 w-96" />
+      )}
       <Scene vesselPosition={vesselPosition} />
       <button
         onClick={() => setShowUserPanel(!showUserPanel)}
@@ -60,10 +64,6 @@ const SimPage: React.FC = () => {
       >
         {showSettings ? 'Close Settings' : 'Settings'}
       </button>
-      {showSettings && (
-        <EnvironmentControls className="fixed top-16 right-4 z-10 w-96" />
-      )}
-      <Dashboard className="fixed bottom-4 left-0 right-0" />
     </div>
   );
 };
