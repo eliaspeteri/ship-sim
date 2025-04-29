@@ -13,7 +13,10 @@ export interface TokenPayload {
   userId: string;
   username: string;
   roles: string[];
-  permissions: string[];
+  permissions: {
+    resource: string;
+    action: string;
+  }[];
   tokenId?: string; // Optional: For refresh token invalidation
 }
 
@@ -34,7 +37,10 @@ export interface UserAuth extends TokenPayload {
 async function generateTokens(
   user: User,
   roles: string[],
-  permissions: string[],
+  permissions: {
+    resource: string;
+    action: string;
+  }[],
 ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
   const accessTokenPayload: TokenPayload = {
     userId: user.id,
@@ -90,7 +96,10 @@ async function generateTokens(
  */
 async function getUserRolesAndPermissions(userId: string): Promise<{
   roles: string[];
-  permissions: string[];
+  permissions: {
+    resource: string;
+    action: string;
+  }[];
 }> {
   const userRoles = await prisma.userRole.findMany({
     where: { userId },
@@ -108,10 +117,16 @@ async function getUserRolesAndPermissions(userId: string): Promise<{
   });
 
   const roles = userRoles.map(ur => ur.role.name);
-  const permissionsSet = new Set<string>();
+  const permissionsSet = new Set<{
+    resource: string;
+    action: string;
+  }>();
   userRoles.forEach(ur => {
     ur.role.permissions.forEach(rp => {
-      permissionsSet.add(`${rp.permission.resource}:${rp.permission.action}`);
+      permissionsSet.add({
+        resource: rp.permission.resource,
+        action: rp.permission.action,
+      });
     });
   });
 
