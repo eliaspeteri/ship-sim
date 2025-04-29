@@ -21,7 +21,6 @@ import {
 import { authenticateRequest } from './middleware/authentication'; // Added: For /auth/status
 import { socketHasPermission } from './middleware/authorization';
 import { SimpleVesselState } from '../types/vessel.types';
-import { startSimulation } from '../simulation';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
@@ -619,7 +618,6 @@ io.on('connection', async socket => {
 // Start the server
 server.listen(PORT, () => {
   console.info(`Server listening on port ${PORT}`);
-  startSimulation(); // Start simulation loops
 });
 
 // Export the app and io for potential testing or extension
