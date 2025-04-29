@@ -132,7 +132,29 @@ export async function authenticateUser(
     where: { username },
   });
 
-  if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
+  if (!user) {
+    console.warn(`User ${username} not found during authentication.`);
+
+    return null; // User not found
+  }
+
+  // Check password using bcrypt
+  const passwordMatch = bcrypt.compareSync(password, user?.passwordHash);
+  if (!passwordMatch) {
+    console.error(
+      `Authentication failed. ${JSON.stringify(
+        {
+          username,
+          userId: user?.id,
+          passwordMatches: user
+            ? bcrypt.compareSync(password, user.passwordHash)
+            : false,
+        },
+        null,
+        2,
+      )}`,
+    );
+
     return null; // Invalid credentials
   }
 
@@ -213,9 +235,17 @@ export async function registerAdminUser(
       refreshToken,
       expiresIn,
     };
-  } catch (error: any) {
-    // Handle potential unique constraint violation (username taken)
-    if (error.code === 'P2002' && error.meta?.target?.includes('username')) {
+  } catch (error: unknown) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: string; meta?: { target?: string[] } }).code ===
+        'P2002' &&
+      (error as { meta?: { target?: string[] } }).meta?.target?.includes(
+        'username',
+      )
+    ) {
       console.warn(
         `Registration failed: Username '${username}' already exists.`,
       );
@@ -294,9 +324,13 @@ export async function verifyRefreshToken(
     // }
 
     return decoded; // Token is valid and exists in DB
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Token verification failed (expired, invalid signature, etc.)
-    console.warn('Refresh token JWT verification failed:', error.message);
+    if (error instanceof Error) {
+      console.warn('Refresh token JWT verification failed:', error.message);
+    } else {
+      console.warn('Refresh token JWT verification failed:', error);
+    }
     return null;
   }
 }
@@ -325,9 +359,13 @@ export async function invalidateRefreshToken(token: string): Promise<boolean> {
 
     console.info(`Refresh token ${decoded.tokenId} invalidated.`);
     return true;
-  } catch (error: any) {
-    // Handle case where token doesn't exist (already invalidated/deleted)
-    if (error.code === 'P2025') {
+  } catch (error: unknown) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: string }).code === 'P2025'
+    ) {
       // Prisma error code for record not found
       console.info('Refresh token already invalidated or not found.');
       return true;
