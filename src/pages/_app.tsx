@@ -3,7 +3,11 @@ import '../styles/globals.css';
 import type { AppProps } from 'next/app';
 import socketManager from '../networking/socket';
 import useStore from '../store';
+import { SessionProvider } from 'next-auth/react';
 
+/**
+ * App entry point. Wraps all pages in NextAuth.js SessionProvider.
+ */
 function MyApp({ Component, pageProps }: AppProps) {
   // Initialize socket connection
   useEffect(() => {
@@ -29,7 +33,11 @@ function MyApp({ Component, pageProps }: AppProps) {
     };
   }, []);
 
-  return <Component {...pageProps} />;
+  return (
+    <SessionProvider session={pageProps.session}>
+      <Component {...pageProps} />
+    </SessionProvider>
+  );
 }
 
 export default MyApp;

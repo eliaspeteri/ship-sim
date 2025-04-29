@@ -64,6 +64,7 @@ export default [
         MouseEvent: 'readonly',
         HTMLDivElement: 'readonly',
         HTMLInputElement: 'readonly',
+        HTMLFormElement: 'readonly',
         NodeJS: 'readonly', // Added NodeJS global
         Buffer: 'readonly', // Added Buffer global
         URLSearchParams: 'readonly', // Added URLSearchParams global
