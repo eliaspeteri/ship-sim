@@ -45,17 +45,6 @@ interface ChatMessageData {
   message: string;
 }
 
-/**
- * Authentication data structure stored in localStorage
- */
-interface AuthData {
-  userId?: string;
-  username?: string;
-  accessToken?: string;
-  refreshToken?: string;
-  isAdmin?: boolean;
-}
-
 // Socket.IO Client Manager
 class SocketManager {
   private socket: ReturnType<typeof io> | null = null;
@@ -78,19 +67,6 @@ class SocketManager {
 
     console.info(`Connecting to Socket.IO server at ${url}`);
 
-    // Try to get user information from localStorage
-    let authData: AuthData | null = null;
-    try {
-      const storedAuth = localStorage.getItem('ship-sim-auth');
-      if (storedAuth) {
-        authData = JSON.parse(storedAuth);
-        this.userId = authData?.userId || this.userId;
-        this.username = authData?.username || 'Anonymous';
-      }
-    } catch (error) {
-      console.error('Failed to read authentication from storage:', error);
-    }
-
     this.socket = io(url, {
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: 1000,
@@ -99,7 +75,6 @@ class SocketManager {
       auth: {
         userId: this.userId,
         username: this.username,
-        token: authData?.accessToken || null,
       },
     });
 
