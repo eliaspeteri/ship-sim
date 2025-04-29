@@ -15,10 +15,10 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Redirect authenticated users to home
+  // Redirect authenticated users to sim
   React.useEffect(() => {
     if (session) {
-      router.replace('/');
+      router.replace('/sim');
     }
   }, [session, router]);
 
@@ -31,7 +31,7 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     setError(null);
     const res = await signIn('credentials', {
-      redirect: false,
+      redirect: true,
       username,
       password,
     });
