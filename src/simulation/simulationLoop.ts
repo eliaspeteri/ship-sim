@@ -293,16 +293,10 @@ export class SimulationLoop {
         });
       }
 
-      // Get vessel-specific wave data
-      const vesselWaveHeight = this.wasmBridge.getVesselWaveHeight(vesselPtr);
-      const vesselWavePhase = this.wasmBridge.getVesselWavePhase(vesselPtr);
-
       // Update vessel wave data in store
       state.updateVessel({
         position: {
           ...state.vessel.position,
-          waveHeight: vesselWaveHeight,
-          wavePhase: vesselWavePhase,
         },
       });
     } catch (error) {

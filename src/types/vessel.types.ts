@@ -18,8 +18,6 @@ export interface VesselState {
     x: number;
     y: number;
     z: number;
-    waveHeight?: number;
-    wavePhase?: number;
   };
   orientation: { heading: number; roll: number; pitch: number };
   velocity: { surge: number; sway: number; heave: number };
