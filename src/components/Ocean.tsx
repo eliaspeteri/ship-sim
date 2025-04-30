@@ -433,16 +433,20 @@ function Ocean({
     }
 
     // WASM-driven wave sync
-    // Use captured values from top-level hooks, not hooks inside useFrame
     if (wasmVesselPtr && wasmExports && vesselPosition) {
+      // Get vessel position, ensuring we have valid values
       const x = vesselPosition.x;
       const z = vesselPosition.z;
-      const time =
-        ref.current &&
-        ref.current.material &&
-        (ref.current.material as any)?.uniforms?.time?.value
-          ? (ref.current.material as any).uniforms.time.value
-          : 0;
+
+      // Skip wave calculations if position is invalid
+      if (isNaN(x) || isNaN(z)) {
+        console.warn('Ocean: Invalid vessel position detected:', { x, z });
+        return;
+      }
+
+      const time = (ref.current?.material as any)?.uniforms?.time?.value || 0;
+
+      // Verify all required WASM functions exist before using them
       if (
         wasmExports.calculateWaveHeight &&
         wasmExports.calculateWaveLength &&
@@ -455,21 +459,47 @@ function Ocean({
         const waveLength = wasmExports.calculateWaveLength(seaState);
         const waveFrequency = wasmExports.calculateWaveFrequency(seaState);
         const windDir = environment.wind.direction;
-        const height = wasmExports.calculateWaveHeightAtPosition(
-          x,
-          z,
-          time,
-          waveHeightVal,
-          waveLength,
-          waveFrequency,
-          windDir,
-          seaState,
-        );
+
+        // Protect against NaN propagation in wave calculation
+        let height: number;
+        try {
+          height = wasmExports.calculateWaveHeightAtPosition(
+            x,
+            z,
+            time,
+            waveHeightVal,
+            waveLength,
+            waveFrequency,
+            windDir,
+            seaState,
+          );
+        } catch (error) {
+          console.error(
+            'Ocean: Error calculating wave height at position:',
+            error,
+          );
+          return;
+        }
+
+        // Skip if calculation returned NaN
+        if (isNaN(height)) {
+          console.warn('Ocean: Wave height calculation returned NaN');
+          return;
+        }
+
         const k = (2.0 * Math.PI) / waveLength;
         const dirX = Math.cos(windDir);
         const dirY = Math.sin(windDir);
         const dot = x * dirX + z * dirY;
         const phase = k * dot - waveFrequency * time;
+
+        // Skip if phase calculation returned NaN
+        if (isNaN(phase)) {
+          console.warn('Ocean: Wave phase calculation returned NaN');
+          return;
+        }
+
+        // Only call setWaveData with valid values
         wasmExports.setWaveData(wasmVesselPtr, height, phase);
       }
     }
