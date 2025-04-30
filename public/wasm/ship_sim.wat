@@ -37,10 +37,10 @@
  (data $9 (i32.const 7804) ",\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\1c\00\00\00I\00n\00v\00a\00l\00i\00d\00 \00l\00e\00n\00g\00t\00h\00")
  (data $10 (i32.const 7852) "L\00\00\00\00\00\00\00\00\00\00\00\01\00\00\000\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
  (table $0 1 funcref)
- (export "calculateWaveHeight" (func $assembly/index/calculateWaveHeight))
+ (export "calculateWaveFrequency" (func $assembly/index/calculateWaveFrequency))
+ (export "getWaveHeightForSeaState" (func $assembly/index/getWaveHeightForSeaState))
  (export "calculateBeaufortScale" (func $assembly/index/calculateBeaufortScale))
  (export "calculateWaveLength" (func $assembly/index/calculateWaveLength))
- (export "calculateWaveFrequency" (func $assembly/index/calculateWaveFrequency))
  (export "calculateWaveHeightAtPosition" (func $assembly/index/calculateWaveHeightAtPosition))
  (export "updateVesselState" (func $assembly/index/updateVesselState))
  (export "createVessel" (func $assembly/index/createVessel))
@@ -48,10 +48,6 @@
  (export "setWaveData" (func $assembly/index/setWaveData))
  (export "setRudderAngle" (func $assembly/index/setRudderAngle))
  (export "setBallast" (func $assembly/index/setBallast))
- (export "getWaveHeight" (func $assembly/index/getWaveHeight))
- (export "getWaveFrequency" (func $assembly/index/getWaveFrequency))
- (export "getVesselWaveHeight" (func $assembly/index/getVesselWaveHeight))
- (export "getVesselWavePhase" (func $assembly/index/getVesselWavePhase))
  (export "getVesselRollAngle" (func $assembly/index/getVesselRollAngle))
  (export "getVesselPitchAngle" (func $assembly/index/getVesselPitchAngle))
  (export "getVesselX" (func $assembly/index/getVesselX))
@@ -67,6 +63,15 @@
  (export "memory" (memory $0))
  (export "table" (table $0))
  (start $~start)
+ (func $assembly/index/calculateWaveFrequency (param $0 f64) (result f64)
+  f64.const 6.283185307179586
+  local.get $0
+  f64.const 1.6
+  f64.mul
+  f64.const 3
+  f64.add
+  f64.div
+ )
  (func $~lib/array/Array<f64>#__get (param $0 i32) (param $1 i32) (result f64)
   local.get $1
   local.get $0
@@ -88,7 +93,7 @@
   i32.add
   f64.load
  )
- (func $assembly/index/calculateWaveHeight (param $0 f64) (result f64)
+ (func $assembly/index/getWaveHeightForSeaState (param $0 f64) (result f64)
   i32.const 1184
   local.get $0
   f64.floor
@@ -188,24 +193,15 @@
  )
  (func $assembly/index/calculateWaveLength (param $0 f64) (result f64)
   local.get $0
-  f64.const 0.8
+  f64.const 1.6
   f64.mul
   f64.const 3
   f64.add
   local.tee $0
-  f64.const 1.56
+  f64.const 1.5
   f64.mul
   local.get $0
   f64.mul
- )
- (func $assembly/index/calculateWaveFrequency (param $0 f64) (result f64)
-  f64.const 6.283185307179586
-  local.get $0
-  f64.const 0.8
-  f64.mul
-  f64.const 3
-  f64.add
-  f64.div
  )
  (func $~lib/math/pio2_large_quot (param $0 i64) (result i32)
   (local $1 i64)
@@ -2534,7 +2530,7 @@
   local.get $0
   f64.const 6.283185307179586
   local.get $1
-  f64.const 0.8
+  f64.const 1.6
   f64.mul
   f64.const 3
   f64.add
@@ -2553,7 +2549,7 @@
   local.get $0
   f64.const 6.283185307179586
   local.get $1
-  f64.const 1.56
+  f64.const 1.5
   f64.mul
   local.get $1
   f64.mul
@@ -2845,7 +2841,6 @@
   (local $24 f64)
   (local $25 f64)
   (local $26 f64)
-  (local $27 f64)
   local.get $2
   call $assembly/index/calculateBeaufortScale
   f64.convert_i32_s
@@ -3534,15 +3529,69 @@
   local.set $14
   local.get $0
   call $assembly/index/calculateRudderForceY
-  local.set $15
   local.get $0
   f64.load offset=120
-  local.set $16
+  f64.const -0.45
+  f64.mul
+  f64.mul
+  local.set $15
+  local.get $2
+  f64.const 0.6125
+  f64.mul
+  local.get $2
+  f64.mul
+  local.tee $2
   local.get $0
   f64.load offset=128
   local.get $0
   f64.load offset=136
+  f64.mul
+  f64.const 1.5
+  f64.mul
+  f64.mul
+  local.get $3
+  local.get $0
+  f64.load offset=24
+  f64.sub
+  local.tee $16
+  call $~lib/math/NativeMath.cos
+  f64.abs
+  f64.const 0.4
+  f64.mul
+  f64.const 0.5
+  f64.add
+  f64.mul
+  local.get $16
+  call $~lib/math/NativeMath.cos
+  f64.mul
+  local.set $16
+  local.get $2
+  local.get $0
+  f64.load offset=120
+  local.get $0
+  f64.load offset=136
+  f64.mul
+  f64.const 1.5
+  f64.mul
+  f64.mul
+  local.get $3
+  local.get $0
+  f64.load offset=24
+  f64.sub
   local.tee $17
+  call $~lib/math/NativeMath.sin
+  f64.abs
+  f64.const 0.7
+  f64.mul
+  f64.mul
+  local.get $17
+  call $~lib/math/NativeMath.sin
+  f64.mul
+  local.set $17
+  local.get $0
+  f64.load offset=120
+  local.get $0
+  f64.load offset=136
   f64.mul
   f64.const 1.5
   f64.mul
@@ -3552,91 +3601,21 @@
   f64.load offset=24
   f64.sub
   local.tee $3
-  call $~lib/math/NativeMath.cos
-  f64.abs
-  f64.const 0.4
-  f64.mul
-  f64.const 0.5
-  f64.add
-  local.set $19
-  local.get $3
-  call $~lib/math/NativeMath.sin
-  f64.abs
-  f64.const 0.7
-  f64.mul
-  local.set $21
-  local.get $3
   local.get $3
   f64.add
   call $~lib/math/NativeMath.sin
   f64.const 0.1
   f64.mul
-  local.set $22
-  local.get $2
-  f64.const 0.6125
-  f64.mul
-  local.get $2
-  f64.mul
-  local.tee $2
-  local.get $18
-  f64.mul
-  local.get $19
-  f64.mul
-  local.get $3
-  call $~lib/math/NativeMath.cos
-  f64.mul
-  local.set $18
-  local.get $2
-  local.get $16
-  local.get $17
-  f64.mul
-  f64.const 1.5
-  f64.mul
-  f64.mul
-  local.tee $2
-  local.get $21
-  f64.mul
-  local.get $3
-  call $~lib/math/NativeMath.sin
-  f64.mul
   local.set $3
   local.get $2
+  local.get $18
+  f64.mul
   local.get $0
   f64.load offset=120
   f64.mul
-  local.get $22
-  f64.mul
-  local.set $2
-  i32.const 3
-  i32.const 0
-  call $~lib/rt/__newArray
-  local.tee $7
-  i32.load offset=4
-  drop
-  local.get $7
-  i32.const 0
-  local.get $18
-  call $~lib/array/Array<f64>#__set
-  local.get $7
-  i32.const 1
   local.get $3
-  call $~lib/array/Array<f64>#__set
-  local.get $7
-  i32.const 2
-  local.get $2
-  call $~lib/array/Array<f64>#__set
-  local.get $7
-  i32.const 0
-  call $~lib/array/Array<f64>#__get
-  local.set $17
-  local.get $7
-  i32.const 1
-  call $~lib/array/Array<f64>#__get
+  f64.mul
   local.set $18
-  local.get $7
-  i32.const 2
-  call $~lib/array/Array<f64>#__get
-  local.set $19
   local.get $0
   f64.load offset=120
   local.get $0
@@ -3665,20 +3644,20 @@
   f64.mul
   f64.const 0.5
   f64.add
-  local.set $21
+  local.set $19
   local.get $5
   call $~lib/math/NativeMath.sin
   f64.abs
   f64.const 0.8
   f64.mul
-  local.set $22
+  local.set $21
   local.get $5
   local.get $5
   f64.add
   call $~lib/math/NativeMath.sin
   f64.const 0.1
   f64.mul
-  local.set $23
+  local.set $22
   local.get $0
   f64.load offset=152
   f64.const 0.5
@@ -3689,7 +3668,7 @@
   f64.mul
   local.get $3
   f64.mul
-  local.get $21
+  local.get $19
   f64.mul
   local.get $5
   call $~lib/math/NativeMath.cos
@@ -3705,7 +3684,7 @@
   f64.mul
   local.get $2
   f64.mul
-  local.get $22
+  local.get $21
   f64.mul
   local.get $5
   call $~lib/math/NativeMath.sin
@@ -3724,7 +3703,7 @@
   local.get $0
   f64.load offset=120
   f64.mul
-  local.get $23
+  local.get $22
   f64.mul
   local.set $2
   i32.const 3
@@ -3748,15 +3727,15 @@
   local.get $7
   i32.const 0
   call $~lib/array/Array<f64>#__get
-  local.set $21
+  local.set $19
   local.get $7
   i32.const 1
   call $~lib/array/Array<f64>#__get
-  local.set $22
+  local.set $21
   local.get $7
   i32.const 2
   call $~lib/array/Array<f64>#__get
-  local.set $23
+  local.set $22
   local.get $0
   local.get $6
   local.get $1
@@ -3778,15 +3757,15 @@
   local.get $7
   i32.const 3
   call $~lib/array/Array<f64>#__get
-  local.set $24
+  local.set $23
   local.get $7
   i32.const 4
   call $~lib/array/Array<f64>#__get
-  local.set $25
+  local.set $24
   local.get $7
   i32.const 5
   call $~lib/array/Array<f64>#__get
-  local.set $26
+  local.set $25
   local.get $0
   f64.load offset=224
   f64.const 1.1
@@ -3801,7 +3780,7 @@
   f64.load offset=240
   f64.const 1.2
   f64.mul
-  local.set $27
+  local.set $26
   local.get $0
   local.get $0
   f64.load offset=48
@@ -3810,9 +3789,9 @@
   f64.sub
   local.get $12
   f64.sub
-  local.get $17
+  local.get $16
   f64.add
-  local.get $21
+  local.get $19
   f64.add
   local.get $6
   f64.add
@@ -3830,9 +3809,9 @@
   local.get $0
   f64.load offset=56
   local.get $14
-  local.get $18
+  local.get $17
   f64.add
-  local.get $22
+  local.get $21
   f64.add
   local.get $2
   f64.add
@@ -3862,7 +3841,7 @@
   local.get $0
   f64.load offset=80
   local.tee $2
-  local.get $24
+  local.get $23
   local.get $2
   f64.const -0.9
   f64.mul
@@ -3916,7 +3895,7 @@
   local.get $0
   f64.load offset=88
   local.tee $2
-  local.get $25
+  local.get $24
   local.get $2
   f64.const -0.8
   f64.mul
@@ -3968,17 +3947,13 @@
   local.get $0
   f64.load offset=72
   local.get $15
-  local.get $16
-  f64.const -0.45
-  f64.mul
-  f64.mul
-  local.get $19
+  local.get $18
   f64.add
-  local.get $23
+  local.get $22
+  f64.add
+  local.get $25
   f64.add
   local.get $26
-  f64.add
-  local.get $27
   f64.div
   local.get $1
   f64.mul
@@ -4082,6 +4057,9 @@
   if
    local.get $0
    local.get $2
+   local.get $1
+   f64.const 0.01
+   f64.mul
    local.get $0
    f64.load offset=176
    f64.const 3600
@@ -4091,6 +4069,7 @@
    f64.const 0.1
    f64.mul
    f64.div
+   f64.max
    local.get $1
    f64.mul
    f64.sub
@@ -4460,48 +4439,6 @@
   call $assembly/index/calculateCenterOfGravity
   local.get $0
   global.set $assembly/index/globalVessel
- )
- (func $assembly/index/getWaveHeight (param $0 f64) (result f64)
-  local.get $0
-  f64.const 0.5
-  f64.lt
-  if
-   f64.const 0
-   return
-  end
-  i32.const 1184
-  local.get $0
-  f64.floor
-  f64.const 0
-  f64.max
-  f64.const 12
-  f64.min
-  i32.trunc_sat_f64_s
-  call $~lib/array/Array<f64>#__get
- )
- (func $assembly/index/getWaveFrequency (param $0 f64) (result f64)
-  local.get $0
-  f64.const 0.5
-  f64.lt
-  if
-   f64.const 0
-   return
-  end
-  f64.const 6.283185307179586
-  local.get $0
-  f64.const 0.8
-  f64.mul
-  f64.const 3
-  f64.add
-  f64.div
- )
- (func $assembly/index/getVesselWaveHeight (param $0 i32) (result f64)
-  local.get $0
-  f64.load offset=264
- )
- (func $assembly/index/getVesselWavePhase (param $0 i32) (result f64)
-  local.get $0
-  f64.load offset=288
  )
  (func $assembly/index/getVesselRollAngle (param $0 i32) (result f64)
   local.get $0

@@ -3,11 +3,17 @@ export declare const memory: WebAssembly.Memory;
 /** Exported table */
 export declare const table: WebAssembly.Table;
 /**
- * assembly/index/calculateWaveHeight
+ * assembly/index/calculateWaveFrequency
  * @param seaState `f64`
  * @returns `f64`
  */
-export declare function calculateWaveHeight(seaState: number): number;
+export declare function calculateWaveFrequency(seaState: number): number;
+/**
+ * assembly/index/getWaveHeightForSeaState
+ * @param seaState `f64`
+ * @returns `f64`
+ */
+export declare function getWaveHeightForSeaState(seaState: number): number;
 /**
  * assembly/index/calculateBeaufortScale
  * @param windSpeed `f64`
@@ -20,12 +26,6 @@ export declare function calculateBeaufortScale(windSpeed: number): number;
  * @returns `f64`
  */
 export declare function calculateWaveLength(seaState: number): number;
-/**
- * assembly/index/calculateWaveFrequency
- * @param seaState `f64`
- * @returns `f64`
- */
-export declare function calculateWaveFrequency(seaState: number): number;
 /**
  * assembly/index/calculateWaveHeightAtPosition
  * @param x `f64`
@@ -81,30 +81,6 @@ export declare function setRudderAngle(vesselPtr: number, angle: number): void;
  * @param level `f64`
  */
 export declare function setBallast(vesselPtr: number, level: number): void;
-/**
- * assembly/index/getWaveHeight
- * @param seaState `f64`
- * @returns `f64`
- */
-export declare function getWaveHeight(seaState: number): number;
-/**
- * assembly/index/getWaveFrequency
- * @param seaState `f64`
- * @returns `f64`
- */
-export declare function getWaveFrequency(seaState: number): number;
-/**
- * assembly/index/getVesselWaveHeight
- * @param vesselPtr `usize`
- * @returns `f64`
- */
-export declare function getVesselWaveHeight(vesselPtr: number): number;
-/**
- * assembly/index/getVesselWavePhase
- * @param vesselPtr `usize`
- * @returns `f64`
- */
-export declare function getVesselWavePhase(vesselPtr: number): number;
 /**
  * assembly/index/getVesselRollAngle
  * @param vesselPtr `usize`

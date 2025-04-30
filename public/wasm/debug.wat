@@ -5,24 +5,25 @@
  (type $3 (func (param i32) (result i32)))
  (type $4 (func (param i32 i32)))
  (type $5 (func (param i32 f64) (result f64)))
- (type $6 (func (param i32 i32) (result i32)))
- (type $7 (func (param i32 f64 f64) (result i32)))
+ (type $6 (func (param i32 f64 f64) (result f64)))
+ (type $7 (func (param i32 i32) (result i32)))
  (type $8 (func (param i32 i32 i32 i32)))
  (type $9 (func (param i32)))
- (type $10 (func (param i32 i32) (result f64)))
- (type $11 (func (param f64) (result i32)))
- (type $12 (func (param f64 i64) (result i32)))
- (type $13 (func (param f64 f64 f64 f64 f64 f64 f64 f64) (result f64)))
- (type $14 (func (param f64 f64) (result f64)))
- (type $15 (func (param i32 i32 i32) (result i32)))
- (type $16 (func (param i32 i32 i32)))
- (type $17 (func (param i32 i32 i32 i32) (result i32)))
- (type $18 (func (param i32 i32 f64)))
- (type $19 (func (param i32 f64 f64 f64 f64 f64 f64) (result i32)))
- (type $20 (func (param i32 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64) (result i32)))
- (type $21 (func (result i32)))
- (type $22 (func (param i32 f64 f64)))
- (type $23 (func))
+ (type $10 (func (param i32 f64 f64) (result i32)))
+ (type $11 (func (param i32 i32) (result f64)))
+ (type $12 (func (param f64) (result i32)))
+ (type $13 (func (param f64 i64) (result i32)))
+ (type $14 (func (param f64 f64 f64 f64 f64 f64 f64 f64) (result f64)))
+ (type $15 (func (param f64 f64) (result f64)))
+ (type $16 (func (param i32 i32 i32) (result i32)))
+ (type $17 (func (param i32 i32 i32)))
+ (type $18 (func (param i32 i32 i32 i32) (result i32)))
+ (type $19 (func (param i32 i32 f64)))
+ (type $20 (func (param i32 f64 f64 f64 f64 f64 f64) (result i32)))
+ (type $21 (func (param i32 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64) (result i32)))
+ (type $22 (func (result i32)))
+ (type $23 (func (param i32 f64 f64)))
+ (type $24 (func))
  (import "env" "memory" (memory $0 16 100))
  (import "env" "abort" (func $~lib/builtins/abort (param i32 i32 i32 i32)))
  (global $assembly/index/globalVessel (mut i32) (i32.const 0))
@@ -31,13 +32,12 @@
  (global $assembly/index/HM_C3 f64 (f64.const 0.5))
  (global $assembly/index/HM_C4 f64 (f64.const 0.15))
  (global $assembly/index/WAVE_GRAVITY f64 (f64.const 9.81))
- (global $assembly/index/WAVE_HEIGHT_FACTOR f64 (f64.const 0.15))
  (global $assembly/index/WAVE_LENGTH_FACTOR f64 (f64.const 1.5))
  (global $assembly/index/BEAUFORT_WAVE_HEIGHTS i32 (i32.const 160))
+ (global $~lib/math/NativeMath.PI f64 (f64.const 3.141592653589793))
  (global $~lib/shared/runtime/Runtime.Stub i32 (i32.const 0))
  (global $~lib/shared/runtime/Runtime.Minimal i32 (i32.const 1))
  (global $~lib/shared/runtime/Runtime.Incremental i32 (i32.const 2))
- (global $~lib/math/NativeMath.PI f64 (f64.const 3.141592653589793))
  (global $~lib/native/ASC_SHRINK_LEVEL i32 (i32.const 0))
  (global $~lib/math/rempio2_y0 (mut f64) (f64.const 0))
  (global $~lib/math/rempio2_y1 (mut f64) (f64.const 0))
@@ -60,10 +60,10 @@
  (data $10 (i32.const 6828) "L\00\00\00\00\00\00\00\00\00\00\00\01\00\00\000\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
  (table $0 1 funcref)
  (elem $0 (i32.const 1))
- (export "calculateWaveHeight" (func $assembly/index/calculateWaveHeight))
+ (export "calculateWaveFrequency" (func $assembly/index/calculateWaveFrequency))
+ (export "getWaveHeightForSeaState" (func $assembly/index/getWaveHeightForSeaState))
  (export "calculateBeaufortScale" (func $assembly/index/calculateBeaufortScale))
  (export "calculateWaveLength" (func $assembly/index/calculateWaveLength))
- (export "calculateWaveFrequency" (func $assembly/index/calculateWaveFrequency))
  (export "calculateWaveHeightAtPosition" (func $assembly/index/calculateWaveHeightAtPosition))
  (export "updateVesselState" (func $assembly/index/updateVesselState))
  (export "createVessel" (func $assembly/index/createVessel))
@@ -71,10 +71,6 @@
  (export "setWaveData" (func $assembly/index/setWaveData))
  (export "setRudderAngle" (func $assembly/index/setRudderAngle))
  (export "setBallast" (func $assembly/index/setBallast))
- (export "getWaveHeight" (func $assembly/index/getWaveHeight))
- (export "getWaveFrequency" (func $assembly/index/getWaveFrequency))
- (export "getVesselWaveHeight" (func $assembly/index/getVesselWaveHeight))
- (export "getVesselWavePhase" (func $assembly/index/getVesselWavePhase))
  (export "getVesselRollAngle" (func $assembly/index/getVesselRollAngle))
  (export "getVesselPitchAngle" (func $assembly/index/getVesselPitchAngle))
  (export "getVesselX" (func $assembly/index/getVesselX))
@@ -90,6 +86,21 @@
  (export "memory" (memory $0))
  (export "table" (table $0))
  (start $~start)
+ (func $assembly/index/calculateWaveFrequency (param $seaState f64) (result f64)
+  (local $wavePeriod f64)
+  f64.const 3
+  local.get $seaState
+  f64.const 1.6
+  f64.mul
+  f64.add
+  local.set $wavePeriod
+  f64.const 2
+  global.get $~lib/math/NativeMath.PI
+  f64.mul
+  local.get $wavePeriod
+  f64.div
+  return
+ )
  (func $~lib/array/Array<f64>#get:length_ (param $this i32) (result i32)
   local.get $this
   i32.load offset=12
@@ -125,7 +136,7 @@
   local.get $value
   return
  )
- (func $assembly/index/calculateWaveHeight (param $seaState f64) (result f64)
+ (func $assembly/index/getWaveHeightForSeaState (param $seaState f64) (result f64)
   (local $x f64)
   (local $value1 f64)
   (local $value2 f64)
@@ -256,30 +267,15 @@
   (local $wavePeriod f64)
   f64.const 3
   local.get $seaState
-  f64.const 0.8
+  f64.const 1.6
   f64.mul
   f64.add
   local.set $wavePeriod
-  f64.const 1.56
+  global.get $assembly/index/WAVE_LENGTH_FACTOR
   local.get $wavePeriod
   f64.mul
   local.get $wavePeriod
   f64.mul
-  return
- )
- (func $assembly/index/calculateWaveFrequency (param $seaState f64) (result f64)
-  (local $wavePeriod f64)
-  f64.const 3
-  local.get $seaState
-  f64.const 0.8
-  f64.mul
-  f64.add
-  local.set $wavePeriod
-  f64.const 2
-  global.get $~lib/math/NativeMath.PI
-  f64.mul
-  local.get $wavePeriod
-  f64.div
   return
  )
  (func $~lib/math/pio2_large_quot (param $x f64) (param $u i64) (result i32)
@@ -4028,6 +4024,138 @@
   local.get $this
   f64.load offset=24
  )
+ (func $assembly/index/calculateWindForceX (param $vessel i32) (param $windSpeed f64) (param $windDirection f64) (result f64)
+  (local $relativeDirection f64)
+  (local $projectedAreaFront f64)
+  (local $x f64)
+  (local $windCoefficientX f64)
+  local.get $windDirection
+  local.get $vessel
+  call $assembly/index/VesselState#get:psi
+  f64.sub
+  local.set $relativeDirection
+  local.get $vessel
+  call $assembly/index/VesselState#get:beam
+  local.get $vessel
+  call $assembly/index/VesselState#get:draft
+  f64.mul
+  f64.const 1.5
+  f64.mul
+  local.set $projectedAreaFront
+  f64.const 0.5
+  f64.const 0.4
+  block $~lib/math/NativeMath.abs|inlined.3 (result f64)
+   local.get $relativeDirection
+   call $~lib/math/NativeMath.cos
+   local.set $x
+   local.get $x
+   f64.abs
+   br $~lib/math/NativeMath.abs|inlined.3
+  end
+  f64.mul
+  f64.add
+  local.set $windCoefficientX
+  f64.const 0.5
+  f64.const 1.225
+  f64.mul
+  local.get $windSpeed
+  f64.mul
+  local.get $windSpeed
+  f64.mul
+  local.get $projectedAreaFront
+  f64.mul
+  local.get $windCoefficientX
+  f64.mul
+  local.get $relativeDirection
+  call $~lib/math/NativeMath.cos
+  f64.mul
+  return
+ )
+ (func $assembly/index/calculateWindForceY (param $vessel i32) (param $windSpeed f64) (param $windDirection f64) (result f64)
+  (local $relativeDirection f64)
+  (local $projectedAreaSide f64)
+  (local $x f64)
+  (local $windCoefficientY f64)
+  local.get $windDirection
+  local.get $vessel
+  call $assembly/index/VesselState#get:psi
+  f64.sub
+  local.set $relativeDirection
+  local.get $vessel
+  call $assembly/index/VesselState#get:length
+  local.get $vessel
+  call $assembly/index/VesselState#get:draft
+  f64.mul
+  f64.const 1.5
+  f64.mul
+  local.set $projectedAreaSide
+  f64.const 0.7
+  block $~lib/math/NativeMath.abs|inlined.4 (result f64)
+   local.get $relativeDirection
+   call $~lib/math/NativeMath.sin
+   local.set $x
+   local.get $x
+   f64.abs
+   br $~lib/math/NativeMath.abs|inlined.4
+  end
+  f64.mul
+  local.set $windCoefficientY
+  f64.const 0.5
+  f64.const 1.225
+  f64.mul
+  local.get $windSpeed
+  f64.mul
+  local.get $windSpeed
+  f64.mul
+  local.get $projectedAreaSide
+  f64.mul
+  local.get $windCoefficientY
+  f64.mul
+  local.get $relativeDirection
+  call $~lib/math/NativeMath.sin
+  f64.mul
+  return
+ )
+ (func $assembly/index/calculateWindMomentN (param $vessel i32) (param $windSpeed f64) (param $windDirection f64) (result f64)
+  (local $relativeDirection f64)
+  (local $projectedAreaSide f64)
+  (local $windCoefficientN f64)
+  local.get $windDirection
+  local.get $vessel
+  call $assembly/index/VesselState#get:psi
+  f64.sub
+  local.set $relativeDirection
+  local.get $vessel
+  call $assembly/index/VesselState#get:length
+  local.get $vessel
+  call $assembly/index/VesselState#get:draft
+  f64.mul
+  f64.const 1.5
+  f64.mul
+  local.set $projectedAreaSide
+  f64.const 0.1
+  f64.const 2
+  local.get $relativeDirection
+  f64.mul
+  call $~lib/math/NativeMath.sin
+  f64.mul
+  local.set $windCoefficientN
+  f64.const 0.5
+  f64.const 1.225
+  f64.mul
+  local.get $windSpeed
+  f64.mul
+  local.get $windSpeed
+  f64.mul
+  local.get $projectedAreaSide
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:length
+  f64.mul
+  local.get $windCoefficientN
+  f64.mul
+  return
+ )
  (func $~lib/rt/stub/maybeGrowMemory (param $newOffset i32)
   (local $pagesBefore i32)
   (local $maxOffset i32)
@@ -4571,141 +4699,6 @@
   i32.const 0
   drop
  )
- (func $assembly/index/calculateWindForce (param $vessel i32) (param $windSpeed f64) (param $windDirection f64) (result i32)
-  (local $relativeDirection f64)
-  (local $projectedAreaFront f64)
-  (local $projectedAreaSide f64)
-  (local $x f64)
-  (local $windCoefficientX f64)
-  (local $x|8 f64)
-  (local $windCoefficientY f64)
-  (local $windCoefficientN f64)
-  (local $windForceX f64)
-  (local $windForceY f64)
-  (local $windMomentN f64)
-  (local $14 i32)
-  (local $15 i32)
-  local.get $windDirection
-  local.get $vessel
-  call $assembly/index/VesselState#get:psi
-  f64.sub
-  local.set $relativeDirection
-  local.get $vessel
-  call $assembly/index/VesselState#get:beam
-  local.get $vessel
-  call $assembly/index/VesselState#get:draft
-  f64.mul
-  f64.const 1.5
-  f64.mul
-  local.set $projectedAreaFront
-  local.get $vessel
-  call $assembly/index/VesselState#get:length
-  local.get $vessel
-  call $assembly/index/VesselState#get:draft
-  f64.mul
-  f64.const 1.5
-  f64.mul
-  local.set $projectedAreaSide
-  f64.const 0.5
-  f64.const 0.4
-  block $~lib/math/NativeMath.abs|inlined.3 (result f64)
-   local.get $relativeDirection
-   call $~lib/math/NativeMath.cos
-   local.set $x
-   local.get $x
-   f64.abs
-   br $~lib/math/NativeMath.abs|inlined.3
-  end
-  f64.mul
-  f64.add
-  local.set $windCoefficientX
-  f64.const 0.7
-  block $~lib/math/NativeMath.abs|inlined.4 (result f64)
-   local.get $relativeDirection
-   call $~lib/math/NativeMath.sin
-   local.set $x|8
-   local.get $x|8
-   f64.abs
-   br $~lib/math/NativeMath.abs|inlined.4
-  end
-  f64.mul
-  local.set $windCoefficientY
-  f64.const 0.1
-  f64.const 2
-  local.get $relativeDirection
-  f64.mul
-  call $~lib/math/NativeMath.sin
-  f64.mul
-  local.set $windCoefficientN
-  f64.const 0.5
-  f64.const 1.225
-  f64.mul
-  local.get $windSpeed
-  f64.mul
-  local.get $windSpeed
-  f64.mul
-  local.get $projectedAreaFront
-  f64.mul
-  local.get $windCoefficientX
-  f64.mul
-  local.get $relativeDirection
-  call $~lib/math/NativeMath.cos
-  f64.mul
-  local.set $windForceX
-  f64.const 0.5
-  f64.const 1.225
-  f64.mul
-  local.get $windSpeed
-  f64.mul
-  local.get $windSpeed
-  f64.mul
-  local.get $projectedAreaSide
-  f64.mul
-  local.get $windCoefficientY
-  f64.mul
-  local.get $relativeDirection
-  call $~lib/math/NativeMath.sin
-  f64.mul
-  local.set $windForceY
-  f64.const 0.5
-  f64.const 1.225
-  f64.mul
-  local.get $windSpeed
-  f64.mul
-  local.get $windSpeed
-  f64.mul
-  local.get $projectedAreaSide
-  f64.mul
-  local.get $vessel
-  call $assembly/index/VesselState#get:length
-  f64.mul
-  local.get $windCoefficientN
-  f64.mul
-  local.set $windMomentN
-  i32.const 3
-  i32.const 3
-  i32.const 5
-  i32.const 0
-  call $~lib/rt/__newArray
-  local.set $14
-  local.get $14
-  i32.load offset=4
-  local.set $15
-  local.get $14
-  i32.const 0
-  local.get $windForceX
-  call $~lib/array/Array<f64>#__set
-  local.get $14
-  i32.const 1
-  local.get $windForceY
-  call $~lib/array/Array<f64>#__set
-  local.get $14
-  i32.const 2
-  local.get $windMomentN
-  call $~lib/array/Array<f64>#__set
-  local.get $14
-  return
- )
  (func $assembly/index/calculateCurrentForce (param $vessel i32) (param $currentSpeed f64) (param $currentDirection f64) (result i32)
   (local $relativeDirection f64)
   (local $wettedAreaSide f64)
@@ -4935,7 +4928,7 @@
    return
   end
   local.get $seaState
-  call $assembly/index/calculateWaveHeight
+  call $assembly/index/getWaveHeightForSeaState
   local.set $waveHeight
   local.get $seaState
   call $assembly/index/calculateWaveLength
@@ -5445,7 +5438,6 @@
   (local $rudderDrag f64)
   (local $rudderSway f64)
   (local $rudderYaw f64)
-  (local $windForces i32)
   (local $windSurge f64)
   (local $windSway f64)
   (local $windYaw f64)
@@ -5480,26 +5472,29 @@
   (local $stabilizingMoment f64)
   (local $value1 f64)
   (local $value2 f64)
-  (local $value1|54 f64)
-  (local $value2|55 f64)
+  (local $value1|53 f64)
+  (local $value2|54 f64)
   (local $pitchDamping f64)
   (local $netMomentPitch f64)
   (local $pitchDot f64)
   (local $pitchStabilizing f64)
-  (local $value1|60 f64)
-  (local $value2|61 f64)
-  (local $value1|62 f64)
-  (local $value2|63 f64)
+  (local $value1|59 f64)
+  (local $value2|60 f64)
+  (local $value1|61 f64)
+  (local $value2|62 f64)
   (local $netMomentYaw f64)
   (local $yawDot f64)
   (local $cosPsi f64)
   (local $sinPsi f64)
   (local $worldU f64)
   (local $worldV f64)
-  (local $value1|70 f64)
-  (local $value2|71 f64)
+  (local $value1|69 f64)
+  (local $value2|70 f64)
   (local $fuelTankCapacity f64)
   (local $fuelConsumptionRate f64)
+  (local $value1|73 f64)
+  (local $value2|74 f64)
+  (local $effectiveFuelRate f64)
   local.get $vesselPtr
   local.set $vessel
   local.get $windSpeed
@@ -5553,19 +5548,17 @@
   local.get $vessel
   local.get $windSpeed
   local.get $windDirection
-  call $assembly/index/calculateWindForce
-  local.set $windForces
-  local.get $windForces
-  i32.const 0
-  call $~lib/array/Array<f64>#__get
+  call $assembly/index/calculateWindForceX
   local.set $windSurge
-  local.get $windForces
-  i32.const 1
-  call $~lib/array/Array<f64>#__get
+  local.get $vessel
+  local.get $windSpeed
+  local.get $windDirection
+  call $assembly/index/calculateWindForceY
   local.set $windSway
-  local.get $windForces
-  i32.const 2
-  call $~lib/array/Array<f64>#__get
+  local.get $vessel
+  local.get $windSpeed
+  local.get $windDirection
+  call $assembly/index/calculateWindMomentN
   local.set $windYaw
   local.get $vessel
   local.get $currentSpeed
@@ -5775,11 +5768,11 @@
     f64.min
     br $~lib/math/NativeMath.min|inlined.1
    end
-   local.set $value1|54
+   local.set $value1|53
    f64.const -0.6
-   local.set $value2|55
-   local.get $value1|54
-   local.get $value2|55
+   local.set $value2|54
+   local.get $value1|53
+   local.get $value2|54
    f64.max
    br $~lib/math/NativeMath.max|inlined.3
   end
@@ -5842,19 +5835,19 @@
    block $~lib/math/NativeMath.min|inlined.2 (result f64)
     local.get $vessel
     call $assembly/index/VesselState#get:theta
-    local.set $value1|60
+    local.set $value1|59
     f64.const 0.3
-    local.set $value2|61
-    local.get $value1|60
-    local.get $value2|61
+    local.set $value2|60
+    local.get $value1|59
+    local.get $value2|60
     f64.min
     br $~lib/math/NativeMath.min|inlined.2
    end
-   local.set $value1|62
+   local.set $value1|61
    f64.const -0.3
-   local.set $value2|63
-   local.get $value1|62
-   local.get $value2|63
+   local.set $value2|62
+   local.get $value1|61
+   local.get $value2|62
    f64.max
    br $~lib/math/NativeMath.max|inlined.4
   end
@@ -5971,7 +5964,7 @@
   local.get $vessel
   block $~lib/math/NativeMath.max|inlined.5 (result f64)
    f64.const 0
-   local.set $value1|70
+   local.set $value1|69
    local.get $vessel
    call $assembly/index/VesselState#get:z
    local.get $vessel
@@ -5979,9 +5972,9 @@
    local.get $dt
    f64.mul
    f64.add
-   local.set $value2|71
-   local.get $value1|70
-   local.get $value2|71
+   local.set $value2|70
+   local.get $value1|69
+   local.get $value2|70
    f64.max
    br $~lib/math/NativeMath.max|inlined.5
   end
@@ -6003,10 +5996,23 @@
    local.get $fuelTankCapacity
    f64.div
    local.set $fuelConsumptionRate
+   block $~lib/math/NativeMath.max|inlined.6 (result f64)
+    local.get $fuelConsumptionRate
+    local.set $value1|73
+    f64.const 0.01
+    local.get $dt
+    f64.mul
+    local.set $value2|74
+    local.get $value1|73
+    local.get $value2|74
+    f64.max
+    br $~lib/math/NativeMath.max|inlined.6
+   end
+   local.set $effectiveFuelRate
    local.get $vessel
    local.get $vessel
    call $assembly/index/VesselState#get:fuelLevel
-   local.get $fuelConsumptionRate
+   local.get $effectiveFuelRate
    local.get $dt
    f64.mul
    f64.sub
@@ -6535,94 +6541,6 @@
   call $assembly/index/calculateCenterOfGravity
   local.get $vessel
   global.set $assembly/index/globalVessel
- )
- (func $assembly/index/getWaveHeight (param $seaState f64) (result f64)
-  (local $x f64)
-  (local $value1 f64)
-  (local $value2 f64)
-  (local $value1|4 f64)
-  (local $value2|5 f64)
-  (local $index f64)
-  local.get $seaState
-  f64.const 0.5
-  f64.lt
-  if
-   f64.const 0
-   return
-  end
-  block $~lib/math/NativeMath.min|inlined.3 (result f64)
-   block $~lib/math/NativeMath.max|inlined.6 (result f64)
-    f64.const 0
-    local.set $value1
-    block $~lib/math/NativeMath.floor|inlined.1 (result f64)
-     local.get $seaState
-     local.set $x
-     local.get $x
-     f64.floor
-     br $~lib/math/NativeMath.floor|inlined.1
-    end
-    local.set $value2
-    local.get $value1
-    local.get $value2
-    f64.max
-    br $~lib/math/NativeMath.max|inlined.6
-   end
-   local.set $value1|4
-   f64.const 12
-   local.set $value2|5
-   local.get $value1|4
-   local.get $value2|5
-   f64.min
-   br $~lib/math/NativeMath.min|inlined.3
-  end
-  local.set $index
-  global.get $assembly/index/BEAUFORT_WAVE_HEIGHTS
-  local.get $index
-  i32.trunc_sat_f64_s
-  call $~lib/array/Array<f64>#__get
-  return
- )
- (func $assembly/index/getWaveFrequency (param $seaState f64) (result f64)
-  (local $wavePeriod f64)
-  local.get $seaState
-  f64.const 0.5
-  f64.lt
-  if
-   f64.const 0
-   return
-  end
-  f64.const 3
-  local.get $seaState
-  f64.const 0.8
-  f64.mul
-  f64.add
-  local.set $wavePeriod
-  f64.const 2
-  global.get $~lib/math/NativeMath.PI
-  f64.mul
-  local.get $wavePeriod
-  f64.div
-  return
- )
- (func $assembly/index/VesselState#get:waveHeight (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=264
- )
- (func $assembly/index/getVesselWaveHeight (param $vesselPtr i32) (result f64)
-  (local $vessel i32)
-  local.get $vesselPtr
-  local.set $vessel
-  local.get $vessel
-  call $assembly/index/VesselState#get:waveHeight
-  return
- )
- (func $assembly/index/getVesselWavePhase (param $vesselPtr i32) (result f64)
-  (local $vessel i32)
-  local.get $vesselPtr
-  local.set $vessel
-  local.get $vessel
-  call $assembly/index/VesselState#get:wavePhase
-  return
  )
  (func $assembly/index/getVesselRollAngle (param $vesselPtr i32) (result f64)
   local.get $vesselPtr
