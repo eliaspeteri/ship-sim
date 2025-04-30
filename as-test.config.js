@@ -1,6 +1,6 @@
 module.exports = {
   // test related code folder
-  include: ['assembly', 'tests'],
+  include: ['assembly'],
   exclude: [],
 
   /** optional: assemblyscript compile flag */
