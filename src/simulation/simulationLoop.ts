@@ -27,6 +27,7 @@ export class SimulationLoop {
 
   /**
    * Initialize the simulation with WASM exports
+   * Ensures vessel pointer and initial position are set in the store.
    */
   async initialize(): Promise<void> {
     try {
@@ -38,6 +39,27 @@ export class SimulationLoop {
       // Create a vessel in WASM and store the pointer
       const vesselPtr = this.wasmBridge.createVessel();
       useStore.getState().setWasmVesselPtr(vesselPtr);
+
+      // Immediately read vessel position and verify it's valid
+      if (vesselPtr && this.wasmBridge) {
+        const x = this.wasmBridge.getVesselX(vesselPtr);
+        const y = this.wasmBridge.getVesselY(vesselPtr);
+        const z = this.wasmBridge.getVesselZ(vesselPtr);
+
+        // Check for NaN values which indicate a problem with the WASM vessel state
+        if (isNaN(x) || isNaN(y) || isNaN(z)) {
+          console.error('WASM vessel position contains NaN values:', {
+            x,
+            y,
+            z,
+          });
+          // Fall back to default values (0,0,0) rather than propagating NaN
+          useStore.getState().updateVessel({ position: { x: 0, y: 0, z: 0 } });
+        } else {
+          // Valid position values - update store
+          useStore.getState().updateVessel({ position: { x, y, z } });
+        }
+      }
 
       console.info(
         'Simulation initialized with WASM vessel pointer:',
@@ -169,10 +191,12 @@ export class SimulationLoop {
    * Update physics state using WASM module
    */
   private updatePhysics(dt: number): void {
+    console.info('Updating physics with dt:', dt);
     const state = useStore.getState();
     if (!state || !this.wasmBridge || !state.wasmVesselPtr) return;
 
     const { wind, current } = state.environment;
+    const prevVesselPos = state.vessel.position;
 
     // Calculate the actual sea state based on wind speed
     const calculatedSeaState = this.wasmBridge.calculateSeaState(wind.speed);
@@ -182,32 +206,80 @@ export class SimulationLoop {
       state.environment.seaState = calculatedSeaState;
     }
 
-    // Update vessel state in WASM - store the updated pointer in case it changes
-    const updatedVesselPtr = this.wasmBridge.updateVesselState(
-      state.wasmVesselPtr,
-      dt,
-      wind.speed,
-      wind.direction,
-      current.speed,
-      current.direction,
-      calculatedSeaState, // Pass calculated sea state instead of using it directly from state
-    );
+    try {
+      // Update vessel state in WASM - store the updated pointer in case it changes
+      const updatedVesselPtr = this.wasmBridge.updateVesselState(
+        state.wasmVesselPtr,
+        dt,
+        wind.speed,
+        wind.direction,
+        current.speed,
+        current.direction,
+        calculatedSeaState, // Pass calculated sea state instead of using it directly from state
+      );
 
-    // Update vessel pointer if it changed
-    if (updatedVesselPtr !== state.wasmVesselPtr) {
-      state.setWasmVesselPtr(updatedVesselPtr);
-    }
+      // Read vessel data from WASM
+      const x = this.wasmBridge.getVesselX(updatedVesselPtr);
+      const y = this.wasmBridge.getVesselY(updatedVesselPtr);
+      const z = this.wasmBridge.getVesselZ(updatedVesselPtr);
+      const heading = this.wasmBridge.getVesselHeading(updatedVesselPtr);
+      const roll = this.wasmBridge.getVesselRollAngle(updatedVesselPtr);
+      const pitch = this.wasmBridge.getVesselPitchAngle(updatedVesselPtr);
 
-    // Handle machinery failures by adjusting physics behavior
-    const { failures } = state.machinerySystems;
-    if (failures.engineFailure && this.wasmBridge) {
-      // If engine failure, force throttle to 0
-      this.wasmBridge.setThrottle(state.wasmVesselPtr, 0);
-    }
-    if (failures.rudderFailure && this.wasmBridge) {
-      // If rudder failure, add random drift to rudder
-      const randomDrift = (Math.random() - 0.5) * 0.2;
-      this.wasmBridge.setRudderAngle(state.wasmVesselPtr, randomDrift);
+      // Check for NaN values - use previous or default values if needed
+      const positionUpdate = {
+        x: isNaN(x) ? prevVesselPos?.x || 0 : x,
+        y: isNaN(y) ? prevVesselPos?.y || 0 : y,
+        z: isNaN(z) ? prevVesselPos?.z || 0 : z,
+      };
+
+      // Log if any values were NaN
+      if (isNaN(x) || isNaN(y) || isNaN(z)) {
+        console.warn('Physics returned NaN position values:', { x, y, z });
+      }
+
+      // Check orientation values
+      const orientationUpdate = {
+        heading: isNaN(heading)
+          ? state.vessel.orientation.heading || 0
+          : heading,
+        roll: isNaN(roll) ? state.vessel.orientation.roll || 0 : roll,
+        pitch: isNaN(pitch) ? state.vessel.orientation.pitch || 0 : pitch,
+      };
+
+      // Only log debug info for real position changes
+      console.info(
+        'Vessel position:',
+        positionUpdate.x,
+        positionUpdate.y,
+        positionUpdate.z,
+      );
+
+      // Update state with sanitized values
+      state.updateVessel({
+        position: positionUpdate,
+        orientation: orientationUpdate,
+      });
+
+      // Update vessel pointer if it changed
+      if (updatedVesselPtr !== state.wasmVesselPtr) {
+        state.setWasmVesselPtr(updatedVesselPtr);
+      }
+
+      // Handle machinery failures by adjusting physics behavior
+      const { failures } = state.machinerySystems;
+      if (failures.engineFailure && this.wasmBridge) {
+        // If engine failure, force throttle to 0
+        this.wasmBridge.setThrottle(state.wasmVesselPtr, 0);
+      }
+      if (failures.rudderFailure && this.wasmBridge) {
+        // If rudder failure, add random drift to rudder
+        const randomDrift = (Math.random() - 0.5) * 0.2;
+        this.wasmBridge.setRudderAngle(state.wasmVesselPtr, randomDrift);
+      }
+    } catch (error) {
+      console.error('Error in updatePhysics:', error);
+      // Don't update vessel state on error - maintain last known good state
     }
   }
 
