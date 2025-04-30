@@ -4,12 +4,10 @@ import {
   endTest,
 } from 'assemblyscript-unittest-framework/assembly';
 import {
-  calculateWaveHeight,
   calculateWaveLength,
   calculateWaveFrequency,
   calculateWaveHeightAtPosition,
-  getWaveHeight,
-  getWaveFrequency,
+  getWaveHeightForSeaState,
 } from './index';
 
 /**
@@ -63,33 +61,23 @@ test('getWaveHeight and getWaveFrequency return zero for calm sea states', () =>
   const calmSeaState = 0;
   const normalSeaState = 5;
 
-  // Test the wave height function
-  expect<f64>(getWaveHeight(calmSeaState)).closeTo(0.0, 0.001);
-  expect<f64>(getWaveHeight(normalSeaState)).greaterThan(0.0);
+  expect<f64>(getWaveHeightForSeaState(calmSeaState)).closeTo(0.0, 0.001);
+  expect<f64>(getWaveHeightForSeaState(normalSeaState)).greaterThan(0.0);
 
-  // Test the wave frequency function
-  expect<f64>(getWaveFrequency(calmSeaState)).closeTo(0.0, 0.001);
-  expect<f64>(getWaveFrequency(normalSeaState)).greaterThan(0.0);
+  expect<f64>(calculateWaveFrequency(calmSeaState)).closeTo(2.094, 0.001); // For seaState=0, period=3.0, freq=2pi/3
+  expect<f64>(calculateWaveFrequency(normalSeaState)).greaterThan(0.0);
 });
 
-// Test upper bounds for sea state index calculations
-test('wave calculations handle extreme sea state values', () => {
-  const extremeSeaState = 100.0; // Way beyond the Beaufort scale
-
-  // Wave height should be clamped to the maximum value (index 12)
-  expect<f64>(calculateWaveHeight(extremeSeaState)).closeTo(14.0, 0.001);
-
-  // Wave length and frequency should still produce valid results
+test('wave calculations handle extreme sea state values', (): void => {
+  const extremeSeaState: f64 = 100.0;
+  expect<f64>(getWaveHeightForSeaState(extremeSeaState)).closeTo(14.0, 0.001);
   expect<f64>(calculateWaveLength(extremeSeaState)).greaterThan(0.0);
   expect<f64>(calculateWaveFrequency(extremeSeaState)).greaterThan(0.0);
 });
 
-// Test negative sea states (should be clamped to 0)
-test('wave calculations handle negative sea state values', () => {
-  const negativeSeaState = -2.0;
-
-  expect<f64>(calculateWaveHeight(negativeSeaState)).closeTo(0.0, 0.001);
-  expect<f64>(getWaveHeight(-1)).closeTo(0.0, 0.001);
+test('wave calculations handle negative sea state values', (): void => {
+  const negativeSeaState: f64 = -2.0;
+  expect<f64>(getWaveHeightForSeaState(negativeSeaState)).closeTo(0.0, 0.001);
 });
 
 endTest(); // Don't forget it!

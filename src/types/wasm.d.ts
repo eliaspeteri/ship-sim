@@ -118,8 +118,6 @@ export interface WasmModule {
     waveHeight: number,
     wavePhase: number,
   ) => void;
-  getVesselWaveHeight: (vesselPtr: number) => number;
-  getVesselWavePhase: (vesselPtr: number) => number;
 
   /**
    * Calculates the wave frequency for a given sea state.
@@ -127,6 +125,7 @@ export interface WasmModule {
    * @returns The wave frequency in radians per second
    */
   calculateWaveFrequency: (seaState: number) => number;
+  calculateWaveLength: (seaState: number) => number;
   calculateBeaufortScale: (windSpeed: number) => number;
   calculateWaveHeightAtPosition: (
     x: number,
@@ -138,8 +137,7 @@ export interface WasmModule {
     waveDirection: number,
     seaState: number,
   ) => number;
-  getWaveHeight: (seaState: number) => number;
-  getWaveFrequency: (seaState: number) => number;
+  getWaveHeightForSeaState: (seaState: number) => number;
 }
 
 // Simplified vessel state interface for physics updates

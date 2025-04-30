@@ -448,14 +448,13 @@ function Ocean({
 
       // Verify all required WASM functions exist before using them
       if (
-        wasmExports.calculateWaveHeight &&
         wasmExports.calculateWaveLength &&
         wasmExports.calculateWaveFrequency &&
         wasmExports.calculateWaveHeightAtPosition &&
         wasmExports.setWaveData
       ) {
         const seaState = computedSeaState;
-        const waveHeightVal = wasmExports.calculateWaveHeight(seaState);
+        const waveHeightVal = wasmExports.getWaveHeightForSeaState(seaState);
         const waveLength = wasmExports.calculateWaveLength(seaState);
         const waveFrequency = wasmExports.calculateWaveFrequency(seaState);
         const windDir = environment.wind.direction;

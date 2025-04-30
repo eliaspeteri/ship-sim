@@ -16,8 +16,6 @@ import {
   getVesselFuelLevel,
   getVesselFuelConsumption,
   getVesselGM,
-  getVesselWaveHeight,
-  getVesselWavePhase,
 } from '../assembly/index';
 
 import {
@@ -64,19 +62,13 @@ test('createVessel initializes vessel with default values', () => {
   expect<f64>(getVesselHeading(ptr)).closeTo(0.0, 0.001);
   expect<f64>(getVesselRollAngle(ptr)).closeTo(0.0, 0.001);
   expect<f64>(getVesselPitchAngle(ptr)).closeTo(0.0, 0.001);
-
-  // Check speed with more appropriate tolerance
-  expect<f64>(getVesselSpeed(ptr)).closeTo(1.0, 0.02); // Increased tolerance
+  expect<f64>(getVesselSpeed(ptr)).closeTo(1.0, 0.02);
   expect<f64>(getVesselEngineRPM(ptr)).closeTo(240.0, 0.001);
   expect<f64>(getVesselFuelLevel(ptr)).closeTo(1.0, 0.001);
   expect<f64>(getVesselFuelConsumption(ptr)).greaterThan(0.0);
 
   // Check stability values
   expect<f64>(getVesselGM(ptr)).greaterThan(0.0);
-
-  // Check wave state
-  expect<f64>(getVesselWaveHeight(ptr)).closeTo(0.0, 0.001);
-  expect<f64>(getVesselWavePhase(ptr)).closeTo(0.0, 0.001);
 });
 
 test('vessel position updates correctly when moving forward', () => {

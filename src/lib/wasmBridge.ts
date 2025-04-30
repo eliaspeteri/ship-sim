@@ -355,24 +355,6 @@ export class WasmBridge {
   }
 
   /**
-   * Get wave height at vessel position
-   * @param vesselPtr - Pointer to vessel in WASM memory
-   * @returns Wave height in meters
-   */
-  public getVesselWaveHeight(vesselPtr: number): number {
-    return this.wasmModule.getVesselWaveHeight(vesselPtr);
-  }
-
-  /**
-   * Get wave phase at vessel position
-   * @param vesselPtr - Pointer to vessel in WASM memory
-   * @returns Wave phase in radians
-   */
-  public getVesselWavePhase(vesselPtr: number): number {
-    return this.wasmModule.getVesselWavePhase(vesselPtr);
-  }
-
-  /**
    * Calculate sea state (Beaufort scale) from wind speed
    * @param windSpeed - Wind speed in m/s
    * @returns Beaufort scale value (0-12)
@@ -408,23 +390,14 @@ export class WasmBridge {
    * @param seaState - Sea state on Beaufort scale (0-12)
    * @returns Wave height in meters
    */
-  public getWaveHeight(seaState: number): number {
-    return this.wasmModule.getWaveHeight(seaState);
+  public getWaveHeightForSeaState(seaState: number): number {
+    return this.wasmModule.getWaveHeightForSeaState(seaState);
   }
 
   /**
    * Calculate wave properties for a given sea state and wind direction
    * @param seaState - Sea state on Beaufort scale (0-12)
-   * @returns Wave frequency in rad/s
-   */
-  public getWaveFrequency(seaState: number): number {
-    return this.wasmModule.getWaveFrequency(seaState);
-  }
-
-  /**
-   * Calculate wave height at a specific position
-   * @param x - X position in meters
-   * @param y - Y position in meters
+   * @param windDirection - Wind direction in radians
    * @param time - Time in seconds
    * @param waveHeight - Wave height in meters
    * @param waveLength - Wave length in meters
@@ -460,15 +433,7 @@ export class WasmBridge {
    * @param seaState - The sea state (0-12, Beaufort scale)
    * @returns The wave frequency in radians per second
    */
-  public calculateWaveProperties(
-    seaState: number,
-    windDirection: number,
-  ): [number, number, number, number] {
-    const waveHeight = this.getWaveHeight(seaState);
-    const waveLength = 1.56 * Math.pow(3.0 + seaState * 0.8, 2); // Approximate wave length calculation
-    const waveFrequency = this.getWaveFrequency(seaState);
-    const waveDirectionValue = windDirection - Math.PI * 0.1;
-
-    return [waveHeight, waveLength, waveFrequency, waveDirectionValue];
+  public calculateWaveFrequency(seaState: number): number {
+    return this.wasmModule.calculateWaveFrequency(seaState);
   }
 }

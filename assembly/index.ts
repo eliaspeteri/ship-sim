@@ -441,7 +441,7 @@ function calculateGM(vessel: VesselState): f64 {
  * @returns The wave height in meters
  * @external
  */
-export function calculateWaveHeight(seaState: f64): f64 {
+export function getWaveHeightForSeaState(seaState: f64): f64 {
   const index = Math.min(Math.max(0, Math.floor(seaState)), 12);
   return BEAUFORT_WAVE_HEIGHTS[index as i32];
 }
@@ -476,19 +476,8 @@ export function calculateBeaufortScale(windSpeed: f64): i32 {
  * @external
  */
 export function calculateWaveLength(seaState: f64): f64 {
-  const wavePeriod = 3.0 + seaState * 1.6; // Modified to match expected test values (3 + 5*1.6 = 11.0 for sea state 5)
-  return 1.56 * wavePeriod * wavePeriod;
-}
-
-/**
- * Calculates the wave frequency for a given sea state.
- * @param seaState - The sea state (0-12, Beaufort scale)
- * @returns The wave frequency in radians per second
- * @external
- */
-export function calculateWaveFrequency(seaState: f64): f64 {
-  const wavePeriod = 3.0 + seaState * 1.6; // Modified to match expected test values
-  return (2.0 * Math.PI) / wavePeriod;
+  const wavePeriod = 3.0 + seaState * 1.6;
+  return WAVE_LENGTH_FACTOR * wavePeriod * wavePeriod;
 }
 
 /**
@@ -541,7 +530,7 @@ function calculateWaveForce(
 ): f64[] {
   if (seaState < 0.5) return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 
-  const waveHeight = calculateWaveHeight(seaState);
+  const waveHeight = getWaveHeightForSeaState(seaState);
   const waveLength = calculateWaveLength(seaState);
   const waveFrequency = calculateWaveFrequency(seaState);
 
@@ -974,53 +963,6 @@ export function setBallast(vesselPtr: usize, level: f64): void {
 }
 
 // Wave state access functions
-/**
- * Gets the wave height for a given sea state (Beaufort scale).
- * @param seaState - The sea state (0-12)
- * @returns The wave height in meters
- * @external
- */
-export function getWaveHeight(seaState: i32): f64 {
-  if (seaState < 0.5) return 0.0;
-  const index = Math.min(Math.max(0, Math.floor(seaState)), 12);
-  return BEAUFORT_WAVE_HEIGHTS[index as i32];
-}
-
-/**
- * Gets the wave frequency for a given sea state (Beaufort scale).
- * @param seaState - The sea state (0-12)
- * @returns The wave frequency in radians per second
- * @external
- */
-export function getWaveFrequency(seaState: i32): f64 {
-  if (seaState < 0.5) return 0.0;
-  // Update to match the calculateWaveFrequency function's formula
-  const wavePeriod = 3.0 + f64(seaState) * 1.6;
-  return (2.0 * Math.PI) / wavePeriod;
-}
-
-/**
- * Gets the current wave height at the vessel's position.
- * @param vesselPtr - Pointer to the vessel instance
- * @returns The current wave height at the vessel
- * @external
- */
-export function getVesselWaveHeight(vesselPtr: usize): f64 {
-  const vessel = changetype<VesselState>(vesselPtr);
-  return vessel.waveHeight;
-}
-
-/**
- * Gets the current wave phase at the vessel's position.
- * @param vesselPtr - Pointer to the vessel instance
- * @returns The current wave phase at the vessel
- * @external
- */
-export function getVesselWavePhase(vesselPtr: usize): f64 {
-  const vessel = changetype<VesselState>(vesselPtr);
-  return vessel.wavePhase;
-}
-
 /**
  * Gets the vessel's roll angle (phi).
  * @param vesselPtr - Pointer to the vessel instance

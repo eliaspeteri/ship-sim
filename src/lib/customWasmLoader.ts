@@ -53,12 +53,9 @@ export interface ShipSimWasm {
   getVesselCenterOfGravityY: (vesselPtr: number) => number;
   getVesselRollAngle: (vesselPtr: number) => number;
   getVesselPitchAngle: (vesselPtr: number) => number;
-  getVesselWaveHeight: (vesselPtr: number) => number;
-  getVesselWavePhase: (vesselPtr: number) => number;
+  getWaveHeightForSeaState: (seaState: number) => number;
 
   // Wave physics
-  getWaveHeight: (seaState: number) => number;
-  getWaveFrequency: (seaState: number) => number;
   calculateWaveHeight: (seaState: number) => number;
   calculateWaveLength: (seaState: number) => number;
   calculateWaveFrequency: (seaState: number) => number;
@@ -334,18 +331,11 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
       getVesselPitchAngle: exports.getVesselPitchAngle as (
         vesselPtr: number,
       ) => number,
-      getVesselWaveHeight: exports.getVesselWaveHeight as (
-        vesselPtr: number,
-      ) => number,
-      getVesselWavePhase: exports.getVesselWavePhase as (
-        vesselPtr: number,
+      getWaveHeightForSeaState: exports.getWaveHeightForSeaState as (
+        seaState: number,
       ) => number,
 
       // Wave physics
-      getWaveHeight: exports.getWaveHeight as (seaState: number) => number,
-      getWaveFrequency: exports.getWaveFrequency as (
-        seaState: number,
-      ) => number,
       calculateWaveHeight: exports.calculateWaveHeight as (
         seaState: number,
       ) => number,

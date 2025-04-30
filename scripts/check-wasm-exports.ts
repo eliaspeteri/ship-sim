@@ -39,12 +39,10 @@ const EXPECTED_EXPORTS: string[] = [
 
   // Wave calculations
   'calculateWaveHeightAtPosition',
-  'calculateWaveHeight',
+  'getWaveHeightForSeaState',
   'calculateWaveLength',
-  'calculateWaveFrequency',
-  'getWaveHeight',
-  'getWaveFrequency',
   'calculateBeaufortScale',
+  'calculateWaveFrequency',
 
   // Vessel state access functions
   'getVesselX',
@@ -61,8 +59,6 @@ const EXPECTED_EXPORTS: string[] = [
   // Motion-related functions
   'getVesselRollAngle',
   'getVesselPitchAngle',
-  'getVesselWaveHeight',
-  'getVesselWavePhase',
 ];
 
 /**
