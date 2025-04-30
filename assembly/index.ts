@@ -151,6 +151,17 @@ const BEAUFORT_WAVE_HEIGHTS = [
   0.0, 0.1, 0.2, 0.6, 1.0, 2.0, 3.0, 4.0, 5.5, 7.0, 9.0, 11.5, 14.0,
 ];
 
+/**
+ * Calculates the wave frequency for a given sea state.
+ * @param seaState - The sea state (0-12, Beaufort scale)
+ * @returns The wave frequency in radians per second
+ * @external
+ */
+export function calculateWaveFrequency(seaState: f64): f64 {
+  const wavePeriod = 3.0 + seaState * 1.6;
+  return (2.0 * Math.PI) / wavePeriod;
+}
+
 // Calculate hull resistance using simplified Holtrop-Mennen method
 function calculateHullResistance(vessel: VesselState, speed: f64): f64 {
   if (speed < 0.01) return 0.0;
