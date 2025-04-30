@@ -30,6 +30,7 @@ export class SimulationLoop {
    */
   async initialize(): Promise<void> {
     try {
+      console.info('Initializing simulation with WASM module...');
       // Load WASM via our bridge that handles missing exports
       const bridge = await loadWasm();
       this.wasmBridge = bridge;

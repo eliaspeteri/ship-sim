@@ -6,6 +6,7 @@ import Dashboard from '../components/Dashboard';
 import EnvironmentControls from '../components/EnvironmentControls';
 import useStore from '../store';
 import socketManager from '../networking/socket';
+import { initializeSimulation } from '../simulation';
 
 /**
  * Simulation page for Ship Simulator.
@@ -26,6 +27,8 @@ const SimPage: React.FC = () => {
     }
     // Connect to websocket server when entering sim page
     socketManager.connect();
+    // Initialize simulation (WASM, vessel, physics) on first load
+    initializeSimulation();
     return () => {
       // Disconnect when leaving sim page
       socketManager.disconnect();

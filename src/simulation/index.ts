@@ -7,6 +7,7 @@ import { getSimulationLoop } from './simulationLoop';
 
 // Export our simulation loop functions for use throughout the application
 export const initializeSimulation = async (): Promise<void> => {
+  console.info('Initializing simulation');
   const simulationLoop = getSimulationLoop();
   return simulationLoop.initialize();
 };
