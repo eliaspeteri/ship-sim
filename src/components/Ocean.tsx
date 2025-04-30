@@ -421,14 +421,6 @@ function Ocean({
             Math.cos(sunAngle),
           );
         }
-
-        // Occasional normal map switch for variety - reduced frequency to every 200 frames
-        if (material.uniforms.normalSampler && Math.random() < 0.005) {
-          material.uniforms.normalSampler.value =
-            material.uniforms.normalSampler.value === waterNormals.normalMap1
-              ? waterNormals.normalMap2
-              : waterNormals.normalMap1;
-        }
       }
     }
 
