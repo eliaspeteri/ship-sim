@@ -60,6 +60,8 @@ export interface ShipSimWasm {
   getWaveHeight: (seaState: number) => number;
   getWaveFrequency: (seaState: number) => number;
   calculateWaveHeight: (seaState: number) => number;
+  calculateWaveLength: (seaState: number) => number;
+  calculateWaveFrequency: (seaState: number) => number;
   calculateWaveHeightAtPosition: (
     x: number,
     y: number,
@@ -367,6 +369,12 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
       ) => number,
       calculateRudderMomentZ: exports.calculateRudderMomentZ as (
         vesselPtr: number,
+      ) => number,
+      calculateWaveLength: exports.calculateWaveLength as (
+        seaState: number,
+      ) => number,
+      calculateWaveFrequency: exports.calculateWaveFrequency as (
+        seaState: number,
       ) => number,
     };
 
