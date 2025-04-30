@@ -574,6 +574,58 @@ function calculateWaveForce(
   ];
 }
 
+// Calculate wind force based on wind speed and direction
+function calculateWindForce(
+  vessel: VesselState,
+  windSpeed: f64,
+  windDirection: f64,
+): f64[] {
+  // Relative wind direction (0 = head wind, PI = following wind)
+  const relativeDirection = windDirection - vessel.psi;
+
+  // Projected areas (simplified)
+  const projectedAreaFront = vessel.beam * vessel.draft * 1.5; // Include superstructure
+  const projectedAreaSide = vessel.length * vessel.draft * 1.5; // Include superstructure
+
+  // Wind coefficients
+  const windCoefficientX = 0.5 + 0.4 * Math.abs(Math.cos(relativeDirection));
+  const windCoefficientY = 0.7 * Math.abs(Math.sin(relativeDirection));
+  const windCoefficientN = 0.1 * Math.sin(2.0 * relativeDirection);
+
+  // Air density
+  const airDensity = 1.225; // kg/m³
+
+  // Calculate wind forces
+  const windForceX =
+    0.5 *
+    airDensity *
+    windSpeed *
+    windSpeed *
+    projectedAreaFront *
+    windCoefficientX *
+    Math.cos(relativeDirection);
+
+  const windForceY =
+    0.5 *
+    airDensity *
+    windSpeed *
+    windSpeed *
+    projectedAreaSide *
+    windCoefficientY *
+    Math.sin(relativeDirection);
+
+  const windMomentN =
+    0.5 *
+    airDensity *
+    windSpeed *
+    windSpeed *
+    projectedAreaSide *
+    vessel.length *
+    windCoefficientN;
+
+  return [windForceX, windForceY, windMomentN];
+}
+
 // Enhanced update function with comprehensive physics
 export function updateVesselState(
   vesselPtr: usize,
@@ -910,56 +962,4 @@ export function getVesselGM(vesselPtr: usize): f64 {
 export function getVesselCenterOfGravityY(vesselPtr: usize): f64 {
   const vessel = changetype<VesselState>(vesselPtr);
   return vessel.centerOfGravityY;
-}
-
-// Calculate wind force based on wind speed and direction
-function calculateWindForce(
-  vessel: VesselState,
-  windSpeed: f64,
-  windDirection: f64,
-): f64[] {
-  // Relative wind direction (0 = head wind, PI = following wind)
-  const relativeDirection = windDirection - vessel.psi;
-
-  // Projected areas (simplified)
-  const projectedAreaFront = vessel.beam * vessel.draft * 1.5; // Include superstructure
-  const projectedAreaSide = vessel.length * vessel.draft * 1.5; // Include superstructure
-
-  // Wind coefficients
-  const windCoefficientX = 0.5 + 0.4 * Math.abs(Math.cos(relativeDirection));
-  const windCoefficientY = 0.7 * Math.abs(Math.sin(relativeDirection));
-  const windCoefficientN = 0.1 * Math.sin(2.0 * relativeDirection);
-
-  // Air density
-  const airDensity = 1.225; // kg/m³
-
-  // Calculate wind forces
-  const windForceX =
-    0.5 *
-    airDensity *
-    windSpeed *
-    windSpeed *
-    projectedAreaFront *
-    windCoefficientX *
-    Math.cos(relativeDirection);
-
-  const windForceY =
-    0.5 *
-    airDensity *
-    windSpeed *
-    windSpeed *
-    projectedAreaSide *
-    windCoefficientY *
-    Math.sin(relativeDirection);
-
-  const windMomentN =
-    0.5 *
-    airDensity *
-    windSpeed *
-    windSpeed *
-    projectedAreaSide *
-    vessel.length *
-    windCoefficientN;
-
-  return [windForceX, windForceY, windMomentN];
 }
