@@ -121,9 +121,11 @@ export interface WasmModule {
   getVesselWaveHeight: (vesselPtr: number) => number;
   getVesselWavePhase: (vesselPtr: number) => number;
 
-  // Wave calculations
-  calculateWaveHeight: (seaState: number) => number;
-  calculateWaveLength: (seaState: number) => number;
+  /**
+   * Calculates the wave frequency for a given sea state.
+   * @param seaState - The sea state (0-12, Beaufort scale)
+   * @returns The wave frequency in radians per second
+   */
   calculateWaveFrequency: (seaState: number) => number;
   calculateBeaufortScale: (windSpeed: number) => number;
   calculateWaveHeightAtPosition: (

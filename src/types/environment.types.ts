@@ -12,6 +12,16 @@ export interface EnvironmentState {
   };
   seaState: number;
   waterDepth?: number;
+  /**
+   * EnvironmentState
+   *
+   * This interface represents the environmental state as used by the client.
+   *
+   * Contract:
+   * - The server provides only raw weather/environmental data (wind, seaState, etc.).
+   * - The client uses the WASM module to compute derived values (waveHeight, waveLength, etc.).
+   * - waveHeight is NOT sent by the server; it is calculated on the client.
+   */
   waveHeight?: number;
   waveDirection?: number;
   waveLength?: number;

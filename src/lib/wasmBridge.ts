@@ -413,7 +413,7 @@ export class WasmBridge {
   }
 
   /**
-   * Get wave frequency for a given sea state
+   * Calculate wave properties for a given sea state and wind direction
    * @param seaState - Sea state on Beaufort scale (0-12)
    * @returns Wave frequency in rad/s
    */
@@ -456,10 +456,9 @@ export class WasmBridge {
   }
 
   /**
-   * Calculate wave properties for a given sea state and wind direction
-   * @param seaState - Sea state on Beaufort scale (0-12)
-   * @param windDirection - Wind direction in radians
-   * @returns Array with [waveHeight, waveLength, waveFrequency, waveDirection]
+   * Calculates the wave frequency for a given sea state.
+   * @param seaState - The sea state (0-12, Beaufort scale)
+   * @returns The wave frequency in radians per second
    */
   public calculateWaveProperties(
     seaState: number,
