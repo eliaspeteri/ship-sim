@@ -47,7 +47,10 @@ test('getWaveHeightForSeaState returns expected values for different sea states'
   expect<f64>(getWaveHeightForSeaState(13.0)).closeTo(14.0, 0.001); // Max clamping
 });
 
-test('calculateWaveLength and calculateWaveFrequency are related correctly', () => {
+/**
+ * Test calculateWaveLength is consistent with deep water wave theory.
+ */
+test('calculateWaveLength is consistent with deep water wave theory', () => {
   const seaState = 4.0;
   const waveLength = calculateWaveLength(seaState);
   // Deep water wave velocity: v = sqrt(g * λ / (2π))
