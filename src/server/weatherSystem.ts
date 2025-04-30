@@ -15,9 +15,6 @@ export interface WeatherPattern {
   current: { speed: number; direction: number; variability: number };
   seaState: number;
   waterDepth: number;
-  waveHeight: number;
-  waveDirection: number;
-  waveLength: number;
   visibility: number;
   timeOfDay: number;
   precipitation: 'none' | 'rain' | 'snow' | 'fog';
@@ -32,9 +29,6 @@ export const weatherPresets: Record<string, WeatherPattern> = {
     current: { speed: 0.2, direction: Math.PI / 4, variability: 0.1 },
     seaState: 1,
     waterDepth: 100,
-    waveHeight: 0.2,
-    waveDirection: 0,
-    waveLength: 30,
     visibility: 10,
     timeOfDay: 12,
     precipitation: 'none',
@@ -46,9 +40,6 @@ export const weatherPresets: Record<string, WeatherPattern> = {
     current: { speed: 0.8, direction: Math.PI / 3, variability: 0.2 },
     seaState: 3,
     waterDepth: 100,
-    waveHeight: 0.8,
-    waveDirection: Math.PI / 6,
-    waveLength: 40,
     visibility: 8,
     timeOfDay: 14,
     precipitation: 'none',
@@ -60,9 +51,6 @@ export const weatherPresets: Record<string, WeatherPattern> = {
     current: { speed: 1.5, direction: Math.PI / 2, variability: 0.4 },
     seaState: 6,
     waterDepth: 100,
-    waveHeight: 2.5,
-    waveDirection: Math.PI / 2,
-    waveLength: 60,
     visibility: 3,
     timeOfDay: 16,
     precipitation: 'rain',
@@ -79,9 +67,6 @@ export const weatherPresets: Record<string, WeatherPattern> = {
     current: { speed: 2.5, direction: Math.PI * 0.7, variability: 0.6 },
     seaState: 8,
     waterDepth: 100,
-    waveHeight: 8,
-    waveDirection: Math.PI * 0.7,
-    waveLength: 80,
     visibility: 1,
     timeOfDay: 15,
     precipitation: 'rain',
@@ -93,9 +78,6 @@ export const weatherPresets: Record<string, WeatherPattern> = {
     current: { speed: 0.5, direction: Math.PI / 6, variability: 0.1 },
     seaState: 2,
     waterDepth: 100,
-    waveHeight: 0.4,
-    waveDirection: 0,
-    waveLength: 35,
     visibility: 6,
     timeOfDay: 21,
     precipitation: 'none',
@@ -107,9 +89,6 @@ export const weatherPresets: Record<string, WeatherPattern> = {
     current: { speed: 0.3, direction: 0, variability: 0.1 },
     seaState: 1,
     waterDepth: 100,
-    waveHeight: 0.2,
-    waveDirection: 0,
-    waveLength: 30,
     visibility: 0.5,
     timeOfDay: 10,
     precipitation: 'fog',
@@ -126,9 +105,6 @@ export const weatherPresets: Record<string, WeatherPattern> = {
     current: { speed: 1.0, direction: Math.PI * 1.5, variability: 0.3 },
     seaState: 4,
     waterDepth: 100,
-    waveHeight: 1.0,
-    waveDirection: Math.PI * 1.5,
-    waveLength: 45,
     visibility: 2,
     timeOfDay: 14,
     precipitation: 'snow',
@@ -152,7 +128,6 @@ export function generateRandomWeather(): WeatherPattern {
 
   // Generate sea state based on wind (Beaufort scale relationship)
   const seaState = Math.min(9, Math.floor(seaCoeff * 10));
-  const waveHeight = calculateWaveHeight(seaState);
 
   // Random precipitation
   let precipitation: 'none' | 'rain' | 'snow' | 'fog' = 'none';
@@ -178,9 +153,6 @@ export function generateRandomWeather(): WeatherPattern {
     },
     seaState,
     waterDepth: 100,
-    waveHeight,
-    waveDirection: windDirection, // Waves generally follow wind direction
-    waveLength: 20 + Math.random() * 60,
     visibility: Math.max(0.1, visCoeff * 10),
     timeOfDay: timeCoeff * 24,
     precipitation,
@@ -226,13 +198,6 @@ export function getWeatherPattern(pattern?: string): WeatherPattern {
     return weatherPresets[pattern];
   }
   return generateRandomWeather();
-}
-
-// Calculate approximate wave height from sea state (Douglas Sea Scale)
-function calculateWaveHeight(state: number): number {
-  // Douglas Sea Scale approximate wave heights
-  const heights = [0, 0.1, 0.2, 0.6, 1.5, 2.5, 4, 6, 9, 14, 14, 14, 14];
-  return heights[Math.min(state, heights.length - 1)];
 }
 
 // Gradually transition from one weather pattern to another over time
@@ -292,13 +257,6 @@ export function transitionWeather(
     },
     seaState: Math.round(lerp(current.seaState, target.seaState, progress)),
     waterDepth: lerp(current.waterDepth, target.waterDepth, progress),
-    waveHeight: lerp(current.waveHeight, target.waveHeight, progress),
-    waveDirection: lerpAngle(
-      current.waveDirection,
-      target.waveDirection,
-      progress,
-    ),
-    waveLength: lerp(current.waveLength, target.waveLength, progress),
     visibility: lerp(current.visibility, target.visibility, progress),
     timeOfDay: lerp(current.timeOfDay, target.timeOfDay, progress) % 24,
     precipitation:
