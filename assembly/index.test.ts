@@ -16,7 +16,6 @@ import {
   getVesselFuelLevel,
   getVesselFuelConsumption,
   getVesselGM,
-  getVesselCenterOfGravityY,
   getVesselWaveHeight,
   getVesselWavePhase,
 } from '../assembly/index';
@@ -94,22 +93,23 @@ test('vessel position updates correctly when moving forward', () => {
   expect<f64>(getVesselY(ptr)).closeTo(initialY, 0.001);
 });
 
-/*test('vessel heading wraps between 0 and 2π', () => {
-  const ptr = createFreshVessel();
+test('vessel heading stays in valid range when turning', () => {
+  const ptr = createVessel();
 
-  // Set up for turning
+  // Reset to known state
   setThrottle(ptr, 0.5);
   setRudderAngle(ptr, 0.6);
 
-  // Run a short simulation with a few steps
-  for (let i = 0; i < 5; i++) {
-    updateVesselState(ptr, 0.5, 0, 0, 0, 0, 0);
+  // Single update with a longer time step instead of a loop
+  updateVesselState(ptr, 2.5, 0, 0, 0, 0, 0);
 
-    // Check heading is always in valid range
-    const heading = getVesselHeading(ptr);
-    expect<boolean>(heading >= 0.0 && heading < 2.0 * Math.PI).equal(true);
-  }
-});*/
+  // Check heading is in valid range after the update
+  const heading = getVesselHeading(ptr);
+  expect<boolean>(heading >= 0.0 && heading < 2.0 * Math.PI).equal(true);
+
+  // Verify we're actually turning by checking if heading is non-zero
+  expect<boolean>(heading > 0.01).equal(true);
+});
 
 // End all tests
 endTest();
