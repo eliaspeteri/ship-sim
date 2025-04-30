@@ -435,14 +435,23 @@ function calculateGM(vessel: VesselState): f64 {
   return GM;
 }
 
-// Calculate wave properties based on sea state with individual return values
-/** @external */
+/**
+ * Calculates the wave height for a given sea state (Beaufort scale).
+ * @param seaState - The sea state (0-12, Beaufort scale)
+ * @returns The wave height in meters
+ * @external
+ */
 export function calculateWaveHeight(seaState: f64): f64 {
   const index = Math.min(Math.max(0, Math.floor(seaState)), 12);
   return BEAUFORT_WAVE_HEIGHTS[index as i32];
 }
 
-/** @external */
+/**
+ * Calculates the Beaufort scale number from wind speed in m/s.
+ * @param windSpeed - Wind speed in meters per second
+ * @returns The Beaufort scale number (0-12)
+ * @external
+ */
 export function calculateBeaufortScale(windSpeed: f64): i32 {
   // Convert wind speed to appropriate Beaufort scale number based on m/s
   if (windSpeed < 0.5) return 0; // Calm: < 0.5 m/s
@@ -460,20 +469,41 @@ export function calculateBeaufortScale(windSpeed: f64): i32 {
   return 12; // Hurricane: ≥ 32.7 m/s
 }
 
-/** @external */
+/**
+ * Calculates the wave length for a given sea state.
+ * @param seaState - The sea state (0-12, Beaufort scale)
+ * @returns The wave length in meters
+ * @external
+ */
 export function calculateWaveLength(seaState: f64): f64 {
   const wavePeriod = 3.0 + seaState * 1.6; // Modified to match expected test values (3 + 5*1.6 = 11.0 for sea state 5)
   return 1.56 * wavePeriod * wavePeriod;
 }
 
-/** @external */
+/**
+ * Calculates the wave frequency for a given sea state.
+ * @param seaState - The sea state (0-12, Beaufort scale)
+ * @returns The wave frequency in radians per second
+ * @external
+ */
 export function calculateWaveFrequency(seaState: f64): f64 {
   const wavePeriod = 3.0 + seaState * 1.6; // Modified to match expected test values
   return (2.0 * Math.PI) / wavePeriod;
 }
 
-// Calculate wave height at specific location and time - simplified for export compatibility
-/** @external */
+/**
+ * Calculates the wave height at a specific position and time.
+ * @param x - X position (meters)
+ * @param y - Y position (meters)
+ * @param time - Simulation time (seconds)
+ * @param waveHeight - Wave height (meters)
+ * @param waveLength - Wave length (meters)
+ * @param waveFrequency - Wave frequency (radians/second)
+ * @param waveDirection - Wave direction (radians)
+ * @param seaState - Sea state (Beaufort scale)
+ * @returns The wave height at the given position and time
+ * @external
+ */
 export function calculateWaveHeightAtPosition(
   x: f64,
   y: f64,
@@ -627,6 +657,17 @@ function calculateWindForce(
 }
 
 // Enhanced update function with comprehensive physics
+/**
+ * Updates the vessel state for the next simulation step.
+ * @param vesselPtr - Pointer to the vessel instance
+ * @param dt - Time step (seconds)
+ * @param windSpeed - Wind speed (m/s)
+ * @param windDirection - Wind direction (radians)
+ * @param currentSpeed - Water current speed (m/s)
+ * @param currentDirection - Water current direction (radians)
+ * @param seaState - Sea state (Beaufort scale)
+ * @returns Pointer to the updated vessel instance
+ */
 export function updateVesselState(
   vesselPtr: usize,
   dt: f64,
@@ -797,7 +838,11 @@ export function updateVesselState(
   return vesselPtr;
 }
 
-// Helper functions for JavaScript interface
+/**
+ * Creates a new vessel instance and returns a pointer to it.
+ * Only one vessel is supported at a time.
+ * @returns Pointer to the vessel instance
+ */
 export function createVessel(): usize {
   if (globalVessel === null) {
     globalVessel = new VesselState(
@@ -824,7 +869,11 @@ export function createVessel(): usize {
   return changetype<usize>(globalVessel);
 }
 
-// Control functions
+/**
+ * Sets the throttle value for the vessel.
+ * @param vesselPtr - Pointer to the vessel instance
+ * @param throttle - Throttle value (0.0 to 1.0)
+ */
 export function setThrottle(vesselPtr: usize, throttle: f64): void {
   const vessel = changetype<VesselState>(vesselPtr);
   vessel.throttle = throttle > 1.0 ? 1.0 : throttle < 0.0 ? 0.0 : throttle;
@@ -844,8 +893,7 @@ export function setThrottle(vesselPtr: usize, throttle: f64): void {
 }
 
 /**
- * Set wave data for the vessel to facilitate interaction between
- * the Three.js wave system and the physics model
+ * Sets the wave data for the vessel (for Three.js integration).
  * @param vesselPtr - Pointer to the vessel instance
  * @param height - Current wave height at vessel position
  * @param phase - Current wave phase at vessel position
@@ -858,6 +906,11 @@ export function setWaveData(vesselPtr: usize, height: f64, phase: f64): void {
   globalVessel = vessel;
 }
 
+/**
+ * Sets the rudder angle for the vessel.
+ * @param vesselPtr - Pointer to the vessel instance
+ * @param angle - Rudder angle in radians
+ */
 export function setRudderAngle(vesselPtr: usize, angle: f64): void {
   const vessel = changetype<VesselState>(vesselPtr);
   // Limit rudder angle to reasonable values (-35 to 35 degrees in radians)
@@ -867,6 +920,11 @@ export function setRudderAngle(vesselPtr: usize, angle: f64): void {
   globalVessel = vessel;
 }
 
+/**
+ * Sets the ballast level for the vessel.
+ * @param vesselPtr - Pointer to the vessel instance
+ * @param level - Ballast level (0.0 to 1.0)
+ */
 export function setBallast(vesselPtr: usize, level: f64): void {
   const vessel = changetype<VesselState>(vesselPtr);
   vessel.ballastLevel = level > 1.0 ? 1.0 : level < 0.0 ? 0.0 : level;
@@ -878,14 +936,24 @@ export function setBallast(vesselPtr: usize, level: f64): void {
 }
 
 // Wave state access functions
-/** @external */
+/**
+ * Gets the wave height for a given sea state (Beaufort scale).
+ * @param seaState - The sea state (0-12)
+ * @returns The wave height in meters
+ * @external
+ */
 export function getWaveHeight(seaState: i32): f64 {
   if (seaState < 0.5) return 0.0;
   const index = Math.min(Math.max(0, Math.floor(seaState)), 12);
   return BEAUFORT_WAVE_HEIGHTS[index as i32];
 }
 
-/** @external */
+/**
+ * Gets the wave frequency for a given sea state (Beaufort scale).
+ * @param seaState - The sea state (0-12)
+ * @returns The wave frequency in radians per second
+ * @external
+ */
 export function getWaveFrequency(seaState: i32): f64 {
   if (seaState < 0.5) return 0.0;
   // Update to match the calculateWaveFrequency function's formula
@@ -893,77 +961,147 @@ export function getWaveFrequency(seaState: i32): f64 {
   return (2.0 * Math.PI) / wavePeriod;
 }
 
-/** @external */
+/**
+ * Gets the current wave height at the vessel's position.
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The current wave height at the vessel
+ * @external
+ */
 export function getVesselWaveHeight(vesselPtr: usize): f64 {
   const vessel = changetype<VesselState>(vesselPtr);
   return vessel.waveHeight;
 }
 
-/** @external */
+/**
+ * Gets the current wave phase at the vessel's position.
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The current wave phase at the vessel
+ * @external
+ */
 export function getVesselWavePhase(vesselPtr: usize): f64 {
   const vessel = changetype<VesselState>(vesselPtr);
   return vessel.wavePhase;
 }
 
-/** @external */
+/**
+ * Gets the vessel's roll angle (phi).
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The roll angle in radians
+ * @external
+ */
 export function getVesselRollAngle(vesselPtr: usize): f64 {
   return changetype<VesselState>(vesselPtr).phi;
 }
 
-/** @external */
+/**
+ * Gets the vessel's pitch angle (theta).
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The pitch angle in radians
+ * @external
+ */
 export function getVesselPitchAngle(vesselPtr: usize): f64 {
   return changetype<VesselState>(vesselPtr).theta;
 }
 
 // State access functions
-/** @external */
+/**
+ * Gets the vessel's X position.
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The X position in meters
+ * @external
+ */
 export function getVesselX(vesselPtr: usize): f64 {
   return changetype<VesselState>(vesselPtr).x;
 }
 
-/** @external */
+/**
+ * Gets the vessel's Y position.
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The Y position in meters
+ * @external
+ */
 export function getVesselY(vesselPtr: usize): f64 {
   return changetype<VesselState>(vesselPtr).y;
 }
 
-/** @external */
+/**
+ * Gets the vessel's Z position.
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The Z position in meters
+ * @external
+ */
 export function getVesselZ(vesselPtr: usize): f64 {
   return changetype<VesselState>(vesselPtr).z;
 }
 
-/** @external */
+/**
+ * Gets the vessel's heading (yaw/psi).
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The heading in radians
+ * @external
+ */
 export function getVesselHeading(vesselPtr: usize): f64 {
   return changetype<VesselState>(vesselPtr).psi;
 }
 
-/** @external */
+/**
+ * Gets the vessel's speed (magnitude of velocity).
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The vessel's speed in m/s
+ * @external
+ */
 export function getVesselSpeed(vesselPtr: usize): f64 {
   const vessel = changetype<VesselState>(vesselPtr);
   return Math.sqrt(vessel.u * vessel.u + vessel.v * vessel.v);
 }
 
-/** @external */
+/**
+ * Gets the vessel's engine RPM.
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The engine RPM
+ * @external
+ */
 export function getVesselEngineRPM(vesselPtr: usize): f64 {
   return changetype<VesselState>(vesselPtr).engineRPM;
 }
 
-/** @external */
+/**
+ * Gets the vessel's fuel level (fraction 0.0 to 1.0).
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The fuel level (0.0 to 1.0)
+ * @external
+ */
 export function getVesselFuelLevel(vesselPtr: usize): f64 {
   return changetype<VesselState>(vesselPtr).fuelLevel;
 }
 
-/** @external */
+/**
+ * Gets the vessel's fuel consumption rate (kg/h).
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The fuel consumption rate in kg/h
+ * @external
+ */
 export function getVesselFuelConsumption(vesselPtr: usize): f64 {
   return changetype<VesselState>(vesselPtr).fuelConsumption;
 }
 
-/** @external */
+/**
+ * Gets the vessel's metacentric height (GM), a measure of stability.
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The metacentric height (GM) in meters
+ * @external
+ */
 export function getVesselGM(vesselPtr: usize): f64 {
   const vessel = changetype<VesselState>(vesselPtr);
   return calculateGM(vessel);
 }
 
-/** @external */
+/**
+ * Gets the vessel's center of gravity Y position.
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The Y position of the center of gravity
+ * @external
+ */
 export function getVesselCenterOfGravityY(vesselPtr: usize): f64 {
   const vessel = changetype<VesselState>(vesselPtr);
   return vessel.centerOfGravityY;
