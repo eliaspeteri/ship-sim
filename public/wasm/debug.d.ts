@@ -15,6 +15,18 @@ export declare function calculateWaveHeight(seaState: number): number;
  */
 export declare function calculateBeaufortScale(windSpeed: number): number;
 /**
+ * assembly/index/calculateWaveLength
+ * @param seaState `f64`
+ * @returns `f64`
+ */
+export declare function calculateWaveLength(seaState: number): number;
+/**
+ * assembly/index/calculateWaveFrequency
+ * @param seaState `f64`
+ * @returns `f64`
+ */
+export declare function calculateWaveFrequency(seaState: number): number;
+/**
  * assembly/index/calculateWaveHeightAtPosition
  * @param x `f64`
  * @param y `f64`

@@ -44,6 +44,8 @@ export const {
   table,
   calculateWaveHeight,
   calculateBeaufortScale,
+  calculateWaveLength,
+  calculateWaveFrequency,
   calculateWaveHeightAtPosition,
   updateVesselState,
   createVessel,

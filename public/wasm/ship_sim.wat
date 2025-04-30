@@ -39,6 +39,8 @@
  (table $0 1 funcref)
  (export "calculateWaveHeight" (func $assembly/index/calculateWaveHeight))
  (export "calculateBeaufortScale" (func $assembly/index/calculateBeaufortScale))
+ (export "calculateWaveLength" (func $assembly/index/calculateWaveLength))
+ (export "calculateWaveFrequency" (func $assembly/index/calculateWaveFrequency))
  (export "calculateWaveHeightAtPosition" (func $assembly/index/calculateWaveHeightAtPosition))
  (export "updateVesselState" (func $assembly/index/updateVesselState))
  (export "createVessel" (func $assembly/index/createVessel))
@@ -183,6 +185,27 @@
    return
   end
   i32.const 12
+ )
+ (func $assembly/index/calculateWaveLength (param $0 f64) (result f64)
+  local.get $0
+  f64.const 0.8
+  f64.mul
+  f64.const 3
+  f64.add
+  local.tee $0
+  f64.const 1.56
+  f64.mul
+  local.get $0
+  f64.mul
+ )
+ (func $assembly/index/calculateWaveFrequency (param $0 f64) (result f64)
+  f64.const 6.283185307179586
+  local.get $0
+  f64.const 0.8
+  f64.mul
+  f64.const 3
+  f64.add
+  f64.div
  )
  (func $~lib/math/pio2_large_quot (param $0 i64) (result i32)
   (local $1 i64)

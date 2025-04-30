@@ -62,6 +62,8 @@
  (elem $0 (i32.const 1))
  (export "calculateWaveHeight" (func $assembly/index/calculateWaveHeight))
  (export "calculateBeaufortScale" (func $assembly/index/calculateBeaufortScale))
+ (export "calculateWaveLength" (func $assembly/index/calculateWaveLength))
+ (export "calculateWaveFrequency" (func $assembly/index/calculateWaveFrequency))
  (export "calculateWaveHeightAtPosition" (func $assembly/index/calculateWaveHeightAtPosition))
  (export "updateVesselState" (func $assembly/index/updateVesselState))
  (export "createVessel" (func $assembly/index/createVessel))
@@ -248,6 +250,36 @@
    return
   end
   i32.const 12
+  return
+ )
+ (func $assembly/index/calculateWaveLength (param $seaState f64) (result f64)
+  (local $wavePeriod f64)
+  f64.const 3
+  local.get $seaState
+  f64.const 0.8
+  f64.mul
+  f64.add
+  local.set $wavePeriod
+  f64.const 1.56
+  local.get $wavePeriod
+  f64.mul
+  local.get $wavePeriod
+  f64.mul
+  return
+ )
+ (func $assembly/index/calculateWaveFrequency (param $seaState f64) (result f64)
+  (local $wavePeriod f64)
+  f64.const 3
+  local.get $seaState
+  f64.const 0.8
+  f64.mul
+  f64.add
+  local.set $wavePeriod
+  f64.const 2
+  global.get $~lib/math/NativeMath.PI
+  f64.mul
+  local.get $wavePeriod
+  f64.div
   return
  )
  (func $~lib/math/pio2_large_quot (param $x f64) (param $u i64) (result i32)
@@ -4811,36 +4843,6 @@
   local.get $currentMomentN
   call $~lib/array/Array<f64>#__set
   local.get $14
-  return
- )
- (func $assembly/index/calculateWaveLength (param $seaState f64) (result f64)
-  (local $wavePeriod f64)
-  f64.const 3
-  local.get $seaState
-  f64.const 0.8
-  f64.mul
-  f64.add
-  local.set $wavePeriod
-  f64.const 1.56
-  local.get $wavePeriod
-  f64.mul
-  local.get $wavePeriod
-  f64.mul
-  return
- )
- (func $assembly/index/calculateWaveFrequency (param $seaState f64) (result f64)
-  (local $wavePeriod f64)
-  f64.const 3
-  local.get $seaState
-  f64.const 0.8
-  f64.mul
-  f64.add
-  local.set $wavePeriod
-  f64.const 2
-  global.get $~lib/math/NativeMath.PI
-  f64.mul
-  local.get $wavePeriod
-  f64.div
   return
  )
  (func $assembly/index/VesselState#set:waveHeight (param $this i32) (param $waveHeight f64)
