@@ -604,56 +604,94 @@ function calculateWaveForce(
   ];
 }
 
-// Calculate wind force based on wind speed and direction
-function calculateWindForce(
+// Calculate wind force based on wind speed and direction - X component (Surge)
+function calculateWindForceX(
   vessel: VesselState,
   windSpeed: f64,
   windDirection: f64,
-): f64[] {
+): f64 {
   // Relative wind direction (0 = head wind, PI = following wind)
   const relativeDirection = windDirection - vessel.psi;
 
   // Projected areas (simplified)
   const projectedAreaFront = vessel.beam * vessel.draft * 1.5; // Include superstructure
-  const projectedAreaSide = vessel.length * vessel.draft * 1.5; // Include superstructure
 
   // Wind coefficients
   const windCoefficientX = 0.5 + 0.4 * Math.abs(Math.cos(relativeDirection));
-  const windCoefficientY = 0.7 * Math.abs(Math.sin(relativeDirection));
-  const windCoefficientN = 0.1 * Math.sin(2.0 * relativeDirection);
 
   // Air density
   const airDensity = 1.225; // kg/m³
 
-  // Calculate wind forces
-  const windForceX =
+  // Calculate wind force X
+  return (
     0.5 *
     airDensity *
     windSpeed *
     windSpeed *
     projectedAreaFront *
     windCoefficientX *
-    Math.cos(relativeDirection);
+    Math.cos(relativeDirection)
+  );
+}
 
-  const windForceY =
+// Calculate wind force based on wind speed and direction - Y component (Sway)
+function calculateWindForceY(
+  vessel: VesselState,
+  windSpeed: f64,
+  windDirection: f64,
+): f64 {
+  // Relative wind direction (0 = head wind, PI = following wind)
+  const relativeDirection = windDirection - vessel.psi;
+
+  // Projected areas (simplified)
+  const projectedAreaSide = vessel.length * vessel.draft * 1.5; // Include superstructure
+
+  // Wind coefficients
+  const windCoefficientY = 0.7 * Math.abs(Math.sin(relativeDirection));
+
+  // Air density
+  const airDensity = 1.225; // kg/m³
+
+  // Calculate wind force Y
+  return (
     0.5 *
     airDensity *
     windSpeed *
     windSpeed *
     projectedAreaSide *
     windCoefficientY *
-    Math.sin(relativeDirection);
+    Math.sin(relativeDirection)
+  );
+}
 
-  const windMomentN =
+// Calculate wind moment based on wind speed and direction - N component (Yaw)
+function calculateWindMomentN(
+  vessel: VesselState,
+  windSpeed: f64,
+  windDirection: f64,
+): f64 {
+  // Relative wind direction (0 = head wind, PI = following wind)
+  const relativeDirection = windDirection - vessel.psi;
+
+  // Projected areas (simplified)
+  const projectedAreaSide = vessel.length * vessel.draft * 1.5; // Include superstructure
+
+  // Wind coefficients
+  const windCoefficientN = 0.1 * Math.sin(2.0 * relativeDirection);
+
+  // Air density
+  const airDensity = 1.225; // kg/m³
+
+  // Calculate wind moment N
+  return (
     0.5 *
     airDensity *
     windSpeed *
     windSpeed *
     projectedAreaSide *
     vessel.length *
-    windCoefficientN;
-
-  return [windForceX, windForceY, windMomentN];
+    windCoefficientN
+  );
 }
 
 // Enhanced update function with comprehensive physics
@@ -707,10 +745,10 @@ export function updateVesselState(
   const rudderYaw = calculateRudderMomentZ(vessel);
 
   // Calculate environmental forces
-  const windForces = calculateWindForce(vessel, windSpeed, windDirection);
-  const windSurge = windForces[0];
-  const windSway = windForces[1];
-  const windYaw = windForces[2];
+  // Use the new individual wind force functions
+  const windSurge = calculateWindForceX(vessel, windSpeed, windDirection);
+  const windSway = calculateWindForceY(vessel, windSpeed, windDirection);
+  const windYaw = calculateWindMomentN(vessel, windSpeed, windDirection);
 
   const currentForces = calculateCurrentForce(
     vessel,
