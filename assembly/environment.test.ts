@@ -108,4 +108,7 @@ test('calculateWaveHeightAtPosition returns wave heights based on position', () 
 });
 
 // End all tests
+test('dummy', () => {
+  expect<i32>(1).equal(1);
+});
 endTest();
