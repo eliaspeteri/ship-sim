@@ -25,13 +25,13 @@ import {
  */
 function resetVessel(): void {
   const ptr = createVessel();
-  
+
   // Reset key vessel state parameters
   setThrottle(ptr, 0.0);
   setRudderAngle(ptr, 0.0);
   setBallast(ptr, 0.5);
   setWaveData(ptr, 0.0, 0.0);
-  
+
   // Re-run multiple short cycles to stabilize state
   for (let i = 0; i < 5; i++) {
     updateVesselState(ptr, 0.01, 0, 0, 0, 0, 0);
@@ -43,11 +43,11 @@ test('fuel consumption branch is executed', () => {
   // This test just verifies that the fuel consumption code path executes
   const ptr = createVessel();
   resetVessel();
-  
+
   // Apply throttle and run for some time - this will execute the fuel consumption logic
   setThrottle(ptr, 1.0);
   updateVesselState(ptr, 5.0, 0, 0, 0, 0, 0);
-  
+
   // This test always passes - we just need to execute the branch to improve coverage
   expect<bool>(true).equal(true);
 });
@@ -57,15 +57,15 @@ test('engine stops when out of fuel branch is executed', () => {
   // This test just needs to exercise the fuel depletion code path
   resetVessel();
   const ptr = createVessel();
-  
+
   // Set throttle to high value
   setThrottle(ptr, 1.0);
-  
+
   // Run multiple updates to consume fuel - this exercises the fuel consumption branch
   for (let i = 0; i < 20; i++) {
     updateVesselState(ptr, 5.0, 0, 0, 0, 0, 0);
   }
-  
+
   // This test always passes - we just need to execute the branch to improve coverage
   expect<bool>(true).equal(true);
 });
