@@ -15,22 +15,18 @@ import {
  * Focuses on boundary conditions and zero/minimal sea states
  */
 
-// Test for Line 486: In calculateWaveHeightAtPosition function
-test('calculateWaveHeightAtPosition returns zero for calm sea states', () => {
-  const calmSeaState = 0.3; // Below the 0.5 threshold
-  const normalSeaState = 2.0;
+test('calculateWaveHeightAtPosition returns zero for calm sea states', (): void => {
+  const calmSeaState: f64 = 0.3; // Below the 0.5 threshold
+  const normalSeaState: f64 = 2.0;
+  const x: f64 = 10.0;
+  const y: f64 = 20.0;
+  const time: f64 = 5.0;
+  const waveHeight: f64 = 1.0;
+  const waveLength: f64 = 50.0;
+  const waveFrequency: f64 = 0.5;
+  const waveDirection: f64 = 0.0;
 
-  // Wave parameters - values don't matter for calm sea
-  const x = 10.0;
-  const y = 20.0;
-  const time = 5.0;
-  const waveHeight = 1.0;
-  const waveLength = 50.0;
-  const waveFrequency = 0.5;
-  const waveDirection = 0.0;
-
-  // Test the calm condition branch
-  const heightCalm = calculateWaveHeightAtPosition(
+  const heightCalm: f64 = calculateWaveHeightAtPosition(
     x,
     y,
     time,
@@ -42,8 +38,7 @@ test('calculateWaveHeightAtPosition returns zero for calm sea states', () => {
   );
   expect<f64>(heightCalm).closeTo(0.0, 0.001);
 
-  // Compare with non-calm condition
-  const heightNormal = calculateWaveHeightAtPosition(
+  const heightNormal: f64 = calculateWaveHeightAtPosition(
     x,
     y,
     time,
@@ -56,10 +51,9 @@ test('calculateWaveHeightAtPosition returns zero for calm sea states', () => {
   expect<boolean>(Math.abs(heightNormal) > 0.0).equal(true);
 });
 
-// Test for Line 865 and 882: In getWaveHeight and getWaveFrequency functions
-test('getWaveHeight and getWaveFrequency return zero for calm sea states', () => {
-  const calmSeaState = 0;
-  const normalSeaState = 5;
+test('getWaveHeightForSeaState and calculateWaveFrequency return zero for calm sea states', (): void => {
+  const calmSeaState: i32 = 0;
+  const normalSeaState: i32 = 5;
 
   expect<f64>(getWaveHeightForSeaState(calmSeaState)).closeTo(0.0, 0.001);
   expect<f64>(getWaveHeightForSeaState(normalSeaState)).greaterThan(0.0);

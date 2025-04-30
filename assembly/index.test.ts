@@ -41,14 +41,15 @@ function createFreshVessel(): usize {
   return ptr;
 }
 
-// --- Vessel Creation and Basic State Tests ---
-
-test('createVessel returns valid vessel pointer', () => {
+/**
+ * Vessel Creation and Basic State Tests
+ */
+test('createVessel returns valid vessel pointer', (): void => {
   const ptr = createVessel();
   expect<boolean>(ptr > 0).equal(true);
 });
 
-test('createVessel initializes vessel with default values', () => {
+test('createVessel initializes vessel with default values', (): void => {
   const ptr = createFreshVessel();
 
   // Check position with more appropriate tolerance
@@ -65,7 +66,7 @@ test('createVessel initializes vessel with default values', () => {
   expect<f64>(getVesselGM(ptr)).greaterThan(0.0);
 });
 
-test('vessel position updates correctly when moving forward', () => {
+test('vessel position updates correctly when moving forward', (): void => {
   const ptr = createFreshVessel();
   setThrottle(ptr, 0.5);
   const initialX = getVesselX(ptr);
@@ -75,7 +76,7 @@ test('vessel position updates correctly when moving forward', () => {
   expect<f64>(getVesselY(ptr)).closeTo(initialY, 0.001);
 });
 
-test('vessel heading stays in valid range when turning', () => {
+test('vessel heading stays in valid range when turning', (): void => {
   const ptr = createVessel();
   setThrottle(ptr, 0.5);
   setRudderAngle(ptr, 0.6);
