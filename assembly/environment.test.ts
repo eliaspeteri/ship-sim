@@ -1,3 +1,5 @@
+// Environment Model Tests for AssemblyScript WASM
+// These tests verify the correctness of exported wave and environment functions.
 import {
   calculateWaveLength,
   calculateWaveHeightAtPosition,
@@ -11,8 +13,9 @@ import {
   endTest,
 } from 'assemblyscript-unittest-framework/assembly';
 
-// --- Environment Model Tests ---
-
+/**
+ * Test Beaufort scale mapping from wind speed.
+ */
 test('calculateBeaufortScale correctly maps wind speeds', () => {
   expect<i32>(calculateBeaufortScale(0.0)).equal(0); // Calm
   expect<i32>(calculateBeaufortScale(0.5)).equal(1); // Light air
@@ -54,6 +57,9 @@ test('calculateWaveLength and calculateWaveFrequency are related correctly', () 
   expect<f64>(actualVelocity).closeTo(expectedVelocity, 0.1);
 });
 
+/**
+ * Test calculateWaveHeightAtPosition returns wave heights based on position.
+ */
 test('calculateWaveHeightAtPosition returns wave heights based on position', () => {
   const waveHeight = 2.0;
   const waveLength = 50.0;

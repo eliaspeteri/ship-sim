@@ -80,4 +80,4 @@ test('wave calculations handle negative sea state values', (): void => {
   expect<f64>(getWaveHeightForSeaState(negativeSeaState)).closeTo(0.0, 0.001);
 });
 
-endTest(); // Don't forget it!
+endTest();

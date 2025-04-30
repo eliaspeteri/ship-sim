@@ -447,7 +447,7 @@ function calculateGM(vessel: VesselState): f64 {
 }
 
 /**
- * Calculates the wave height for a given sea state (Beaufort scale).
+ * Gets the wave height for a given sea state (Beaufort scale).
  * @param seaState - The sea state (0-12, Beaufort scale)
  * @returns The wave height in meters
  * @external
