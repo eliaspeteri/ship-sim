@@ -461,13 +461,13 @@ export function calculateBeaufortScale(windSpeed: f64): i32 {
 }
 
 /** @external */
-function calculateWaveLength(seaState: f64): f64 {
+export function calculateWaveLength(seaState: f64): f64 {
   const wavePeriod = 3.0 + seaState * 0.8; // Very rough approximation
   return 1.56 * wavePeriod * wavePeriod;
 }
 
 /** @external */
-function calculateWaveFrequency(seaState: f64): f64 {
+export function calculateWaveFrequency(seaState: f64): f64 {
   const wavePeriod = 3.0 + seaState * 0.8;
   return (2.0 * Math.PI) / wavePeriod;
 }
