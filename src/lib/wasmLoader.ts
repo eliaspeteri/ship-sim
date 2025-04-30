@@ -9,6 +9,7 @@
 import { loadWasmModule } from './customWasmLoader';
 import { WasmModule } from '../types/wasm';
 import { WasmBridge } from './wasmBridge';
+import useStore from '../store';
 
 // Cache the loaded module and bridge
 let wasmModule: WasmModule | null = null;
@@ -19,6 +20,10 @@ let wasmBridge: WasmBridge | null = null;
  */
 export async function loadWasm(): Promise<WasmBridge> {
   if (wasmBridge) {
+    console.info(
+      'WASM physics engine already loaded, returning cached instance',
+    );
+
     return wasmBridge;
   }
 
@@ -57,6 +62,10 @@ export async function loadWasm(): Promise<WasmBridge> {
     wasmBridge = new WasmBridge(wasmModule);
 
     console.info('WASM physics engine loaded and enhanced successfully');
+    const setWasmExports = useStore.getState().setWasmExports;
+    if (typeof setWasmExports === 'function') {
+      setWasmExports(wasmModule);
+    }
     return wasmBridge;
   } catch (error) {
     console.error('Failed to load WASM physics engine:', error);
