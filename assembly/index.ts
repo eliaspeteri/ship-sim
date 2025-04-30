@@ -875,14 +875,14 @@ export function setBallast(vesselPtr: usize, level: f64): void {
 
 // Wave state access functions
 /** @external */
-export function getWaveHeight(seaState: f64): f64 {
+export function getWaveHeight(seaState: i32): f64 {
   if (seaState < 0.5) return 0.0;
   const index = Math.min(Math.max(0, Math.floor(seaState)), 12);
   return BEAUFORT_WAVE_HEIGHTS[index as i32];
 }
 
 /** @external */
-export function getWaveFrequency(seaState: f64): f64 {
+export function getWaveFrequency(seaState: i32): f64 {
   if (seaState < 0.5) return 0.0;
   const wavePeriod = 3.0 + seaState * 0.8;
   return (2.0 * Math.PI) / wavePeriod;
