@@ -39,8 +39,8 @@ module.exports = {
   // temp: "coverage",
 
   /**  optional: report file path, default "coverage" */
-  // output: "coverage",
+  output: 'coverage',
 
   /** optional: test result output format, default "table" */
-  // mode: ["html", "json", "table"],
+  mode: ['html', 'json', 'table'],
 };
