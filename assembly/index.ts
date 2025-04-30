@@ -145,7 +145,6 @@ const HM_C4 = 0.15;
 
 // Wave physics constants
 const WAVE_GRAVITY = 9.81; // m/s²
-const WAVE_HEIGHT_FACTOR = 0.15; // Height multiplier based on sea state
 const WAVE_LENGTH_FACTOR = 1.5; // Wave length multiplier based on sea state
 const BEAUFORT_WAVE_HEIGHTS = [
   0.0, 0.1, 0.2, 0.6, 1.0, 2.0, 3.0, 4.0, 5.5, 7.0, 9.0, 11.5, 14.0,
