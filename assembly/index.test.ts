@@ -51,9 +51,7 @@ test('createVessel returns valid vessel pointer', (): void => {
 
 test('createVessel initializes vessel with default values', (): void => {
   const ptr = createFreshVessel();
-
-  // Check position with more appropriate tolerance
-  expect<f64>(getVesselX(ptr)).closeTo(0.0, 0.02); // Increased tolerance
+  expect<f64>(getVesselX(ptr)).closeTo(0.0, 0.02);
   expect<f64>(getVesselY(ptr)).closeTo(0.0, 0.001);
   expect<f64>(getVesselZ(ptr)).closeTo(0.0, 0.001);
   expect<f64>(getVesselHeading(ptr)).closeTo(0.0, 0.001);
