@@ -153,3 +153,17 @@ export declare function getVesselGM(vesselPtr: number): number;
  * @returns `f64`
  */
 export declare function getVesselCenterOfGravityY(vesselPtr: number): number;
+/**
+ * assembly/index/setVesselStateForTesting
+ * @param vesselPtr `usize`
+ * @param u `f64`
+ * @param v `f64`
+ * @param psi `f64`
+ */
+export declare function setVesselStateForTesting(vesselPtr: number, u: number, v: number, psi: number): void;
+/**
+ * assembly/index/testCoordinateTransform
+ * @param vesselPtr `usize`
+ * @param dt `f64`
+ */
+export declare function testCoordinateTransform(vesselPtr: number, dt: number): void;

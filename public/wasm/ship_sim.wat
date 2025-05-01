@@ -16,7 +16,8 @@
  (type $14 (func (param i32)))
  (type $15 (func (param i32 f64 f64 f64 f64 f64 f64) (result i32)))
  (type $16 (func (param i32 f64 f64)))
- (type $17 (func))
+ (type $17 (func (param i32 f64 f64 f64)))
+ (type $18 (func))
  (import "env" "memory" (memory $0 16 100))
  (import "env" "abort" (func $~lib/builtins/abort (param i32 i32 i32 i32)))
  (global $assembly/index/globalVessel (mut i32) (i32.const 0))
@@ -60,6 +61,8 @@
  (export "getVesselFuelConsumption" (func $assembly/index/getVesselFuelConsumption))
  (export "getVesselGM" (func $assembly/index/getVesselGM))
  (export "getVesselCenterOfGravityY" (func $assembly/index/getVesselCenterOfGravityY))
+ (export "setVesselStateForTesting" (func $assembly/index/setVesselStateForTesting))
+ (export "testCoordinateTransform" (func $assembly/index/testCoordinateTransform))
  (export "memory" (memory $0))
  (export "table" (table $0))
  (start $~start)
@@ -1325,6 +1328,159 @@
   f64.sub
   call $~lib/math/NativeMath.sin
   f64.mul
+ )
+ (func $~lib/math/NativeMath.mod (param $0 f64) (result f64)
+  (local $1 i64)
+  (local $2 i64)
+  (local $3 i64)
+  (local $4 i64)
+  local.get $0
+  i64.reinterpret_f64
+  local.tee $2
+  i64.const 52
+  i64.shr_u
+  i64.const 2047
+  i64.and
+  local.tee $4
+  i64.const 2047
+  i64.eq
+  if
+   local.get $0
+   f64.const 6.283185307179586
+   f64.mul
+   local.tee $0
+   local.get $0
+   f64.div
+   return
+  end
+  local.get $2
+  i64.const 1
+  i64.shl
+  local.tee $1
+  i64.const -9209223561350718928
+  i64.le_u
+  if
+   local.get $0
+   local.get $1
+   i64.const -9209223561350718928
+   i64.ne
+   f64.convert_i32_u
+   f64.mul
+   return
+  end
+  local.get $2
+  i64.const 63
+  i64.shr_u
+  local.set $3
+  local.get $4
+  i64.eqz
+  if (result i64)
+   local.get $2
+   i64.const 1
+   local.get $4
+   local.get $2
+   i64.const 12
+   i64.shl
+   i64.clz
+   i64.sub
+   local.tee $4
+   i64.sub
+   i64.shl
+  else
+   local.get $2
+   i64.const 4503599627370495
+   i64.and
+   i64.const 4503599627370496
+   i64.or
+  end
+  local.set $1
+  loop $while-continue|0
+   local.get $4
+   i64.const 1025
+   i64.gt_s
+   if
+    local.get $1
+    i64.const 7074237752028440
+    i64.ge_u
+    if (result i64)
+     local.get $1
+     i64.const 7074237752028440
+     i64.eq
+     if
+      local.get $0
+      f64.const 0
+      f64.mul
+      return
+     end
+     local.get $1
+     i64.const 7074237752028440
+     i64.sub
+    else
+     local.get $1
+    end
+    i64.const 1
+    i64.shl
+    local.set $1
+    local.get $4
+    i64.const 1
+    i64.sub
+    local.set $4
+    br $while-continue|0
+   end
+  end
+  local.get $1
+  i64.const 7074237752028440
+  i64.ge_u
+  if
+   local.get $1
+   i64.const 7074237752028440
+   i64.eq
+   if
+    local.get $0
+    f64.const 0
+    f64.mul
+    return
+   end
+   local.get $1
+   i64.const 7074237752028440
+   i64.sub
+   local.set $1
+  end
+  local.get $4
+  local.get $1
+  i64.const 11
+  i64.shl
+  i64.clz
+  local.tee $2
+  i64.sub
+  local.set $4
+  local.get $1
+  local.get $2
+  i64.shl
+  local.set $1
+  local.get $4
+  i64.const 0
+  i64.gt_s
+  if (result i64)
+   local.get $1
+   i64.const 4503599627370496
+   i64.sub
+   local.get $4
+   i64.const 52
+   i64.shl
+   i64.or
+  else
+   local.get $1
+   i64.const 1
+   local.get $4
+   i64.sub
+   i64.shr_u
+  end
+  local.get $3
+  i64.const 63
+  i64.shl
+  i64.or
+  f64.reinterpret_i64
  )
  (func $~lib/math/NativeMath.pow (param $0 f64) (param $1 f64) (result f64)
   (local $2 i64)
@@ -2824,8 +2980,8 @@
   (local $7 i32)
   (local $8 i64)
   (local $9 i32)
-  (local $10 i32)
-  (local $11 f64)
+  (local $10 f64)
+  (local $11 i32)
   (local $12 f64)
   (local $13 f64)
   (local $14 f64)
@@ -2841,23 +2997,121 @@
   (local $24 f64)
   (local $25 f64)
   (local $26 f64)
+  (local $27 f64)
+  (local $28 f64)
+  local.get $1
+  local.get $1
+  f64.sub
+  f64.const 0
+  f64.eq
+  local.tee $7
+  if
+   local.get $1
+   f64.const 0
+   f64.gt
+   local.set $7
+  end
+  local.get $0
+  f64.load offset=48
+  local.tee $10
+  local.get $10
+  f64.sub
+  f64.const 0
+  f64.eq
+  local.tee $11
+  if (result i32)
+   local.get $0
+   f64.load offset=56
+   local.tee $10
+   local.get $10
+   f64.sub
+   f64.const 0
+   f64.eq
+  else
+   local.get $11
+  end
+  i32.eqz
+  local.get $7
+  i32.eqz
+  i32.or
+  if
+   local.get $0
+   return
+  end
+  local.get $1
+  f64.const 1
+  f64.min
+  local.set $12
+  local.get $2
+  f64.const 0
+  f64.max
+  f64.const 50
+  f64.min
+  f64.const 0
+  local.get $2
+  local.get $2
+  f64.sub
+  f64.const 0
+  f64.eq
+  select
+  local.set $2
+  local.get $3
+  local.get $3
+  f64.sub
+  f64.const 0
+  f64.eq
+  if (result f64)
+   local.get $3
+   call $~lib/math/NativeMath.mod
+  else
+   f64.const 0
+  end
+  local.set $3
+  local.get $5
+  local.get $5
+  f64.sub
+  f64.const 0
+  f64.eq
+  if (result f64)
+   local.get $5
+   call $~lib/math/NativeMath.mod
+  else
+   f64.const 0
+  end
+  local.set $5
+  f64.const 0
   local.get $2
   call $assembly/index/calculateBeaufortScale
   f64.convert_i32_s
+  local.get $6
+  f64.const 0
+  f64.max
+  f64.const 12
+  f64.min
+  f64.const 0
+  local.get $6
+  local.get $6
+  f64.sub
+  f64.const 0
+  f64.eq
+  select
+  f64.const 0
+  f64.eq
+  select
   local.set $6
   local.get $0
   f64.load offset=48
-  local.tee $11
-  local.get $11
+  local.tee $1
+  local.get $1
   f64.mul
   local.get $0
   f64.load offset=56
-  local.tee $11
-  local.get $11
+  local.tee $1
+  local.get $1
   f64.mul
   f64.add
   f64.sqrt
-  local.tee $11
+  local.tee $1
   f64.const 0.01
   f64.lt
   if (result f64)
@@ -2865,7 +3119,7 @@
   else
    local.get $0
    f64.load offset=120
-   local.tee $12
+   local.tee $10
    local.get $0
    f64.load offset=136
    f64.const 2
@@ -2883,8 +3137,8 @@
    local.set $13
    f64.const 0.075
    block $__inlined_func$~lib/math/NativeMath.log10$2 (result f64)
-    local.get $11
-    local.get $12
+    local.get $1
+    local.get $10
     f64.mul
     f64.const 1.187e-06
     f64.div
@@ -2897,7 +3151,7 @@
     local.tee $7
     i32.const 31
     i32.shr_u
-    local.tee $10
+    local.tee $11
     local.get $7
     i32.const 1048576
     i32.lt_u
@@ -2919,7 +3173,7 @@
      f64.sub
      f64.const 0
      f64.div
-     local.get $10
+     local.get $11
      br_if $__inlined_func$~lib/math/NativeMath.log10$2
      drop
      i32.const -54
@@ -3085,9 +3339,9 @@
    f64.load offset=152
    f64.const 0.5
    f64.mul
-   local.get $11
+   local.get $1
    f64.mul
-   local.get $11
+   local.get $1
    f64.mul
    local.get $13
    f64.mul
@@ -3097,23 +3351,23 @@
    f64.load offset=216
    f64.const 2223105
    f64.mul
-   local.get $11
-   local.get $12
+   local.get $1
+   local.get $10
    f64.const 9.81
    f64.mul
    f64.sqrt
    f64.div
-   local.tee $11
+   local.tee $1
    f64.const 4
    call $~lib/math/NativeMath.pow
    f64.mul
    block $~lib/util/math/exp_lut|inlined.0 (result f64)
     f64.const -0.5
-    local.get $11
+    local.get $1
     f64.const 0.15
     call $~lib/math/NativeMath.pow
     f64.div
-    local.tee $11
+    local.tee $1
     i64.reinterpret_f64
     local.tee $8
     i64.const 52
@@ -3144,7 +3398,7 @@
       i64.eq
       br_if $~lib/util/math/exp_lut|inlined.0
       drop
-      local.get $11
+      local.get $1
       f64.const 1
       f64.add
       local.get $7
@@ -3163,14 +3417,14 @@
      i32.const 0
      local.set $7
     end
-    local.get $11
+    local.get $1
     f64.const 184.6649652337873
     f64.mul
     f64.const 6755399441055744
     f64.add
-    local.tee $12
+    local.tee $10
     i64.reinterpret_f64
-    local.tee $20
+    local.tee $8
     i64.const 127
     i64.and
     i64.const 1
@@ -3182,83 +3436,83 @@
     i32.add
     local.tee $9
     i64.load offset=8
-    local.get $20
+    local.get $8
     i64.const 45
     i64.shl
     i64.add
-    local.set $8
-    local.get $11
-    local.get $12
+    local.set $20
+    local.get $1
+    local.get $10
     f64.const -6755399441055744
     f64.add
-    local.tee $11
+    local.tee $1
     f64.const -0.005415212348111709
     f64.mul
     f64.add
-    local.get $11
+    local.get $1
     f64.const -1.2864023111638346e-14
     f64.mul
     f64.add
-    local.tee $11
-    local.get $11
+    local.tee $1
+    local.get $1
     f64.mul
-    local.set $12
+    local.set $10
     local.get $9
     f64.load
-    local.get $11
+    local.get $1
     f64.add
-    local.get $12
-    local.get $11
+    local.get $10
+    local.get $1
     f64.const 0.16666666666665886
     f64.mul
     f64.const 0.49999999999996786
     f64.add
     f64.mul
     f64.add
-    local.get $12
-    local.get $12
+    local.get $10
+    local.get $10
     f64.mul
-    local.get $11
+    local.get $1
     f64.const 0.008333335853059549
     f64.mul
     f64.const 0.0416666808410674
     f64.add
     f64.mul
     f64.add
-    local.set $11
+    local.set $1
     local.get $7
     i32.eqz
     if
      block $~lib/util/math/specialcase|inlined.1 (result f64)
-      local.get $20
+      local.get $8
       i64.const 2147483648
       i64.and
       i64.eqz
       if
-       local.get $8
+       local.get $20
        i64.const 4544132024016830464
        i64.sub
        f64.reinterpret_i64
-       local.tee $12
-       local.get $12
-       local.get $11
+       local.tee $10
+       local.get $10
+       local.get $1
        f64.mul
        f64.add
        f64.const 5486124068793688683255936e279
        f64.mul
        br $~lib/util/math/specialcase|inlined.1
       end
-      local.get $8
+      local.get $20
       i64.const 4602678819172646912
       i64.add
       local.tee $8
       f64.reinterpret_i64
-      local.tee $12
-      local.get $11
+      local.tee $10
+      local.get $1
       f64.mul
-      local.set $11
-      local.get $12
-      local.get $11
+      local.set $1
+      local.get $10
+      local.get $1
       f64.add
       local.tee $13
       f64.abs
@@ -3277,16 +3531,16 @@
        f64.sub
        local.get $13
        f64.add
-       local.get $12
+       local.get $10
        local.get $13
        f64.sub
-       local.get $11
+       local.get $1
        f64.add
        f64.add
        f64.add
        local.get $14
        f64.sub
-       local.tee $11
+       local.tee $1
        f64.const 0
        f64.eq
        if (result f64)
@@ -3295,7 +3549,7 @@
         i64.and
         f64.reinterpret_i64
        else
-        local.get $11
+        local.get $1
        end
       else
        local.get $13
@@ -3305,11 +3559,11 @@
      end
      br $~lib/util/math/exp_lut|inlined.0
     end
-    local.get $8
+    local.get $20
     f64.reinterpret_i64
-    local.tee $12
-    local.get $12
-    local.get $11
+    local.tee $10
+    local.get $10
+    local.get $1
     f64.mul
     f64.add
    end
@@ -3321,10 +3575,10 @@
   call $~lib/math/NativeMath.pow
   f64.const 0.05
   f64.mul
-  local.tee $11
+  local.tee $1
   f64.const 500
   f64.mul
-  local.get $11
+  local.get $1
   f64.mul
   local.get $0
   f64.load offset=120
@@ -3335,23 +3589,23 @@
   f64.const 100
   f64.div
   f64.add
-  local.set $11
+  local.set $13
   local.get $0
   f64.load offset=160
-  local.tee $12
+  local.tee $1
   local.get $0
   f64.load offset=168
-  local.tee $13
+  local.tee $10
   f64.const 5
   f64.div
   f64.div
   local.set $14
-  local.get $13
+  local.get $10
   f64.const 9550
   f64.mul
   f64.const 0.8
   f64.div
-  local.get $12
+  local.get $1
   f64.div
   local.get $14
   f64.const 0.1
@@ -3384,7 +3638,7 @@
   local.get $0
   f64.load offset=96
   f64.mul
-  local.set $12
+  local.set $10
   f64.const 0.5
   local.get $0
   f64.load offset=48
@@ -3402,7 +3656,7 @@
   f64.div
   f64.const 3
   f64.div
-  local.tee $13
+  local.tee $1
   local.get $0
   f64.load offset=184
   local.tee $14
@@ -3418,29 +3672,26 @@
   local.get $0
   f64.load offset=152
   f64.mul
-  local.get $13
+  local.get $1
   f64.mul
-  local.get $13
+  local.get $1
   f64.mul
   local.get $14
   f64.const 4
   call $~lib/math/NativeMath.pow
   f64.mul
-  local.set $13
-  local.get $12
+  local.set $1
+  local.get $10
   local.get $0
   f64.load offset=160
   f64.mul
   f64.const 9550
   f64.div
-  local.tee $12
+  local.tee $10
   local.get $0
   f64.load offset=168
   f64.div
-  local.set $14
-  local.get $0
-  local.get $12
-  local.get $14
+  local.tee $14
   f64.const 0.2
   f64.lt
   if (result f64)
@@ -3473,23 +3724,51 @@
     f64.add
    end
   end
+  local.set $14
+  local.get $0
+  local.get $10
+  local.get $14
   f64.mul
   f64.const 1e3
   f64.div
   f64.store offset=176
   local.get $0
+  f64.load offset=248
+  f64.const 0
+  f64.le
+  if
+   local.get $0
+   f64.const 0
+   f64.store offset=160
+   f64.const 0
+   local.set $1
+  end
+  local.get $4
+  f64.const 0
+  f64.max
+  f64.const 10
+  f64.min
+  f64.const 0
+  local.get $4
+  local.get $4
+  f64.sub
+  f64.const 0
+  f64.eq
+  select
+  local.set $4
+  local.get $0
   f64.load offset=48
-  local.tee $12
-  local.get $12
+  local.tee $10
+  local.get $10
   f64.mul
   local.get $0
   f64.load offset=56
-  local.tee $12
-  local.get $12
+  local.tee $10
+  local.get $10
   f64.mul
   f64.add
   f64.sqrt
-  local.tee $12
+  local.tee $10
   f64.const 0.01
   f64.lt
   if (result f64)
@@ -3513,9 +3792,9 @@
    local.get $0
    f64.load offset=152
    f64.mul
-   local.get $12
+   local.get $10
    f64.mul
-   local.get $12
+   local.get $10
    f64.mul
    f64.abs
    local.get $14
@@ -3523,10 +3802,10 @@
    call $~lib/math/NativeMath.sin
    f64.mul
   end
-  local.set $12
+  local.set $14
   local.get $0
   call $assembly/index/calculateRudderForceY
-  local.set $14
+  local.set $15
   local.get $0
   call $assembly/index/calculateRudderForceY
   local.get $0
@@ -3534,7 +3813,7 @@
   f64.const -0.45
   f64.mul
   f64.mul
-  local.set $15
+  local.set $16
   local.get $2
   f64.const 0.6125
   f64.mul
@@ -3553,7 +3832,7 @@
   local.get $0
   f64.load offset=24
   f64.sub
-  local.tee $16
+  local.tee $10
   call $~lib/math/NativeMath.cos
   f64.abs
   f64.const 0.4
@@ -3561,10 +3840,10 @@
   f64.const 0.5
   f64.add
   f64.mul
-  local.get $16
+  local.get $10
   call $~lib/math/NativeMath.cos
   f64.mul
-  local.set $16
+  local.set $17
   local.get $2
   local.get $0
   f64.load offset=120
@@ -3578,16 +3857,16 @@
   local.get $0
   f64.load offset=24
   f64.sub
-  local.tee $17
+  local.tee $10
   call $~lib/math/NativeMath.sin
   f64.abs
   f64.const 0.7
   f64.mul
   f64.mul
-  local.get $17
+  local.get $10
   call $~lib/math/NativeMath.sin
   f64.mul
-  local.set $17
+  local.set $18
   local.get $0
   f64.load offset=120
   local.get $0
@@ -3595,7 +3874,7 @@
   f64.mul
   f64.const 1.5
   f64.mul
-  local.set $18
+  local.set $10
   local.get $3
   local.get $0
   f64.load offset=24
@@ -3608,14 +3887,14 @@
   f64.mul
   local.set $3
   local.get $2
-  local.get $18
+  local.get $10
   f64.mul
   local.get $0
   f64.load offset=120
   f64.mul
   local.get $3
   f64.mul
-  local.set $18
+  local.set $19
   local.get $0
   f64.load offset=120
   local.get $0
@@ -3644,7 +3923,7 @@
   f64.mul
   f64.const 0.5
   f64.add
-  local.set $19
+  local.set $10
   local.get $5
   call $~lib/math/NativeMath.sin
   f64.abs
@@ -3668,7 +3947,7 @@
   f64.mul
   local.get $3
   f64.mul
-  local.get $19
+  local.get $10
   f64.mul
   local.get $5
   call $~lib/math/NativeMath.cos
@@ -3727,191 +4006,358 @@
   local.get $7
   i32.const 0
   call $~lib/array/Array<f64>#__get
-  local.set $19
+  local.set $21
   local.get $7
   i32.const 1
   call $~lib/array/Array<f64>#__get
-  local.set $21
+  local.set $22
   local.get $7
   i32.const 2
   call $~lib/array/Array<f64>#__get
-  local.set $22
+  local.set $23
   local.get $0
   local.get $6
-  local.get $1
+  local.get $12
   f64.const 100
   f64.mul
   call $assembly/index/calculateWaveForce
   local.tee $7
   i32.const 0
   call $~lib/array/Array<f64>#__get
-  local.set $6
+  local.set $24
   local.get $7
   i32.const 1
   call $~lib/array/Array<f64>#__get
-  local.set $2
+  local.set $25
   local.get $7
   i32.const 2
   call $~lib/array/Array<f64>#__get
-  local.set $3
+  local.set $26
   local.get $7
   i32.const 3
   call $~lib/array/Array<f64>#__get
-  local.set $23
+  local.set $2
   local.get $7
   i32.const 4
   call $~lib/array/Array<f64>#__get
-  local.set $24
+  local.set $3
   local.get $7
   i32.const 5
   call $~lib/array/Array<f64>#__get
-  local.set $25
+  local.set $4
+  local.get $0
+  f64.load offset=112
+  local.tee $27
+  f64.const 1.6
+  f64.mul
+  local.set $5
   local.get $0
   f64.load offset=224
   f64.const 1.1
   f64.mul
-  local.set $4
+  local.set $28
   local.get $0
   f64.load offset=232
   f64.const 1.1
   f64.mul
-  local.set $5
+  local.set $6
   local.get $0
   f64.load offset=240
   f64.const 1.2
   f64.mul
-  local.set $26
-  local.get $0
-  local.get $0
-  f64.load offset=48
-  local.get $13
-  local.get $11
-  f64.sub
-  local.get $12
-  f64.sub
-  local.get $16
-  f64.add
-  local.get $19
-  f64.add
-  local.get $6
-  f64.add
-  local.get $0
-  f64.load offset=112
-  local.tee $6
-  f64.const 1.1
-  f64.mul
-  f64.div
+  local.set $10
   local.get $1
-  f64.mul
-  f64.add
-  f64.store offset=48
-  local.get $0
-  local.get $0
-  f64.load offset=56
+  local.get $13
+  f64.sub
   local.get $14
+  f64.sub
   local.get $17
   f64.add
   local.get $21
   f64.add
-  local.get $2
+  local.get $24
   f64.add
-  local.get $6
-  f64.const 1.6
+  local.get $27
+  f64.const 1.1
   f64.mul
   f64.div
-  local.get $1
-  f64.mul
+  local.tee $1
+  f64.abs
+  f64.const 100
+  f64.lt
+  if
+   local.get $0
+   local.get $0
+   f64.load offset=48
+   local.get $1
+   local.get $12
+   f64.mul
+   f64.add
+   f64.store offset=48
+  else
+   local.get $1
+   f64.const 0
+   f64.gt
+   if
+    local.get $0
+    local.get $0
+    f64.load offset=48
+    local.get $12
+    f64.const 100
+    f64.mul
+    f64.add
+    f64.store offset=48
+   else
+    local.get $0
+    local.get $0
+    f64.load offset=48
+    local.get $12
+    f64.const 100
+    f64.mul
+    f64.sub
+    f64.store offset=48
+   end
+  end
+  local.get $15
+  local.get $18
   f64.add
-  f64.store offset=56
-  local.get $0
-  local.get $0
-  f64.load offset=64
-  f64.const 0.95
-  f64.mul
-  local.get $3
-  local.get $6
+  local.get $22
+  f64.add
+  local.get $25
+  f64.add
+  local.get $5
+  f64.div
+  local.tee $1
+  f64.abs
+  f64.const 100
+  f64.lt
+  if
+   local.get $0
+   local.get $0
+   f64.load offset=56
+   local.get $1
+   local.get $12
+   f64.mul
+   f64.add
+   f64.store offset=56
+  else
+   local.get $1
+   f64.const 0
+   f64.gt
+   if
+    local.get $0
+    local.get $0
+    f64.load offset=56
+    local.get $12
+    f64.const 100
+    f64.mul
+    f64.add
+    f64.store offset=56
+   else
+    local.get $0
+    local.get $0
+    f64.load offset=56
+    local.get $12
+    f64.const 100
+    f64.mul
+    f64.sub
+    f64.store offset=56
+   end
+  end
+  local.get $26
+  local.get $27
   f64.const 1.2
   f64.mul
   f64.div
-  local.get $1
-  f64.mul
-  f64.add
-  f64.store offset=64
-  local.get $0
+  local.tee $1
+  f64.abs
+  f64.const 20
+  f64.lt
+  if
+   local.get $0
+   local.get $0
+   f64.load offset=64
+   f64.const 0.95
+   f64.mul
+   local.get $1
+   local.get $12
+   f64.mul
+   f64.add
+   f64.store offset=64
+  else
+   local.get $1
+   f64.const 0
+   f64.gt
+   if
+    local.get $0
+    local.get $0
+    f64.load offset=64
+    f64.const 0.95
+    f64.mul
+    local.get $12
+    f64.const 20
+    f64.mul
+    f64.add
+    f64.store offset=64
+   else
+    local.get $0
+    local.get $0
+    f64.load offset=64
+    f64.const 0.95
+    f64.mul
+    local.get $12
+    f64.const 20
+    f64.mul
+    f64.sub
+    f64.store offset=64
+   end
+  end
+  local.get $2
   local.get $0
   f64.load offset=80
-  local.tee $2
-  local.get $23
-  local.get $2
+  local.tee $1
   f64.const -0.9
   f64.mul
   f64.add
-  local.get $4
+  local.get $28
   f64.div
-  local.get $1
-  f64.mul
-  f64.add
-  f64.store offset=80
+  local.tee $2
+  f64.abs
+  f64.const 5
+  f64.lt
+  if
+   local.get $0
+   local.get $1
+   local.get $2
+   local.get $12
+   f64.mul
+   f64.add
+   f64.store offset=80
+  else
+   local.get $2
+   f64.const 0
+   f64.gt
+   if
+    local.get $0
+    local.get $0
+    f64.load offset=80
+    local.get $12
+    f64.const 5
+    f64.mul
+    f64.add
+    f64.store offset=80
+   else
+    local.get $0
+    local.get $0
+    f64.load offset=80
+    local.get $12
+    f64.const 5
+    f64.mul
+    f64.sub
+    f64.store offset=80
+   end
+  end
   local.get $0
   local.get $0
   f64.load offset=32
   local.get $0
   f64.load offset=80
-  local.get $1
+  local.get $12
   f64.mul
   f64.add
   f64.store offset=32
   local.get $0
   call $assembly/index/calculateGM
-  local.set $2
+  local.set $1
   local.get $0
   local.get $0
   f64.load offset=80
   local.get $0
   f64.load offset=32
   f64.neg
-  local.get $2
+  local.get $1
   f64.mul
   local.get $0
   f64.load offset=112
   f64.mul
   f64.const 9.81
   f64.mul
-  local.get $4
+  local.get $28
   f64.div
-  local.get $1
+  local.get $12
   f64.mul
   f64.add
   f64.store offset=80
   local.get $0
-  local.get $0
   f64.load offset=32
   f64.const 0.6
-  f64.min
-  f64.const -0.6
-  f64.max
-  f64.store offset=32
-  local.get $0
+  f64.gt
+  if
+   local.get $0
+   f64.const 0.6
+   f64.store offset=32
+  else
+   local.get $0
+   f64.load offset=32
+   f64.const -0.6
+   f64.lt
+   if
+    local.get $0
+    f64.const -0.6
+    f64.store offset=32
+   end
+  end
+  local.get $3
   local.get $0
   f64.load offset=88
-  local.tee $2
-  local.get $24
-  local.get $2
+  local.tee $1
   f64.const -0.8
   f64.mul
   f64.add
-  local.get $5
+  local.get $6
   f64.div
-  local.get $1
-  f64.mul
-  f64.add
-  f64.store offset=88
+  local.tee $2
+  f64.abs
+  f64.const 5
+  f64.lt
+  if
+   local.get $0
+   local.get $1
+   local.get $2
+   local.get $12
+   f64.mul
+   f64.add
+   f64.store offset=88
+  else
+   local.get $2
+   f64.const 0
+   f64.gt
+   if
+    local.get $0
+    local.get $0
+    f64.load offset=88
+    local.get $12
+    f64.const 5
+    f64.mul
+    f64.add
+    f64.store offset=88
+   else
+    local.get $0
+    local.get $0
+    f64.load offset=88
+    local.get $12
+    f64.const 5
+    f64.mul
+    f64.sub
+    f64.store offset=88
+   end
+  end
   local.get $0
   local.get $0
   f64.load offset=40
   local.get $0
   f64.load offset=88
-  local.get $1
+  local.get $12
   f64.mul
   f64.add
   f64.store offset=40
@@ -3929,113 +4375,214 @@
   f64.mul
   f64.const 0.05
   f64.mul
-  local.get $5
+  local.get $6
   f64.div
-  local.get $1
+  local.get $12
   f64.mul
   f64.add
   f64.store offset=88
   local.get $0
-  local.get $0
   f64.load offset=40
   f64.const 0.3
-  f64.min
-  f64.const -0.3
-  f64.max
-  f64.store offset=40
-  local.get $0
-  local.get $0
-  f64.load offset=72
-  local.get $15
-  local.get $18
+  f64.gt
+  if
+   local.get $0
+   f64.const 0.3
+   f64.store offset=40
+  else
+   local.get $0
+   f64.load offset=40
+   f64.const -0.3
+   f64.lt
+   if
+    local.get $0
+    f64.const -0.3
+    f64.store offset=40
+   end
+  end
+  local.get $16
+  local.get $19
   f64.add
-  local.get $22
+  local.get $23
   f64.add
-  local.get $25
+  local.get $4
   f64.add
-  local.get $26
+  local.get $10
   f64.div
-  local.get $1
-  f64.mul
-  f64.add
-  f64.store offset=72
+  local.tee $1
+  f64.abs
+  f64.const 5
+  f64.lt
+  if
+   local.get $0
+   local.get $0
+   f64.load offset=72
+   local.get $1
+   local.get $12
+   f64.mul
+   f64.add
+   f64.store offset=72
+  else
+   local.get $1
+   f64.const 0
+   f64.gt
+   if
+    local.get $0
+    local.get $0
+    f64.load offset=72
+    local.get $12
+    f64.const 5
+    f64.mul
+    f64.add
+    f64.store offset=72
+   else
+    local.get $0
+    local.get $0
+    f64.load offset=72
+    local.get $12
+    f64.const 5
+    f64.mul
+    f64.sub
+    f64.store offset=72
+   end
+  end
   local.get $0
   local.get $0
   f64.load offset=24
   local.get $0
   f64.load offset=72
-  local.get $1
+  local.get $12
   f64.mul
   f64.add
   f64.store offset=24
-  loop $while-continue|0
+  local.get $0
+  f64.load offset=24
+  f64.const 6.283185307179586
+  f64.ge
+  if
+   local.get $0
    local.get $0
    f64.load offset=24
-   local.tee $2
+   f64.const -6.283185307179586
+   f64.add
+   f64.store offset=24
+   local.get $0
+   f64.load offset=24
    f64.const 6.283185307179586
-   f64.gt
+   f64.ge
    if
     local.get $0
-    local.get $2
-    f64.const -6.283185307179586
-    f64.add
+    local.get $0
+    f64.load offset=24
+    call $~lib/math/NativeMath.mod
     f64.store offset=24
-    br $while-continue|0
    end
-  end
-  loop $while-continue|1
+  else
    local.get $0
    f64.load offset=24
-   local.tee $2
+   local.tee $1
    f64.const 0
    f64.lt
    if
     local.get $0
-    local.get $2
+    local.get $1
     f64.const 6.283185307179586
     f64.add
     f64.store offset=24
-    br $while-continue|1
+    local.get $0
+    f64.load offset=24
+    f64.const 0
+    f64.lt
+    if
+     local.get $0
+     local.get $0
+     f64.load offset=24
+     call $~lib/math/NativeMath.mod
+     local.tee $1
+     f64.const 6.283185307179586
+     f64.add
+     local.get $1
+     local.get $1
+     f64.const 0
+     f64.lt
+     select
+     f64.store offset=24
+    end
    end
   end
   local.get $0
   f64.load offset=24
   call $~lib/math/NativeMath.cos
-  local.set $2
+  local.set $1
   local.get $0
   f64.load offset=24
   call $~lib/math/NativeMath.sin
-  local.set $3
-  local.get $0
-  local.get $0
-  f64.load
+  local.set $2
   local.get $0
   f64.load offset=48
-  local.tee $4
+  local.tee $3
   local.get $2
   f64.mul
   local.get $0
   f64.load offset=56
-  local.tee $5
-  local.get $3
-  f64.mul
-  f64.sub
+  local.tee $4
   local.get $1
   f64.mul
+  f64.add
+  local.set $5
+  local.get $0
+  local.get $0
+  f64.load
+  local.get $12
+  f64.const 100
+  f64.mul
+  local.tee $6
+  local.get $3
+  local.get $1
+  f64.mul
+  local.get $4
+  local.get $2
+  f64.mul
+  f64.sub
+  local.get $12
+  f64.mul
+  local.tee $1
+  f64.lt
+  if (result f64)
+   local.get $6
+  else
+   local.get $6
+   f64.neg
+   local.tee $2
+   local.get $1
+   local.get $1
+   local.get $2
+   f64.lt
+   select
+  end
   f64.add
   f64.store
   local.get $0
   local.get $0
   f64.load offset=8
-  local.get $4
-  local.get $3
-  f64.mul
   local.get $5
-  local.get $2
+  local.get $12
   f64.mul
-  f64.add
-  local.get $1
-  f64.mul
+  local.tee $1
+  local.get $6
+  f64.gt
+  if (result f64)
+   local.get $6
+  else
+   local.get $6
+   f64.neg
+   local.tee $2
+   local.get $1
+   local.get $1
+   local.get $2
+   f64.lt
+   select
+  end
   f64.add
   f64.store offset=8
   local.get $0
@@ -4043,21 +4590,28 @@
   f64.load offset=16
   local.get $0
   f64.load offset=64
-  local.get $1
+  local.get $12
   f64.mul
   f64.add
-  f64.const 0
-  f64.max
   f64.store offset=16
   local.get $0
+  f64.load offset=16
+  f64.const 0
+  f64.lt
+  if
+   local.get $0
+   f64.const 0
+   f64.store offset=16
+  end
+  local.get $0
   f64.load offset=248
-  local.tee $2
+  local.tee $1
   f64.const 0
   f64.gt
   if
    local.get $0
-   local.get $2
    local.get $1
+   local.get $12
    f64.const 0.01
    f64.mul
    local.get $0
@@ -4070,7 +4624,7 @@
    f64.mul
    f64.div
    f64.max
-   local.get $1
+   local.get $12
    f64.mul
    f64.sub
    f64.store offset=248
@@ -4498,6 +5052,128 @@
  (func $assembly/index/getVesselCenterOfGravityY (param $0 i32) (result f64)
   local.get $0
   f64.load offset=200
+ )
+ (func $assembly/index/setVesselStateForTesting (param $0 i32) (param $1 f64) (param $2 f64) (param $3 f64)
+  local.get $0
+  local.get $1
+  f64.store offset=48
+  local.get $0
+  local.get $2
+  f64.store offset=56
+  local.get $0
+  local.get $3
+  f64.store offset=24
+  local.get $0
+  global.set $assembly/index/globalVessel
+ )
+ (func $assembly/index/testCoordinateTransform (param $0 i32) (param $1 f64)
+  (local $2 f64)
+  (local $3 f64)
+  (local $4 f64)
+  (local $5 f64)
+  (local $6 f64)
+  local.get $0
+  f64.load offset=24
+  call $~lib/math/NativeMath.cos
+  local.set $3
+  local.get $0
+  f64.load offset=24
+  call $~lib/math/NativeMath.sin
+  local.tee $5
+  local.get $5
+  f64.sub
+  f64.const 0
+  f64.eq
+  local.get $3
+  local.get $3
+  f64.sub
+  f64.const 0
+  f64.eq
+  i32.and
+  if (result i32)
+   local.get $0
+   f64.load offset=48
+   local.tee $2
+   local.get $2
+   f64.sub
+   f64.const 0
+   f64.eq
+  else
+   i32.const 0
+  end
+  if (result i32)
+   local.get $0
+   f64.load offset=56
+   local.tee $2
+   local.get $2
+   f64.sub
+   f64.const 0
+   f64.eq
+  else
+   i32.const 0
+  end
+  if
+   local.get $0
+   f64.load offset=48
+   local.tee $6
+   local.get $5
+   f64.mul
+   local.get $0
+   f64.load offset=56
+   local.tee $2
+   local.get $3
+   f64.mul
+   f64.add
+   local.tee $4
+   local.get $4
+   f64.sub
+   f64.const 0
+   f64.eq
+   local.get $6
+   local.get $3
+   f64.mul
+   local.get $2
+   local.get $5
+   f64.mul
+   f64.sub
+   local.tee $2
+   local.get $2
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.and
+   if
+    local.get $0
+    local.get $0
+    f64.load
+    local.get $2
+    local.get $1
+    f64.mul
+    f64.add
+    f64.store
+    local.get $0
+    local.get $0
+    f64.load offset=8
+    local.get $4
+    local.get $1
+    f64.mul
+    f64.add
+    f64.store offset=8
+    local.get $0
+    local.get $0
+    f64.load offset=16
+    local.get $0
+    f64.load offset=64
+    local.get $1
+    f64.mul
+    f64.add
+    f64.const 0
+    f64.max
+    f64.store offset=16
+   end
+  end
+  local.get $0
+  global.set $assembly/index/globalVessel
  )
  (func $~start
   i32.const 7932
