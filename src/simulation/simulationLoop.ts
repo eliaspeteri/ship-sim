@@ -53,8 +53,6 @@ export class SimulationLoop {
             y,
             z,
           });
-          // Fall back to default values (0,0,0) rather than propagating NaN
-          useStore.getState().updateVessel({ position: { x: 0, y: 0, z: 0 } });
         } else {
           // Valid position values - update store
           useStore.getState().updateVessel({ position: { x, y, z } });
