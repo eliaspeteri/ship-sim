@@ -189,7 +189,6 @@ export class SimulationLoop {
    * Update physics state using WASM module
    */
   private updatePhysics(dt: number): void {
-    console.info('Updating physics with dt:', dt);
     const state = useStore.getState();
     if (!state || !this.wasmBridge || !state.wasmVesselPtr) return;
 
