@@ -401,13 +401,12 @@ export class SimulationLoop {
 
       // Add speed
       vesselUpdate.velocity = {
-        surge: this.wasmBridge.getVesselSpeed(vesselPtr),
+        surge: this.wasmBridge.getVesselSurgeVelocity(vesselPtr),
         sway: this.wasmBridge.getVesselSwayVelocity(vesselPtr),
         heave: this.wasmBridge.getVesselHeaveVelocity(vesselPtr),
       };
 
-      // Engine state updates
-      const isEngineRunning = false; // Default value since this function may not exist
+      // Update engine state from WASM after each step
       const engineUpdate = {
         rpm: this.wasmBridge.getVesselEngineRPM(vesselPtr),
         fuelLevel: this.wasmBridge.getVesselFuelLevel(vesselPtr),
@@ -415,8 +414,8 @@ export class SimulationLoop {
         temperature: 25,
         oilPressure: 5.0,
         load: 0,
-        running: isEngineRunning,
-        hours: state.vessel.engineState.hours || 0, // Preserve engine hours
+        running: false,
+        hours: state.vessel.engineState.hours || 0,
       };
 
       // Calculate load based on throttle and RPM
@@ -437,13 +436,11 @@ export class SimulationLoop {
 
       vesselUpdate.engineState = engineUpdate;
 
-      // Only update stability properties every 10 frames to avoid overwhelming the store
-      // and potentially causing cascading errors
+      // Only update stability properties every 10 frames
       this.stabilityUpdateCounter++;
       if (this.stabilityUpdateCounter >= 10) {
         this.stabilityUpdateCounter = 0;
-
-        const stabilityUpdate = {
+        vesselUpdate.stability = {
           metacentricHeight: this.wasmBridge.getVesselGM(vesselPtr),
           centerOfGravity: {
             x: 0,
@@ -453,8 +450,6 @@ export class SimulationLoop {
           trim: 0,
           list: 0,
         };
-
-        vesselUpdate.stability = stabilityUpdate;
       }
 
       // Only update the store if we have something to update
