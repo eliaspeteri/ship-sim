@@ -204,19 +204,19 @@ export function calculateWaveFrequency(seaState: f64): f64 {
   return (2.0 * Math.PI) / wavePeriod;
 }
 
-// Calculate hull resistance using simplified Holtrop-Mennen method
-function calculateHullResistance(vessel: VesselState, speed: f64): f64 {
-  if (speed < 0.01) return 0.0;
-
-  // Calculate wetted surface area (approximation)
-  const wettedArea =
+function calculateWettedSurfaceArea(vessel: VesselState): f64 {
+  // Approximate wetted surface area based on length, beam, and draft
+  return (
     vessel.length *
     (2.0 * vessel.draft + vessel.beam) *
     Math.sqrt(vessel.blockCoefficient) *
-    0.8;
+    0.8
+  );
+}
 
-  // Calculate Froude number
-  const froudeNum = speed / Math.sqrt(9.81 * vessel.length);
+function calculateFrictionResistance(vessel: VesselState, speed: f64): f64 {
+  // Calculate wetted surface area (approximation)
+  const wettedArea = calculateWettedSurfaceArea(vessel);
 
   // Calculate Reynolds number
   const reynoldsNum = (speed * vessel.length) / KINE_VISCOSITY;
@@ -241,8 +241,17 @@ function calculateResidualResistance(vessel: VesselState, speed: f64): f64 {
     Math.pow(froudeNum, HM_C2) *
     Math.exp(-HM_C3 / Math.pow(froudeNum, HM_C4));
 
+  return Rr;
+}
+
+// Calculate hull resistance using simplified Holtrop-Mennen method
+function calculateHullResistance(vessel: VesselState, speed: f64): f64 {
+  if (speed < 0.01) return 0.0;
+
   // Total resistance
-  const Rt = Rf + Rr;
+  const Rt =
+    calculateFrictionResistance(vessel, speed) +
+    calculateResidualResistance(vessel, speed);
 
   return Rt;
 }
