@@ -51,7 +51,7 @@ test('getWaveHeightForSeaState returns expected values for different sea states'
  * Test calculateWaveLength is consistent with deep water wave theory.
  */
 test('calculateWaveLength is consistent with deep water wave theory', () => {
-  const seaState = 4.0;
+  const seaState = 4;
   const waveLength = calculateWaveLength(seaState);
   // Deep water wave velocity: v = sqrt(g * λ / (2π))
   const expectedVelocity = Math.sqrt((9.81 * waveLength) / (2.0 * Math.PI));

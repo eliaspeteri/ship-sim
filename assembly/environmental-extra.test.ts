@@ -63,9 +63,9 @@ test('getWaveHeightForSeaState and calculateWaveFrequency return zero for calm s
 });
 
 test('wave calculations handle extreme sea state values', (): void => {
-  const extremeSeaState: f64 = 100.0;
-  expect<f64>(getWaveHeightForSeaState(extremeSeaState)).closeTo(14.0, 0.001);
-  expect<f64>(calculateWaveLength(extremeSeaState)).greaterThan(0.0);
+  const extremeSeaState: i32 = 100;
+  expect<f64>(getWaveHeightForSeaState(extremeSeaState)).closeTo(14, 0.001);
+  expect<f64>(calculateWaveLength(extremeSeaState)).greaterThan(0);
   expect<f64>(calculateWaveFrequency(extremeSeaState)).greaterThan(0.0);
 });
 
