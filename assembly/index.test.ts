@@ -22,6 +22,7 @@ import {
   getVesselCenterOfGravityY,
   getVesselRudderAngle,
   getVesselBallastLevel,
+  setVesselVelocity,
 } from '../assembly/index';
 
 import {
@@ -426,6 +427,30 @@ test('updateVesselState: position delta limiting branches', (): void => {
   const yAfter: f64 = getVesselY(ptr);
   expect<bool>(xAfter - xBefore <= 100.0).equal(true);
   expect<bool>(yAfter - yBefore <= 100.0).equal(true);
+});
+
+test('calculateHullResistance returns 0 for near-zero speed', (): void => {
+  const ptr = createVessel();
+  setVesselVelocity(ptr, 0.0, 0.0, 0.0); // Set speed to zero
+  updateVesselState(ptr, 0.1, 0, 0, 0, 0);
+  expect<f64>(getVesselSpeed(ptr)).closeTo(0.0, 0.0001);
+});
+
+test('updateVesselState: surge acceleration positive and negative limit branches', (): void => {
+  const ptr = createVessel();
+  // Extreme positive net force
+  setVesselVelocity(ptr, 0.0, 0.0, 0.0);
+  setThrottle(ptr, 1.0);
+  for (let i = 0; i < 5; i++) {
+    updateVesselState(ptr, 1.0, 50.0, 0, 10.0, 0); // Max wind/current
+  }
+  expect<bool>(getVesselSurgeVelocity(ptr) < 1000.0).equal(true);
+  // Extreme negative net force
+  setThrottle(ptr, 0.0);
+  for (let i = 0; i < 5; i++) {
+    updateVesselState(ptr, 1.0, -50.0, Math.PI, -10.0, Math.PI); // Opposing wind/current
+  }
+  expect<bool>(getVesselSurgeVelocity(ptr) > -1000.0).equal(true);
 });
 
 endTest();
