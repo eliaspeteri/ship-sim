@@ -448,8 +448,7 @@ function calculateCurrentForce(
     wettedAreaBottom *
     currentCoefficientX *
     Math.cos(relativeDirection);
-
-  const currentForceY =
+  const currentForceY: f64 =
     0.5 *
     vessel.waterDensity *
     currentSpeed *
@@ -457,8 +456,7 @@ function calculateCurrentForce(
     wettedAreaSide *
     currentCoefficientY *
     Math.sin(relativeDirection);
-
-  const currentMomentN =
+  const currentMomentN: f64 =
     0.5 *
     vessel.waterDensity *
     currentSpeed *
