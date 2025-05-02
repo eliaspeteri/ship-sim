@@ -630,17 +630,17 @@ export function calculateWaveHeightAtPosition(
 // Calculate wave forces on vessel
 function calculateWaveForce(
   vessel: VesselState,
-  seaState: f64,
+  seaState: i32,
   time: f64,
 ): f64[] {
   if (seaState < 0.5) return [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 
-  const waveHeight = getWaveHeightForSeaState(seaState);
+  const staticWaveHeight = getWaveHeightForSeaState(seaState);
   const waveLength = calculateWaveLength(seaState);
   const waveFrequency = calculateWaveFrequency(seaState);
 
   // Update vessel's wave state data
-  vessel.waveHeight = waveHeight;
+  vessel.waveHeight = staticWaveHeight;
   vessel.waveFrequency = waveFrequency;
 
   // Calculate wave phase at vessel position
