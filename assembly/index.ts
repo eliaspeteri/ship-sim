@@ -1321,3 +1321,23 @@ export function getVesselSwayVelocity(vesselPtr: usize): f64 {
 export function getVesselHeaveVelocity(vesselPtr: usize): f64 {
   return changetype<VesselState>(vesselPtr).w;
 }
+
+/**
+ * Gets the vessel's rudder angle (in radians).
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The rudder angle in radians
+ * @external
+ */
+export function getVesselRudderAngle(vesselPtr: usize): f64 {
+  return changetype<VesselState>(vesselPtr).rudderAngle;
+}
+
+/**
+ * Gets the vessel's ballast level (0.0 to 1.0).
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The ballast level (0.0 to 1.0)
+ * @external
+ */
+export function getVesselBallastLevel(vesselPtr: usize): f64 {
+  return changetype<VesselState>(vesselPtr).ballastLevel;
+}
