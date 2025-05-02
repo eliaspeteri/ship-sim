@@ -271,7 +271,19 @@ function calculateWaveResistance(vessel: VesselState, seaState: i32): f64 {
   return addedResistance;
 }
 
-// Calculate propeller thrust from engine torque and ship speed
+/**
+ * Calculates the thrust produced by the vessel's propeller.
+ *
+ * Physics model:
+ *   - Wake fraction: w = PROPELLER_WAKE_FRACTION_FACTOR * blockCoefficient
+ *   - Speed of advance: Va = u * (1 - w)
+ *   - Propeller advance coefficient: J = |Va| / (n * D + ε)
+ *   - Thrust coefficient: KT = intercept - slope * J
+ *   - Thrust: T = KT * ρ * n^2 * D^4
+ *
+ * @param vessel - The vessel state containing all required parameters
+ * @returns The calculated propeller thrust (N)
+ */
 function calculatePropellerThrust(vessel: VesselState): f64 {
   const wakeFraction: f64 =
     PROPELLER_WAKE_FRACTION_FACTOR * vessel.blockCoefficient;
@@ -290,15 +302,21 @@ function calculatePropellerThrust(vessel: VesselState): f64 {
     vessel.waterDensity *
     propRPS *
     propRPS *
-    Math.pow(vessel.propellerDiameter, 4.0);
-
-  // Calculate fuel consumption
-  vessel.fuelConsumption = calculateFuelConsumption(vessel, engineTorque);
-
-  return thrust;
+    Math.pow(vessel.propellerDiameter, 4.0)
+  );
 }
 
-// Calculate diesel engine torque based on RPM
+/**
+ * Calculates the diesel engine torque based on vessel state.
+ *
+ * The torque curve is modeled to approximate a marine diesel engine:
+ * - Torque rises linearly at very low RPM.
+ * - Peaks at ~80% of max RPM.
+ * - Decreases at high RPM.
+ *
+ * @param vessel - VesselState containing engineRPM, maxEnginePower, and throttle.
+ * @returns Engine torque in Nm.
+ */
 function calculateEngineTorque(vessel: VesselState): f64 {
   const maxTorque: f64 =
     (vessel.maxEnginePower * ENGINE_TORQUE_CONVERSION) /
@@ -401,7 +419,18 @@ function calculateRudderMomentZ(vessel: VesselState): f64 {
   return rudderForceY * rudderLeverArm;
 }
 
-// Calculate current effects on the vessel
+/**
+ * Calculates the hydrodynamic forces and yaw moment exerted on a vessel by water currents.
+ *
+ * The function resolves the current's effect into surge (X), sway (Y), and yaw (N) components
+ * based on the vessel's heading and the current's direction. It uses empirical coefficients
+ * and wetted area multipliers for physical realism and tunability.
+ *
+ * @param vessel - VesselState containing vessel dimensions and hydrodynamic properties.
+ * @param currentSpeed - Speed of the water current (m/s).
+ * @param currentDirection - Direction of the water current (radians, global frame).
+ * @returns Array [currentForceX, currentForceY, currentMomentN] representing surge force (N), sway force (N), and yaw moment (Nm).
+ */
 function calculateCurrentForce(
   vessel: VesselState,
   currentSpeed: f64,
@@ -551,10 +580,15 @@ export function calculateBeaufortScale(windSpeed: f64): i32 {
 }
 
 /**
- * Calculates the wave length for a given sea state.
- * @param seaState - The sea state (0-12, Beaufort scale)
- * @returns The wave length in meters
- * @external
+ * Calculates the characteristic wave length for a given sea state.
+ *
+ * The function estimates the wave period using a linear relationship with the sea state:
+ *   wavePeriod = WAVE_PERIOD_BASE + seaState * WAVE_PERIOD_SLOPE
+ * The wave length is then calculated as:
+ *   waveLength = WAVE_LENGTH_FACTOR * wavePeriod^2
+ *
+ * @param seaState - The sea state (0-12, Beaufort scale). Higher values represent rougher seas.
+ * @returns The estimated wave length in meters, used for wave and vessel interaction models.
  */
 export function calculateWaveLength(seaState: f64): f64 {
   const wavePeriod = WAVE_PERIOD_BASE + seaState * WAVE_PERIOD_SLOPE;
@@ -1111,24 +1145,24 @@ export function updateVesselState(
 export function createVessel(): usize {
   if (globalVessel === null) {
     globalVessel = new VesselState(
-      0,
-      0,
-      0, // position
-      0,
-      0,
-      0, // orientation
-      1.0,
-      0,
-      0, // initial speed
-      0,
-      0,
-      0, // angular velocity
-      0.2,
-      0, // throttle and rudder
-      50000,
-      50,
-      10,
-      3, // vessel properties
+      0, // x
+      0, // y
+      0, // z
+      0, // psi (heading/yaw)
+      0, // phi (roll)
+      0, // theta (pitch)
+      1.0, // u (surge velocity)
+      0, // v (sway velocity)
+      0, // w (heave velocity)
+      0, // r (yaw rate)
+      0, // p (roll rate)
+      0, // q (pitch rate)
+      0.2, // throttle (0.0 to 1.0)
+      0, // rudder angle (radians)
+      14950000, // mass (kg)
+      212, // length (m)
+      28, // beam (m)
+      9.1, // draft (m)
     );
   }
   return changetype<usize>(globalVessel);
