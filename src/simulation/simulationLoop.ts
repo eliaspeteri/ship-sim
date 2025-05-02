@@ -35,16 +35,77 @@ export class SimulationLoop {
       // Load WASM via our bridge that handles missing exports
       const bridge = await loadWasm();
       this.wasmBridge = bridge;
+      const state = useStore.getState();
 
       // Create a vessel in WASM and store the pointer
       const vesselPtr = this.wasmBridge.createVessel();
-      useStore.getState().setWasmVesselPtr(vesselPtr);
+      state.setWasmVesselPtr(vesselPtr);
 
       // Immediately read vessel position and verify it's valid
       if (vesselPtr && this.wasmBridge) {
         const x = this.wasmBridge.getVesselX(vesselPtr);
         const y = this.wasmBridge.getVesselY(vesselPtr);
         const z = this.wasmBridge.getVesselZ(vesselPtr);
+        const roll = this.wasmBridge.getVesselRollAngle(vesselPtr);
+        const pitch = this.wasmBridge.getVesselPitchAngle(vesselPtr);
+        const surge = this.wasmBridge.getVesselSurgeVelocity(vesselPtr);
+        const sway = this.wasmBridge.getVesselSwayVelocity(vesselPtr);
+        const heave = this.wasmBridge.getVesselHeaveVelocity(vesselPtr);
+        const metacentricHeight = this.wasmBridge.getVesselGM(vesselPtr);
+        const centerOfGravityY =
+          this.wasmBridge.getVesselCenterOfGravityY(vesselPtr);
+
+        // Check for orientation related variables for NaN values
+        if (isNaN(roll) || isNaN(pitch)) {
+          console.error('WASM vessel orientation contains NaN values:', {
+            roll,
+            pitch,
+          });
+        } else {
+          // Valid orientation values - update store
+          state.updateVessel({
+            orientation: {
+              roll,
+              pitch,
+              heading: 0, // Default heading
+            },
+          });
+        }
+
+        // Check for velocity related variables for NaN values
+        if (isNaN(sway) || isNaN(heave)) {
+          console.error('WASM vessel velocity contains NaN values:', {
+            sway,
+            heave,
+          });
+        } else {
+          // Valid velocity values - update store
+          state.updateVessel({
+            velocity: { sway, heave, surge },
+          });
+        }
+
+        // Check for stability related variables for NaN values
+        if (isNaN(metacentricHeight) || isNaN(centerOfGravityY)) {
+          console.error('WASM vessel stability contains NaN values:', {
+            metacentricHeight,
+            centerOfGravityY,
+          });
+        } else {
+          // Valid stability values - update store
+          state.updateVessel({
+            stability: {
+              metacentricHeight,
+              centerOfGravity: {
+                x: 0,
+                y: centerOfGravityY,
+                z: 6.0,
+              },
+              trim: 0,
+              list: 0,
+            },
+          });
+        }
 
         // Check for NaN values which indicate a problem with the WASM vessel state
         if (isNaN(x) || isNaN(y) || isNaN(z)) {
@@ -55,7 +116,7 @@ export class SimulationLoop {
           });
         } else {
           // Valid position values - update store
-          useStore.getState().updateVessel({ position: { x, y, z } });
+          state.updateVessel({ position: { x, y, z } });
         }
       }
 
@@ -76,12 +137,14 @@ export class SimulationLoop {
       return; // Already running
     }
 
+    const state = useStore.getState();
+
     this.lastFrameTime = performance.now();
 
     // Using an arrow function instead of bind(this)
     this.animationFrameId = requestAnimationFrame(time => this.loop(time));
 
-    useStore.getState().setRunning(true);
+    state.setRunning(true);
 
     console.info('Simulation loop started');
   }
@@ -110,30 +173,27 @@ export class SimulationLoop {
       state.incrementTime(0); // This will set elapsedTime to 0
     }
 
-    // Only update if simulation is running
-    if (state.simulation.isRunning) {
-      // Scale delta time by time scale factor
-      const scaledDeltaTime = deltaTime * (state.simulation.timeScale || 1.0);
-      this.accumulatedTime += scaledDeltaTime;
+    // Scale delta time by time scale factor
+    const scaledDeltaTime = deltaTime * (state.simulation.timeScale || 1.0);
+    this.accumulatedTime += scaledDeltaTime;
 
-      // Run fixed timestep physics updates
-      while (this.accumulatedTime >= this.fixedTimeStep) {
-        this.updatePhysics(this.fixedTimeStep);
-        this.accumulatedTime -= this.fixedTimeStep;
-      }
-
-      // Increment simulation time - ensure this is always called when running
-      state.incrementTime(scaledDeltaTime);
-
-      // Update UI state from physics state
-      this.updateUIFromPhysics();
-
-      // Update wave properties for the ocean renderer
-      this.updateWaveProperties();
-
-      // Process any failures or events
-      this.processEvents(scaledDeltaTime);
+    // Run fixed timestep physics updates
+    while (this.accumulatedTime >= this.fixedTimeStep) {
+      this.updatePhysics(this.fixedTimeStep);
+      this.accumulatedTime -= this.fixedTimeStep;
     }
+
+    // Increment simulation time - ensure this is always called when running
+    state.incrementTime(scaledDeltaTime);
+
+    // Update UI state from physics state
+    this.updateUIFromPhysics();
+
+    // Update wave properties for the ocean renderer
+    this.updateWaveProperties();
+
+    // Process any failures or events
+    this.processEvents(scaledDeltaTime);
 
     // Continue the loop using arrow function
     this.animationFrameId = requestAnimationFrame(time => this.loop(time));
@@ -342,8 +402,8 @@ export class SimulationLoop {
       // Add speed
       vesselUpdate.velocity = {
         surge: this.wasmBridge.getVesselSpeed(vesselPtr),
-        sway: 0,
-        heave: 0,
+        sway: this.wasmBridge.getVesselSwayVelocity(vesselPtr),
+        heave: this.wasmBridge.getVesselHeaveVelocity(vesselPtr),
       };
 
       // Engine state updates

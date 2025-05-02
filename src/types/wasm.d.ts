@@ -57,6 +57,9 @@ export interface WasmModule {
   getVesselFuelConsumption: (vesselPtr: number) => number;
   getVesselGM: (vesselPtr: number) => number;
   getVesselCenterOfGravityY: (vesselPtr: number) => number;
+  getVesselSurgeVelocity: (vesselPtr: number) => number;
+  getVesselSwayVelocity: (vesselPtr: number) => number;
+  getVesselHeaveVelocity: (vesselPtr: number) => number;
 
   // Wave physics
   setWaveData: (

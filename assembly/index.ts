@@ -1215,3 +1215,27 @@ export function getVesselCenterOfGravityY(vesselPtr: usize): f64 {
   const vessel = changetype<VesselState>(vesselPtr);
   return vessel.centerOfGravityY;
 }
+
+/**
+ * Gets the vessel's surge velocity (u).
+ * @param vesselPtr - Pointer to the vessel instance
+ */
+export function getVesselSurgeVelocity(vesselPtr: usize): f64 {
+  return changetype<VesselState>(vesselPtr).u;
+}
+
+/**
+ * Gets the vessel's sway velocity (v).
+ * @param vesselPtr - Pointer to the vessel instance
+ */
+export function getVesselSwayVelocity(vesselPtr: usize): f64 {
+  return changetype<VesselState>(vesselPtr).v;
+}
+
+/**
+ * Gets the vessel's heave velocity (w).
+ * @param vesselPtr - Pointer to the vessel instance
+ */
+export function getVesselHeaveVelocity(vesselPtr: usize): f64 {
+  return changetype<VesselState>(vesselPtr).w;
+}

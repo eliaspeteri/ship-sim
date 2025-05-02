@@ -428,4 +428,28 @@ export class WasmBridge {
   public calculateWaveFrequency(seaState: number): number {
     return this.wasmModule.calculateWaveFrequency(seaState);
   }
+
+  /**
+   * Gets the vessel surge velocity
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   */
+  public getVesselSurgeVelocity(vesselPtr: number): number {
+    return this.wasmModule.getVesselSurgeVelocity(vesselPtr);
+  }
+
+  /**
+   * Gets the vessel sway velocity
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   */
+  public getVesselSwayVelocity(vesselPtr: number): number {
+    return this.wasmModule.getVesselSwayVelocity(vesselPtr);
+  }
+
+  /**
+   * Gets the vessel heave velocity
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   */
+  public getVesselHeaveVelocity(vesselPtr: number): number {
+    return this.wasmModule.getVesselHeaveVelocity(vesselPtr);
+  }
 }

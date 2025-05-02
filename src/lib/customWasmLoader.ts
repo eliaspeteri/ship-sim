@@ -240,6 +240,15 @@ export async function loadWasmModule(): Promise<WasmModule> {
       getWaveHeightForSeaState: exports.getWaveHeightForSeaState as (
         seaState: number,
       ) => number,
+      getVesselSurgeVelocity: exports.getVesselSurgeVelocity as (
+        vesselPtr: number,
+      ) => number,
+      getVesselSwayVelocity: exports.getVesselSwayVelocity as (
+        vesselPtr: number,
+      ) => number,
+      getVesselHeaveVelocity: exports.getVesselHeaveVelocity as (
+        vesselPtr: number,
+      ) => number,
 
       // Wave physics
       calculateWaveHeightAtPosition: exports.calculateWaveHeightAtPosition as (
