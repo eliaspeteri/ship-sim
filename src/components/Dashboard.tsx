@@ -218,7 +218,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
                 {environment?.wind?.speed?.toFixed(1) || '0.0'} m/s
               </div>
               <div>
-                <span className="text-gray-400">Direction:</span>{' '}
+                <span className="text-gray-400">Wind Direction:</span>{' '}
                 {Math.round(
                   (((environment?.wind?.direction || 0) * 180) / Math.PI) % 360,
                 )}
@@ -231,6 +231,14 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
               <div>
                 <span className="text-gray-400">Current:</span>{' '}
                 {environment?.current?.speed?.toFixed(1) || '0.0'} m/s
+              </div>
+              <div>
+                <span className="text-gray-400">Current Direction:</span>{' '}
+                {Math.round(
+                  (((environment?.current?.direction || 0) * 180) / Math.PI) %
+                    360,
+                )}
+                °
               </div>
             </div>
           </div>
