@@ -12,7 +12,6 @@ interface SimulationControl {
   timeScale: number;
   elapsedTime: number; // Simulation time in seconds
   realStartTime: number; // Real world timestamp when sim started
-  paused: boolean;
   scenarioId: string | null;
   scenarioName: string | null;
   debugMode: boolean;
@@ -68,8 +67,6 @@ interface SimulationState {
   setRunning: (running: boolean) => void;
   setTimeScale: (scale: number) => void;
   incrementTime: (deltaTime: number) => void;
-  togglePause: () => void;
-  resetSimulation: () => void;
 
   // Event log
   eventLog: EventLogEntry[];
@@ -193,7 +190,6 @@ const defaultSimulationControl: SimulationControl = {
   timeScale: 1.0,
   elapsedTime: 0,
   realStartTime: Date.now(),
-  paused: false,
   scenarioId: null,
   scenarioName: null,
   debugMode: false,
@@ -416,7 +412,6 @@ const useStore = create<SimulationState>()(
           simulation: {
             ..._state.simulation,
             isRunning: running,
-            paused: running ? false : _state.simulation.paused,
             realStartTime:
               running && !_state.simulation.isRunning
                 ? Date.now()
@@ -435,28 +430,6 @@ const useStore = create<SimulationState>()(
             ...state.simulation,
             elapsedTime: state.simulation.elapsedTime + deltaTime,
           },
-        })),
-
-      togglePause: () =>
-        set(state => ({
-          simulation: {
-            ...state.simulation,
-            paused: !state.simulation.paused,
-            isRunning: state.simulation.paused
-              ? state.simulation.isRunning
-              : false,
-          },
-        })),
-
-      resetSimulation: () =>
-        set(_state => ({
-          vessel: defaultVesselState,
-          simulation: {
-            ...defaultSimulationControl,
-            realStartTime: Date.now(),
-          },
-          eventLog: [],
-          machinerySystems: defaultMachinerySystemStatus,
         })),
 
       // Event system

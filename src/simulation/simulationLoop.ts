@@ -87,51 +87,6 @@ export class SimulationLoop {
   }
 
   /**
-   * Stop the simulation loop
-   */
-  stop(): void {
-    if (this.animationFrameId !== null) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-      useStore.getState().setRunning(false);
-
-      console.info('Simulation loop stopped');
-    }
-  }
-
-  /**
-   * Toggle pause state
-   */
-  togglePause(): void {
-    const state = useStore.getState();
-    state.togglePause();
-
-    if (state.simulation.paused) {
-      this.stop();
-    } else {
-      this.start();
-    }
-  }
-
-  /**
-   * Reset simulation state
-   */
-  reset(): void {
-    this.stop();
-
-    // Reset the store state
-    useStore.getState().resetSimulation();
-
-    // Re-create WASM vessel
-    if (this.wasmBridge) {
-      const vesselPtr = this.wasmBridge.createVessel();
-      useStore.getState().setWasmVesselPtr(vesselPtr);
-    }
-
-    console.info('Simulation reset');
-  }
-
-  /**
    * The main simulation loop
    */
   private loop(currentTime: number): void {
@@ -144,7 +99,6 @@ export class SimulationLoop {
     // Ensure state.simulation is properly initialized with default values if needed
     if (!state.simulation) {
       console.error('Simulation state is null, reinitializing');
-      state.resetSimulation();
       return;
     }
 
@@ -156,8 +110,8 @@ export class SimulationLoop {
       state.incrementTime(0); // This will set elapsedTime to 0
     }
 
-    // Only update if simulation is running and not paused
-    if (state.simulation.isRunning && !state.simulation.paused) {
+    // Only update if simulation is running
+    if (state.simulation.isRunning) {
       // Scale delta time by time scale factor
       const scaledDeltaTime = deltaTime * (state.simulation.timeScale || 1.0);
       this.accumulatedTime += scaledDeltaTime;

@@ -17,21 +17,6 @@ export const startSimulation = (): void => {
   simulationLoop.start();
 };
 
-export const stopSimulation = (): void => {
-  const simulationLoop = getSimulationLoop();
-  simulationLoop.stop();
-};
-
-export const togglePauseSimulation = (): void => {
-  const simulationLoop = getSimulationLoop();
-  simulationLoop.togglePause();
-};
-
-export const resetSimulation = (): void => {
-  const simulationLoop = getSimulationLoop();
-  simulationLoop.reset();
-};
-
 // Export the applyVesselControls function for use in MachineryPanel.tsx
 export const applyVesselControls = (controls: {
   throttle?: number;

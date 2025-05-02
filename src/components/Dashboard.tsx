@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useStore from '../store';
-import {
-  startSimulation,
-  stopSimulation,
-  getSimulationLoop,
-} from '../simulation';
+import { getSimulationLoop } from '../simulation';
 import MachineryPanel from './MachineryPanel';
 import EventLog from './EventLog';
 import { AlarmIndicator } from './AlarmIndicator';
@@ -21,9 +17,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   const vessel = useStore(state => state.vessel);
   const environment = useStore(state => state.environment);
-  const isRunning = useStore(state => state.simulation.isRunning);
   const elapsedTime = useStore(state => state.simulation.elapsedTime);
-  const addEvent = useStore(state => state.addEvent);
 
   // Destructure vessel state for easier access
   const { position, orientation, velocity, controls, engineState, alarms } =
@@ -87,27 +81,6 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
     };
   }, [throttleLocal, rudderAngleLocal, controls]);
 
-  // Toggle simulation running state
-  const toggleSimulation = () => {
-    if (isRunning) {
-      stopSimulation();
-      addEvent({
-        category: 'system',
-        type: 'simulation_paused',
-        message: 'Simulation paused',
-        severity: 'info',
-      });
-    } else {
-      startSimulation();
-      addEvent({
-        category: 'system',
-        type: 'simulation_started',
-        message: 'Simulation started',
-        severity: 'info',
-      });
-    }
-  };
-
   // Format simulation time as hh:mm:ss
   const formatTime = (seconds: number | null | undefined) => {
     // Handle invalid values
@@ -130,13 +103,6 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
       {/* Top bar with time and controls */}
       <div className="flex flex-wrap justify-between items-center mb-4 bg-gray-900 p-3 rounded-lg">
         <div className="flex items-center space-x-4">
-          <button
-            onClick={toggleSimulation}
-            className={`px-4 py-2 rounded-md font-bold ${isRunning ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-600 hover:bg-green-700'}`}
-          >
-            {isRunning ? 'Pause' : 'Start'}
-          </button>
-
           <div className="flex flex-col">
             <span className="text-xs text-gray-400">Simulation Time</span>
             <span className="font-mono font-bold">
