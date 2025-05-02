@@ -103,10 +103,10 @@ export class SimulationLoop {
    * Toggle pause state
    */
   togglePause(): void {
-    const _state = useStore.getState();
-    _state.togglePause();
+    const state = useStore.getState();
+    state.togglePause();
 
-    if (_state.simulation.paused) {
+    if (state.simulation.paused) {
       this.stop();
     } else {
       this.start();
