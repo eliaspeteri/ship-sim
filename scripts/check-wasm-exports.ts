@@ -18,7 +18,7 @@ interface WasmExportDescriptor {
 // Paths to the WebAssembly modules
 const DEBUG_WASM_PATH = path.join(
   path.dirname(__filename),
-  '../build/debug.wasm',
+  '../public/wasm/debug.wasm',
 );
 const RELEASE_WASM_PATH = path.join(
   path.dirname(__filename),
@@ -55,6 +55,9 @@ const EXPECTED_EXPORTS: string[] = [
   'getVesselFuelConsumption',
   'getVesselGM',
   'getVesselCenterOfGravityY',
+  'getVesselSurgeVelocity',
+  'getVesselSwayVelocity',
+  'getVesselHeaveVelocity',
 
   // Motion-related functions
   'getVesselRollAngle',
