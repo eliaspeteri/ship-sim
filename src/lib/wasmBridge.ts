@@ -40,7 +40,6 @@ export class WasmBridge {
     windDirection: number,
     currentSpeed: number,
     currentDirection: number,
-    seaState: number,
   ): number {
     if (
       !this.wasmModule ||
@@ -86,11 +85,6 @@ export class WasmBridge {
           ? currentDirection % (2 * Math.PI) // Normalize to [0, 2π)
           : 0;
 
-      const safeSeaState =
-        typeof seaState === 'number' && isFinite(seaState)
-          ? Math.max(0, Math.min(12, seaState)) // Beaufort scale 0-12
-          : 0;
-
       return this.wasmModule.updateVesselState(
         vesselPtr,
         safeDt,
@@ -98,7 +92,6 @@ export class WasmBridge {
         safeWindDirection,
         safeCurrentSpeed,
         safeCurrentDirection,
-        safeSeaState,
       );
     } catch (error) {
       console.error('Error in updateVesselState:', error);

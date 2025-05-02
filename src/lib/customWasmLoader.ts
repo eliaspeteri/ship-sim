@@ -4,80 +4,15 @@
  * without relying on the auto-generated loader that uses Node.js imports
  */
 
+import { WasmModule } from '../types/wasm';
+
 // Error tracking state
 let lastErrorTime = 0;
 let errorCount = 0;
 let vesselStateErrored = false;
 
-// Define the interface for our WebAssembly exports
-export interface ShipSimWasm {
-  // Memory
-  memory: WebAssembly.Memory;
-
-  // AssemblyScript runtime
-  __setArgumentsLength?: (length: number) => void;
-  __new?: (size: number, id: number) => number;
-  __pin?: (ptr: number) => number;
-  __unpin?: (ptr: number) => void;
-  __collect?: () => void;
-  __getArray?: (ptr: number) => unknown[];
-
-  // Vessel management
-  createVessel: () => number;
-  updateVesselState: (
-    vesselPtr: number,
-    dt: number,
-    windSpeed: number,
-    windDirection: number,
-    currentSpeed: number,
-    currentDirection: number,
-    seaState: number,
-  ) => number;
-
-  // Control inputs
-  setThrottle: (vesselPtr: number, throttle: number) => void;
-  setRudderAngle: (vesselPtr: number, angle: number) => void;
-  setBallast: (vesselPtr: number, level: number) => void;
-  setWaveData: (vesselPtr: number, height: number, phase: number) => void;
-
-  // State access
-  getVesselX: (vesselPtr: number) => number;
-  getVesselY: (vesselPtr: number) => number;
-  getVesselZ: (vesselPtr: number) => number;
-  getVesselHeading: (vesselPtr: number) => number;
-  getVesselSpeed: (vesselPtr: number) => number;
-  getVesselEngineRPM: (vesselPtr: number) => number;
-  getVesselFuelLevel: (vesselPtr: number) => number;
-  getVesselFuelConsumption: (vesselPtr: number) => number;
-  getVesselGM: (vesselPtr: number) => number;
-  getVesselCenterOfGravityY: (vesselPtr: number) => number;
-  getVesselRollAngle: (vesselPtr: number) => number;
-  getVesselPitchAngle: (vesselPtr: number) => number;
-  getWaveHeightForSeaState: (seaState: number) => number;
-
-  // Wave physics
-  calculateWaveHeight: (seaState: number) => number;
-  calculateWaveLength: (seaState: number) => number;
-  calculateWaveFrequency: (seaState: number) => number;
-  calculateWaveHeightAtPosition: (
-    x: number,
-    y: number,
-    time: number,
-    waveHeight: number,
-    waveLength: number,
-    waveFrequency: number,
-    waveDirection: number,
-    seaState: number,
-  ) => number;
-
-  // Rudder forces
-  calculateRudderDrag: (vesselPtr: number) => number;
-  calculateRudderForceY: (vesselPtr: number) => number;
-  calculateRudderMomentZ: (vesselPtr: number) => number;
-}
-
 // Keep a cached instance of the module
-let wasmInstance: ShipSimWasm | null = null;
+let wasmInstance: WasmModule | null = null;
 
 /**
  * Determine if we're running in development mode
@@ -103,7 +38,7 @@ function getWasmPath(): string {
 /**
  * Load the WebAssembly module directly
  */
-export async function loadWasmModule(): Promise<ShipSimWasm> {
+export async function loadWasmModule(): Promise<WasmModule> {
   if (wasmInstance) {
     return wasmInstance;
   }
@@ -154,24 +89,7 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
     const exports = instance.exports as WebAssembly.Exports;
 
     // Create a wrapper object with proper type casting
-    const wrapper: ShipSimWasm = {
-      // Pass through memory
-      memory: memory,
-
-      // Runtime functions
-      __setArgumentsLength: exports.__setArgumentsLength as
-        | ((length: number) => void)
-        | undefined,
-      __new: exports.__new as
-        | ((size: number, id: number) => number)
-        | undefined,
-      __pin: exports.__pin as ((ptr: number) => number) | undefined,
-      __unpin: exports.__unpin as ((ptr: number) => void) | undefined,
-      __collect: exports.__collect as (() => void) | undefined,
-      __getArray: exports.__getArray as
-        | ((ptr: number) => unknown[])
-        | undefined,
-
+    const wrapper: WasmModule = {
       // Wrap updateVesselState to handle arguments
       updateVesselState: (
         vesselPtr: number,
@@ -180,7 +98,6 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
         windDirection: number,
         currentSpeed: number,
         currentDirection: number,
-        seaState: number,
       ) => {
         // Check if we've had too many errors - temporarily disable function
         const now = Date.now();
@@ -239,16 +156,6 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
               ? currentDirection % (2 * Math.PI) // Normalize to [0, 2π)
               : 0.0;
 
-          const safeSeaState =
-            typeof seaState === 'number' && isFinite(seaState)
-              ? Math.max(0, Math.min(12, seaState)) // Beaufort scale 0-12
-              : 0.0;
-
-          // Set the correct argument count for the function
-          if (wrapper.__setArgumentsLength) {
-            wrapper.__setArgumentsLength(7); // All 7 parameters are required
-          }
-
           // Call the function with properly sanitized parameters
           return updateFn(
             vesselPtr,
@@ -257,7 +164,6 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
             safeWindDirection,
             safeCurrentSpeed,
             safeCurrentDirection,
-            safeSeaState,
           );
         } catch (error) {
           // Update error tracking
@@ -336,9 +242,6 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
       ) => number,
 
       // Wave physics
-      calculateWaveHeight: exports.calculateWaveHeight as (
-        seaState: number,
-      ) => number,
       calculateWaveHeightAtPosition: exports.calculateWaveHeightAtPosition as (
         x: number,
         y: number,
@@ -349,23 +252,29 @@ export async function loadWasmModule(): Promise<ShipSimWasm> {
         waveDirection: number,
         seaState: number,
       ) => number,
-
-      // Rudder forces
-      calculateRudderDrag: exports.calculateRudderDrag as (
-        vesselPtr: number,
-      ) => number,
-      calculateRudderForceY: exports.calculateRudderForceY as (
-        vesselPtr: number,
-      ) => number,
-      calculateRudderMomentZ: exports.calculateRudderMomentZ as (
-        vesselPtr: number,
-      ) => number,
       calculateWaveLength: exports.calculateWaveLength as (
         seaState: number,
       ) => number,
       calculateWaveFrequency: exports.calculateWaveFrequency as (
         seaState: number,
       ) => number,
+      calculateBeaufortScale: exports.calculateBeaufortScale as (
+        windSpeed: number,
+      ) => number,
+      __pin: exports.__pin as (ptr: number) => number,
+      __unpin: exports.__unpin as (ptr: number) => void,
+      __collect: exports.__collect as () => void,
+      __allocArray: exports.__allocArray as (
+        id: number,
+        values: number[],
+      ) => number,
+      __getArray: exports.__getArray as (ptr: number) => number[],
+      __getArrayBuffer: exports.__getArrayBuffer as (
+        ptr: number,
+      ) => ArrayBuffer,
+      __getArrayView: exports.__getArrayView as (
+        ptr: number,
+      ) => Float32Array | Uint8Array | Uint16Array | Uint32Array,
     };
 
     // Store the wrapper

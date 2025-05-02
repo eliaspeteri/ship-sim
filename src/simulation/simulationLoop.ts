@@ -212,7 +212,6 @@ export class SimulationLoop {
         wind.direction,
         current.speed,
         current.direction,
-        calculatedSeaState, // Pass calculated sea state instead of using it directly from state
       );
 
       // Read vessel data from WASM
@@ -617,51 +616,6 @@ export class SimulationLoop {
         });
       }, gustDuration * 1000);
     }
-  }
-
-  /**
-   * Update vessel physics
-   */
-  private updateVesselPhysics(deltaTime: number): void {
-    if (!this.wasmBridge) return;
-
-    const state = useStore.getState();
-    const vesselPtr = state.wasmVesselPtr;
-
-    if (vesselPtr === null) return;
-
-    // Apply physics update for vessel with current environment parameters
-    this.updatePhysics(deltaTime);
-
-    // Update UI state from physics calculations
-    this.updateUIFromPhysics();
-  }
-
-  /**
-   * Update environment physics
-   */
-  private updateEnvironmentPhysics(deltaTime: number): void {
-    // Update weather conditions
-    this.updateWeather(deltaTime);
-
-    // Process environmental events (failures, etc)
-    this.processEvents(deltaTime);
-  }
-
-  /**
-   * Update simulation state
-   */
-  public update(deltaTime: number): void {
-    if (!this.wasmBridge) return;
-
-    // Vessel physics update
-    this.updateVesselPhysics(deltaTime);
-
-    // Environment physics update
-    this.updateEnvironmentPhysics(deltaTime);
-
-    // Wave properties update (less frequent)
-    this.updateWaveProperties();
   }
 }
 
