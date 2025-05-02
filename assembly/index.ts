@@ -555,10 +555,6 @@ function calculateWaveForce(
   const positionProjection = vessel.x * dirX + vessel.y * dirY;
   vessel.wavePhase = waveNumber * positionProjection - waveFrequency * time;
 
-  // Calculate forces and moments
-  const vesselLength = vessel.length;
-  const vesselBeam = vessel.beam;
-
   // Wave encounter angle relative to vessel heading
   const encounterAngle = vessel.waveDirection - vessel.psi;
 
