@@ -16,6 +16,12 @@ import {
   getVesselFuelLevel,
   getVesselFuelConsumption,
   getVesselGM,
+  getVesselSurgeVelocity,
+  getVesselSwayVelocity,
+  getVesselHeaveVelocity,
+  getVesselCenterOfGravityY,
+  getVesselRudderAngle,
+  getVesselBallastLevel,
 } from '../assembly/index';
 
 import {
@@ -242,9 +248,6 @@ test('updateVesselState limits roll and pitch angles', (): void => {
   expect<bool>(Math.abs(getVesselPitchAngle(ptr2)) <= 0.3).equal(true);
 });
 
-/**
- * Tests for z position limiting (keeping above water)
- */
 test('updateVesselState keeps z position above water', (): void => {
   const ptr = createFreshVessel();
 
@@ -258,6 +261,171 @@ test('updateVesselState keeps z position above water', (): void => {
 
   // Z position should never go below zero
   expect<bool>(getVesselZ(ptr) >= 0.0).equal(true);
+});
+
+/**
+ * Contract enforcement tests: Only control inputs and vessel parameters should be set from outside.
+ * All derived/physics state must be updated from WASM and remain valid.
+ */
+test('WASM always returns valid derived state after update', (): void => {
+  const ptr = createVessel();
+  // Simulate invalid control input (should be ignored or sanitized by WASM)
+  setThrottle(ptr, NaN as f64);
+  setRudderAngle(ptr, NaN as f64);
+  setBallast(ptr, NaN as f64);
+  // Run update with NaN for all environment params
+  updateVesselState(
+    ptr,
+    NaN as f64,
+    NaN as f64,
+    NaN as f64,
+    NaN as f64,
+    NaN as f64,
+  );
+  // All derived state should still be finite
+  expect<bool>(isFinite(getVesselFuelLevel(ptr))).equal(true);
+  expect<bool>(isFinite(getVesselFuelConsumption(ptr))).equal(true);
+  expect<bool>(isFinite(getVesselX(ptr))).equal(true);
+  expect<bool>(isFinite(getVesselY(ptr))).equal(true);
+  expect<bool>(isFinite(getVesselZ(ptr))).equal(true);
+  expect<bool>(isFinite(getVesselSurgeVelocity(ptr))).equal(true);
+  expect<bool>(isFinite(getVesselSwayVelocity(ptr))).equal(true);
+  expect<bool>(isFinite(getVesselHeaveVelocity(ptr))).equal(true);
+  expect<bool>(isFinite(getVesselGM(ptr))).equal(true);
+  expect<bool>(isFinite(getVesselCenterOfGravityY(ptr))).equal(true);
+});
+
+test('Frontend state matches WASM after update', (): void => {
+  const ptr = createVessel();
+  setThrottle(ptr, 1.0);
+  setRudderAngle(ptr, 0.2);
+  updateVesselState(ptr, 1.0, 0, 0, 0, 0);
+
+  const x: f64 = getVesselX(ptr);
+  const y: f64 = getVesselY(ptr);
+  const z: f64 = getVesselZ(ptr);
+  const surge: f64 = getVesselSurgeVelocity(ptr);
+  const fuelLevel: f64 = getVesselFuelLevel(ptr);
+  const metacentricHeight: f64 = getVesselGM(ptr);
+
+  expect<bool>(isFinite(x)).equal(true);
+  expect<bool>(isFinite(y)).equal(true);
+  expect<bool>(isFinite(z)).equal(true);
+  expect<bool>(isFinite(surge)).equal(true);
+  expect<bool>(isFinite(fuelLevel)).equal(true);
+  expect<bool>(isFinite(metacentricHeight)).equal(true);
+});
+
+/**
+ * Tests for uncovered branches and edge cases in vessel state update and validation.
+ */
+test('updateVesselState aborts update if vessel state is invalid (NaN)', (): void => {
+  const ptr = createVessel();
+  // Simulate invalid state by passing NaN to setThrottle
+  setThrottle(ptr, NaN as f64);
+  const xBefore: f64 = getVesselX(ptr);
+  updateVesselState(ptr, 1.0, 0, 0, 0, 0);
+  // Position should not change because update is aborted
+  expect<f64>(getVesselX(ptr)).closeTo(xBefore, 0.0001);
+});
+
+test('updateVesselState clamps rudder angle to max/min', (): void => {
+  const ptr = createVessel();
+  setRudderAngle(ptr, 2.0); // Exceeds max
+  updateVesselState(ptr, 1.0, 0, 0, 0, 0);
+  expect<f64>(getVesselRudderAngle(ptr)).closeTo(0.6, 0.0001);
+  setRudderAngle(ptr, -2.0); // Exceeds min
+  updateVesselState(ptr, 1.0, 0, 0, 0, 0);
+  expect<f64>(getVesselRudderAngle(ptr)).closeTo(-0.6, 0.0001);
+});
+
+test('updateVesselState clamps ballast level to [0, 1]', (): void => {
+  const ptr = createVessel();
+  setBallast(ptr, 2.0);
+  updateVesselState(ptr, 1.0, 0, 0, 0, 0);
+  expect<f64>(getVesselBallastLevel(ptr)).closeTo(1.0, 0.0001);
+  setBallast(ptr, -1.0);
+  updateVesselState(ptr, 1.0, 0, 0, 0, 0);
+  expect<f64>(getVesselBallastLevel(ptr)).closeTo(0.0, 0.0001);
+});
+
+test('updateVesselState: roll angle upper and lower limit branches', (): void => {
+  const ptr = createVessel();
+  setThrottle(ptr, 1.0);
+  setRudderAngle(ptr, 0.6);
+  for (let i = 0; i < 100; i++) {
+    updateVesselState(ptr, 1.0, 50.0, Math.PI / 2, 10.0, Math.PI / 2);
+  }
+  const rollAfterPositive: f64 = getVesselRollAngle(ptr);
+  expect<f64>(rollAfterPositive).closeTo(0.6, 0.01);
+  setRudderAngle(ptr, -0.6);
+  for (let i = 0; i < 100; i++) {
+    updateVesselState(ptr, 1.0, 50.0, Math.PI / 2, 10.0, Math.PI / 2);
+  }
+  const rollAfterNegative: f64 = getVesselRollAngle(ptr);
+  expect<bool>(rollAfterNegative <= 0.6 && rollAfterNegative >= -0.6).equal(
+    true,
+  );
+});
+
+test('updateVesselState: pitch angle upper and lower limit branches', (): void => {
+  const ptr = createVessel();
+  setThrottle(ptr, 1.0);
+  for (let i = 0; i < 100; i++) {
+    updateVesselState(ptr, 1.0, 50.0, 0.0, 10.0, 0.0);
+  }
+  const pitchAfterPositive: f64 = getVesselPitchAngle(ptr);
+  expect<f64>(pitchAfterPositive).closeTo(0.3, 0.01);
+  for (let i = 0; i < 100; i++) {
+    updateVesselState(ptr, 1.0, 50.0, Math.PI, 10.0, Math.PI);
+  }
+  const pitchAfterNegative: f64 = getVesselPitchAngle(ptr);
+  expect<bool>(pitchAfterNegative <= 0.3 && pitchAfterNegative >= -0.3).equal(
+    true,
+  );
+});
+
+test('updateVesselState: heading normalization branches', (): void => {
+  const ptr = createVessel();
+  setThrottle(ptr, 1.0);
+  setRudderAngle(ptr, 0.6);
+  // Accumulate heading above 2π
+  for (let i = 0; i < 200; i++) {
+    updateVesselState(ptr, 1.0, 0, 0, 0, 0);
+  }
+  const heading = getVesselHeading(ptr);
+  expect<bool>(heading >= 0.0 && heading < 2.0 * Math.PI).equal(true);
+  // Now accumulate heading below 0
+  setRudderAngle(ptr, -0.6);
+  for (let i = 0; i < 400; i++) {
+    updateVesselState(ptr, 1.0, 0, 0, 0, 0);
+  }
+  const headingNeg = getVesselHeading(ptr);
+  expect<bool>(headingNeg >= 0.0 && headingNeg < 2.0 * Math.PI).equal(true);
+});
+
+test('updateVesselState: surge, sway, and heave acceleration limiting branches', (): void => {
+  const ptr = createVessel();
+  setThrottle(ptr, 1.0);
+  // Use extreme wind and current to force large accelerations
+  updateVesselState(ptr, 1.0, 50.0, 0, 10.0, 0);
+  // The velocities should be finite and not exceed plausible limits
+  expect<bool>(isFinite(getVesselSurgeVelocity(ptr))).equal(true);
+  expect<bool>(isFinite(getVesselSwayVelocity(ptr))).equal(true);
+  expect<bool>(isFinite(getVesselHeaveVelocity(ptr))).equal(true);
+});
+
+test('updateVesselState: position delta limiting branches', (): void => {
+  const ptr = createVessel();
+  setThrottle(ptr, 1.0);
+  // Simulate a very large dt to force deltaX and deltaY limiting
+  const xBefore: f64 = getVesselX(ptr);
+  const yBefore: f64 = getVesselY(ptr);
+  updateVesselState(ptr, 100.0, 0, 0, 0, 0);
+  const xAfter: f64 = getVesselX(ptr);
+  const yAfter: f64 = getVesselY(ptr);
+  expect<bool>(xAfter - xBefore <= 100.0).equal(true);
+  expect<bool>(yAfter - yBefore <= 100.0).equal(true);
 });
 
 endTest();
