@@ -1275,6 +1275,7 @@ export function getVesselFuelConsumption(vesselPtr: usize): f64 {
 
 /**
  * Gets the vessel's metacentric height (GM), a measure of stability.
+ * This value is always calculated internally and should not be set from outside.
  * @param vesselPtr - Pointer to the vessel instance
  * @returns The metacentric height (GM) in meters
  * @external
@@ -1286,12 +1287,14 @@ export function getVesselGM(vesselPtr: usize): f64 {
 
 /**
  * Gets the vessel's center of gravity Y position.
+ * This value is always calculated internally and should not be set from outside.
  * @param vesselPtr - Pointer to the vessel instance
  * @returns The Y position of the center of gravity
  * @external
  */
 export function getVesselCenterOfGravityY(vesselPtr: usize): f64 {
   const vessel = changetype<VesselState>(vesselPtr);
+  calculateCenterOfGravity(vessel);
   return vessel.centerOfGravityY;
 }
 
