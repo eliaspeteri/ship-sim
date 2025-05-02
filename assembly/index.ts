@@ -3,6 +3,27 @@
 // IMPORTANT: Keep a reference to a single vessel state to avoid memory leaks
 let globalVessel: VesselState | null = null;
 
+// Added mass and inertia factors for vessel dynamics
+/**
+ * Added mass and inertia factors are empirical multipliers used to approximate
+ * the effect of the surrounding water on the vessel's dynamics. In ship hydrodynamics,
+ * the vessel must accelerate not only its own mass but also some of the water around it (added mass).
+ * These factors help stabilize the simulation and should be adjusted based on vessel geometry or literature values.
+ */
+const ADDED_MASS_SURGE_FACTOR: f64 = 1.1;
+const ADDED_MASS_SWAY_FACTOR: f64 = 1.6;
+const ADDED_MASS_HEAVE_FACTOR: f64 = 1.2;
+const INERTIA_ROLL_FACTOR: f64 = 1.1;
+const INERTIA_PITCH_FACTOR: f64 = 1.1;
+const INERTIA_YAW_FACTOR: f64 = 1.2;
+
+/**
+ * Fallback values for vessel state recovery.
+ * These are used to prevent division by zero or NaN propagation if vessel mass or total mass is invalid.
+ */
+const FALLBACK_VESSEL_MASS: f64 = 1.0;
+const FALLBACK_CGZ_FACTOR: f64 = 0.5;
+
 // Vessel state representation
 class VesselState {
   // Position and orientation
@@ -411,6 +432,14 @@ function calculateCenterOfGravity(vessel: VesselState): void {
   // Calculate combined center of gravity
   const totalMass = emptyMass + fuelMass + ballastMass;
 
+  if (totalMass === 0.0 || !isFinite(totalMass)) {
+    vessel.centerOfGravityX = 0.0;
+    vessel.centerOfGravityY = 0.0;
+    vessel.centerOfGravityZ = vessel.draft * FALLBACK_CGZ_FACTOR;
+    vessel.mass = FALLBACK_VESSEL_MASS;
+    return;
+  }
+
   // Update vessel CG directly
   vessel.centerOfGravityX =
     (emptyMass * baseCGX + fuelMass * fuelCGX) / totalMass;
@@ -710,6 +739,56 @@ export function updateVesselState(
 ): usize {
   const vessel = changetype<VesselState>(vesselPtr);
 
+  // Strict validation for vessel state fields
+  if (
+    !isFinite(vessel.x) ||
+    !isFinite(vessel.y) ||
+    !isFinite(vessel.z) ||
+    !isFinite(vessel.u) ||
+    !isFinite(vessel.v) ||
+    !isFinite(vessel.w) ||
+    !isFinite(vessel.r) ||
+    !isFinite(vessel.p) ||
+    !isFinite(vessel.q) ||
+    !isFinite(vessel.phi) ||
+    !isFinite(vessel.theta) ||
+    !isFinite(vessel.psi) ||
+    !isFinite(vessel.mass) ||
+    !isFinite(vessel.length) ||
+    !isFinite(vessel.beam) ||
+    !isFinite(vessel.draft) ||
+    !isFinite(vessel.blockCoefficient) ||
+    !isFinite(vessel.waterDensity) ||
+    !isFinite(vessel.engineRPM) ||
+    !isFinite(vessel.maxEnginePower) ||
+    !isFinite(vessel.fuelConsumption) ||
+    !isFinite(vessel.propellerDiameter) ||
+    !isFinite(vessel.centerOfGravityX) ||
+    !isFinite(vessel.centerOfGravityY) ||
+    !isFinite(vessel.centerOfGravityZ) ||
+    !isFinite(vessel.displacement) ||
+    !isFinite(vessel.Ixx) ||
+    !isFinite(vessel.Iyy) ||
+    !isFinite(vessel.Izz) ||
+    !isFinite(vessel.fuelLevel) ||
+    !isFinite(vessel.ballastLevel) ||
+    !isFinite(vessel.waveHeight) ||
+    !isFinite(vessel.waveDirection) ||
+    !isFinite(vessel.waveFrequency) ||
+    !isFinite(vessel.wavePhase)
+  ) {
+    // Abort update if any field is invalid
+    return vesselPtr;
+  }
+
+  // Defensive initialization for fuelLevel and fuelConsumption
+  if (!isFinite(vessel.fuelLevel)) {
+    vessel.fuelLevel = 1.0;
+  }
+  if (!isFinite(vessel.fuelConsumption)) {
+    vessel.fuelConsumption = 0.0;
+  }
+
   // Combined validation and sanitization to reduce branches
   const validDt = isFinite(dt) && dt > 0.0;
   const validVelocities = isFinite(vessel.u) && isFinite(vessel.v);
@@ -802,12 +881,12 @@ export function updateVesselState(
   const waveYaw = waveForces[5];
 
   // Define added mass factors for acceleration calculations
-  const massSurge = vessel.mass * 1.1;
-  const massSway = vessel.mass * 1.6;
-  const massHeave = vessel.mass * 1.2;
-  const inertiaRoll = vessel.Ixx * 1.1;
-  const inertiaPitch = vessel.Iyy * 1.1;
-  const inertiaYaw = vessel.Izz * 1.2;
+  const massSurge = vessel.mass * ADDED_MASS_SURGE_FACTOR;
+  const massSway = vessel.mass * ADDED_MASS_SWAY_FACTOR;
+  const massHeave = vessel.mass * ADDED_MASS_HEAVE_FACTOR;
+  const inertiaRoll = vessel.Ixx * INERTIA_ROLL_FACTOR;
+  const inertiaPitch = vessel.Iyy * INERTIA_PITCH_FACTOR;
+  const inertiaYaw = vessel.Izz * INERTIA_YAW_FACTOR;
 
   // Longitudinal dynamics (surge) - with limits
   const netForceSurge =
