@@ -830,7 +830,32 @@ export function updateVesselState(
     !isFinite(vessel.waveDirection) ||
     !isFinite(vessel.waveFrequency) ||
     !isFinite(vessel.wavePhase)
-  ) {
+  );
+}
+
+// Enhanced update function with comprehensive physics
+/**
+ * Updates the vessel state for the next simulation step.
+ * @param vesselPtr - Pointer to the vessel instance
+ * @param dt - Time step (seconds)
+ * @param windSpeed - Wind speed (m/s)
+ * @param windDirection - Wind direction (radians)
+ * @param currentSpeed - Water current speed (m/s)
+ * @param currentDirection - Water current direction (radians)
+ * @returns Pointer to the updated vessel instance
+ */
+export function updateVesselState(
+  vesselPtr: usize,
+  dt: f64,
+  windSpeed: f64,
+  windDirection: f64,
+  currentSpeed: f64,
+  currentDirection: f64,
+): usize {
+  const vessel = changetype<VesselState>(vesselPtr);
+
+  // Strict validation for vessel state fields
+  if (!isValidInputValues(vessel)) {
     // Abort update if any field is invalid
     return vesselPtr;
   }
@@ -842,6 +867,8 @@ export function updateVesselState(
   if (!isFinite(vessel.fuelConsumption)) {
     vessel.fuelConsumption = 0.0;
   }
+
+  calculateFuelConsumption(vessel);
 
   // Combined validation and sanitization to reduce branches
   const validDt = isFinite(dt) && dt > 0.0;
