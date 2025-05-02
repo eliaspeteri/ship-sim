@@ -223,6 +223,24 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
                 °
               </div>
             </div>
+            {/* pitch */}
+            <div className="bg-gray-800 p-2 rounded">
+              <div className="text-xs text-gray-400">Pitch</div>
+              <div className="font-mono">
+                {Math.round(
+                  (((orientation?.pitch || 0) * 180) / Math.PI) % 360,
+                )}
+                °
+              </div>
+            </div>
+            {/* roll */}
+            <div className="bg-gray-800 p-2 rounded">
+              <div className="text-xs text-gray-400">Roll</div>
+              <div className="font-mono">
+                {Math.round((((orientation?.roll || 0) * 180) / Math.PI) % 360)}
+                °
+              </div>
+            </div>
           </div>
 
           {/* Environmental info */}
