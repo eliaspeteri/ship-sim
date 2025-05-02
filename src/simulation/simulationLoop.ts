@@ -197,14 +197,6 @@ export class SimulationLoop {
         pitch: isNaN(pitch) ? state.vessel.orientation.pitch || 0 : pitch,
       };
 
-      // Only log debug info for real position changes
-      console.info(
-        'Vessel position:',
-        positionUpdate.x,
-        positionUpdate.y,
-        positionUpdate.z,
-      );
-
       // Update state with sanitized values
       state.updateVessel({
         position: positionUpdate,
