@@ -869,7 +869,6 @@ export function updateVesselState(
 
   // Calculate sea state based on wind speed for physics accuracy
   const calculatedSeaState = calculateBeaufortScale(safeWindSpeed);
-  const effectiveSeaState = f64(calculatedSeaState);
 
   // Calculate vessel speed - already validated velocities above
   const speed = Math.sqrt(vessel.u * vessel.u + vessel.v * vessel.v);
@@ -877,7 +876,7 @@ export function updateVesselState(
   // Calculate forces with simplified NaN protection
   // Hull resistance
   const resistance = calculateHullResistance(vessel, speed);
-  const waveResistance = calculateWaveResistance(vessel, effectiveSeaState);
+  const waveResistance = calculateWaveResistance(vessel, calculatedSeaState);
   const totalResistance = resistance + waveResistance;
 
   // Propulsion - apply realistic engine behavior
@@ -924,7 +923,7 @@ export function updateVesselState(
   const simulationTime = safeDt * 100.0;
   const waveForces = calculateWaveForce(
     vessel,
-    effectiveSeaState,
+    calculatedSeaState,
     simulationTime,
   );
   const waveSurge = waveForces[0];
