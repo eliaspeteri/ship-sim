@@ -16,7 +16,7 @@
     "lint:backend": "eslint src/server",
     "lint:errors": "eslint . --max-warnings 0",
     "format": "prettier --write .",
-    "asbuild:debug": "asc assembly/index.ts --config asconfig.json --target debug --measure",
+    "asbuild:debug": "asc assembly/index.ts --config asconfig.json --target debug --measure --debug",
     "asbuild:release": "asc assembly/index.ts --config asconfig.json --target release --measure",
     "asbuild": "npm run asbuild:debug && npm run asbuild:release",
     "astest": "as-test",
