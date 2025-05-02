@@ -36,7 +36,7 @@ test('vessel moves when throttle applied', () => {
   setThrottle(ptr, 0.5);
   const x1 = getVesselX(ptr);
 
-  updateVesselState(ptr, 1.0, 0, 0, 0, 0, 0);
+  updateVesselState(ptr, 1.0, 0, 0, 0, 0);
 
   const x2 = getVesselX(ptr);
   expect<f64>(x2).greaterThan(x1);

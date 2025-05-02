@@ -34,7 +34,7 @@ function createFreshVessel(): usize {
   setRudderAngle(ptr, 0.0);
   setBallast(ptr, 0.5);
   // Run a minimal update to ensure derived values are calculated
-  updateVesselState(ptr, 0.01, 0, 0, 0, 0, 0);
+  updateVesselState(ptr, 0.01, 0, 0, 0, 0);
   return ptr;
 }
 
@@ -93,7 +93,7 @@ test('setRudderAngle affects turning rate', () => {
 
   // No rudder, straight line
   setRudderAngle(ptr, 0.0);
-  updateVesselState(ptr, 1.0, 0, 0, 0, 0, 0);
+  updateVesselState(ptr, 1.0, 0, 0, 0, 0);
   const straightHeadingRate = getVesselHeading(ptr);
 
   // Reset vessel
@@ -102,7 +102,7 @@ test('setRudderAngle affects turning rate', () => {
 
   // Apply rudder, should turn
   setRudderAngle(ptr2, 0.3);
-  updateVesselState(ptr2, 1.0, 0, 0, 0, 0, 0);
+  updateVesselState(ptr2, 1.0, 0, 0, 0, 0);
   const turningHeadingRate = getVesselHeading(ptr2);
 
   expect<f64>(turningHeadingRate).greaterThan(straightHeadingRate);
@@ -115,7 +115,7 @@ test('fuel consumption reduces fuel level', () => {
   const initialFuel = getVesselFuelLevel(ptr);
 
   // Run for a few seconds
-  updateVesselState(ptr, 5.0, 0, 0, 0, 0, 0);
+  updateVesselState(ptr, 5.0, 0, 0, 0, 0);
 
   const finalFuel = getVesselFuelLevel(ptr);
   expect<f64>(finalFuel).lessThan(initialFuel);
@@ -138,7 +138,7 @@ test('vessel responds to environmental forces', () => {
 
   // Multiple updates to allow sufficient movement
   for (let i = 0; i < 10; i++) {
-    updateVesselState(ptr, 0.2, windSpeed, windDir, 0, 0, 0);
+    updateVesselState(ptr, 0.2, windSpeed, windDir, 0, 0);
   }
 
   // Get final position

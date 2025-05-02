@@ -7,8 +7,6 @@ import {
   createVessel,
   setThrottle,
   updateVesselState,
-  getVesselFuelLevel,
-  getVesselEngineRPM,
   setRudderAngle,
   setBallast,
   setWaveData,
@@ -34,7 +32,7 @@ function resetVessel(): void {
 
   // Re-run multiple short cycles to stabilize state
   for (let i = 0; i < 5; i++) {
-    updateVesselState(ptr, 0.01, 0, 0, 0, 0, 0);
+    updateVesselState(ptr, 0.01, 0, 0, 0, 0);
   }
 }
 
@@ -46,7 +44,7 @@ test('fuel consumption branch is executed', () => {
 
   // Apply throttle and run for some time - this will execute the fuel consumption logic
   setThrottle(ptr, 1.0);
-  updateVesselState(ptr, 5.0, 0, 0, 0, 0, 0);
+  updateVesselState(ptr, 5.0, 0, 0, 0, 0);
 
   // This test always passes - we just need to execute the branch to improve coverage
   expect<bool>(true).equal(true);
@@ -63,7 +61,7 @@ test('engine stops when out of fuel branch is executed', () => {
 
   // Run multiple updates to consume fuel - this exercises the fuel consumption branch
   for (let i = 0; i < 20; i++) {
-    updateVesselState(ptr, 5.0, 0, 0, 0, 0, 0);
+    updateVesselState(ptr, 5.0, 0, 0, 0, 0);
   }
 
   // This test always passes - we just need to execute the branch to improve coverage

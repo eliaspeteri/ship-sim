@@ -30,7 +30,6 @@ export class WasmBridge {
    * @param windDirection - Wind direction in radians
    * @param currentSpeed - Current speed in m/s
    * @param currentDirection - Current direction in radians
-   * @param seaState - Sea state on Beaufort scale (0-12)
    * @returns Pointer to updated vessel
    */
   public updateVesselState(

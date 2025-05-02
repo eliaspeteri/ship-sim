@@ -698,7 +698,6 @@ function calculateWindMomentN(
  * @param windDirection - Wind direction (radians)
  * @param currentSpeed - Water current speed (m/s)
  * @param currentDirection - Water current direction (radians)
- * @param seaState - Sea state (Beaufort scale)
  * @returns Pointer to the updated vessel instance
  */
 export function updateVesselState(
@@ -708,7 +707,6 @@ export function updateVesselState(
   windDirection: f64,
   currentSpeed: f64,
   currentDirection: f64,
-  seaState: f64,
 ): usize {
   const vessel = changetype<VesselState>(vesselPtr);
 
@@ -735,17 +733,10 @@ export function updateVesselState(
   const safeCurrentDirection = isFinite(currentDirection)
     ? currentDirection % (2.0 * Math.PI)
     : 0.0;
-  const safeSeaState = isFinite(seaState)
-    ? Math.min(Math.max(0.0, seaState), 12.0)
-    : 0.0;
 
   // Calculate sea state based on wind speed for physics accuracy
   const calculatedSeaState = calculateBeaufortScale(safeWindSpeed);
   const effectiveSeaState = f64(calculatedSeaState);
-
-  // Handle special case: if seaState is explicitly zero, keep it at zero regardless of wind
-  // This ensures tests and specific scenarios can force calm seas
-  const finalSeaState = safeSeaState === 0.0 ? 0.0 : effectiveSeaState;
 
   // Calculate vessel speed - already validated velocities above
   const speed = Math.sqrt(vessel.u * vessel.u + vessel.v * vessel.v);
@@ -753,7 +744,7 @@ export function updateVesselState(
   // Calculate forces with simplified NaN protection
   // Hull resistance
   const resistance = calculateHullResistance(vessel, speed);
-  const waveResistance = calculateWaveResistance(vessel, finalSeaState);
+  const waveResistance = calculateWaveResistance(vessel, effectiveSeaState);
   const totalResistance = resistance + waveResistance;
 
   // Propulsion - apply realistic engine behavior
@@ -798,7 +789,11 @@ export function updateVesselState(
 
   // Wave forces
   const simulationTime = safeDt * 100.0;
-  const waveForces = calculateWaveForce(vessel, finalSeaState, simulationTime);
+  const waveForces = calculateWaveForce(
+    vessel,
+    effectiveSeaState,
+    simulationTime,
+  );
   const waveSurge = waveForces[0];
   const waveSway = waveForces[1];
   const waveHeave = waveForces[2];

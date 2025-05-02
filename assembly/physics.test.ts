@@ -37,7 +37,7 @@ test('vessel movement at low speeds', () => {
 
   // Force the vessel to slow down
   for (let i = 0; i < 20; i++) {
-    updateVesselState(ptr, 0.2, 0, 0, 0, 0, 0);
+    updateVesselState(ptr, 0.2, 0, 0, 0, 0);
   }
 
   // Just verify we can get a speed - this ensures the calculateHullResistance
@@ -54,22 +54,22 @@ test('engine RPM increases with throttle', () => {
   // Reset vessel
   const ptr = createVessel();
   setThrottle(ptr, 0.0);
-  updateVesselState(ptr, 0.01, 0, 0, 0, 0, 0);
+  updateVesselState(ptr, 0.01, 0, 0, 0, 0);
 
   // Test that RPM increases with throttle
   const lowThrottle = 0.1;
   setThrottle(ptr, lowThrottle);
-  updateVesselState(ptr, 0.01, 0, 0, 0, 0, 0);
+  updateVesselState(ptr, 0.01, 0, 0, 0, 0);
   const lowRPM = getVesselEngineRPM(ptr);
 
   const midThrottle = 0.5;
   setThrottle(ptr, midThrottle);
-  updateVesselState(ptr, 0.01, 0, 0, 0, 0, 0);
+  updateVesselState(ptr, 0.01, 0, 0, 0, 0);
   const midRPM = getVesselEngineRPM(ptr);
 
   const highThrottle = 0.9;
   setThrottle(ptr, highThrottle);
-  updateVesselState(ptr, 0.01, 0, 0, 0, 0, 0);
+  updateVesselState(ptr, 0.01, 0, 0, 0, 0);
   const highRPM = getVesselEngineRPM(ptr);
 
   // Verify RPM increases with throttle

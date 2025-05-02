@@ -36,7 +36,7 @@ function createFreshVessel(): usize {
   setRudderAngle(ptr, 0.0);
   setBallast(ptr, 0.5);
   setWaveData(ptr, 0.0, 0.0);
-  updateVesselState(ptr, 0.01, 0, 0, 0, 0, 0);
+  updateVesselState(ptr, 0.01, 0, 0, 0, 0);
   return ptr;
 }
 
@@ -68,7 +68,7 @@ test('vessel position updates correctly when moving forward', (): void => {
   setThrottle(ptr, 0.5);
   const initialX = getVesselX(ptr);
   const initialY = getVesselY(ptr);
-  updateVesselState(ptr, 1.0, 0, 0, 0, 0, 0);
+  updateVesselState(ptr, 1.0, 0, 0, 0, 0);
   expect<f64>(getVesselX(ptr)).greaterThan(initialX);
   expect<f64>(getVesselY(ptr)).closeTo(initialY, 0.001);
 });
@@ -77,7 +77,7 @@ test('vessel heading stays in valid range when turning', (): void => {
   const ptr = createVessel();
   setThrottle(ptr, 0.5);
   setRudderAngle(ptr, 0.6);
-  updateVesselState(ptr, 2.5, 0, 0, 0, 0, 0);
+  updateVesselState(ptr, 2.5, 0, 0, 0, 0);
   const heading = getVesselHeading(ptr);
   expect<boolean>(heading >= 0.0 && heading < 2.0 * Math.PI).equal(true);
   expect<boolean>(heading > 0.01).equal(true);
@@ -91,7 +91,7 @@ test('vessel state remains valid after physics update', (): void => {
   setThrottle(ptr, 0.3);
 
   // Update with normal parameters
-  updateVesselState(ptr, 0.1, 5, 0.5, 1, 0.2, 3);
+  updateVesselState(ptr, 0.1, 5, 0.5, 1, 0.2);
 
   // Position should be valid (not NaN)
   const x = getVesselX(ptr);
@@ -100,7 +100,7 @@ test('vessel state remains valid after physics update', (): void => {
   expect<bool>(y == y).equal(true); // Not NaN
 
   // Test with extreme values
-  updateVesselState(ptr, 0.1, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0);
+  updateVesselState(ptr, 0.1, 1000.0, 1000.0, 1000.0, 1000.0);
 
   // Position should still be valid
   const x2 = getVesselX(ptr);
@@ -115,7 +115,7 @@ test('updateVesselState does not update position if dt is NaN', (): void => {
   const initialY = getVesselY(ptr);
 
   // Pass NaN for dt
-  updateVesselState(ptr, NaN, 5, 0.5, 1, 0.2, 3);
+  updateVesselState(ptr, NaN, 5, 0.5, 1, 0.2);
 
   // Position should not change
   expect<f64>(getVesselX(ptr)).closeTo(initialX, 0.0001);
@@ -126,14 +126,14 @@ test('updateVesselState handles NaN and Infinity safely', (): void => {
   const ptr = createFreshVessel();
 
   // Test with various NaN parameters
-  updateVesselState(ptr, 0.1, NaN, NaN, NaN, NaN, NaN);
+  updateVesselState(ptr, 0.1, NaN, NaN, NaN, NaN);
 
   // Position should remain finite
   expect<bool>(isFinite(getVesselX(ptr))).equal(true);
   expect<bool>(isFinite(getVesselY(ptr))).equal(true);
 
   // Test with Infinity in parameters
-  updateVesselState(ptr, 0.1, Infinity, Infinity, Infinity, Infinity, Infinity);
+  updateVesselState(ptr, 0.1, Infinity, Infinity, Infinity, Infinity);
 
   // Position should remain finite
   expect<bool>(isFinite(getVesselX(ptr))).equal(true);
@@ -149,14 +149,14 @@ test('updateVesselState limits extreme position updates', (): void => {
   // Create extreme velocity through multiple updates
   setThrottle(ptr, 1.0);
   for (let i = 0; i < 10; i++) {
-    updateVesselState(ptr, 0.1, 0, 0, 0, 0, 0);
+    updateVesselState(ptr, 0.1, 0, 0, 0, 0);
   }
 
   // Record position before extreme update
   const x1 = getVesselX(ptr);
 
   // Now do a large time step - should get limited
-  updateVesselState(ptr, 10.0, 0, 0, 0, 0, 0);
+  updateVesselState(ptr, 10.0, 0, 0, 0, 0);
 
   // Position should change but be limited
   const x2 = getVesselX(ptr);
@@ -175,7 +175,7 @@ test('updateVesselState normalizes heading correctly', (): void => {
 
   // Rotate for a while to accumulate heading
   for (let i = 0; i < 20; i++) {
-    updateVesselState(ptr, 0.3, 0, 0, 0, 0, 0);
+    updateVesselState(ptr, 0.3, 0, 0, 0, 0);
   }
 
   // Heading should be normalized to [0, 2π)
@@ -190,7 +190,7 @@ test('updateVesselState normalizes heading correctly', (): void => {
 
   // Rotate for a while to accumulate negative heading
   for (let i = 0; i < 20; i++) {
-    updateVesselState(ptr2, 0.3, 0, 0, 0, 0, 0);
+    updateVesselState(ptr2, 0.3, 0, 0, 0, 0);
   }
 
   // Heading should be normalized to [0, 2π) even after negative rotations
@@ -212,7 +212,7 @@ test('updateVesselState correctly handles zero fuel level', (): void => {
 
   // Force fuel level to zero by running for a long time
   for (let i = 0; i < 100; i++) {
-    updateVesselState(ptr, 1.0, 0, 0, 0, 0, 0);
+    updateVesselState(ptr, 1.0, 0, 0, 0, 0);
   }
 
   // Check that engine is stopped when out of fuel
@@ -227,7 +227,7 @@ test('updateVesselState limits roll and pitch angles', (): void => {
   const ptr = createFreshVessel();
 
   // Create extreme wave conditions to generate large roll and pitch forces
-  updateVesselState(ptr, 1.0, 40.0, Math.PI / 2, 0, 0, 12.0); // Beam sea
+  updateVesselState(ptr, 1.0, 40.0, Math.PI / 2, 0, 0); // Beam sea
 
   // Roll should be limited
   expect<bool>(Math.abs(getVesselRollAngle(ptr)) <= 0.6).equal(true);
@@ -236,7 +236,7 @@ test('updateVesselState limits roll and pitch angles', (): void => {
   const ptr2 = createFreshVessel();
 
   // Create extreme wave conditions for pitch
-  updateVesselState(ptr2, 1.0, 40.0, 0.0, 0, 0, 12.0); // Head sea
+  updateVesselState(ptr2, 1.0, 40.0, 0.0, 0, 0); // Head sea
 
   // Pitch should be limited
   expect<bool>(Math.abs(getVesselPitchAngle(ptr2)) <= 0.3).equal(true);
@@ -249,11 +249,11 @@ test('updateVesselState keeps z position above water', (): void => {
   const ptr = createFreshVessel();
 
   // Create negative vertical velocity through wave forces
-  updateVesselState(ptr, 1.0, 10.0, 0.0, 0, 0, 6.0);
+  updateVesselState(ptr, 1.0, 10.0, 0.0, 0, 0);
 
   // Force several more updates to ensure vertical motion
   for (let i = 0; i < 10; i++) {
-    updateVesselState(ptr, 0.1, 40.0, Math.PI, 0, 0, 12.0);
+    updateVesselState(ptr, 0.1, 40.0, Math.PI, 0, 0);
   }
 
   // Z position should never go below zero
