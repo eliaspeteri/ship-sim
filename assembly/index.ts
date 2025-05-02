@@ -1341,3 +1341,24 @@ export function getVesselRudderAngle(vesselPtr: usize): f64 {
 export function getVesselBallastLevel(vesselPtr: usize): f64 {
   return changetype<VesselState>(vesselPtr).ballastLevel;
 }
+
+/**
+ * Sets the vessel's velocity components (u, v, w).
+ * @param vesselPtr - Pointer to the vessel instance
+ * @param surge - Surge velocity (u)
+ * @param sway - Sway velocity (v)
+ * @param heave - Heave velocity (w)
+ * @external
+ */
+export function setVesselVelocity(
+  vesselPtr: usize,
+  surge: f64,
+  sway: f64,
+  heave: f64,
+): void {
+  const vessel = changetype<VesselState>(vesselPtr);
+  vessel.u = surge;
+  vessel.v = sway;
+  vessel.w = heave;
+  globalVessel = vessel;
+}
