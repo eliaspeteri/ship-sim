@@ -1,28 +1,63 @@
 // Ship simulator physics core - Implementing advanced hydrodynamics and propulsion
 
+import {
+  FALLBACK_CGZ_FACTOR,
+  FALLBACK_VESSEL_MASS,
+  ADDED_MASS_SURGE_FACTOR,
+  ADDED_MASS_SWAY_FACTOR,
+  ADDED_MASS_HEAVE_FACTOR,
+  INERTIA_ROLL_FACTOR,
+  INERTIA_PITCH_FACTOR,
+  INERTIA_YAW_FACTOR,
+  BEAUFORT_WAVE_HEIGHTS,
+  HM_C1,
+  HM_C2,
+  HM_C3,
+  HM_C4,
+  WAVE_GRAVITY,
+  WAVE_LENGTH_FACTOR,
+  MAX_ENGINE_POWER,
+  PROPELLER_DIAMETER,
+  GRAVITY,
+  KINE_VISCOSITY,
+  WAVE_RESISTANCE_COEFFICIENT,
+  WAVE_RESISTANCE_NORMALIZATION,
+  PROPELLER_GEAR_RATIO,
+  BLOCK_COEFFICIENT,
+  WATER_DENSITY,
+  PROPELLER_WAKE_FRACTION_FACTOR,
+  PROPELLER_ADVANCE_EPSILON,
+  PROPELLER_THRUST_COEFFICIENT_INTERCEPT,
+  PROPELLER_THRUST_COEFFICIENT_SLOPE,
+  ENGINE_TORQUE_CONVERSION,
+  ENGINE_EFFICIENCY,
+  ENGINE_LOW_RPM_THRESHOLD,
+  ENGINE_LOW_RPM_SLOPE,
+  ENGINE_PEAK_TORQUE_RPM_RATIO,
+  ENGINE_MID_RPM_INTERCEPT,
+  ENGINE_MID_RPM_DIVISOR,
+  ENGINE_HIGH_RPM_DIVISOR,
+  FUEL_LOAD_LOW,
+  FUEL_LOAD_OPTIMAL,
+  FUEL_SFC_BASE,
+  FUEL_SFC_LOW_LOAD_SLOPE,
+  FUEL_SFC_OPTIMAL_SLOPE,
+  FUEL_SFC_MIN,
+  FUEL_SFC_HIGH_LOAD_SLOPE,
+  RUDDER_ASPECT_RATIO,
+  RUDDER_AREA_COEFFICIENT,
+  CURRENT_COEFFICIENT_X_BASE,
+  CURRENT_COEFFICIENT_X_COS,
+  CURRENT_COEFFICIENT_Y_SIN,
+  CURRENT_COEFFICIENT_N_SIN2,
+  WETTED_AREA_SIDE_MULTIPLIER,
+  WAVE_PERIOD_BASE,
+  WAVE_PERIOD_SLOPE,
+  AIR_DENSITY,
+} from './config';
+
 // IMPORTANT: Keep a reference to a single vessel state to avoid memory leaks
 let globalVessel: VesselState | null = null;
-
-// Added mass and inertia factors for vessel dynamics
-/**
- * Added mass and inertia factors are empirical multipliers used to approximate
- * the effect of the surrounding water on the vessel's dynamics. In ship hydrodynamics,
- * the vessel must accelerate not only its own mass but also some of the water around it (added mass).
- * These factors help stabilize the simulation and should be adjusted based on vessel geometry or literature values.
- */
-const ADDED_MASS_SURGE_FACTOR: f64 = 1.1;
-const ADDED_MASS_SWAY_FACTOR: f64 = 1.6;
-const ADDED_MASS_HEAVE_FACTOR: f64 = 1.2;
-const INERTIA_ROLL_FACTOR: f64 = 1.1;
-const INERTIA_PITCH_FACTOR: f64 = 1.1;
-const INERTIA_YAW_FACTOR: f64 = 1.2;
-
-/**
- * Fallback values for vessel state recovery.
- * These are used to prevent division by zero or NaN propagation if vessel mass or total mass is invalid.
- */
-const FALLBACK_VESSEL_MASS: f64 = 1.0;
-const FALLBACK_CGZ_FACTOR: f64 = 0.5;
 
 // Vessel state representation
 class VesselState {
@@ -124,13 +159,13 @@ class VesselState {
     this.draft = draft;
 
     // Initialize advanced physics properties with default values
-    this.blockCoefficient = 0.8;
-    this.waterDensity = 1025.0;
+    this.blockCoefficient = BLOCK_COEFFICIENT;
+    this.waterDensity = WATER_DENSITY;
 
     this.engineRPM = 0.0;
-    this.maxEnginePower = 2000.0;
+    this.maxEnginePower = MAX_ENGINE_POWER;
     this.fuelConsumption = 0.0;
-    this.propellerDiameter = 3.0;
+    this.propellerDiameter = PROPELLER_DIAMETER;
 
     this.centerOfGravityX = 0.0;
     this.centerOfGravityY = 0.0;
@@ -158,19 +193,6 @@ class VesselState {
   }
 }
 
-// Holtrop-Mennen model constants
-const HM_C1 = 2223105.0;
-const HM_C2 = 4.0;
-const HM_C3 = 0.5;
-const HM_C4 = 0.15;
-
-// Wave physics constants
-const WAVE_GRAVITY = 9.81; // m/s²
-const WAVE_LENGTH_FACTOR = 1.5; // Wave length multiplier based on sea state
-const BEAUFORT_WAVE_HEIGHTS = [
-  0.0, 0.1, 0.2, 0.6, 1.0, 2.0, 3.0, 4.0, 5.5, 7.0, 9.0, 11.5, 14.0,
-];
-
 /**
  * Calculates the wave frequency for a given sea state.
  * @param seaState - The sea state (0-12, Beaufort scale)
@@ -197,14 +219,20 @@ function calculateHullResistance(vessel: VesselState, speed: f64): f64 {
   const froudeNum = speed / Math.sqrt(9.81 * vessel.length);
 
   // Calculate Reynolds number
-  const kineViscosity = 0.000001187; // m²/s at 20°C
-  const reynoldsNum = (speed * vessel.length) / kineViscosity;
+  const reynoldsNum = (speed * vessel.length) / KINE_VISCOSITY;
 
   // Friction resistance coefficient (ITTC-57)
   const Cf = 0.075 / Math.pow(Math.log10(reynoldsNum) - 2.0, 2.0);
 
   // Friction resistance
   const Rf = 0.5 * vessel.waterDensity * speed * speed * wettedArea * Cf;
+
+  return Rf;
+}
+
+function calculateResidualResistance(vessel: VesselState, speed: f64): f64 {
+  // Calculate Froude number
+  const froudeNum = speed / Math.sqrt(GRAVITY * vessel.length);
 
   // Residual resistance (simplified from Holtrop-Mennen)
   const Rr =
@@ -220,37 +248,35 @@ function calculateHullResistance(vessel: VesselState, speed: f64): f64 {
 }
 
 // Calculate wave resistance based on sea state
-function calculateWaveResistance(vessel: VesselState, seaState: f64): f64 {
-  // Simplified calculation based on sea state (Beaufort scale 0-12)
-  const waveHeight = Math.pow(seaState, 2.0) * 0.05; // Approximate wave height in meters
+function calculateWaveResistance(vessel: VesselState, seaState: i32): f64 {
+  const waveHeight = BEAUFORT_WAVE_HEIGHTS[seaState as i32];
 
   // Added resistance increases with square of wave height and is proportional to vessel size
   const addedResistance =
-    (500.0 * waveHeight * waveHeight * vessel.length * vessel.beam) / 100.0;
+    (WAVE_RESISTANCE_COEFFICIENT *
+      waveHeight ** 2 *
+      vessel.length *
+      vessel.beam) /
+    WAVE_RESISTANCE_NORMALIZATION;
 
   return addedResistance;
 }
 
 // Calculate propeller thrust from engine torque and ship speed
 function calculatePropellerThrust(vessel: VesselState): f64 {
-  const engineTorque = calculateEngineTorque(vessel);
-
-  // Calculate wake fraction (simplified)
-  const wakeFraction = 0.3 * vessel.blockCoefficient;
-
-  // Speed of advance to the propeller
-  const speedAdvance = vessel.u * (1.0 - wakeFraction);
-
-  // Calculate propeller advance coefficient J
-  const propRPS = vessel.engineRPM / 60.0 / 3.0; // Assuming 3:1 gear ratio
-  const J =
-    Math.abs(speedAdvance) / (propRPS * vessel.propellerDiameter + 0.001);
-
-  // Simplified thrust coefficient based on advance coefficient
-  const KT = Math.max(0.0, 0.5 - 0.4 * J); // Approximation of thrust coefficient
-
-  // Calculate propeller thrust
-  const thrust =
+  const wakeFraction: f64 =
+    PROPELLER_WAKE_FRACTION_FACTOR * vessel.blockCoefficient;
+  const speedAdvance: f64 = vessel.u * (1.0 - wakeFraction);
+  const propRPS: f64 = vessel.engineRPM / 60.0 / PROPELLER_GEAR_RATIO;
+  const J: f64 =
+    Math.abs(speedAdvance) /
+    (propRPS * vessel.propellerDiameter + PROPELLER_ADVANCE_EPSILON);
+  const KT: f64 = Math.max(
+    0.0,
+    PROPELLER_THRUST_COEFFICIENT_INTERCEPT -
+      PROPELLER_THRUST_COEFFICIENT_SLOPE * J,
+  );
+  return (
     KT *
     vessel.waterDensity *
     propRPS *
@@ -265,39 +291,48 @@ function calculatePropellerThrust(vessel: VesselState): f64 {
 
 // Calculate diesel engine torque based on RPM
 function calculateEngineTorque(vessel: VesselState): f64 {
-  // Simplified diesel engine torque curve characteristics
-  const maxTorque = (vessel.maxEnginePower * 9550.0) / 0.8 / vessel.engineRPM; // Nm at peak torque RPM
-  const rpmRatio = vessel.engineRPM / (vessel.maxEnginePower / 5.0); // Normalized RPM
-
-  // Simplified torque curve, peaking at around 80% of max RPM
+  const maxTorque: f64 =
+    (vessel.maxEnginePower * ENGINE_TORQUE_CONVERSION) /
+    ENGINE_EFFICIENCY /
+    vessel.engineRPM;
+  const rpmRatio: f64 = vessel.engineRPM / (vessel.maxEnginePower / 5.0);
   let torqueFactor: f64;
-  if (rpmRatio < 0.1) {
-    torqueFactor = rpmRatio * 5.0; // Linear increase at very low RPM
-  } else if (rpmRatio < 0.8) {
-    torqueFactor = 0.5 + rpmRatio / 1.6; // Increasing to peak
+  if (rpmRatio < ENGINE_LOW_RPM_THRESHOLD) {
+    torqueFactor = rpmRatio * ENGINE_LOW_RPM_SLOPE;
+  } else if (rpmRatio < ENGINE_PEAK_TORQUE_RPM_RATIO) {
+    torqueFactor = ENGINE_MID_RPM_INTERCEPT + rpmRatio / ENGINE_MID_RPM_DIVISOR;
   } else {
-    torqueFactor = 1.0 - (rpmRatio - 0.8) / 2.0; // Decreasing after peak
+    torqueFactor =
+      1.0 - (rpmRatio - ENGINE_PEAK_TORQUE_RPM_RATIO) / ENGINE_HIGH_RPM_DIVISOR;
   }
 
   return maxTorque * torqueFactor * vessel.throttle;
 }
 
-// Calculate fuel consumption based on engine power and RPM
-function calculateFuelConsumption(vessel: VesselState, torque: f64): f64 {
-  // Simple model: consumption proportional to torque and RPM
-  const powerFactor = (torque * vessel.engineRPM) / 9550.0; // Power in kW
-
-  // Specific fuel consumption (g/kWh) - lower at optimal load
+/**
+ * Estimates fuel consumption rate based on vessel state.
+ *
+ * The model uses a specific fuel consumption (SFC) curve:
+ * - SFC is higher at low and high loads, lowest near optimal load.
+ *
+ * @param vessel - VesselState containing engineRPM, maxEnginePower, and throttle.
+ * @returns Fuel consumption in kg/h.
+ */
+function calculateFuelConsumption(vessel: VesselState): f64 {
+  const torque: f64 = calculateEngineTorque(vessel);
+  const powerFactor: f64 =
+    (torque * vessel.engineRPM) / ENGINE_TORQUE_CONVERSION;
+  const loadFactor: f64 = powerFactor / vessel.maxEnginePower;
   let sfc: f64;
-  const loadFactor = powerFactor / vessel.maxEnginePower;
-
-  // SFC curve with minimum around 80% load
-  if (loadFactor < 0.2) {
-    sfc = 220.0 + (0.2 - loadFactor) * 400.0; // Higher at very low loads
-  } else if (loadFactor < 0.8) {
-    sfc = 220.0 - (loadFactor - 0.2) * 20.0; // Decreasing to optimal
+  if (loadFactor < FUEL_LOAD_LOW) {
+    sfc =
+      FUEL_SFC_BASE + (FUEL_LOAD_LOW - loadFactor) * FUEL_SFC_LOW_LOAD_SLOPE;
+  } else if (loadFactor < FUEL_LOAD_OPTIMAL) {
+    sfc = FUEL_SFC_BASE - (loadFactor - FUEL_LOAD_LOW) * FUEL_SFC_OPTIMAL_SLOPE;
   } else {
-    sfc = 200.0 + (loadFactor - 0.8) * 50.0; // Increasing after optimal
+    sfc =
+      FUEL_SFC_MIN +
+      (loadFactor - FUEL_LOAD_OPTIMAL) * FUEL_SFC_HIGH_LOAD_SLOPE;
   }
 
   // Calculate consumption in kg/h
@@ -310,8 +345,8 @@ function calculateRudderDrag(vessel: VesselState): f64 {
   if (speed < 0.01) return 0.0;
 
   // Rudder characteristics
-  const aspectRatio = 1.5;
-  const rudderArea = 0.02 * vessel.length * vessel.draft;
+  const aspectRatio = RUDDER_ASPECT_RATIO;
+  const rudderArea = RUDDER_AREA_COEFFICIENT * vessel.length * vessel.draft;
   const rudderLift =
     ((Math.PI * aspectRatio) / (1.0 + aspectRatio)) *
     vessel.rudderAngle *
@@ -363,21 +398,19 @@ function calculateCurrentForce(
   currentSpeed: f64,
   currentDirection: f64,
 ): f64[] {
-  // Relative current direction
-  const relativeDirection = currentDirection - vessel.psi;
-
-  // Wetted area (simplified)
-  const wettedAreaSide = vessel.length * vessel.draft * 0.7;
-  const wettedAreaBottom =
+  const relativeDirection: f64 = currentDirection - vessel.psi;
+  const wettedAreaSide: f64 =
+    vessel.length * vessel.draft * WETTED_AREA_SIDE_MULTIPLIER;
+  const wettedAreaBottom: f64 =
     vessel.length * vessel.beam * vessel.blockCoefficient;
-
-  // Current coefficients
-  const currentCoefficientX = 0.5 + 0.3 * Math.abs(Math.cos(relativeDirection));
-  const currentCoefficientY = 0.8 * Math.abs(Math.sin(relativeDirection));
-  const currentCoefficientN = 0.1 * Math.sin(2.0 * relativeDirection);
-
-  // Calculate current forces
-  const currentForceX =
+  const currentCoefficientX: f64 =
+    CURRENT_COEFFICIENT_X_BASE +
+    CURRENT_COEFFICIENT_X_COS * Math.abs(Math.cos(relativeDirection));
+  const currentCoefficientY: f64 =
+    CURRENT_COEFFICIENT_Y_SIN * Math.abs(Math.sin(relativeDirection));
+  const currentCoefficientN: f64 =
+    CURRENT_COEFFICIENT_N_SIN2 * Math.sin(2.0 * relativeDirection);
+  const currentForceX: f64 =
     0.5 *
     vessel.waterDensity *
     currentSpeed *
@@ -515,8 +548,8 @@ export function calculateBeaufortScale(windSpeed: f64): i32 {
  * @external
  */
 export function calculateWaveLength(seaState: f64): f64 {
-  const wavePeriod = 3.0 + seaState * 1.6;
-  return WAVE_LENGTH_FACTOR * wavePeriod * wavePeriod;
+  const wavePeriod = WAVE_PERIOD_BASE + seaState * WAVE_PERIOD_SLOPE;
+  return WAVE_LENGTH_FACTOR * wavePeriod ** 2;
 }
 
 /**
@@ -594,7 +627,7 @@ function calculateWaveForce(
 
   // Basic wave forces
   const baseWaveForce =
-    vessel.waterDensity * WAVE_GRAVITY * waveHeight * waveHeight * vessel.beam;
+    vessel.waterDensity * WAVE_GRAVITY * staticWaveHeight ** 2 * vessel.beam;
 
   // Surge force (longitudinal) - stronger in head or following seas
   const surgeForce = baseWaveForce * headSeaFactor * 0.5;
@@ -643,15 +676,11 @@ function calculateWindForceX(
   // Wind coefficients
   const windCoefficientX = 0.5 + 0.4 * Math.abs(Math.cos(relativeDirection));
 
-  // Air density
-  const airDensity = 1.225; // kg/m³
-
   // Calculate wind force X
   return (
     0.5 *
-    airDensity *
-    windSpeed *
-    windSpeed *
+    AIR_DENSITY *
+    windSpeed ** 2 *
     projectedAreaFront *
     windCoefficientX *
     Math.cos(relativeDirection)
@@ -673,15 +702,11 @@ function calculateWindForceY(
   // Wind coefficients
   const windCoefficientY = 0.7 * Math.abs(Math.sin(relativeDirection));
 
-  // Air density
-  const airDensity = 1.225; // kg/m³
-
   // Calculate wind force Y
   return (
     0.5 *
-    airDensity *
-    windSpeed *
-    windSpeed *
+    AIR_DENSITY *
+    windSpeed ** 2 *
     projectedAreaSide *
     windCoefficientY *
     Math.sin(relativeDirection)
@@ -703,15 +728,11 @@ function calculateWindMomentN(
   // Wind coefficients
   const windCoefficientN = 0.1 * Math.sin(2.0 * relativeDirection);
 
-  // Air density
-  const airDensity = 1.225; // kg/m³
-
   // Calculate wind moment N
   return (
     0.5 *
-    airDensity *
-    windSpeed *
-    windSpeed *
+    AIR_DENSITY *
+    windSpeed ** 2 *
     projectedAreaSide *
     vessel.length *
     windCoefficientN
@@ -950,7 +971,7 @@ export function updateVesselState(
   // Update roll angle with stabilizing moment
   vessel.phi += vessel.p * safeDt;
   const GM = calculateGM(vessel);
-  const stabilizingMoment = -vessel.phi * GM * vessel.mass * 9.81;
+  const stabilizingMoment = -vessel.phi * GM * vessel.mass * GRAVITY;
   vessel.p += (stabilizingMoment / inertiaRoll) * safeDt;
 
   // Limit roll angle
