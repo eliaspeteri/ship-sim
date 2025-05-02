@@ -366,8 +366,7 @@ function calculateFuelConsumption(vessel: VesselState): f64 {
   return (powerFactor * sfc) / 1000.0;
 }
 
-// Calculate rudder drag force
-function calculateRudderDrag(vessel: VesselState): f64 {
+function calculateRudderLift(vessel: VesselState): f64 {
   const speed = Math.sqrt(vessel.u * vessel.u + vessel.v * vessel.v);
   if (speed < 0.01) return 0.0;
 
@@ -383,27 +382,20 @@ function calculateRudderDrag(vessel: VesselState): f64 {
     speed *
     speed;
 
+  return rudderLift;
+}
+
+// Calculate rudder drag force
+function calculateRudderDrag(vessel: VesselState): f64 {
+  const rudderLift = calculateRudderLift(vessel);
+
   // Calculate drag force in x direction
   return Math.abs(rudderLift) * Math.sin(Math.abs(vessel.rudderAngle));
 }
 
 // Calculate rudder force in Y direction (sway force)
 function calculateRudderForceY(vessel: VesselState): f64 {
-  const speed = Math.sqrt(vessel.u * vessel.u + vessel.v * vessel.v);
-  if (speed < 0.01) return 0.0;
-
-  // Rudder characteristics
-  const aspectRatio = 1.5;
-  const rudderArea = 0.02 * vessel.length * vessel.draft;
-  const rudderLift =
-    ((Math.PI * aspectRatio) / (1.0 + aspectRatio)) *
-    vessel.rudderAngle *
-    rudderArea *
-    0.5 *
-    vessel.waterDensity *
-    speed *
-    speed;
-
+  const rudderLift = calculateRudderLift(vessel);
   // Sway force from rudder
   return rudderLift * Math.cos(vessel.rudderAngle);
 }
