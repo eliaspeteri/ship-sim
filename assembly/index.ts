@@ -694,6 +694,19 @@ function calculateWaveForce(
   ];
 }
 
+function calculateProjectedArea(vessel: VesselState): f64 {
+  // Projected area based on beam and draft
+  return vessel.beam * vessel.draft * 1.5; // Include superstructure
+}
+
+function calculateRelativeWindDirection(
+  vessel: VesselState,
+  windDirection: f64,
+): f64 {
+  // Calculate relative wind direction (0 = head wind, PI = following wind)
+  return windDirection - vessel.psi;
+}
+
 // Calculate wind force based on wind speed and direction - X component (Surge)
 function calculateWindForceX(
   vessel: VesselState,
@@ -701,10 +714,13 @@ function calculateWindForceX(
   windDirection: f64,
 ): f64 {
   // Relative wind direction (0 = head wind, PI = following wind)
-  const relativeDirection = windDirection - vessel.psi;
+  const relativeDirection = calculateRelativeWindDirection(
+    vessel,
+    windDirection,
+  );
 
   // Projected areas (simplified)
-  const projectedAreaFront = vessel.beam * vessel.draft * 1.5; // Include superstructure
+  const projectedAreaFront = calculateProjectedArea(vessel); // Front area
 
   // Wind coefficients
   const windCoefficientX = 0.5 + 0.4 * Math.abs(Math.cos(relativeDirection));
@@ -727,10 +743,13 @@ function calculateWindForceY(
   windDirection: f64,
 ): f64 {
   // Relative wind direction (0 = head wind, PI = following wind)
-  const relativeDirection = windDirection - vessel.psi;
+  const relativeDirection = calculateRelativeWindDirection(
+    vessel,
+    windDirection,
+  );
 
   // Projected areas (simplified)
-  const projectedAreaSide = vessel.length * vessel.draft * 1.5; // Include superstructure
+  const projectedAreaSide = calculateProjectedArea(vessel); // Side area
 
   // Wind coefficients
   const windCoefficientY = 0.7 * Math.abs(Math.sin(relativeDirection));
@@ -753,10 +772,13 @@ function calculateWindMomentN(
   windDirection: f64,
 ): f64 {
   // Relative wind direction (0 = head wind, PI = following wind)
-  const relativeDirection = windDirection - vessel.psi;
+  const relativeDirection = calculateRelativeWindDirection(
+    vessel,
+    windDirection,
+  );
 
   // Projected areas (simplified)
-  const projectedAreaSide = vessel.length * vessel.draft * 1.5; // Include superstructure
+  const projectedAreaSide = calculateProjectedArea(vessel); // Side area
 
   // Wind coefficients
   const windCoefficientN = 0.1 * Math.sin(2.0 * relativeDirection);
