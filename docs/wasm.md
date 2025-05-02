@@ -2,12 +2,6 @@
 
 ### AssemblyScript Export Validation
 
-To validate that your AssemblyScript code exports all the expected functions, you can use the following npm scripts:
-
-```sh
-npm run wasm:validate
-```
-
 This command uses the AssemblyScript compiler's validate mode to check for syntax errors and other issues in your AssemblyScript code before compilation.
 
 ```sh
