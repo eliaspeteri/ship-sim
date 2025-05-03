@@ -38,7 +38,26 @@ export class SimulationLoop {
       const state = useStore.getState();
 
       // Create a vessel in WASM and store the pointer
-      const vesselPtr = this.wasmBridge.createVessel();
+      const vesselPtr = this.wasmBridge.createVessel(
+        position?.x ? position.x : 0,
+        position?.y ? position.y : 0,
+        position?.z ?? 0,
+        orientation?.heading ?? 0,
+        orientation?.roll ?? 0,
+        orientation?.pitch ?? 0,
+        velocity?.surge ?? 0,
+        velocity?.sway ?? 0,
+        velocity?.heave ?? 0,
+        angularVelocity?.yaw ?? 0,
+        angularVelocity?.roll ?? 0,
+        angularVelocity?.pitch ?? 0,
+        controls?.throttle ?? 0,
+        controls?.rudderAngle ?? 0,
+        properties?.mass ?? 14950000,
+        properties?.length ?? 212,
+        properties?.beam ?? 28,
+        properties?.draft ?? 9.1,
+      );
       state.setWasmVesselPtr(vesselPtr);
 
       // Immediately read vessel position and verify it's valid

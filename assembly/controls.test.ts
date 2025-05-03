@@ -1,8 +1,5 @@
 import {
-  createVessel,
   getVesselHeading,
-  getVesselSpeed,
-  getVesselX,
   getVesselY,
   setBallast,
   setRudderAngle,
@@ -19,24 +16,7 @@ import {
   expect,
   endTest,
 } from 'assemblyscript-unittest-framework/assembly';
-
-// Define usize as u32 for compatibility with AssemblyScript memory model
-type usize = u32;
-
-/**
- * Helper function to create a fresh vessel instance for each test
- * This helps avoid state contamination between tests
- */
-function createFreshVessel(): usize {
-  const ptr = createVessel();
-  // Reset to known default state
-  setThrottle(ptr, 0.2);
-  setRudderAngle(ptr, 0.0);
-  setBallast(ptr, 0.5);
-  // Run a minimal update to ensure derived values are calculated
-  updateVesselState(ptr, 0.01, 0, 0, 0, 0);
-  return ptr;
-}
+import { createFreshVessel, resetGlobalVessel } from './util/test-vessel.util';
 
 // --- Control System Tests ---
 

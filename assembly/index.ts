@@ -1155,31 +1155,68 @@ export function updateVesselState(
 }
 
 /**
- * Creates a new vessel instance and returns a pointer to it.
+ * Creates a new vessel instance with the specified parameters.
  * Only one vessel is supported at a time.
+ * @param x - Initial X position (meters)
+ * @param y - Initial Y position (meters)
+ * @param z - Initial Z position (meters)
+ * @param psi - Initial heading (radians)
+ * @param phi - Initial roll (radians)
+ * @param theta - Initial pitch (radians)
+ * @param u - Initial surge velocity (m/s)
+ * @param v - Initial sway velocity (m/s)
+ * @param w - Initial heave velocity (m/s)
+ * @param r - Initial yaw rate (rad/s)
+ * @param p - Initial roll rate (rad/s)
+ * @param q - Initial pitch rate (rad/s)
+ * @param throttle - Initial throttle (0.0 to 1.0)
+ * @param rudderAngle - Initial rudder angle (radians)
+ * @param mass - Vessel mass (kg)
+ * @param length - Vessel length (m)
+ * @param beam - Vessel beam (m)
+ * @param draft - Vessel draft (m)
  * @returns Pointer to the vessel instance
  */
-export function createVessel(): usize {
+export function createVessel(
+  x: f64,
+  y: f64,
+  z: f64,
+  psi: f64,
+  phi: f64,
+  theta: f64,
+  u: f64,
+  v: f64,
+  w: f64,
+  r: f64,
+  p: f64,
+  q: f64,
+  throttle: f64,
+  rudderAngle: f64,
+  mass: f64,
+  length: f64,
+  beam: f64,
+  draft: f64,
+): usize {
   if (globalVessel === null) {
     globalVessel = new VesselState(
-      0, // x
-      0, // y
-      0, // z
-      0, // psi (heading/yaw)
-      0, // phi (roll)
-      0, // theta (pitch)
-      1.0, // u (surge velocity)
-      0, // v (sway velocity)
-      0, // w (heave velocity)
-      0, // r (yaw rate)
-      0, // p (roll rate)
-      0, // q (pitch rate)
-      0.2, // throttle (0.0 to 1.0)
-      0, // rudder angle (radians)
-      14950000, // mass (kg)
-      212, // length (m)
-      28, // beam (m)
-      9.1, // draft (m)
+      x,
+      y,
+      z,
+      psi,
+      phi,
+      theta,
+      u,
+      v,
+      w,
+      r,
+      p,
+      q,
+      throttle,
+      rudderAngle,
+      mass,
+      length,
+      beam,
+      draft,
     );
   }
   return changetype<usize>(globalVessel);

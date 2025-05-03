@@ -14,7 +14,26 @@ export interface WasmModule {
   __getArrayView: (ptr: number) => ArrayBufferView;
 
   // Vessel creation and management
-  createVessel: () => number;
+  createVessel: (
+    x: number,
+    y: number,
+    z: number,
+    heading: number,
+    roll: number,
+    pitch: number,
+    surge: number,
+    sway: number,
+    heave: number,
+    yawRate: number,
+    rollRate: number,
+    pitchRate: number,
+    throttle: number,
+    rudderAngle: number,
+    mass: number,
+    length: number,
+    beam: number,
+    draft: number,
+  ) => number;
   destroyVessel?: (vesselPtr: number) => void;
 
   // Vessel properties

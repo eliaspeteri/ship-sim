@@ -102,8 +102,46 @@ export class WasmBridge {
    * Create a new vessel in the physics engine
    * @returns Pointer to vessel in WASM memory
    */
-  public createVessel(): number {
-    return this.wasmModule.createVessel();
+  public createVessel(
+    x: number,
+    y: number,
+    z: number,
+    heading: number,
+    roll: number,
+    pitch: number,
+    surge: number,
+    sway: number,
+    heave: number,
+    yawRate: number,
+    rollRate: number,
+    pitchRate: number,
+    throttle: number,
+    rudderAngle: number,
+    mass: number,
+    length: number,
+    beam: number,
+    draft: number,
+  ): number {
+    return this.wasmModule.createVessel(
+      x,
+      y,
+      z,
+      heading,
+      roll,
+      pitch,
+      surge,
+      sway,
+      heave,
+      yawRate,
+      rollRate,
+      pitchRate,
+      throttle,
+      rudderAngle,
+      mass,
+      length,
+      beam,
+      draft,
+    );
   }
 
   /**
