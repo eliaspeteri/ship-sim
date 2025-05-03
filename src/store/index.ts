@@ -95,7 +95,7 @@ const defaultVesselState: VesselState = {
   velocity: { surge: 0, sway: 0, heave: 0 },
   angularVelocity: { yaw: 0, roll: 0, pitch: 0 },
   controls: {
-    throttle: 0,
+    throttle: 0.5,
     rudderAngle: 0,
     ballast: 0.5,
     bowThruster: 0,
@@ -148,13 +148,13 @@ const defaultVesselState: VesselState = {
 
 const defaultEnvironmentState: EnvironmentState = {
   wind: {
-    speed: 0,
+    speed: 5,
     direction: 0,
     gusting: false,
     gustFactor: 1.5,
   },
   current: {
-    speed: 0,
+    speed: 0.5,
     direction: Math.PI / 4,
     variability: 0,
   },
@@ -165,7 +165,7 @@ const defaultEnvironmentState: EnvironmentState = {
   waveLength: 50,
   visibility: 10,
   timeOfDay: 12,
-  precipitation: 'none',
+  precipitation: 'rain',
   precipitationIntensity: 0,
 };
 
