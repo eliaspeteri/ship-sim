@@ -17,13 +17,13 @@ async function instantiate(module, imports = {}) {
   const { exports } = await WebAssembly.instantiate(module, adaptedImports);
   const memory = exports.memory || imports.env.memory;
   const adaptedExports = Object.setPrototypeOf({
-    updateVesselState(vesselPtr, dt, windSpeed, windDirection, currentSpeed, currentDirection, seaState) {
-      // assembly/index/updateVesselState(usize, f64, f64, f64, f64, f64, f64) => usize
-      return exports.updateVesselState(vesselPtr, dt, windSpeed, windDirection, currentSpeed, currentDirection, seaState) >>> 0;
+    updateVesselState(vesselPtr, dt, windSpeed, windDirection, currentSpeed, currentDirection) {
+      // assembly/index/updateVesselState(usize, f64, f64, f64, f64, f64) => usize
+      return exports.updateVesselState(vesselPtr, dt, windSpeed, windDirection, currentSpeed, currentDirection) >>> 0;
     },
-    createVessel() {
-      // assembly/index/createVessel() => usize
-      return exports.createVessel() >>> 0;
+    createVessel(x, y, z, psi, phi, theta, u, v, w, r, p, q, throttle, rudderAngle, mass, length, beam, draft) {
+      // assembly/index/createVessel(f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64) => usize
+      return exports.createVessel(x, y, z, psi, phi, theta, u, v, w, r, p, q, throttle, rudderAngle, mass, length, beam, draft) >>> 0;
     },
   }, exports);
   function __liftString(pointer) {
@@ -65,8 +65,13 @@ export const {
   getVesselFuelConsumption,
   getVesselGM,
   getVesselCenterOfGravityY,
-  setVesselStateForTesting,
-  testCoordinateTransform,
+  getVesselSurgeVelocity,
+  getVesselSwayVelocity,
+  getVesselHeaveVelocity,
+  getVesselRudderAngle,
+  getVesselBallastLevel,
+  setVesselVelocity,
+  resetGlobalVessel,
 } = await (async url => instantiate(
   await (async () => {
     const isNodeOrBun = typeof process != "undefined" && process.versions != null && (process.versions.node != null || process.versions.bun != null);

@@ -47,15 +47,32 @@ export declare function calculateWaveHeightAtPosition(x: number, y: number, time
  * @param windDirection `f64`
  * @param currentSpeed `f64`
  * @param currentDirection `f64`
- * @param seaState `f64`
  * @returns `usize`
  */
-export declare function updateVesselState(vesselPtr: number, dt: number, windSpeed: number, windDirection: number, currentSpeed: number, currentDirection: number, seaState: number): number;
+export declare function updateVesselState(vesselPtr: number, dt: number, windSpeed: number, windDirection: number, currentSpeed: number, currentDirection: number): number;
 /**
  * assembly/index/createVessel
+ * @param x `f64`
+ * @param y `f64`
+ * @param z `f64`
+ * @param psi `f64`
+ * @param phi `f64`
+ * @param theta `f64`
+ * @param u `f64`
+ * @param v `f64`
+ * @param w `f64`
+ * @param r `f64`
+ * @param p `f64`
+ * @param q `f64`
+ * @param throttle `f64`
+ * @param rudderAngle `f64`
+ * @param mass `f64`
+ * @param length `f64`
+ * @param beam `f64`
+ * @param draft `f64`
  * @returns `usize`
  */
-export declare function createVessel(): number;
+export declare function createVessel(x: number, y: number, z: number, psi: number, phi: number, theta: number, u: number, v: number, w: number, r: number, p: number, q: number, throttle: number, rudderAngle: number, mass: number, length: number, beam: number, draft: number): number;
 /**
  * assembly/index/setThrottle
  * @param vesselPtr `usize`
@@ -154,16 +171,44 @@ export declare function getVesselGM(vesselPtr: number): number;
  */
 export declare function getVesselCenterOfGravityY(vesselPtr: number): number;
 /**
- * assembly/index/setVesselStateForTesting
+ * assembly/index/getVesselSurgeVelocity
  * @param vesselPtr `usize`
- * @param u `f64`
- * @param v `f64`
- * @param psi `f64`
+ * @returns `f64`
  */
-export declare function setVesselStateForTesting(vesselPtr: number, u: number, v: number, psi: number): void;
+export declare function getVesselSurgeVelocity(vesselPtr: number): number;
 /**
- * assembly/index/testCoordinateTransform
+ * assembly/index/getVesselSwayVelocity
  * @param vesselPtr `usize`
- * @param dt `f64`
+ * @returns `f64`
  */
-export declare function testCoordinateTransform(vesselPtr: number, dt: number): void;
+export declare function getVesselSwayVelocity(vesselPtr: number): number;
+/**
+ * assembly/index/getVesselHeaveVelocity
+ * @param vesselPtr `usize`
+ * @returns `f64`
+ */
+export declare function getVesselHeaveVelocity(vesselPtr: number): number;
+/**
+ * assembly/index/getVesselRudderAngle
+ * @param vesselPtr `usize`
+ * @returns `f64`
+ */
+export declare function getVesselRudderAngle(vesselPtr: number): number;
+/**
+ * assembly/index/getVesselBallastLevel
+ * @param vesselPtr `usize`
+ * @returns `f64`
+ */
+export declare function getVesselBallastLevel(vesselPtr: number): number;
+/**
+ * assembly/index/setVesselVelocity
+ * @param vesselPtr `usize`
+ * @param surge `f64`
+ * @param sway `f64`
+ * @param heave `f64`
+ */
+export declare function setVesselVelocity(vesselPtr: number, surge: number, sway: number, heave: number): void;
+/**
+ * assembly/index/resetGlobalVessel
+ */
+export declare function resetGlobalVessel(): void;
