@@ -3420,9 +3420,9 @@
   (local $16 f64)
   (local $17 f64)
   (local $18 f64)
-  (local $19 f64)
-  (local $20 i32)
-  (local $21 i64)
+  (local $19 i32)
+  (local $20 i64)
+  (local $21 f64)
   (local $22 f64)
   (local $23 f64)
   (local $24 f64)
@@ -3555,7 +3555,7 @@
   local.set $13
   local.get $2
   call $assembly/index/calculateBeaufortScale
-  local.set $20
+  local.set $19
   local.get $0
   f64.load offset=48
   local.tee $1
@@ -3882,7 +3882,7 @@
     f64.add
     local.tee $3
     i64.reinterpret_f64
-    local.tee $21
+    local.tee $20
     i64.const 127
     i64.and
     i64.const 1
@@ -3894,7 +3894,7 @@
     i32.add
     local.tee $8
     i64.load offset=8
-    local.get $21
+    local.get $20
     i64.const 45
     i64.shl
     i64.add
@@ -3942,7 +3942,7 @@
     i32.eqz
     if
      block $~lib/util/math/specialcase|inlined.1 (result f64)
-      local.get $21
+      local.get $20
       i64.const 2147483648
       i64.and
       i64.eqz
@@ -4029,7 +4029,7 @@
    f64.add
   end
   i32.const 1184
-  local.get $20
+  local.get $19
   call $~lib/array/Array<f64>#__get
   f64.const 2
   call $~lib/math/NativeMath.pow
@@ -4195,7 +4195,7 @@
   f64.const -0.45
   f64.mul
   f64.mul
-  local.set $22
+  local.set $21
   local.get $0
   f64.load offset=128
   local.get $0
@@ -4259,7 +4259,7 @@
   local.get $16
   call $~lib/math/NativeMath.sin
   f64.mul
-  local.set $23
+  local.set $22
   local.get $0
   f64.load offset=128
   local.get $0
@@ -4291,7 +4291,7 @@
   f64.mul
   local.get $12
   f64.mul
-  local.set $24
+  local.set $23
   local.get $0
   f64.load offset=120
   local.get $0
@@ -4407,13 +4407,13 @@
   local.get $6
   i32.const 1
   call $~lib/array/Array<f64>#__get
-  local.set $25
+  local.set $24
   local.get $6
   i32.const 2
   call $~lib/array/Array<f64>#__get
-  local.set $26
+  local.set $25
   local.get $0
-  local.get $20
+  local.get $19
   local.get $9
   f64.const 100
   f64.mul
@@ -4425,29 +4425,29 @@
   local.get $6
   i32.const 1
   call $~lib/array/Array<f64>#__get
-  local.set $27
+  local.set $26
   local.get $6
   i32.const 2
   call $~lib/array/Array<f64>#__get
-  local.set $28
+  local.set $27
   local.get $6
   i32.const 3
   call $~lib/array/Array<f64>#__get
-  local.set $29
+  local.set $28
   local.get $6
   i32.const 4
   call $~lib/array/Array<f64>#__get
-  local.set $30
+  local.set $29
   local.get $6
   i32.const 5
   call $~lib/array/Array<f64>#__get
-  local.set $31
+  local.set $30
   local.get $0
   f64.load offset=112
   local.tee $14
   f64.const 1.2
   f64.mul
-  local.set $32
+  local.set $31
   local.get $0
   f64.load offset=224
   f64.const 1.1
@@ -4471,22 +4471,39 @@
   local.get $13
   f64.add
   local.get $3
+  f64.const 1
+  f64.const -1
+  local.get $0
+  f64.load offset=48
+  local.tee $17
+  local.get $17
+  f64.const 0
+  f64.lt
+  select
+  local.get $17
+  f64.const 0
+  f64.gt
+  select
+  local.tee $17
+  f64.mul
   f64.sub
   local.get $4
+  local.get $17
+  f64.mul
   f64.sub
-  local.tee $17
+  local.tee $32
   local.get $14
   f64.const 1.05
   f64.mul
-  local.tee $18
+  local.tee $17
   f64.div
-  local.set $19
-  local.get $18
-  local.get $18
+  local.set $18
+  local.get $17
+  local.get $17
   f64.sub
   f64.const 0
   f64.eq
-  local.get $18
+  local.get $17
   f64.const 0
   f64.gt
   i32.and
@@ -4494,7 +4511,7 @@
   if
    i32.const 8128
    i32.const 7808
-   i32.const 986
+   i32.const 985
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -4512,7 +4529,7 @@
   if
    i32.const 8192
    i32.const 7808
-   i32.const 987
+   i32.const 986
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -4530,7 +4547,7 @@
   if
    i32.const 8272
    i32.const 7808
-   i32.const 991
+   i32.const 990
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -4543,7 +4560,7 @@
   if
    i32.const 8336
    i32.const 7808
-   i32.const 992
+   i32.const 991
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -4556,7 +4573,7 @@
   if
    i32.const 8416
    i32.const 7808
-   i32.const 993
+   i32.const 992
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -4569,7 +4586,7 @@
   if
    i32.const 8480
    i32.const 7808
-   i32.const 994
+   i32.const 993
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -4582,33 +4599,33 @@
   if
    i32.const 8544
    i32.const 7808
-   i32.const 995
+   i32.const 994
    i32.const 3
    call $~lib/builtins/abort
    unreachable
   end
-  local.get $17
-  local.get $17
+  local.get $32
+  local.get $32
   f64.sub
   f64.const 0
   f64.ne
   if
    i32.const 8608
    i32.const 7808
-   i32.const 996
+   i32.const 995
    i32.const 3
    call $~lib/builtins/abort
    unreachable
   end
-  local.get $19
-  local.get $19
+  local.get $18
+  local.get $18
   f64.sub
   f64.const 0
   f64.ne
   if
    i32.const 8672
    i32.const 7808
-   i32.const 997
+   i32.const 996
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -4623,12 +4640,12 @@
   if
    i32.const 8736
    i32.const 7808
-   i32.const 998
+   i32.const 997
    i32.const 3
    call $~lib/builtins/abort
    unreachable
   end
-  local.get $19
+  local.get $18
   f64.abs
   f64.const 100
   f64.lt
@@ -4636,13 +4653,13 @@
    local.get $0
    local.get $0
    f64.load offset=48
-   local.get $19
+   local.get $18
    local.get $9
    f64.mul
    f64.add
    f64.store offset=48
   else
-   local.get $19
+   local.get $18
    f64.const 0
    f64.gt
    if
@@ -4675,35 +4692,52 @@
   if
    i32.const 8736
    i32.const 7808
-   i32.const 1010
+   i32.const 1008
    i32.const 3
    call $~lib/builtins/abort
    unreachable
   end
   local.get $5
-  local.get $23
+  local.get $22
   f64.add
-  local.get $25
+  local.get $24
   f64.add
-  local.get $27
+  local.get $26
   f64.add
-  local.get $32
-  f64.div
+  local.get $3
+  f64.const 1
+  f64.const -1
+  local.get $0
+  f64.load offset=56
   local.tee $1
+  local.get $1
+  f64.const 0
+  f64.lt
+  select
+  local.get $1
+  f64.const 0
+  f64.gt
+  select
+  f64.mul
+  f64.const 0.8
+  f64.mul
+  f64.sub
+  local.get $31
+  f64.div
+  local.tee $3
   f64.abs
   f64.const 100
   f64.lt
   if
    local.get $0
-   local.get $0
-   f64.load offset=56
    local.get $1
+   local.get $3
    local.get $9
    f64.mul
    f64.add
    f64.store offset=56
   else
-   local.get $1
+   local.get $3
    f64.const 0
    f64.gt
    if
@@ -4726,36 +4760,51 @@
     f64.store offset=56
    end
   end
-  local.get $28
+  local.get $27
+  local.get $0
+  f64.load offset=64
+  local.tee $1
+  local.get $1
+  f64.abs
+  f64.mul
+  f64.const 0.5
+  f64.mul
+  local.get $0
+  f64.load offset=152
+  f64.mul
+  local.get $0
+  f64.load offset=128
+  f64.mul
+  local.get $0
+  f64.load offset=120
+  f64.mul
+  f64.const 0.02
+  f64.mul
+  f64.sub
   local.get $14
   f64.const 1.1
   f64.mul
   f64.div
-  local.tee $1
+  local.tee $3
   f64.abs
   f64.const 20
   f64.lt
   if
    local.get $0
-   local.get $0
-   f64.load offset=64
-   f64.const 0.95
-   f64.mul
    local.get $1
+   local.get $3
    local.get $9
    f64.mul
    f64.add
    f64.store offset=64
   else
-   local.get $1
+   local.get $3
    f64.const 0
    f64.gt
    if
     local.get $0
     local.get $0
     f64.load offset=64
-    f64.const 0.95
-    f64.mul
     local.get $9
     f64.const 20
     f64.mul
@@ -4765,8 +4814,6 @@
     local.get $0
     local.get $0
     f64.load offset=64
-    f64.const 0.95
-    f64.mul
     local.get $9
     f64.const 20
     f64.mul
@@ -4774,11 +4821,31 @@
     f64.store offset=64
    end
   end
-  local.get $29
+  local.get $28
   local.get $0
   f64.load offset=80
   local.tee $1
   f64.const -0.9
+  f64.mul
+  f64.add
+  local.get $1
+  f64.neg
+  local.get $1
+  f64.abs
+  f64.mul
+  local.get $0
+  f64.load offset=152
+  f64.mul
+  local.get $0
+  f64.load offset=128
+  local.tee $3
+  f64.mul
+  local.get $3
+  f64.mul
+  local.get $0
+  f64.load offset=120
+  f64.mul
+  f64.const 0.02
   f64.mul
   f64.add
   local.get $15
@@ -4869,11 +4936,43 @@
     f64.store offset=32
    end
   end
-  local.get $30
+  local.get $29
   local.get $0
   f64.load offset=88
   local.tee $1
   f64.const -0.8
+  f64.mul
+  f64.const 1
+  f64.const -1
+  local.get $1
+  local.get $1
+  f64.const 0
+  f64.lt
+  select
+  local.get $1
+  f64.const 0
+  f64.gt
+  select
+  f64.mul
+  f64.add
+  local.get $1
+  f64.neg
+  local.get $1
+  f64.abs
+  f64.mul
+  local.get $0
+  f64.load offset=152
+  f64.mul
+  local.get $0
+  f64.load offset=120
+  local.tee $3
+  f64.mul
+  local.get $3
+  f64.mul
+  local.get $0
+  f64.load offset=128
+  f64.mul
+  f64.const 0.015
   f64.mul
   f64.add
   local.get $16
@@ -4962,30 +5061,67 @@
     f64.store offset=40
    end
   end
-  local.get $22
-  local.get $24
+  local.get $21
+  local.get $23
   f64.add
-  local.get $26
+  local.get $25
   f64.add
-  local.get $31
+  local.get $30
+  f64.add
+  local.get $0
+  f64.load offset=72
+  local.tee $1
+  f64.const -1.1
+  f64.mul
+  f64.const 1
+  f64.const -1
+  local.get $1
+  local.get $1
+  f64.const 0
+  f64.lt
+  select
+  local.get $1
+  f64.const 0
+  f64.gt
+  select
+  f64.mul
+  f64.add
+  local.get $1
+  f64.neg
+  local.get $1
+  f64.abs
+  f64.mul
+  local.get $0
+  f64.load offset=152
+  f64.mul
+  local.get $0
+  f64.load offset=120
+  local.tee $3
+  f64.mul
+  local.get $3
+  f64.mul
+  local.get $0
+  f64.load offset=128
+  f64.mul
+  f64.const 0.05
+  f64.mul
   f64.add
   local.get $2
   f64.div
-  local.tee $1
+  local.tee $2
   f64.abs
   f64.const 5
   f64.lt
   if
    local.get $0
-   local.get $0
-   f64.load offset=72
    local.get $1
+   local.get $2
    local.get $9
    f64.mul
    f64.add
    f64.store offset=72
   else
-   local.get $1
+   local.get $2
    f64.const 0
    f64.gt
    if
@@ -5589,7 +5725,7 @@
   if
    i32.const 8816
    i32.const 7808
-   i32.const 1243
+   i32.const 1279
    i32.const 5
    call $~lib/builtins/abort
    unreachable
@@ -5626,14 +5762,6 @@
   f64.sub
   f64.const 0
   f64.ne
-  local.get $1
-  f64.const 0
-  f64.lt
-  i32.or
-  local.get $1
-  f64.const 1
-  f64.gt
-  i32.or
   if
    return
   end
@@ -5743,18 +5871,6 @@
   f64.sub
   f64.const 0
   f64.ne
-  if (result i32)
-   i32.const 0
-  else
-   local.get $1
-   f64.const 1
-   f64.le
-   local.get $1
-   f64.const 0
-   f64.ge
-   i32.and
-  end
-  i32.eqz
   if
    return
   end

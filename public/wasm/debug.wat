@@ -6282,17 +6282,25 @@
   (local $64 f64)
   (local $netForceSway f64)
   (local $swayDot f64)
+  (local $x|67 f64)
   (local $netForceHeave f64)
   (local $heaveDot f64)
+  (local $x|70 f64)
+  (local $rollHydroDamping f64)
   (local $rollDamping f64)
   (local $netMomentRoll f64)
   (local $rollDot f64)
   (local $GM f64)
   (local $stabilizingMoment f64)
+  (local $x|77 f64)
+  (local $pitchHydroDamping f64)
   (local $pitchDamping f64)
   (local $netMomentPitch f64)
   (local $pitchDot f64)
   (local $pitchStabilizing f64)
+  (local $x|83 f64)
+  (local $yawHydroDamping f64)
+  (local $yawDamping f64)
   (local $netMomentYaw f64)
   (local $yawDot f64)
   (local $mod f64)
@@ -6305,8 +6313,8 @@
   (local $deltaY f64)
   (local $fuelTankCapacity f64)
   (local $fuelConsumptionRate f64)
-  (local $value1|90 f64)
-  (local $value2|91 f64)
+  (local $value1|98 f64)
+  (local $value2|99 f64)
   (local $effectiveFuelRate f64)
   local.get $vesselPtr
   local.set $vessel
@@ -6661,8 +6669,16 @@
   local.get $waveSurge
   f64.add
   local.get $totalResistance
+  local.get $vessel
+  call $assembly/index/VesselState#get:u
+  call $~lib/math/NativeMath.sign
+  f64.mul
   f64.sub
   local.get $rudderDrag
+  local.get $vessel
+  call $assembly/index/VesselState#get:u
+  call $~lib/math/NativeMath.sign
+  f64.mul
   f64.sub
   local.set $netForceSurge
   local.get $netForceSurge
@@ -6685,7 +6701,7 @@
   if
    i32.const 7104
    i32.const 6784
-   i32.const 986
+   i32.const 985
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6706,7 +6722,7 @@
   if
    i32.const 7168
    i32.const 6784
-   i32.const 987
+   i32.const 986
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6727,7 +6743,7 @@
   if
    i32.const 7248
    i32.const 6784
-   i32.const 991
+   i32.const 990
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6741,7 +6757,7 @@
   if
    i32.const 7312
    i32.const 6784
-   i32.const 992
+   i32.const 991
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6755,7 +6771,7 @@
   if
    i32.const 7392
    i32.const 6784
-   i32.const 993
+   i32.const 992
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6769,7 +6785,7 @@
   if
    i32.const 7456
    i32.const 6784
-   i32.const 994
+   i32.const 993
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6783,7 +6799,7 @@
   if
    i32.const 7520
    i32.const 6784
-   i32.const 995
+   i32.const 994
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6797,7 +6813,7 @@
   if
    i32.const 7584
    i32.const 6784
-   i32.const 996
+   i32.const 995
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6811,7 +6827,7 @@
   if
    i32.const 7648
    i32.const 6784
-   i32.const 997
+   i32.const 996
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6827,7 +6843,7 @@
   if
    i32.const 7712
    i32.const 6784
-   i32.const 998
+   i32.const 997
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6880,7 +6896,7 @@
   if
    i32.const 7712
    i32.const 6784
-   i32.const 1010
+   i32.const 1008
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6892,6 +6908,14 @@
   f64.add
   local.get $waveSway
   f64.add
+  local.get $totalResistance
+  local.get $vessel
+  call $assembly/index/VesselState#get:v
+  call $~lib/math/NativeMath.sign
+  f64.mul
+  f64.const 0.8
+  f64.mul
+  f64.sub
   local.set $netForceSway
   local.get $netForceSway
   local.get $massSway
@@ -6935,6 +6959,31 @@
    end
   end
   local.get $waveHeave
+  local.get $vessel
+  call $assembly/index/VesselState#get:w
+  block $~lib/math/NativeMath.abs|inlined.9 (result f64)
+   local.get $vessel
+   call $assembly/index/VesselState#get:w
+   local.set $x|67
+   local.get $x|67
+   f64.abs
+   br $~lib/math/NativeMath.abs|inlined.9
+  end
+  f64.mul
+  f64.const 0.5
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:waterDensity
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:beam
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:length
+  f64.mul
+  f64.const 0.02
+  f64.mul
+  f64.sub
   local.set $netForceHeave
   local.get $netForceHeave
   local.get $massHeave
@@ -6948,8 +6997,6 @@
    local.get $vessel
    local.get $vessel
    call $assembly/index/VesselState#get:w
-   f64.const 0.95
-   f64.mul
    local.get $heaveDot
    local.get $safeDt
    f64.mul
@@ -6963,8 +7010,6 @@
     local.get $vessel
     local.get $vessel
     call $assembly/index/VesselState#get:w
-    f64.const 0.95
-    f64.mul
     f64.const 20
     local.get $safeDt
     f64.mul
@@ -6974,8 +7019,6 @@
     local.get $vessel
     local.get $vessel
     call $assembly/index/VesselState#get:w
-    f64.const 0.95
-    f64.mul
     f64.const 20
     local.get $safeDt
     f64.mul
@@ -6986,11 +7029,40 @@
   local.get $vessel
   call $assembly/index/VesselState#get:p
   f64.neg
+  block $~lib/math/NativeMath.abs|inlined.10 (result f64)
+   local.get $vessel
+   call $assembly/index/VesselState#get:p
+   local.set $x|70
+   local.get $x|70
+   f64.abs
+   br $~lib/math/NativeMath.abs|inlined.10
+  end
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:waterDensity
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:beam
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:beam
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:length
+  f64.mul
+  f64.const 0.02
+  f64.mul
+  local.set $rollHydroDamping
+  local.get $vessel
+  call $assembly/index/VesselState#get:p
+  f64.neg
   f64.const 0.9
   f64.mul
   local.set $rollDamping
   local.get $waveRoll
   local.get $rollDamping
+  f64.add
+  local.get $rollHydroDamping
   f64.add
   local.set $netMomentRoll
   local.get $netMomentRoll
@@ -7089,11 +7161,44 @@
   local.get $vessel
   call $assembly/index/VesselState#get:q
   f64.neg
+  block $~lib/math/NativeMath.abs|inlined.11 (result f64)
+   local.get $vessel
+   call $assembly/index/VesselState#get:q
+   local.set $x|77
+   local.get $x|77
+   f64.abs
+   br $~lib/math/NativeMath.abs|inlined.11
+  end
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:waterDensity
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:length
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:length
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:beam
+  f64.mul
+  f64.const 0.015
+  f64.mul
+  local.set $pitchHydroDamping
+  local.get $vessel
+  call $assembly/index/VesselState#get:q
+  f64.neg
   f64.const 0.8
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:q
+  call $~lib/math/NativeMath.sign
   f64.mul
   local.set $pitchDamping
   local.get $wavePitch
   local.get $pitchDamping
+  f64.add
+  local.get $pitchHydroDamping
   f64.add
   local.set $netMomentPitch
   local.get $netMomentPitch
@@ -7187,12 +7292,53 @@
     call $assembly/index/VesselState#set:theta
    end
   end
+  local.get $vessel
+  call $assembly/index/VesselState#get:r
+  f64.neg
+  block $~lib/math/NativeMath.abs|inlined.12 (result f64)
+   local.get $vessel
+   call $assembly/index/VesselState#get:r
+   local.set $x|83
+   local.get $x|83
+   f64.abs
+   br $~lib/math/NativeMath.abs|inlined.12
+  end
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:waterDensity
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:length
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:length
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:beam
+  f64.mul
+  f64.const 0.05
+  f64.mul
+  local.set $yawHydroDamping
+  local.get $vessel
+  call $assembly/index/VesselState#get:r
+  f64.neg
+  f64.const 1.1
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:r
+  call $~lib/math/NativeMath.sign
+  f64.mul
+  local.set $yawDamping
   local.get $rudderYaw
   local.get $windYaw
   f64.add
   local.get $currentYaw
   f64.add
   local.get $waveYaw
+  f64.add
+  local.get $yawDamping
+  f64.add
+  local.get $yawHydroDamping
   f64.add
   local.set $netMomentYaw
   local.get $netMomentYaw
@@ -7442,13 +7588,13 @@
    local.set $fuelConsumptionRate
    block $~lib/math/NativeMath.max|inlined.5 (result f64)
     local.get $fuelConsumptionRate
-    local.set $value1|90
+    local.set $value1|98
     f64.const 0.01
     local.get $safeDt
     f64.mul
-    local.set $value2|91
-    local.get $value1|90
-    local.get $value2|91
+    local.set $value2|99
+    local.get $value1|98
+    local.get $value2|99
     f64.max
     br $~lib/math/NativeMath.max|inlined.5
    end
@@ -8013,7 +8159,7 @@
   if
    i32.const 7792
    i32.const 6784
-   i32.const 1243
+   i32.const 1279
    i32.const 5
    call $~lib/builtins/abort
    unreachable
@@ -8055,20 +8201,6 @@
   f64.const 0
   f64.eq
   i32.eqz
-  if (result i32)
-   i32.const 1
-  else
-   local.get $throttle
-   f64.const 0
-   f64.lt
-  end
-  if (result i32)
-   i32.const 1
-  else
-   local.get $throttle
-   f64.const 1
-   f64.gt
-  end
   if
    return
   end
@@ -8204,21 +8336,6 @@
   f64.const 0
   f64.eq
   i32.eqz
-  if (result i32)
-   i32.const 1
-  else
-   local.get $level
-   f64.const 0
-   f64.ge
-   if (result i32)
-    local.get $level
-    f64.const 1
-    f64.le
-   else
-    i32.const 0
-   end
-   i32.eqz
-  end
   if
    return
   end
