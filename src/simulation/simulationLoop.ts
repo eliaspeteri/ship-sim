@@ -206,7 +206,10 @@ export class SimulationLoop {
 
     this.accumulatedTime += deltaTime;
 
-    this.updatePhysics(this.fixedTimeStep);
+    while (this.accumulatedTime >= this.fixedTimeStep) {
+      this.updatePhysics(this.fixedTimeStep);
+      this.accumulatedTime -= this.fixedTimeStep;
+    }
 
     // Update UI state from physics state
     this.updateUIFromPhysics();
