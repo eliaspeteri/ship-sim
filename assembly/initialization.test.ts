@@ -23,7 +23,7 @@ test('createVessel reuses the same vessel instance when called multiple times', 
   setThrottle(ptr1, 0.75);
 
   // Second call should return the same instance with our modifications
-  const ptr2 = createVessel();
+  const ptr2 = createTestVessel();
 
   // Verify that both pointers reference the same object
   expect<usize>(ptr1).equal(ptr2);
@@ -37,14 +37,14 @@ test('createVessel reuses the same vessel instance when called multiple times', 
 test('vessel modifications persist when createVessel is called again', () => {
   resetGlobalVessel();
   // Create a vessel and modify its position
-  const ptr1 = createVessel();
+  const ptr1 = createTestVessel();
 
   // Get current position
   const x1 = getVesselX(ptr1);
   const y1 = getVesselY(ptr1);
 
   // Access the vessel again
-  const ptr2 = createVessel();
+  const ptr2 = createTestVessel();
 
   // Position should be the same
   expect<f64>(getVesselX(ptr2)).closeTo(x1, 0.0001);

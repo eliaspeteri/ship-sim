@@ -49,7 +49,7 @@ test('vessel movement at low speeds', () => {
 test('engine RPM increases with throttle', () => {
   resetGlobalVessel();
   // Reset vessel
-  const ptr = createVessel();
+  const ptr = createTestVessel();
   setThrottle(ptr, 0.0);
   updateVesselState(ptr, 0.01, 0, 0, 0, 0);
 
