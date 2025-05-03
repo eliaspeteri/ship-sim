@@ -13,10 +13,13 @@ import {
   endTest,
 } from 'assemblyscript-unittest-framework/assembly';
 
+import { resetGlobalVessel } from './util/test-vessel.util';
+
 /**
  * Test Beaufort scale mapping from wind speed.
  */
 test('calculateBeaufortScale correctly maps wind speeds', () => {
+  resetGlobalVessel();
   expect<i32>(calculateBeaufortScale(0.0)).equal(0); // Calm
   expect<i32>(calculateBeaufortScale(0.5)).equal(1); // Light air
   expect<i32>(calculateBeaufortScale(3.0)).equal(2); // Light breeze
@@ -36,6 +39,7 @@ test('calculateBeaufortScale correctly maps wind speeds', () => {
  * Test getWaveHeightForSeaState returns expected values for different sea states.
  */
 test('getWaveHeightForSeaState returns expected values for different sea states', () => {
+  resetGlobalVessel();
   expect<f64>(getWaveHeightForSeaState(0.0)).closeTo(0.0, 0.001);
   expect<f64>(getWaveHeightForSeaState(1.0)).closeTo(0.1, 0.001);
   expect<f64>(getWaveHeightForSeaState(3.0)).closeTo(0.6, 0.001);
@@ -51,6 +55,7 @@ test('getWaveHeightForSeaState returns expected values for different sea states'
  * Test calculateWaveLength is consistent with deep water wave theory.
  */
 test('calculateWaveLength is consistent with deep water wave theory', () => {
+  resetGlobalVessel();
   const seaState = 4;
   const waveLength = calculateWaveLength(seaState);
   // Deep water wave velocity: v = sqrt(g * λ / (2π))
@@ -63,6 +68,7 @@ test('calculateWaveLength is consistent with deep water wave theory', () => {
  * Test calculateWaveHeightAtPosition returns wave heights based on position.
  */
 test('calculateWaveHeightAtPosition returns wave heights based on position', () => {
+  resetGlobalVessel();
   const waveHeight = 2.0;
   const waveLength = 50.0;
   const waveFrequency = 0.5;
@@ -109,6 +115,7 @@ test('calculateWaveHeightAtPosition returns wave heights based on position', () 
 
 // End all tests
 test('dummy', () => {
+  resetGlobalVessel();
   expect<i32>(1).equal(1);
 });
 endTest();

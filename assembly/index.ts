@@ -1501,3 +1501,10 @@ export function setVesselVelocity(
   vessel.w = heave;
   globalVessel = vessel;
 }
+
+/**
+ * Resets the global vessel state. Used for test isolation.
+ */
+export function resetGlobalVessel(): void {
+  globalVessel = null;
+}

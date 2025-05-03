@@ -21,6 +21,7 @@ import { createFreshVessel, resetGlobalVessel } from './util/test-vessel.util';
 // --- Control System Tests ---
 
 test('setThrottle changes engine RPM and fuel consumption', () => {
+  resetGlobalVessel();
   const ptr = createFreshVessel();
 
   setThrottle(ptr, 0.0);
@@ -44,6 +45,7 @@ test('setThrottle changes engine RPM and fuel consumption', () => {
 });
 
 test('setBallast affects vessel stability', () => {
+  resetGlobalVessel();
   const ptr = createFreshVessel();
 
   // Initial GM with default ballast
@@ -68,6 +70,7 @@ test('setBallast affects vessel stability', () => {
 });
 
 test('setRudderAngle affects turning rate', () => {
+  resetGlobalVessel();
   const ptr = createFreshVessel();
   setThrottle(ptr, 0.5); // Set some speed
 
@@ -89,6 +92,7 @@ test('setRudderAngle affects turning rate', () => {
 });
 
 test('fuel consumption reduces fuel level', () => {
+  resetGlobalVessel();
   const ptr = createFreshVessel();
 
   setThrottle(ptr, 1.0); // High fuel consumption
@@ -102,10 +106,8 @@ test('fuel consumption reduces fuel level', () => {
 });
 
 test('vessel responds to environmental forces', () => {
-  // Instead of testing vessel speed, let's test vessel position directly
-  const ptr = createVessel();
-
-  // Start with vessel at rest
+  resetGlobalVessel();
+  const ptr = createFreshVessel();
   setThrottle(ptr, 0.0);
   setRudderAngle(ptr, 0.0);
 

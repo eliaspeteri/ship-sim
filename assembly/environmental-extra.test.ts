@@ -9,6 +9,7 @@ import {
   calculateWaveHeightAtPosition,
   getWaveHeightForSeaState,
 } from './index';
+import { resetGlobalVessel } from './util/test-vessel.util';
 
 /**
  * Additional wave and environmental tests to improve branch coverage
@@ -16,6 +17,7 @@ import {
  */
 
 test('calculateWaveHeightAtPosition returns zero for calm sea states', (): void => {
+  resetGlobalVessel();
   const calmSeaState: f64 = 0.3; // Below the 0.5 threshold
   const normalSeaState: f64 = 2.0;
   const x: f64 = 10.0;
@@ -52,6 +54,7 @@ test('calculateWaveHeightAtPosition returns zero for calm sea states', (): void 
 });
 
 test('getWaveHeightForSeaState and calculateWaveFrequency return zero for calm sea states', (): void => {
+  resetGlobalVessel();
   const calmSeaState: i32 = 0;
   const normalSeaState: i32 = 5;
 
@@ -63,6 +66,7 @@ test('getWaveHeightForSeaState and calculateWaveFrequency return zero for calm s
 });
 
 test('wave calculations handle extreme sea state values', (): void => {
+  resetGlobalVessel();
   const extremeSeaState: i32 = 100;
   expect<f64>(getWaveHeightForSeaState(extremeSeaState)).closeTo(14, 0.001);
   expect<f64>(calculateWaveLength(extremeSeaState)).greaterThan(0);
@@ -70,6 +74,7 @@ test('wave calculations handle extreme sea state values', (): void => {
 });
 
 test('wave calculations handle negative sea state values', (): void => {
+  resetGlobalVessel();
   const negativeSeaState: f64 = -2.0;
   expect<f64>(getWaveHeightForSeaState(negativeSeaState)).closeTo(0.0, 0.001);
 });

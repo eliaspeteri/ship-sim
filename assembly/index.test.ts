@@ -1,5 +1,4 @@
 import {
-  createVessel,
   getVesselHeading,
   getVesselPitchAngle,
   getVesselRollAngle,
@@ -10,7 +9,6 @@ import {
   setBallast,
   setRudderAngle,
   setThrottle,
-  setWaveData,
   updateVesselState,
   getVesselEngineRPM,
   getVesselFuelLevel,
@@ -22,7 +20,6 @@ import {
   getVesselCenterOfGravityY,
   getVesselRudderAngle,
   getVesselBallastLevel,
-  setVesselVelocity,
 } from '../assembly/index';
 
 import {
@@ -30,32 +27,23 @@ import {
   expect,
   endTest,
 } from 'assemblyscript-unittest-framework/assembly';
-
-// Define usize as u32 for compatibility with AssemblyScript memory model
-type usize = u32;
-
-/**
- * Helper function to create a fresh vessel instance for each test
- */
-function createFreshVessel(): usize {
-  const ptr = createVessel();
-  setThrottle(ptr, 0.2);
-  setRudderAngle(ptr, 0.0);
-  setBallast(ptr, 0.5);
-  setWaveData(ptr, 0.0, 0.0);
-  updateVesselState(ptr, 0.01, 0, 0, 0, 0);
-  return ptr;
-}
+import {
+  createFreshVessel,
+  createTestVessel,
+  resetGlobalVessel,
+} from './util/test-vessel.util';
 
 /**
  * Vessel Creation and Basic State Tests
  */
 test('createVessel returns valid vessel pointer', (): void => {
-  const ptr = createVessel();
+  resetGlobalVessel();
+  const ptr = createTestVessel();
   expect<boolean>(ptr > 0).equal(true);
 });
 
 test('createVessel initializes vessel with default values', (): void => {
+  resetGlobalVessel();
   const ptr = createFreshVessel();
   expect<f64>(getVesselX(ptr)).closeTo(0.0, 0.02);
   expect<f64>(getVesselY(ptr)).closeTo(0.0, 0.001);
@@ -71,6 +59,7 @@ test('createVessel initializes vessel with default values', (): void => {
 });
 
 test('vessel position updates correctly when moving forward', (): void => {
+  resetGlobalVessel();
   const ptr = createFreshVessel();
   setThrottle(ptr, 0.5);
   const initialX = getVesselX(ptr);
@@ -81,7 +70,8 @@ test('vessel position updates correctly when moving forward', (): void => {
 });
 
 test('vessel heading stays in valid range when turning', (): void => {
-  const ptr = createVessel();
+  resetGlobalVessel();
+  const ptr = createTestVessel();
   setThrottle(ptr, 0.5);
   setRudderAngle(ptr, 0.6);
   updateVesselState(ptr, 2.5, 0, 0, 0, 0);
@@ -94,6 +84,7 @@ test('vessel heading stays in valid range when turning', (): void => {
  * Key NaN protection tests
  */
 test('vessel state remains valid after physics update', (): void => {
+  resetGlobalVessel();
   const ptr = createFreshVessel();
   setThrottle(ptr, 0.3);
 
@@ -117,6 +108,7 @@ test('vessel state remains valid after physics update', (): void => {
 });
 
 test('updateVesselState does not update position if dt is NaN', (): void => {
+  resetGlobalVessel();
   const ptr = createFreshVessel();
   const initialX = getVesselX(ptr);
   const initialY = getVesselY(ptr);
@@ -130,6 +122,7 @@ test('updateVesselState does not update position if dt is NaN', (): void => {
 });
 
 test('updateVesselState handles NaN and Infinity safely', (): void => {
+  resetGlobalVessel();
   const ptr = createFreshVessel();
 
   // Test with various NaN parameters
@@ -151,6 +144,7 @@ test('updateVesselState handles NaN and Infinity safely', (): void => {
  * Tests for position update limiting
  */
 test('updateVesselState limits extreme position updates', (): void => {
+  resetGlobalVessel();
   const ptr = createFreshVessel();
 
   // Create extreme velocity through multiple updates
@@ -174,6 +168,7 @@ test('updateVesselState limits extreme position updates', (): void => {
  * Tests for heading normalization
  */
 test('updateVesselState normalizes heading correctly', (): void => {
+  resetGlobalVessel();
   const ptr = createFreshVessel();
 
   // Create a vessel with high rotation rate
@@ -191,7 +186,8 @@ test('updateVesselState normalizes heading correctly', (): void => {
 
   // Create another vessel and force negative heading
   // (using multiple updates with reversed rudder)
-  const ptr2 = createVessel();
+  resetGlobalVessel();
+  const ptr2 = createTestVessel();
   setRudderAngle(ptr2, -0.6);
   setThrottle(ptr2, 0.5);
 
@@ -209,9 +205,8 @@ test('updateVesselState normalizes heading correctly', (): void => {
  * Tests for zero fuel level behavior
  */
 test('updateVesselState correctly handles zero fuel level', (): void => {
-  const ptr = createVessel();
-
-  // Set vessel throttle and ensure we have engine power
+  resetGlobalVessel();
+  const ptr = createTestVessel();
   setThrottle(ptr, 1.0);
 
   // Get initial RPM and speed
@@ -250,6 +245,7 @@ test('updateVesselState limits roll and pitch angles', (): void => {
 });
 
 test('updateVesselState keeps z position above water', (): void => {
+  resetGlobalVessel();
   const ptr = createFreshVessel();
 
   // Create negative vertical velocity through wave forces
@@ -269,7 +265,8 @@ test('updateVesselState keeps z position above water', (): void => {
  * All derived/physics state must be updated from WASM and remain valid.
  */
 test('WASM always returns valid derived state after update', (): void => {
-  const ptr = createVessel();
+  resetGlobalVessel();
+  const ptr = createTestVessel();
   // Simulate invalid control input (should be ignored or sanitized by WASM)
   setThrottle(ptr, NaN as f64);
   setRudderAngle(ptr, NaN as f64);
@@ -297,7 +294,8 @@ test('WASM always returns valid derived state after update', (): void => {
 });
 
 test('Frontend state matches WASM after update', (): void => {
-  const ptr = createVessel();
+  resetGlobalVessel();
+  const ptr = createTestVessel();
   setThrottle(ptr, 1.0);
   setRudderAngle(ptr, 0.2);
   updateVesselState(ptr, 1.0, 0, 0, 0, 0);
@@ -321,7 +319,8 @@ test('Frontend state matches WASM after update', (): void => {
  * Tests for uncovered branches and edge cases in vessel state update and validation.
  */
 test('updateVesselState aborts update if vessel state is invalid (NaN)', (): void => {
-  const ptr = createVessel();
+  resetGlobalVessel();
+  const ptr = createTestVessel();
   // Simulate invalid state by passing NaN to setThrottle
   setThrottle(ptr, NaN as f64);
   const xBefore: f64 = getVesselX(ptr);
@@ -331,7 +330,8 @@ test('updateVesselState aborts update if vessel state is invalid (NaN)', (): voi
 });
 
 test('updateVesselState clamps rudder angle to max/min', (): void => {
-  const ptr = createVessel();
+  resetGlobalVessel();
+  const ptr = createTestVessel();
   setRudderAngle(ptr, 2.0); // Exceeds max
   updateVesselState(ptr, 1.0, 0, 0, 0, 0);
   expect<f64>(getVesselRudderAngle(ptr)).closeTo(0.6, 0.0001);
@@ -341,7 +341,8 @@ test('updateVesselState clamps rudder angle to max/min', (): void => {
 });
 
 test('updateVesselState clamps ballast level to [0, 1]', (): void => {
-  const ptr = createVessel();
+  resetGlobalVessel();
+  const ptr = createTestVessel();
   setBallast(ptr, 2.0);
   updateVesselState(ptr, 1.0, 0, 0, 0, 0);
   expect<f64>(getVesselBallastLevel(ptr)).closeTo(1.0, 0.0001);

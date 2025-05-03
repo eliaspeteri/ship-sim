@@ -3,27 +3,21 @@ import {
   expect,
   endTest,
 } from 'assemblyscript-unittest-framework/assembly';
-import {
-  createVessel,
-  getVesselHeading,
-  getVesselSpeed,
-  getVesselX,
-  getVesselY,
-  setThrottle,
-} from './index';
+import { getVesselSpeed, getVesselX, getVesselY, setThrottle } from './index';
+import { createTestVessel, resetGlobalVessel } from './util/test-vessel.util';
+
+type usize = u32;
 
 /**
  * Tests focusing on vessel initialization and the singleton pattern
  * These tests specifically target the global vessel initialization branch (Line 787)
  */
 
-// Define usize as u32 for compatibility with AssemblyScript memory model
-type usize = u32;
-
 // Test for Line 787: Global vessel initialization in createVessel function
 test('createVessel reuses the same vessel instance when called multiple times', () => {
-  // First call to createVessel initializes the vessel with default values
-  const ptr1 = createVessel();
+  resetGlobalVessel();
+  // First call to createTestVessel initializes the vessel with default values
+  const ptr1 = createTestVessel();
 
   // Modify vessel state
   setThrottle(ptr1, 0.75);
@@ -41,6 +35,7 @@ test('createVessel reuses the same vessel instance when called multiple times', 
 
 // Test vessel modifications persist across creations
 test('vessel modifications persist when createVessel is called again', () => {
+  resetGlobalVessel();
   // Create a vessel and modify its position
   const ptr1 = createVessel();
 

@@ -11,6 +11,7 @@ import {
   setBallast,
   setWaveData,
 } from './index';
+import { createTestVessel, resetGlobalVessel } from './util/test-vessel.util';
 
 /**
  * This specialized test file targets fuel-related branches in a way that's robust against
@@ -22,7 +23,7 @@ import {
  * Helper to reset vessel to a known state
  */
 function resetVessel(): void {
-  const ptr = createVessel();
+  const ptr = createTestVessel();
 
   // Reset key vessel state parameters
   setThrottle(ptr, 0.0);
@@ -38,8 +39,9 @@ function resetVessel(): void {
 
 // Test for Line 761: Fuel consumption block
 test('fuel consumption branch is executed', () => {
+  resetGlobalVessel();
   // This test just verifies that the fuel consumption code path executes
-  const ptr = createVessel();
+  const ptr = createTestVessel();
   resetVessel();
 
   // Apply throttle and run for some time - this will execute the fuel consumption logic
@@ -52,9 +54,10 @@ test('fuel consumption branch is executed', () => {
 
 // Test for Line 889: Engine stops when fuel is depleted
 test('engine stops when out of fuel branch is executed', () => {
+  resetGlobalVessel();
   // This test just needs to exercise the fuel depletion code path
   resetVessel();
-  const ptr = createVessel();
+  const ptr = createTestVessel();
 
   // Set throttle to high value
   setThrottle(ptr, 1.0);

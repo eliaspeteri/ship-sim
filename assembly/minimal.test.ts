@@ -1,10 +1,6 @@
 import {
-  createVessel,
   getVesselX,
-  getVesselY,
-  getVesselHeading,
   setThrottle,
-  setRudderAngle,
   updateVesselState,
   calculateBeaufortScale,
 } from '../assembly/index';
@@ -14,25 +10,26 @@ import {
   expect,
   endTest,
 } from 'assemblyscript-unittest-framework/assembly';
-
-// Define usize as u32 for compatibility
-type usize = u32;
+import { createTestVessel, resetGlobalVessel } from './util/test-vessel.util';
 
 // Test environment calculation
 test('calculateBeaufortScale maps wind speeds correctly', () => {
+  resetGlobalVessel();
   expect<i32>(calculateBeaufortScale(0.0)).equal(0);
   expect<i32>(calculateBeaufortScale(15.0)).equal(7);
 });
 
 // Test vessel creation
 test('createVessel returns valid pointer', () => {
-  const ptr = createVessel();
+  resetGlobalVessel();
+  const ptr = createTestVessel();
   expect<boolean>(ptr > 0).equal(true);
 });
 
 // Test vessel movement
 test('vessel moves when throttle applied', () => {
-  const ptr = createVessel();
+  resetGlobalVessel();
+  const ptr = createTestVessel();
   setThrottle(ptr, 0.5);
   const x1 = getVesselX(ptr);
 

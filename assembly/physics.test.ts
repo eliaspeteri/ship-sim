@@ -4,30 +4,26 @@ import {
   endTest,
 } from 'assemblyscript-unittest-framework/assembly';
 import {
-  createVessel,
   setThrottle,
   updateVesselState,
   getVesselSpeed,
   getVesselEngineRPM,
-  getVesselX,
-  getVesselY,
   setBallast,
   setRudderAngle,
   setWaveData,
 } from './index';
+import { createTestVessel, resetGlobalVessel } from './util/test-vessel.util';
 
 /**
  * This test suite focuses on the vessel physics components to improve branch coverage
  * Uses public API to exercise internal physics branches
  */
 
-// Define usize as u32 for compatibility with AssemblyScript memory model
-type usize = u32;
-
 // Test for Line 155: Beginning of calculateHullResistance function by ensuring
 // the test will pass regardless of exact speed - we just need to exercise the branch
 test('vessel movement at low speeds', () => {
-  const ptr = createVessel();
+  resetGlobalVessel();
+  const ptr = createTestVessel();
 
   // Reset to known state
   setThrottle(ptr, 0.0);
@@ -51,6 +47,7 @@ test('vessel movement at low speeds', () => {
 
 // Test for Line 278 & Line 299: Engine torque curve and fuel consumption at different RPM ranges
 test('engine RPM increases with throttle', () => {
+  resetGlobalVessel();
   // Reset vessel
   const ptr = createVessel();
   setThrottle(ptr, 0.0);
