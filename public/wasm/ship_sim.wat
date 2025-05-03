@@ -4821,10 +4821,12 @@
     f64.store offset=64
    end
   end
-  local.get $28
+  local.get $0
   local.get $0
   f64.load offset=80
   local.tee $1
+  local.get $28
+  local.get $1
   f64.const -0.9
   f64.mul
   f64.add
@@ -4838,9 +4840,9 @@
   f64.mul
   local.get $0
   f64.load offset=128
-  local.tee $3
+  local.tee $1
   f64.mul
-  local.get $3
+  local.get $1
   f64.mul
   local.get $0
   f64.load offset=120
@@ -4850,42 +4852,10 @@
   f64.add
   local.get $15
   f64.div
-  local.tee $3
-  f64.abs
-  f64.const 5
-  f64.lt
-  if
-   local.get $0
-   local.get $1
-   local.get $3
-   local.get $9
-   f64.mul
-   f64.add
-   f64.store offset=80
-  else
-   local.get $3
-   f64.const 0
-   f64.gt
-   if
-    local.get $0
-    local.get $0
-    f64.load offset=80
-    local.get $9
-    f64.const 5
-    f64.mul
-    f64.add
-    f64.store offset=80
-   else
-    local.get $0
-    local.get $0
-    f64.load offset=80
-    local.get $9
-    f64.const 5
-    f64.mul
-    f64.sub
-    f64.store offset=80
-   end
-  end
+  local.get $9
+  f64.mul
+  f64.add
+  f64.store offset=80
   local.get $0
   local.get $0
   f64.load offset=32
@@ -4918,28 +4888,11 @@
   f64.add
   f64.store offset=80
   local.get $0
-  f64.load offset=32
-  f64.const 0.6
-  f64.gt
-  if
-   local.get $0
-   f64.const 0.6
-   f64.store offset=32
-  else
-   local.get $0
-   f64.load offset=32
-   f64.const -0.6
-   f64.lt
-   if
-    local.get $0
-    f64.const -0.6
-    f64.store offset=32
-   end
-  end
-  local.get $29
   local.get $0
   f64.load offset=88
   local.tee $1
+  local.get $29
+  local.get $1
   f64.const -0.8
   f64.mul
   f64.const 1
@@ -4965,9 +4918,9 @@
   f64.mul
   local.get $0
   f64.load offset=120
-  local.tee $3
   f64.mul
-  local.get $3
+  local.get $0
+  f64.load offset=120
   f64.mul
   local.get $0
   f64.load offset=128
@@ -4977,42 +4930,10 @@
   f64.add
   local.get $16
   f64.div
-  local.tee $3
-  f64.abs
-  f64.const 5
-  f64.lt
-  if
-   local.get $0
-   local.get $1
-   local.get $3
-   local.get $9
-   f64.mul
-   f64.add
-   f64.store offset=88
-  else
-   local.get $3
-   f64.const 0
-   f64.gt
-   if
-    local.get $0
-    local.get $0
-    f64.load offset=88
-    local.get $9
-    f64.const 5
-    f64.mul
-    f64.add
-    f64.store offset=88
-   else
-    local.get $0
-    local.get $0
-    f64.load offset=88
-    local.get $9
-    f64.const 5
-    f64.mul
-    f64.sub
-    f64.store offset=88
-   end
-  end
+  local.get $9
+  f64.mul
+  f64.add
+  f64.store offset=88
   local.get $0
   local.get $0
   f64.load offset=40
@@ -5042,25 +4963,6 @@
   f64.mul
   f64.add
   f64.store offset=88
-  local.get $0
-  f64.load offset=40
-  f64.const 0.3
-  f64.gt
-  if
-   local.get $0
-   f64.const 0.3
-   f64.store offset=40
-  else
-   local.get $0
-   f64.load offset=40
-   f64.const -0.3
-   f64.lt
-   if
-    local.get $0
-    f64.const -0.3
-    f64.store offset=40
-   end
-  end
   local.get $21
   local.get $23
   f64.add
@@ -5096,9 +4998,9 @@
   f64.mul
   local.get $0
   f64.load offset=120
-  local.tee $3
   f64.mul
-  local.get $3
+  local.get $0
+  f64.load offset=120
   f64.mul
   local.get $0
   f64.load offset=128
@@ -5725,7 +5627,7 @@
   if
    i32.const 8816
    i32.const 7808
-   i32.const 1279
+   i32.const 1253
    i32.const 5
    call $~lib/builtins/abort
    unreachable

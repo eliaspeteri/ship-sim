@@ -7069,43 +7069,14 @@
   local.get $inertiaRoll
   f64.div
   local.set $rollDot
+  local.get $vessel
+  local.get $vessel
+  call $assembly/index/VesselState#get:p
   local.get $rollDot
-  f64.abs
-  f64.const 5
-  f64.lt
-  if
-   local.get $vessel
-   local.get $vessel
-   call $assembly/index/VesselState#get:p
-   local.get $rollDot
-   local.get $safeDt
-   f64.mul
-   f64.add
-   call $assembly/index/VesselState#set:p
-  else
-   local.get $rollDot
-   f64.const 0
-   f64.gt
-   if
-    local.get $vessel
-    local.get $vessel
-    call $assembly/index/VesselState#get:p
-    f64.const 5
-    local.get $safeDt
-    f64.mul
-    f64.add
-    call $assembly/index/VesselState#set:p
-   else
-    local.get $vessel
-    local.get $vessel
-    call $assembly/index/VesselState#get:p
-    f64.const 5
-    local.get $safeDt
-    f64.mul
-    f64.sub
-    call $assembly/index/VesselState#set:p
-   end
-  end
+  local.get $safeDt
+  f64.mul
+  f64.add
+  call $assembly/index/VesselState#set:p
   local.get $vessel
   local.get $vessel
   call $assembly/index/VesselState#get:phi
@@ -7139,25 +7110,6 @@
   f64.mul
   f64.add
   call $assembly/index/VesselState#set:p
-  local.get $vessel
-  call $assembly/index/VesselState#get:phi
-  f64.const 0.6
-  f64.gt
-  if
-   local.get $vessel
-   f64.const 0.6
-   call $assembly/index/VesselState#set:phi
-  else
-   local.get $vessel
-   call $assembly/index/VesselState#get:phi
-   f64.const -0.6
-   f64.lt
-   if
-    local.get $vessel
-    f64.const -0.6
-    call $assembly/index/VesselState#set:phi
-   end
-  end
   local.get $vessel
   call $assembly/index/VesselState#get:q
   f64.neg
@@ -7205,43 +7157,14 @@
   local.get $inertiaPitch
   f64.div
   local.set $pitchDot
+  local.get $vessel
+  local.get $vessel
+  call $assembly/index/VesselState#get:q
   local.get $pitchDot
-  f64.abs
-  f64.const 5
-  f64.lt
-  if
-   local.get $vessel
-   local.get $vessel
-   call $assembly/index/VesselState#get:q
-   local.get $pitchDot
-   local.get $safeDt
-   f64.mul
-   f64.add
-   call $assembly/index/VesselState#set:q
-  else
-   local.get $pitchDot
-   f64.const 0
-   f64.gt
-   if
-    local.get $vessel
-    local.get $vessel
-    call $assembly/index/VesselState#get:q
-    f64.const 5
-    local.get $safeDt
-    f64.mul
-    f64.add
-    call $assembly/index/VesselState#set:q
-   else
-    local.get $vessel
-    local.get $vessel
-    call $assembly/index/VesselState#get:q
-    f64.const 5
-    local.get $safeDt
-    f64.mul
-    f64.sub
-    call $assembly/index/VesselState#set:q
-   end
-  end
+  local.get $safeDt
+  f64.mul
+  f64.add
+  call $assembly/index/VesselState#set:q
   local.get $vessel
   local.get $vessel
   call $assembly/index/VesselState#get:theta
@@ -7273,25 +7196,6 @@
   f64.mul
   f64.add
   call $assembly/index/VesselState#set:q
-  local.get $vessel
-  call $assembly/index/VesselState#get:theta
-  f64.const 0.3
-  f64.gt
-  if
-   local.get $vessel
-   f64.const 0.3
-   call $assembly/index/VesselState#set:theta
-  else
-   local.get $vessel
-   call $assembly/index/VesselState#get:theta
-   f64.const -0.3
-   f64.lt
-   if
-    local.get $vessel
-    f64.const -0.3
-    call $assembly/index/VesselState#set:theta
-   end
-  end
   local.get $vessel
   call $assembly/index/VesselState#get:r
   f64.neg
@@ -8159,7 +8063,7 @@
   if
    i32.const 7792
    i32.const 6784
-   i32.const 1279
+   i32.const 1253
    i32.const 5
    call $~lib/builtins/abort
    unreachable
