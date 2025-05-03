@@ -313,9 +313,12 @@ export default function Scene({ vesselPosition }: SceneProps) {
 
         {/* Sky and lighting */}
         <Sky sunPosition={sunPosition as [number, number, number]} />
-        <ambientLight intensity={0.8} />
+        <ambientLight
+          intensity={0.8}
+          position={[vesselPosition.x, vesselPosition.y, 5]}
+        />
         <directionalLight
-          position={[10, 10, 5]}
+          position={[vesselPosition.x, vesselPosition.y, 5]}
           intensity={1}
           castShadow={isTabVisible}
           shadow-mapSize={lowPerformanceMode ? [1024, 1024] : [2048, 2048]}
