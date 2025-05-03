@@ -1074,13 +1074,6 @@ export function updateVesselState(
   const stabilizingMoment = -vessel.phi * GM * vessel.mass * GRAVITY;
   vessel.p += (stabilizingMoment / inertiaRoll) * safeDt;
 
-  // Limit roll angle
-  if (vessel.phi > 0.6) {
-    vessel.phi = 0.6;
-  } else if (vessel.phi < -0.6) {
-    vessel.phi = -0.6;
-  }
-
   // Pitch dynamics with damping and limits
   const pitchHydroDamping =
     -vessel.q *
@@ -1107,13 +1100,6 @@ export function updateVesselState(
   vessel.theta += vessel.q * safeDt;
   const pitchStabilizing = -vessel.theta * vessel.length * vessel.mass * 0.05;
   vessel.q += (pitchStabilizing / inertiaPitch) * safeDt;
-
-  // Limit pitch angle (with explicit branches for coverage)
-  if (vessel.theta > 0.3) {
-    vessel.theta = 0.3;
-  } else if (vessel.theta < -0.3) {
-    vessel.theta = -0.3;
-  }
 
   // Yaw dynamics with limits and damping
   const yawHydroDamping =
