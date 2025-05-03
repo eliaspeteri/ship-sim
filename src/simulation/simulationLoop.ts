@@ -2,6 +2,7 @@ import useStore from '../store';
 import { loadWasm } from '../lib/wasmLoader';
 import { WasmBridge } from '../lib/wasmBridge';
 import { VesselState } from '../types/vessel.types';
+import { safe } from '../lib/safe';
 
 // Singleton for simulation instance
 let simulationInstance: SimulationLoop | null = null;
@@ -36,27 +37,54 @@ export class SimulationLoop {
       const bridge = await loadWasm();
       this.wasmBridge = bridge;
       const state = useStore.getState();
-
-      // Create a vessel in WASM and store the pointer
+      console.info(`State. ${JSON.stringify(state, null, 2)}`);
+      const { vessel } = state;
+      const {
+        position,
+        orientation,
+        velocity,
+        controls,
+        angularVelocity,
+        properties,
+      } = vessel;
+      // Ensure vessel is created at rest unless restoring a running state
+      const initialSurge = safe(velocity.surge, 0);
+      const initialSway = safe(velocity.sway, 0);
+      const initialHeave = safe(velocity.heave, 0);
+      const initialThrottle = safe(controls.throttle, 0);
+      // If not restoring from a running state, force all to zero
+      const isRestoring = !!(
+        position?.x ||
+        position?.y ||
+        position?.z ||
+        initialSurge ||
+        initialSway ||
+        initialHeave ||
+        initialThrottle
+      );
+      const surge = isRestoring ? initialSurge : 0;
+      const sway = isRestoring ? initialSway : 0;
+      const heave = isRestoring ? initialHeave : 0;
+      const throttle = isRestoring ? initialThrottle : 0;
       const vesselPtr = this.wasmBridge.createVessel(
-        position?.x ? position.x : 0,
-        position?.y ? position.y : 0,
-        position?.z ?? 0,
-        orientation?.heading ?? 0,
-        orientation?.roll ?? 0,
-        orientation?.pitch ?? 0,
-        velocity?.surge ?? 0,
-        velocity?.sway ?? 0,
-        velocity?.heave ?? 0,
-        angularVelocity?.yaw ?? 0,
-        angularVelocity?.roll ?? 0,
-        angularVelocity?.pitch ?? 0,
-        controls?.throttle ?? 0,
-        controls?.rudderAngle ?? 0,
-        properties?.mass ?? 14950000,
-        properties?.length ?? 212,
-        properties?.beam ?? 28,
-        properties?.draft ?? 9.1,
+        safe(position.x, 0),
+        safe(position.y, 0),
+        safe(position.z, 0),
+        safe(orientation.heading, 0),
+        safe(orientation.roll, 0),
+        safe(orientation.pitch, 0),
+        surge,
+        sway,
+        heave,
+        safe(angularVelocity.yaw, 0),
+        safe(angularVelocity.roll, 0),
+        safe(angularVelocity.pitch, 0),
+        throttle,
+        safe(controls.rudderAngle, 0),
+        safe(properties.mass, 14950000),
+        safe(properties.length, 212),
+        safe(properties.beam, 28),
+        safe(properties.draft, 9.1),
       );
       state.setWasmVesselPtr(vesselPtr);
 
