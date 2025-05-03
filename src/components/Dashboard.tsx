@@ -80,8 +80,15 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
     };
   }, [throttleLocal, rudderAngleLocal, controls]);
 
+  const handleHardReset = () => {
+    localStorage.clear();
+    useStore.getState().resetVessel();
+    window.location.reload();
+  };
+
   return (
     <div className={`${className} text-white p-4`}>
+      <button onClick={handleHardReset}>Hard reset</button>
       {/* Top bar with time and controls */}
       <div className="flex flex-wrap justify-between items-center mb-4 bg-gray-900 p-3 rounded-lg">
         <div className="flex items-center space-x-4">

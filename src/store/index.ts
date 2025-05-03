@@ -42,6 +42,7 @@ interface NavigationData {
 interface SimulationState {
   // Vessel state
   vessel: VesselState;
+  resetVessel: () => void;
   updateVessel: (vessel: Partial<VesselState>) => void;
   setVesselName: (name: string) => void;
   setVesselType: (type: ShipType) => void;
@@ -201,6 +202,7 @@ const useStore = create<SimulationState>()(
     (set, get) => ({
       // Vessel state
       vessel: defaultVesselState,
+      resetVessel: () => set({ vessel: defaultVesselState }),
       updateVessel: vesselUpdate =>
         set(state => {
           try {
