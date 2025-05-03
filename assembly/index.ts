@@ -1218,6 +1218,29 @@ export function createVessel(
   beam: f64,
   draft: f64,
 ): usize {
+  // Add defensive checks for input values
+  if (
+    !isFinite(x) ||
+    !isFinite(y) ||
+    !isFinite(z) ||
+    !isFinite(psi) ||
+    !isFinite(phi) ||
+    !isFinite(theta) ||
+    !isFinite(u) ||
+    !isFinite(v) ||
+    !isFinite(w) ||
+    !isFinite(r) ||
+    !isFinite(p) ||
+    !isFinite(q) ||
+    !isFinite(throttle) ||
+    !isFinite(rudderAngle) ||
+    !isFinite(mass) ||
+    !isFinite(length) ||
+    !isFinite(beam) ||
+    !isFinite(draft)
+  ) {
+    throw new Error('Invalid input values for position or angles.');
+  }
   if (globalVessel === null) {
     globalVessel = new VesselState(
       x,
@@ -1249,6 +1272,8 @@ export function createVessel(
  * @param throttle - Throttle value (0.0 to 1.0)
  */
 export function setThrottle(vesselPtr: usize, throttle: f64): void {
+  if (!isFinite(throttle)) return;
+
   const vessel = changetype<VesselState>(vesselPtr);
   vessel.throttle = throttle > 1.0 ? 1.0 : throttle < 0.0 ? 0.0 : throttle;
 
@@ -1274,6 +1299,8 @@ export function setThrottle(vesselPtr: usize, throttle: f64): void {
  * @external
  */
 export function setWaveData(vesselPtr: usize, height: f64, phase: f64): void {
+  if (!isFinite(height) || !isFinite(phase)) return;
+
   const vessel = changetype<VesselState>(vesselPtr);
   vessel.waveHeight = height;
   vessel.wavePhase = phase;
@@ -1286,6 +1313,8 @@ export function setWaveData(vesselPtr: usize, height: f64, phase: f64): void {
  * @param angle - Rudder angle in radians
  */
 export function setRudderAngle(vesselPtr: usize, angle: f64): void {
+  if (!isFinite(angle)) return;
+
   const vessel = changetype<VesselState>(vesselPtr);
   // Limit rudder angle to reasonable values (-35 to 35 degrees in radians)
   const maxRudder = 0.6;
@@ -1300,6 +1329,8 @@ export function setRudderAngle(vesselPtr: usize, angle: f64): void {
  * @param level - Ballast level (0.0 to 1.0)
  */
 export function setBallast(vesselPtr: usize, level: f64): void {
+  if (!isFinite(level)) return;
+
   const vessel = changetype<VesselState>(vesselPtr);
   vessel.ballastLevel = level > 1.0 ? 1.0 : level < 0.0 ? 0.0 : level;
 
@@ -1496,6 +1527,8 @@ export function setVesselVelocity(
   heave: f64,
 ): void {
   const vessel = changetype<VesselState>(vesselPtr);
+  if (!isFinite(surge) || !isFinite(sway) || !isFinite(heave)) return;
+
   vessel.u = surge;
   vessel.v = sway;
   vessel.w = heave;
