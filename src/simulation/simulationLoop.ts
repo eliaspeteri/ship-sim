@@ -29,7 +29,7 @@ export class SimulationLoop {
    * Initialize the simulation with WASM exports
    * Ensures vessel pointer and initial position are set in the store.
    */
-  async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
     try {
       console.info('Initializing simulation with WASM module...');
       // Load WASM via our bridge that handles missing exports
@@ -151,7 +151,7 @@ export class SimulationLoop {
   /**
    * Start the simulation loop
    */
-  start(): void {
+  public start(): void {
     if (this.animationFrameId !== null) {
       return; // Already running
     }
