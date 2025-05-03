@@ -372,15 +372,17 @@ export class SimulationLoop {
 
     try {
       // Get environment parameters
-      const { seaState, wind } = state.environment;
+      const { wind } = state.environment;
 
       // Get wave height from physics engine
+      const seaState = this.wasmBridge.calculateSeaState(wind.speed);
       const waveHeight = this.wasmBridge.getWaveHeightForSeaState(seaState);
       state.updateEnvironment({ waveHeight });
 
       state.updateEnvironment({
-        waveHeight: this.wasmBridge.getWaveHeightForSeaState(seaState),
+        waveHeight,
         waveDirection: wind.direction,
+        seaState,
       });
 
       // Update vessel wave data in store
