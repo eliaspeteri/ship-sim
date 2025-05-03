@@ -200,14 +200,9 @@ export class SimulationLoop {
     const deltaTime = (currentTime - this.lastFrameTime) / 1000; // in seconds
     this.lastFrameTime = currentTime;
 
-    // Scale delta time by time scale factor
     this.accumulatedTime += deltaTime;
 
-    // Run fixed timestep physics updates
-    while (this.accumulatedTime >= this.fixedTimeStep) {
-      this.updatePhysics(this.fixedTimeStep);
-      this.accumulatedTime -= this.fixedTimeStep;
-    }
+    this.updatePhysics(this.fixedTimeStep);
 
     // Update UI state from physics state
     this.updateUIFromPhysics();
