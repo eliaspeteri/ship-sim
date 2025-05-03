@@ -20,6 +20,10 @@ export class SimulationLoop {
 
   constructor() {
     if (simulationInstance) {
+      console.info(
+        'SimulationLoop instance already exists, returning existing instance.',
+      );
+
       return simulationInstance;
     }
     // eslint-disable-next-line @typescript-eslint/no-this-alias
@@ -264,6 +268,7 @@ export class SimulationLoop {
       // Log if any values were NaN
       if (isNaN(x) || isNaN(y) || isNaN(z)) {
         console.warn('Physics returned NaN position values:', { x, y, z });
+        throw new Error('NaN position values from physics engine');
       }
 
       // Check orientation values
