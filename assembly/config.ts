@@ -13,9 +13,9 @@
  * the vessel must accelerate not only its own mass but also some of the water around it (added mass).
  * These factors help stabilize the simulation and should be adjusted based on vessel geometry or literature values.
  */
-export const ADDED_MASS_SURGE_FACTOR: f64 = 1.1;
-export const ADDED_MASS_SWAY_FACTOR: f64 = 1.6;
-export const ADDED_MASS_HEAVE_FACTOR: f64 = 1.2;
+export const ADDED_MASS_SURGE_FACTOR: f64 = 1.05;
+export const ADDED_MASS_SWAY_FACTOR: f64 = 1.2;
+export const ADDED_MASS_HEAVE_FACTOR: f64 = 1.1;
 export const INERTIA_ROLL_FACTOR: f64 = 1.1;
 export const INERTIA_PITCH_FACTOR: f64 = 1.1;
 export const INERTIA_YAW_FACTOR: f64 = 1.2;
@@ -28,8 +28,8 @@ export const FALLBACK_VESSEL_MASS: f64 = 1.0;
 export const FALLBACK_CGZ_FACTOR: f64 = 0.5;
 
 // Holtrop-Mennen model constants
-export const HM_C1: f64 = 2223105.0;
-export const HM_C2: f64 = 4.0;
+export const HM_C1: f64 = 22231.05;
+export const HM_C2: f64 = 2.0;
 export const HM_C3: f64 = 0.5;
 export const HM_C4: f64 = 0.15;
 
@@ -49,21 +49,15 @@ export const WAVE_RESISTANCE_NORMALIZATION: f64 = 100.0;
 export const WAVE_PERIOD_BASE: f64 = 3.0;
 export const WAVE_PERIOD_SLOPE: f64 = 1.6;
 
-export const MAX_ENGINE_POWER: f64 = 1000000.0; // 1 MW
-export const PROPELLER_DIAMETER: f64 = 0.5; // 0.5 m
+export const MAX_ENGINE_POWER: f64 = 2200000.0; // 2200 kW
+export const PROPELLER_DIAMETER: f64 = 3.0; // 3.0 m
 export const PROPELLER_GEAR_RATIO: f64 = 3.0;
-export const GRAVITY = 9.81; // m/s^2
-export const KINE_VISCOSITY = 0.000001187; // m²/s at 20°C
-
-export const BLOCK_COEFFICIENT = 0.8; // Typical value for a ship
-export const WATER_DENSITY = 1025; // kg/m³ for seawater
-export const AIR_DENSITY = 1.225; // kg/m³ at sea level
 
 /**
  * Fraction of the block coefficient used for wake fraction estimation.
  * Typical empirical value for merchant ships.
  */
-export const PROPELLER_WAKE_FRACTION_FACTOR: f64 = 0.3;
+export const PROPELLER_WAKE_FRACTION_FACTOR: f64 = 0.25;
 
 /**
  * Small value to avoid division by zero in advance coefficient calculation.
@@ -74,12 +68,19 @@ export const PROPELLER_ADVANCE_EPSILON: f64 = 0.001;
  * Thrust coefficient intercept and slope for linear KT(J) approximation.
  * KT = intercept - slope * J
  */
-export const PROPELLER_THRUST_COEFFICIENT_INTERCEPT: f64 = 0.5;
-export const PROPELLER_THRUST_COEFFICIENT_SLOPE: f64 = 0.4;
+export const PROPELLER_THRUST_COEFFICIENT_INTERCEPT: f64 = 1.0;
+export const PROPELLER_THRUST_COEFFICIENT_SLOPE: f64 = 0.3;
 
-export const RUDDER_ASPECT_RATIO: f64 = 1.5; // Aspect ratio for rudder hydrodynamics
+export const GRAVITY = 9.81; // m/s^2
+export const KINE_VISCOSITY = 0.000001187; // m²/s at 20°C
 
-export const RUDDER_AREA_COEFFICIENT: f64 = 0.02; // Coefficient for rudder area as a fraction of vessel length and draft
+export const BLOCK_COEFFICIENT = 0.8; // Typical value for a ship
+export const WATER_DENSITY = 1025; // kg/m³ for seawater
+export const AIR_DENSITY = 1.225; // kg/m³ at sea level
+
+export const RUDDER_ASPECT_RATIO: f64 = 1.8; // Aspect ratio for rudder hydrodynamics
+
+export const RUDDER_AREA_COEFFICIENT: f64 = 0.018; // Coefficient for rudder area as a fraction of vessel length and draft
 
 /**
  * Engine and fuel constants for diesel engine modeling
