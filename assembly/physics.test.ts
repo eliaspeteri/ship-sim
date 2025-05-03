@@ -11,6 +11,8 @@ import {
   setBallast,
   setRudderAngle,
   setWaveData,
+  getVesselSurgeVelocity,
+  setVesselVelocity,
 } from './index';
 import { createTestVessel, resetGlobalVessel } from './util/test-vessel.util';
 
@@ -72,6 +74,18 @@ test('engine RPM increases with throttle', () => {
   // Verify RPM increases with throttle
   expect<boolean>(midRPM > lowRPM).equal(true);
   expect<boolean>(highRPM > midRPM).equal(true);
+});
+
+test('vessel slows to stop with zero throttle and no external forces', () => {
+  resetGlobalVessel();
+  const ptr = createTestVessel();
+  setThrottle(ptr, 0);
+  // Set initial forward velocity
+  setVesselVelocity(ptr, 5, 0, 0);
+  for (let i = 0; i < 1000; i++) {
+    updateVesselState(ptr, 0.1, 0, 0, 0, 0);
+  }
+  expect<f64>(getVesselSurgeVelocity(ptr)).closeTo(0, 0.01);
 });
 
 endTest(); // Don't forget it!
