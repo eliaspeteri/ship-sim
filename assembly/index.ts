@@ -905,9 +905,9 @@ export function updateVesselState(
 
   // Calculate forces with simplified NaN protection
   // Hull resistance
-  const resistance = calculateHullResistance(vessel, speed);
+  const hullResistance = calculateHullResistance(vessel, speed);
   const waveResistance = calculateWaveResistance(vessel, calculatedSeaState);
-  const totalResistance = resistance + waveResistance;
+  const totalResistance = hullResistance + waveResistance;
 
   assert(totalResistance >= 0.0, 'Total resistance should be non-negative');
 
