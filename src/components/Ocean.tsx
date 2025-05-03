@@ -26,7 +26,7 @@ interface OceanProps {
 }
 
 function Ocean({
-  size = 10000,
+  size = 100000,
   resolution = 256,
   position = [0, -0.5, 0],
   waterColor = '#001e0f',

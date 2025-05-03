@@ -323,7 +323,10 @@ export default function Scene({ vesselPosition }: SceneProps) {
 
         {/* Ocean */}
         <Suspense fallback={null}>
-          <OceanComponent {...oceanProps} />
+          <OceanComponent
+            {...oceanProps}
+            position={[vesselPosition.x, -0.5, vesselPosition.y]}
+          />
         </Suspense>
 
         {/* Precipitation */}
