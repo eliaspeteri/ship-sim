@@ -19,8 +19,15 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   const environment = useStore(state => state.environment);
 
   // Destructure vessel state for easier access
-  const { position, orientation, velocity, controls, engineState, alarms } =
-    vessel || {};
+  const {
+    position,
+    orientation,
+    angularVelocity,
+    velocity,
+    controls,
+    engineState,
+    alarms,
+  } = vessel || {};
 
   // Control state
   const [throttleLocal, setThrottleLocal] = useState(controls?.throttle || 0);
@@ -162,6 +169,13 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
                 {((velocity?.surge || 0) * 1.94384).toFixed(1)} kts
               </div>
             </div>
+            {/* Sway */}
+            <div className="bg-gray-800 p-2 rounded">
+              <div className="text-xs text-gray-400">Sway</div>
+              <div className="font-mono">
+                {((velocity?.sway || 0) * 1.94384).toFixed(1)} kts
+              </div>
+            </div>
             <div className="bg-gray-800 p-2 rounded">
               <div className="text-xs text-gray-400">Course</div>
               <div className="font-mono">
@@ -186,6 +200,16 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
               <div className="text-xs text-gray-400">Roll</div>
               <div className="font-mono">
                 {Math.round((((orientation?.roll || 0) * 180) / Math.PI) % 360)}
+                °
+              </div>
+            </div>
+            {/* yaw */}
+            <div className="bg-gray-800 p-2 rounded">
+              <div className="text-xs text-gray-400">Yaw</div>
+              <div className="font-mono">
+                {Math.round(
+                  (((angularVelocity.yaw || 0) * 180) / Math.PI) % 360,
+                )}
                 °
               </div>
             </div>
