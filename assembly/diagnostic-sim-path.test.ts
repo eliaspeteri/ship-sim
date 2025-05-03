@@ -28,15 +28,15 @@ test('diagnostic: vessel state matches sim path', (): void => {
   resetGlobalVessel();
 
   // Example initial state (replace with actual sim/store values if needed)
-  const x: f64 = -10809.362730354407;
-  const y: f64 = -7233.690905870101;
-  const z: f64 = 152.76909855581178;
-  const psi: f64 = 0.0004797616588942766; // heading
-  const phi: f64 = -5.8676764707158884e-8; // roll
-  const theta: f64 = -0.00007201675064302649; // pitch
-  const u: f64 = -10858.530935259716; // surge
-  const v: f64 = -7265.50008113779; // sway
-  const w: f64 = 3.5361799991905807; // heave
+  const x: f64 = -0.9379138546806995;
+  const y: f64 = -61.888473707473395;
+  const z: f64 = 1.8111111111111058;
+  const psi: f64 = 6.2831799949815546; // heading
+  const phi: f64 = -9.287169707634348e-10; // roll
+  const theta: f64 = -0.00004609573025761818; // pitch
+  const u: f64 = 1.6786839154398405; // surge
+  const v: f64 = -1.6666611067508834; // sway
+  const w: f64 = 0; // heave
   const r: f64 = 0; // yaw rate
   const p: f64 = 0; // roll rate
   const q: f64 = 0; // pitch rate
