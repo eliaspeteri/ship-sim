@@ -285,6 +285,8 @@ function calculateWaveResistance(vessel: VesselState, seaState: i32): f64 {
  * @returns The calculated propeller thrust (N)
  */
 function calculatePropellerThrust(vessel: VesselState): f64 {
+  if (vessel.engineRPM < 0.01 || vessel.throttle < 0.01) return 0.0; // No thrust if engine is off
+
   const wakeFraction: f64 =
     PROPELLER_WAKE_FRACTION_FACTOR * vessel.blockCoefficient;
   const speedAdvance: f64 = vessel.u * (1.0 - wakeFraction);
@@ -794,7 +796,7 @@ function calculateWindMomentN(
   );
 }
 
-function isValidInputValues(vessel: VesselState): bool {
+function isInvalidInputValues(vessel: VesselState): bool {
   return (
     !isFinite(vessel.x) ||
     !isFinite(vessel.y) ||
@@ -856,7 +858,7 @@ export function updateVesselState(
   const vessel = changetype<VesselState>(vesselPtr);
 
   // Strict validation for vessel state fields
-  if (!isValidInputValues(vessel)) {
+  if (isInvalidInputValues(vessel)) {
     // Abort update if any field is invalid
     return vesselPtr;
   }
@@ -906,6 +908,8 @@ export function updateVesselState(
   const resistance = calculateHullResistance(vessel, speed);
   const waveResistance = calculateWaveResistance(vessel, calculatedSeaState);
   const totalResistance = resistance + waveResistance;
+
+  assert(totalResistance >= 0.0, 'Total resistance should be non-negative');
 
   // Propulsion - apply realistic engine behavior
   let propulsionForce = calculatePropellerThrust(vessel);
@@ -978,6 +982,21 @@ export function updateVesselState(
     currentSurge +
     waveSurge;
   const surgeDot = netForceSurge / massSurge;
+  assert(isFinite(massSurge) && massSurge > 0, 'massSurge invalid');
+  assert(
+    isFinite(totalResistance) && totalResistance >= 0,
+    'totalResistance invalid',
+  );
+  assert(isFinite(rudderDrag) && rudderDrag >= 0, 'rudderDrag invalid');
+  assert(isFinite(propulsionForce), 'propulsionForce invalid');
+  assert(!(massSurge === 0.0), 'Mass surge should not be zero');
+  assert(isFinite(windSurge), 'windSurge invalid');
+  assert(isFinite(currentSurge), 'currentSurge invalid');
+  assert(isFinite(waveSurge), 'waveSurge invalid');
+  assert(isFinite(netForceSurge), 'netForceSurge invalid');
+  assert(isFinite(surgeDot), 'surgeDot invalid');
+
+  assert(isFinite(vessel.u), 'Vessel u velocity invalid');
 
   // Apply limited acceleration (conditional with branches for better coverage)
   if (abs(surgeDot) < 100.0) {
@@ -987,6 +1006,8 @@ export function updateVesselState(
   } else {
     vessel.u -= 100.0 * safeDt; // Negative limit
   }
+
+  assert(isFinite(vessel.u), 'Vessel u velocity invalid');
 
   // Lateral dynamics (sway) - with limits
   const netForceSway = rudderSway + windSway + currentSway + waveSway;
