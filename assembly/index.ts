@@ -975,12 +975,12 @@ export function updateVesselState(
 
   // Longitudinal dynamics (surge) - with limits
   const netForceSurge =
-    propulsionForce -
-    totalResistance -
-    rudderDrag +
+    propulsionForce +
     windSurge +
     currentSurge +
-    waveSurge;
+    waveSurge -
+    totalResistance * Math.sign(vessel.u) -
+    rudderDrag * Math.sign(vessel.u);
   const surgeDot = netForceSurge / massSurge;
   assert(isFinite(massSurge) && massSurge > 0, 'massSurge invalid');
   assert(
