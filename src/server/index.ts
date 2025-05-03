@@ -25,12 +25,15 @@ import {
   ServerToClientEvents,
   SocketData,
 } from '../types/socket.types';
+import { PrismaClient } from '@prisma/client';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
 const COOKIE_DOMAIN =
   process.env.COOKIE_DOMAIN || (PRODUCTION ? undefined : 'localhost'); // Use undefined for default domain in prod
 const SECURE_COOKIES = PRODUCTION; // Use secure cookies in production
+
+const prisma = new PrismaClient();
 
 // Application state
 const globalState = {
@@ -560,8 +563,33 @@ io.on('connection', async socket => {
     if (currentUserId && currentUserId.startsWith('guest_')) {
       delete globalState.vessels[currentUserId];
       console.info(`Removed guest vessel state for ${currentUserId}`);
+    } else {
+      // For authenticated users, state might persist based on DB logic
+      prisma.vesselState
+        .update({
+          where: { userId: currentUserId },
+          data: {
+            positionX: globalState.vessels[currentUserId]?.position.x,
+            positionY: globalState.vessels[currentUserId]?.position.y,
+            positionZ: globalState.vessels[currentUserId]?.position.z,
+            heading: globalState.vessels[currentUserId]?.orientation.heading,
+            roll: globalState.vessels[currentUserId]?.orientation.roll,
+            pitch: globalState.vessels[currentUserId]?.orientation.pitch,
+            velocityX: globalState.vessels[currentUserId]?.velocity.surge,
+            velocityY: globalState.vessels[currentUserId]?.velocity.sway,
+            velocityZ: globalState.vessels[currentUserId]?.velocity.heave,
+            mass: globalState.vessels[currentUserId]?.properties.mass,
+            length: globalState.vessels[currentUserId]?.properties.length,
+            beam: globalState.vessels[currentUserId]?.properties.beam,
+            draft: globalState.vessels[currentUserId]?.properties.draft,
+            throttle: globalState.vessels[currentUserId]?.throttle,
+            rudderAngle: globalState.vessels[currentUserId]?.rudderAngle,
+          },
+        })
+        .catch(err => {
+          console.error('Error updating vessel state on disconnect:', err);
+        });
     }
-    // For authenticated users, state might persist based on DB logic
 
     // Notify other clients of vessel departure
     if (currentUserId) {
