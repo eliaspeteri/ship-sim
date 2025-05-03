@@ -989,14 +989,13 @@ export function updateVesselState(
   );
   assert(isFinite(rudderDrag) && rudderDrag >= 0, 'rudderDrag invalid');
   assert(isFinite(propulsionForce), 'propulsionForce invalid');
-  assert(!(massSurge === 0.0), 'Mass surge should not be zero');
   assert(isFinite(windSurge), 'windSurge invalid');
   assert(isFinite(currentSurge), 'currentSurge invalid');
   assert(isFinite(waveSurge), 'waveSurge invalid');
   assert(isFinite(netForceSurge), 'netForceSurge invalid');
   assert(isFinite(surgeDot), 'surgeDot invalid');
-
   assert(isFinite(vessel.u), 'Vessel u velocity invalid');
+  //assert(vessel.throttle <= 0.01 && vessel.u > 0 && surgeDot <= 0);
 
   // Apply limited acceleration (conditional with branches for better coverage)
   if (abs(surgeDot) < 100.0) {
