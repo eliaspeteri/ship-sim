@@ -1,14 +1,15 @@
 import io from 'socket.io-client';
 import useStore from '../store';
+import { SimpleVesselState } from '../types/vessel.types';
+import { EnvironmentState } from '../types/environment.types';
 import {
-  SimpleVesselState,
+  ChatMessageData,
+  SimulationUpdateData,
+  VesselControlData,
   VesselJoinedData,
   VesselLeftData,
   VesselUpdateData,
-  VesselControlData,
-} from '../types/vessel.types';
-import { EnvironmentState } from '../types/environment.types';
-import { ChatMessageData, SimulationUpdateData } from '../types/socket.types';
+} from '../types/socket.types';
 
 // Socket.IO Client Manager
 class SocketManager {
@@ -82,12 +83,12 @@ class SocketManager {
     });
 
     this.socket.on('vessel:joined', (data: VesselJoinedData) => {
-      console.info(`New vessel joined: ${data.name} (${data.id})`);
+      console.info(`New vessel joined: ${data.username} (${data.userId})`);
       // Handle new vessel joining
     });
 
     this.socket.on('vessel:left', (data: VesselLeftData) => {
-      console.info(`Vessel left: ${data.id}`);
+      console.info(`Vessel left: ${data.userId}`);
       // Handle vessel leaving
     });
 
@@ -137,7 +138,7 @@ class SocketManager {
     const { vessel } = useStore.getState();
 
     const updateData: VesselUpdateData = {
-      id: this.userId,
+      userId: this.userId,
       position: vessel.position,
       orientation: vessel.orientation,
       velocity: vessel.velocity,
@@ -151,7 +152,7 @@ class SocketManager {
     if (!this.socket?.connected) return;
 
     const controlData: VesselControlData = {
-      id: this.userId,
+      userId: this.userId,
       throttle,
       rudderAngle,
     };

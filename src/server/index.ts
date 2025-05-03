@@ -41,6 +41,12 @@ const globalState = {
       position: { x: number; y: number; z: number };
       orientation: { heading: number; roll: number; pitch: number };
       velocity: { surge: number; sway: number; heave: number };
+      properties: {
+        mass: number;
+        length: number;
+        beam: number;
+        draft: number;
+      };
       throttle: number;
       rudderAngle: number;
     }
@@ -397,6 +403,12 @@ io.on('connection', async socket => {
       position: { x: 0, y: 0, z: 0 },
       orientation: { heading: 0, roll: 0, pitch: 0 },
       velocity: { surge: 0, sway: 0, heave: 0 },
+      properties: {
+        mass: 1000,
+        length: 20,
+        beam: 5,
+        draft: 2,
+      },
       throttle: 0,
       rudderAngle: 0,
     };

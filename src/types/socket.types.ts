@@ -19,11 +19,13 @@ export interface VesselLeftData {
   userId: string;
 }
 export interface VesselUpdateData {
-  position?: { x: number; y: number; z: number };
-  orientation?: { heading: number; roll: number; pitch: number };
-  velocity?: { surge: number; sway: number; heave: number };
+  userId: string;
+  position: { x: number; y: number; z: number };
+  orientation: { heading: number; roll: number; pitch: number };
+  velocity: { surge: number; sway: number; heave: number };
 }
 export interface VesselControlData {
+  userId: string;
   throttle?: number;
   rudderAngle?: number;
 } // Type definitions for Socket.IO

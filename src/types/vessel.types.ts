@@ -87,35 +87,9 @@ export interface VesselState {
 }
 
 // Simplified vessel state for network transmission
-export interface SimpleVesselState {
+export type SimpleVesselState = Pick<
+  VesselState,
+  'position' | 'orientation' | 'velocity'
+> & {
   id: string;
-  position: { x: number; y: number; z: number };
-  orientation: { heading: number; roll: number; pitch: number };
-  velocity: { surge: number; sway: number; heave: number };
-}
-
-// Basic vessel control data
-export interface VesselControlData {
-  id?: string;
-  throttle?: number;
-  rudderAngle?: number;
-}
-
-// Basic vessel update data
-export interface VesselUpdateData {
-  id?: string;
-  position?: { x: number; y: number; z: number };
-  orientation?: { heading: number; roll: number; pitch: number };
-  velocity?: { surge: number; sway: number; heave: number };
-}
-
-// Vessel event data
-export interface VesselJoinedData {
-  id: string;
-  name: string;
-  vesselType: string;
-}
-
-export interface VesselLeftData {
-  id: string;
-}
+};
