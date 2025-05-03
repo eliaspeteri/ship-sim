@@ -60,6 +60,15 @@ export interface WasmModule {
   setThrottle: (vesselPtr: number, throttle: number) => void;
   setRudderAngle: (vesselPtr: number, angle: number) => void;
   setBallast: (vesselPtr: number, level: number) => void;
+  setVesselVelocity?: (
+    vesselPtr: number,
+    surge: number,
+    sway: number,
+    heave: number,
+    yawRate: number,
+    rollRate: number,
+    pitchRate: number,
+  ) => void;
 
   // State access - basic
   getVesselX: (vesselPtr: number) => number;
@@ -69,6 +78,8 @@ export interface WasmModule {
   getVesselSpeed: (vesselPtr: number) => number;
   getVesselPitchAngle: (vesselPtr: number) => number;
   getVesselRollAngle: (vesselPtr: number) => number;
+  getVesselRudderAngle: (vesselPtr: number) => number;
+  getVesselBallastLevel: (vesselPtr: number) => number;
 
   // State access - enhanced
   getVesselEngineRPM: (vesselPtr: number) => number;
@@ -106,4 +117,7 @@ export interface WasmModule {
     seaState: number,
   ) => number;
   getWaveHeightForSeaState: (seaState: number) => number;
+
+  // Global vessel management
+  resetGlobalVessel?: () => void;
 }
