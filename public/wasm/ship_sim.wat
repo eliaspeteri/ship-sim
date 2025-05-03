@@ -35,22 +35,21 @@
  (data $6 (i32.const 7472) "n\83\f9\a2\00\00\00\00\d1W\'\fc)\15DN\99\95b\db\c0\dd4\f5\abcQ\feA\90C<:n$\b7a\c5\bb\de\ea.I\06\e0\d2MB\1c\eb\1d\fe\1c\92\d1\t\f55\82\e8>\a7)\b1&p\9c\e9\84D\bb.9\d6\919A~_\b4\8b_\84\9c\f49S\83\ff\97\f8\1f;(\f9\bd\8b\11/\ef\0f\98\05\de\cf~6m\1fm\nZf?FO\b7\t\cb\'\c7\ba\'u-\ea_\9e\f79\07={\f1\e5\eb\b1_\fbk\ea\92R\8aF0\03V\08]\8d\1f \bc\cf\f0\abk{\fca\91\e3\a9\1d6\f4\9a_\85\99e\08\1b\e6^\80\d8\ff\8d@h\a0\14W\15\06\061\'sM")
  (data $7 (i32.const 7676) "l\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00N\00\00\00T\00o\00t\00a\00l\00 \00r\00e\00s\00i\00s\00t\00a\00n\00c\00e\00 \00s\00h\00o\00u\00l\00d\00 \00b\00e\00 \00n\00o\00n\00-\00n\00e\00g\00a\00t\00i\00v\00e\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
  (data $8 (i32.const 7788) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00a\00s\00s\00e\00m\00b\00l\00y\00/\00i\00n\00d\00e\00x\00.\00t\00s\00\00\00\00\00\00\00\00\00\00\00")
- (data $9 (i32.const 7852) "l\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00N\00\00\00P\00r\00o\00p\00e\00l\00l\00e\00r\00 \00t\00h\00r\00u\00s\00t\00 \00s\00h\00o\00u\00l\00d\00 \00b\00e\00 \00n\00o\00n\00-\00n\00e\00g\00a\00t\00i\00v\00e\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
- (data $10 (i32.const 7964) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00(\00\00\00A\00l\00l\00o\00c\00a\00t\00i\00o\00n\00 \00t\00o\00o\00 \00l\00a\00r\00g\00e\00\00\00\00\00")
- (data $11 (i32.const 8028) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\1e\00\00\00~\00l\00i\00b\00/\00r\00t\00/\00s\00t\00u\00b\00.\00t\00s\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
- (data $12 (i32.const 8092) ",\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\1c\00\00\00I\00n\00v\00a\00l\00i\00d\00 \00l\00e\00n\00g\00t\00h\00")
- (data $13 (i32.const 8140) "L\00\00\00\00\00\00\00\00\00\00\00\01\00\00\000\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
- (data $14 (i32.const 8220) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00m\00a\00s\00s\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
- (data $15 (i32.const 8284) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00.\00\00\00t\00o\00t\00a\00l\00R\00e\00s\00i\00s\00t\00a\00n\00c\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
- (data $16 (i32.const 8364) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00$\00\00\00r\00u\00d\00d\00e\00r\00D\00r\00a\00g\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00")
- (data $17 (i32.const 8428) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00.\00\00\00p\00r\00o\00p\00u\00l\00s\00i\00o\00n\00F\00o\00r\00c\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
- (data $18 (i32.const 8508) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00:\00\00\00M\00a\00s\00s\00 \00s\00u\00r\00g\00e\00 \00s\00h\00o\00u\00l\00d\00 \00n\00o\00t\00 \00b\00e\00 \00z\00e\00r\00o\00\00\00")
- (data $19 (i32.const 8588) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00w\00i\00n\00d\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
- (data $20 (i32.const 8652) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00(\00\00\00c\00u\00r\00r\00e\00n\00t\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00")
- (data $21 (i32.const 8716) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00w\00a\00v\00e\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
- (data $22 (i32.const 8780) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00*\00\00\00n\00e\00t\00F\00o\00r\00c\00e\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00")
- (data $23 (i32.const 8844) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00 \00\00\00s\00u\00r\00g\00e\00D\00o\00t\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00\00\00")
- (data $24 (i32.const 8908) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\002\00\00\00V\00e\00s\00s\00e\00l\00 \00u\00 \00v\00e\00l\00o\00c\00i\00t\00y\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
+ (data $9 (i32.const 7852) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00(\00\00\00A\00l\00l\00o\00c\00a\00t\00i\00o\00n\00 \00t\00o\00o\00 \00l\00a\00r\00g\00e\00\00\00\00\00")
+ (data $10 (i32.const 7916) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\1e\00\00\00~\00l\00i\00b\00/\00r\00t\00/\00s\00t\00u\00b\00.\00t\00s\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
+ (data $11 (i32.const 7980) ",\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\1c\00\00\00I\00n\00v\00a\00l\00i\00d\00 \00l\00e\00n\00g\00t\00h\00")
+ (data $12 (i32.const 8028) "L\00\00\00\00\00\00\00\00\00\00\00\01\00\00\000\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
+ (data $13 (i32.const 8108) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00m\00a\00s\00s\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
+ (data $14 (i32.const 8172) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00.\00\00\00t\00o\00t\00a\00l\00R\00e\00s\00i\00s\00t\00a\00n\00c\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
+ (data $15 (i32.const 8252) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00$\00\00\00r\00u\00d\00d\00e\00r\00D\00r\00a\00g\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00")
+ (data $16 (i32.const 8316) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00.\00\00\00p\00r\00o\00p\00u\00l\00s\00i\00o\00n\00F\00o\00r\00c\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
+ (data $17 (i32.const 8396) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00w\00i\00n\00d\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
+ (data $18 (i32.const 8460) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00(\00\00\00c\00u\00r\00r\00e\00n\00t\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00")
+ (data $19 (i32.const 8524) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00w\00a\00v\00e\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
+ (data $20 (i32.const 8588) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00*\00\00\00n\00e\00t\00F\00o\00r\00c\00e\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00")
+ (data $21 (i32.const 8652) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00 \00\00\00s\00u\00r\00g\00e\00D\00o\00t\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00\00\00")
+ (data $22 (i32.const 8716) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\002\00\00\00V\00e\00s\00s\00e\00l\00 \00u\00 \00v\00e\00l\00o\00c\00i\00t\00y\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
+ (data $23 (i32.const 8796) "l\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00X\00\00\00I\00n\00v\00a\00l\00i\00d\00 \00i\00n\00p\00u\00t\00 \00v\00a\00l\00u\00e\00s\00 \00f\00o\00r\00 \00p\00o\00s\00i\00t\00i\00o\00n\00 \00o\00r\00 \00a\00n\00g\00l\00e\00s\00.\00\00\00\00\00")
  (table $0 1 funcref)
  (export "calculateWaveFrequency" (func $assembly/index/calculateWaveFrequency))
  (export "getWaveHeightForSeaState" (func $assembly/index/getWaveHeightForSeaState))
@@ -2652,8 +2651,8 @@
   i32.const 1073741820
   i32.gt_u
   if
-   i32.const 7984
-   i32.const 8048
+   i32.const 7872
+   i32.const 7936
    i32.const 33
    i32.const 29
    call $~lib/builtins/abort
@@ -2728,8 +2727,8 @@
   i32.const 1073741804
   i32.gt_u
   if
-   i32.const 7984
-   i32.const 8048
+   i32.const 7872
+   i32.const 7936
    i32.const 86
    i32.const 30
    call $~lib/builtins/abort
@@ -2833,7 +2832,7 @@
     i32.const 134217727
     i32.gt_u
     if
-     i32.const 8112
+     i32.const 8000
      i32.const 1296
      i32.const 19
      i32.const 48
@@ -2870,8 +2869,8 @@
     i32.const 1073741804
     i32.gt_u
     if
-     i32.const 7984
-     i32.const 8048
+     i32.const 7872
+     i32.const 7936
      i32.const 99
      i32.const 30
      call $~lib/builtins/abort
@@ -2888,7 +2887,7 @@
     select
     if
      i32.const 0
-     i32.const 8048
+     i32.const 7936
      i32.const 45
      i32.const 3
      call $~lib/builtins/abort
@@ -2926,8 +2925,8 @@
       i32.const 1073741820
       i32.gt_u
       if
-       i32.const 7984
-       i32.const 8048
+       i32.const 7872
+       i32.const 7936
        i32.const 52
        i32.const 33
        call $~lib/builtins/abort
@@ -3070,7 +3069,7 @@
   f64.lt
   if
    i32.const 6
-   i32.const 8160
+   i32.const 8048
    call $~lib/rt/__newArray
    return
   end
@@ -3529,7 +3528,7 @@
   f64.const 0
   f64.eq
   select
-  local.set $1
+  local.set $2
   local.get $3
   local.get $3
   f64.sub
@@ -3554,22 +3553,22 @@
    f64.const 0
   end
   local.set $13
-  local.get $1
+  local.get $2
   call $assembly/index/calculateBeaufortScale
   local.set $20
   local.get $0
   f64.load offset=48
-  local.tee $2
-  local.get $2
+  local.tee $1
+  local.get $1
   f64.mul
   local.get $0
   f64.load offset=56
-  local.tee $2
-  local.get $2
+  local.tee $1
+  local.get $1
   f64.mul
   f64.add
   f64.sqrt
-  local.tee $2
+  local.tee $1
   f64.const 0.01
   f64.lt
   if (result f64)
@@ -3595,7 +3594,7 @@
    local.set $5
    f64.const 0.075
    block $__inlined_func$~lib/math/NativeMath.log10$4 (result f64)
-    local.get $2
+    local.get $1
     local.get $3
     f64.mul
     f64.const 1.187e-06
@@ -3797,9 +3796,9 @@
    f64.load offset=152
    f64.const 0.5
    f64.mul
-   local.get $2
+   local.get $1
    f64.mul
-   local.get $2
+   local.get $1
    f64.mul
    local.get $5
    f64.mul
@@ -3809,24 +3808,24 @@
    f64.load offset=216
    f64.const 22231.05
    f64.mul
-   local.get $2
+   local.get $1
    local.get $0
    f64.load offset=120
    f64.const 9.81
    f64.mul
    f64.sqrt
    f64.div
-   local.tee $2
+   local.tee $1
    f64.const 2
    call $~lib/math/NativeMath.pow
    f64.mul
    block $~lib/util/math/exp_lut|inlined.0 (result f64)
     f64.const -0.5
-    local.get $2
+    local.get $1
     f64.const 0.15
     call $~lib/math/NativeMath.pow
     f64.div
-    local.tee $2
+    local.tee $1
     i64.reinterpret_f64
     local.tee $7
     i64.const 52
@@ -3857,7 +3856,7 @@
       i64.eq
       br_if $~lib/util/math/exp_lut|inlined.0
       drop
-      local.get $2
+      local.get $1
       f64.const 1
       f64.add
       local.get $6
@@ -3876,7 +3875,7 @@
      i32.const 0
      local.set $6
     end
-    local.get $2
+    local.get $1
     f64.const 184.6649652337873
     f64.mul
     f64.const 6755399441055744
@@ -3900,28 +3899,28 @@
     i64.shl
     i64.add
     local.set $7
-    local.get $2
+    local.get $1
     local.get $3
     f64.const -6755399441055744
     f64.add
-    local.tee $2
+    local.tee $1
     f64.const -0.005415212348111709
     f64.mul
     f64.add
-    local.get $2
+    local.get $1
     f64.const -1.2864023111638346e-14
     f64.mul
     f64.add
-    local.tee $2
-    local.get $2
+    local.tee $1
+    local.get $1
     f64.mul
     local.set $3
     local.get $8
     f64.load
-    local.get $2
+    local.get $1
     f64.add
     local.get $3
-    local.get $2
+    local.get $1
     f64.const 0.16666666666665886
     f64.mul
     f64.const 0.49999999999996786
@@ -3931,14 +3930,14 @@
     local.get $3
     local.get $3
     f64.mul
-    local.get $2
+    local.get $1
     f64.const 0.008333335853059549
     f64.mul
     f64.const 0.0416666808410674
     f64.add
     f64.mul
     f64.add
-    local.set $2
+    local.set $1
     local.get $6
     i32.eqz
     if
@@ -3954,7 +3953,7 @@
        f64.reinterpret_i64
        local.tee $3
        local.get $3
-       local.get $2
+       local.get $1
        f64.mul
        f64.add
        f64.const 5486124068793688683255936e279
@@ -3967,11 +3966,11 @@
       local.tee $7
       f64.reinterpret_i64
       local.tee $3
-      local.get $2
+      local.get $1
       f64.mul
-      local.set $2
+      local.set $1
       local.get $3
-      local.get $2
+      local.get $1
       f64.add
       local.tee $5
       f64.abs
@@ -3993,13 +3992,13 @@
        local.get $3
        local.get $5
        f64.sub
-       local.get $2
+       local.get $1
        f64.add
        f64.add
        f64.add
        local.get $11
        f64.sub
-       local.tee $2
+       local.tee $1
        f64.const 0
        f64.eq
        if (result f64)
@@ -4008,7 +4007,7 @@
         i64.and
         f64.reinterpret_i64
        else
-        local.get $2
+        local.get $1
        end
       else
        local.get $5
@@ -4022,7 +4021,7 @@
     f64.reinterpret_i64
     local.tee $3
     local.get $3
-    local.get $2
+    local.get $1
     f64.mul
     f64.add
    end
@@ -4045,14 +4044,14 @@
   f64.const 100
   f64.div
   f64.add
-  local.tee $2
+  local.tee $3
   f64.const 0
   f64.ge
   i32.eqz
   if
    i32.const 7696
    i32.const 7808
-   i32.const 916
+   i32.const 912
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -4082,9 +4081,8 @@
    f64.const 0.01
    f64.lt
   end
-  if
+  if (result f64)
    f64.const 0
-   local.set $4
   else
    f64.const 1
    local.get $0
@@ -4103,7 +4101,7 @@
    f64.div
    f64.const 3
    f64.div
-   local.tee $3
+   local.tee $1
    local.get $0
    f64.load offset=184
    local.tee $4
@@ -4119,27 +4117,16 @@
    local.get $0
    f64.load offset=152
    f64.mul
-   local.get $3
+   local.get $1
    f64.mul
-   local.get $3
+   local.get $1
    f64.mul
    local.get $4
    f64.const 4
    call $~lib/math/NativeMath.pow
    f64.mul
-   local.tee $4
-   f64.const 0
-   f64.ge
-   i32.eqz
-   if
-    i32.const 7872
-    i32.const 7808
-    i32.const 310
-    i32.const 3
-    call $~lib/builtins/abort
-    unreachable
-   end
   end
+  local.set $1
   local.get $0
   f64.load offset=248
   f64.const 0
@@ -4149,21 +4136,21 @@
    f64.const 0
    f64.store offset=160
    f64.const 0
-   local.set $4
+   local.set $1
   end
   local.get $0
   f64.load offset=48
-  local.tee $3
-  local.get $3
+  local.tee $4
+  local.get $4
   f64.mul
   local.get $0
   f64.load offset=56
-  local.tee $3
-  local.get $3
+  local.tee $4
+  local.get $4
   f64.mul
   f64.add
   f64.sqrt
-  local.tee $3
+  local.tee $4
   f64.const 0.01
   f64.lt
   if (result f64)
@@ -4186,9 +4173,9 @@
    local.get $0
    f64.load offset=152
    f64.mul
-   local.get $3
+   local.get $4
    f64.mul
-   local.get $3
+   local.get $4
    f64.mul
   end
   f64.abs
@@ -4197,7 +4184,7 @@
   f64.abs
   call $~lib/math/NativeMath.sin
   f64.mul
-  local.set $3
+  local.set $4
   local.get $0
   call $assembly/index/calculateRudderForceY
   local.set $5
@@ -4229,7 +4216,7 @@
   f64.const 0.5
   f64.add
   local.set $16
-  local.get $1
+  local.get $2
   f64.const 2
   call $~lib/math/NativeMath.pow
   f64.const 0.6125
@@ -4260,7 +4247,7 @@
   f64.const 0.7
   f64.mul
   local.set $17
-  local.get $1
+  local.get $2
   f64.const 2
   call $~lib/math/NativeMath.pow
   f64.const 0.6125
@@ -4292,7 +4279,7 @@
   f64.const 0.1
   f64.mul
   local.set $12
-  local.get $1
+  local.get $2
   f64.const 2
   call $~lib/math/NativeMath.pow
   f64.const 0.6125
@@ -4312,7 +4299,7 @@
   f64.mul
   f64.const 0.7
   f64.mul
-  local.set $1
+  local.set $2
   local.get $0
   f64.load offset=120
   local.get $0
@@ -4371,7 +4358,7 @@
   f64.mul
   local.get $14
   f64.mul
-  local.get $1
+  local.get $2
   f64.mul
   local.get $16
   f64.mul
@@ -4387,14 +4374,14 @@
   f64.mul
   local.get $14
   f64.mul
-  local.get $1
+  local.get $2
   f64.mul
   local.get $0
   f64.load offset=120
   f64.mul
   local.get $17
   f64.mul
-  local.set $1
+  local.set $2
   i32.const 3
   i32.const 0
   call $~lib/rt/__newArray
@@ -4411,7 +4398,7 @@
   call $~lib/array/Array<f64>#__set
   local.get $6
   i32.const 2
-  local.get $1
+  local.get $2
   call $~lib/array/Array<f64>#__set
   local.get $6
   i32.const 0
@@ -4475,18 +4462,18 @@
   f64.load offset=240
   f64.const 1.2
   f64.mul
-  local.set $1
-  local.get $4
-  local.get $2
-  f64.sub
-  local.get $3
-  f64.sub
+  local.set $2
+  local.get $1
   local.get $11
   f64.add
   local.get $12
   f64.add
   local.get $13
   f64.add
+  local.get $3
+  f64.sub
+  local.get $4
+  f64.sub
   local.tee $17
   local.get $14
   f64.const 1.05
@@ -4505,149 +4492,138 @@
   i32.and
   i32.eqz
   if
-   i32.const 8240
+   i32.const 8128
    i32.const 7808
-   i32.const 990
+   i32.const 986
    i32.const 3
    call $~lib/builtins/abort
    unreachable
   end
-  local.get $2
-  local.get $2
+  local.get $3
+  local.get $3
   f64.sub
   f64.const 0
   f64.eq
-  local.get $2
+  local.get $3
   f64.const 0
   f64.ge
   i32.and
   i32.eqz
   if
-   i32.const 8304
+   i32.const 8192
+   i32.const 7808
+   i32.const 987
+   i32.const 3
+   call $~lib/builtins/abort
+   unreachable
+  end
+  local.get $4
+  local.get $4
+  f64.sub
+  f64.const 0
+  f64.eq
+  local.get $4
+  f64.const 0
+  f64.ge
+  i32.and
+  i32.eqz
+  if
+   i32.const 8272
    i32.const 7808
    i32.const 991
    i32.const 3
    call $~lib/builtins/abort
    unreachable
   end
-  local.get $3
-  local.get $3
+  local.get $1
+  local.get $1
   f64.sub
   f64.const 0
-  f64.eq
-  local.get $3
-  f64.const 0
-  f64.ge
-  i32.and
-  i32.eqz
+  f64.ne
   if
-   i32.const 8384
+   i32.const 8336
+   i32.const 7808
+   i32.const 992
+   i32.const 3
+   call $~lib/builtins/abort
+   unreachable
+  end
+  local.get $11
+  local.get $11
+  f64.sub
+  f64.const 0
+  f64.ne
+  if
+   i32.const 8416
+   i32.const 7808
+   i32.const 993
+   i32.const 3
+   call $~lib/builtins/abort
+   unreachable
+  end
+  local.get $12
+  local.get $12
+  f64.sub
+  f64.const 0
+  f64.ne
+  if
+   i32.const 8480
+   i32.const 7808
+   i32.const 994
+   i32.const 3
+   call $~lib/builtins/abort
+   unreachable
+  end
+  local.get $13
+  local.get $13
+  f64.sub
+  f64.const 0
+  f64.ne
+  if
+   i32.const 8544
    i32.const 7808
    i32.const 995
    i32.const 3
    call $~lib/builtins/abort
    unreachable
   end
-  local.get $4
-  local.get $4
-  f64.sub
-  f64.const 0
-  f64.ne
-  if
-   i32.const 8448
-   i32.const 7808
-   i32.const 996
-   i32.const 3
-   call $~lib/builtins/abort
-   unreachable
-  end
-  local.get $18
-  f64.const 0
-  f64.eq
-  if
-   i32.const 8528
-   i32.const 7808
-   i32.const 997
-   i32.const 3
-   call $~lib/builtins/abort
-   unreachable
-  end
-  local.get $11
-  local.get $11
+  local.get $17
+  local.get $17
   f64.sub
   f64.const 0
   f64.ne
   if
    i32.const 8608
    i32.const 7808
-   i32.const 998
+   i32.const 996
    i32.const 3
    call $~lib/builtins/abort
    unreachable
   end
-  local.get $12
-  local.get $12
+  local.get $19
+  local.get $19
   f64.sub
   f64.const 0
   f64.ne
   if
    i32.const 8672
    i32.const 7808
-   i32.const 999
-   i32.const 3
-   call $~lib/builtins/abort
-   unreachable
-  end
-  local.get $13
-  local.get $13
-  f64.sub
-  f64.const 0
-  f64.ne
-  if
-   i32.const 8736
-   i32.const 7808
-   i32.const 1000
-   i32.const 3
-   call $~lib/builtins/abort
-   unreachable
-  end
-  local.get $17
-  local.get $17
-  f64.sub
-  f64.const 0
-  f64.ne
-  if
-   i32.const 8800
-   i32.const 7808
-   i32.const 1001
-   i32.const 3
-   call $~lib/builtins/abort
-   unreachable
-  end
-  local.get $19
-  local.get $19
-  f64.sub
-  f64.const 0
-  f64.ne
-  if
-   i32.const 8864
-   i32.const 7808
-   i32.const 1002
+   i32.const 997
    i32.const 3
    call $~lib/builtins/abort
    unreachable
   end
   local.get $0
   f64.load offset=48
-  local.tee $2
-  local.get $2
+  local.tee $1
+  local.get $1
   f64.sub
   f64.const 0
   f64.ne
   if
-   i32.const 8928
+   i32.const 8736
    i32.const 7808
-   i32.const 1004
+   i32.const 998
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -4691,15 +4667,15 @@
   end
   local.get $0
   f64.load offset=48
-  local.tee $2
-  local.get $2
+  local.tee $1
+  local.get $1
   f64.sub
   f64.const 0
   f64.ne
   if
-   i32.const 8928
+   i32.const 8736
    i32.const 7808
-   i32.const 1015
+   i32.const 1010
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -4713,7 +4689,7 @@
   f64.add
   local.get $32
   f64.div
-  local.tee $2
+  local.tee $1
   f64.abs
   f64.const 100
   f64.lt
@@ -4721,13 +4697,13 @@
    local.get $0
    local.get $0
    f64.load offset=56
-   local.get $2
+   local.get $1
    local.get $9
    f64.mul
    f64.add
    f64.store offset=56
   else
-   local.get $2
+   local.get $1
    f64.const 0
    f64.gt
    if
@@ -4755,7 +4731,7 @@
   f64.const 1.1
   f64.mul
   f64.div
-  local.tee $2
+  local.tee $1
   f64.abs
   f64.const 20
   f64.lt
@@ -4765,13 +4741,13 @@
    f64.load offset=64
    f64.const 0.95
    f64.mul
-   local.get $2
+   local.get $1
    local.get $9
    f64.mul
    f64.add
    f64.store offset=64
   else
-   local.get $2
+   local.get $1
    f64.const 0
    f64.gt
    if
@@ -4801,7 +4777,7 @@
   local.get $29
   local.get $0
   f64.load offset=80
-  local.tee $2
+  local.tee $1
   f64.const -0.9
   f64.mul
   f64.add
@@ -4813,7 +4789,7 @@
   f64.lt
   if
    local.get $0
-   local.get $2
+   local.get $1
    local.get $3
    local.get $9
    f64.mul
@@ -4854,14 +4830,14 @@
   f64.store offset=32
   local.get $0
   call $assembly/index/calculateGM
-  local.set $2
+  local.set $1
   local.get $0
   local.get $0
   f64.load offset=80
   local.get $0
   f64.load offset=32
   f64.neg
-  local.get $2
+  local.get $1
   f64.mul
   local.get $0
   f64.load offset=112
@@ -4896,7 +4872,7 @@
   local.get $30
   local.get $0
   f64.load offset=88
-  local.tee $2
+  local.tee $1
   f64.const -0.8
   f64.mul
   f64.add
@@ -4908,7 +4884,7 @@
   f64.lt
   if
    local.get $0
-   local.get $2
+   local.get $1
    local.get $3
    local.get $9
    f64.mul
@@ -4993,7 +4969,7 @@
   f64.add
   local.get $31
   f64.add
-  local.get $1
+  local.get $2
   f64.div
   local.tee $1
   f64.abs
@@ -5503,6 +5479,121 @@
   local.get $18
  )
  (func $assembly/index/createVessel (param $0 f64) (param $1 f64) (param $2 f64) (param $3 f64) (param $4 f64) (param $5 f64) (param $6 f64) (param $7 f64) (param $8 f64) (param $9 f64) (param $10 f64) (param $11 f64) (param $12 f64) (param $13 f64) (param $14 f64) (param $15 f64) (param $16 f64) (param $17 f64) (result i32)
+  local.get $1
+  local.get $1
+  f64.sub
+  f64.const 0
+  f64.ne
+  local.get $0
+  local.get $0
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $2
+  local.get $2
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $3
+  local.get $3
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $4
+  local.get $4
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $5
+  local.get $5
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $6
+  local.get $6
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $7
+  local.get $7
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $8
+  local.get $8
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $9
+  local.get $9
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $10
+  local.get $10
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $11
+  local.get $11
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $12
+  local.get $12
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $13
+  local.get $13
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $14
+  local.get $14
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $15
+  local.get $15
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $16
+  local.get $16
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $17
+  local.get $17
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  if
+   i32.const 8816
+   i32.const 7808
+   i32.const 1243
+   i32.const 5
+   call $~lib/builtins/abort
+   unreachable
+  end
   global.get $assembly/index/globalVessel
   i32.eqz
   if
@@ -5530,6 +5621,22 @@
   global.get $assembly/index/globalVessel
  )
  (func $assembly/index/setThrottle (param $0 i32) (param $1 f64)
+  local.get $1
+  local.get $1
+  f64.sub
+  f64.const 0
+  f64.ne
+  local.get $1
+  f64.const 0
+  f64.lt
+  i32.or
+  local.get $1
+  f64.const 1
+  f64.gt
+  i32.or
+  if
+   return
+  end
   local.get $0
   f64.const 1
   f64.const 0
@@ -5582,6 +5689,20 @@
   global.set $assembly/index/globalVessel
  )
  (func $assembly/index/setWaveData (param $0 i32) (param $1 f64) (param $2 f64)
+  local.get $2
+  local.get $2
+  f64.sub
+  f64.const 0
+  f64.ne
+  local.get $1
+  local.get $1
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  if
+   return
+  end
   local.get $0
   local.get $1
   f64.store offset=264
@@ -5592,6 +5713,14 @@
   global.set $assembly/index/globalVessel
  )
  (func $assembly/index/setRudderAngle (param $0 i32) (param $1 f64)
+  local.get $1
+  local.get $1
+  f64.sub
+  f64.const 0
+  f64.ne
+  if
+   return
+  end
   local.get $0
   f64.const 0.6
   f64.const -0.6
@@ -5609,6 +5738,26 @@
   global.set $assembly/index/globalVessel
  )
  (func $assembly/index/setBallast (param $0 i32) (param $1 f64)
+  local.get $1
+  local.get $1
+  f64.sub
+  f64.const 0
+  f64.ne
+  if (result i32)
+   i32.const 0
+  else
+   local.get $1
+   f64.const 1
+   f64.le
+   local.get $1
+   f64.const 0
+   f64.ge
+   i32.and
+  end
+  i32.eqz
+  if
+   return
+  end
   local.get $0
   f64.const 1
   f64.const 0
@@ -5709,6 +5858,26 @@
   f64.load offset=256
  )
  (func $assembly/index/setVesselVelocity (param $0 i32) (param $1 f64) (param $2 f64) (param $3 f64)
+  local.get $2
+  local.get $2
+  f64.sub
+  f64.const 0
+  f64.ne
+  local.get $1
+  local.get $1
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  local.get $3
+  local.get $3
+  f64.sub
+  f64.const 0
+  f64.ne
+  i32.or
+  if
+   return
+  end
   local.get $0
   local.get $1
   f64.store offset=48
@@ -5726,7 +5895,7 @@
   global.set $assembly/index/globalVessel
  )
  (func $~start
-  i32.const 8988
+  i32.const 8908
   global.set $~lib/rt/stub/offset
  )
 )

@@ -94,7 +94,7 @@
  (global $~lib/rt/stub/startOffset (mut i32) (i32.const 0))
  (global $~lib/rt/stub/offset (mut i32) (i32.const 0))
  (global $~lib/native/ASC_RUNTIME i32 (i32.const 0))
- (global $~lib/memory/__heap_base i32 (i32.const 7964))
+ (global $~lib/memory/__heap_base i32 (i32.const 7884))
  (data $0 (i32.const 12) "|\00\00\00\00\00\00\00\00\00\00\00\01\00\00\00h\00\00\00\00\00\00\00\00\00\00\00\9a\99\99\99\99\99\b9?\9a\99\99\99\99\99\c9?333333\e3?\00\00\00\00\00\00\f0?\00\00\00\00\00\00\00@\00\00\00\00\00\00\08@\00\00\00\00\00\00\10@\00\00\00\00\00\00\16@\00\00\00\00\00\00\1c@\00\00\00\00\00\00\"@\00\00\00\00\00\00\'@\00\00\00\00\00\00,@\00\00\00\00")
  (data $1 (i32.const 140) ",\00\00\00\00\00\00\00\00\00\00\00\04\00\00\00\10\00\00\00 \00\00\00 \00\00\00h\00\00\00\r\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
  (data $2 (i32.const 188) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00$\00\00\00I\00n\00d\00e\00x\00 \00o\00u\00t\00 \00o\00f\00 \00r\00a\00n\00g\00e\00\00\00\00\00\00\00\00\00")
@@ -104,22 +104,21 @@
  (data $6 (i32.const 6448) "n\83\f9\a2\00\00\00\00\d1W\'\fc)\15DN\99\95b\db\c0\dd4\f5\abcQ\feA\90C<:n$\b7a\c5\bb\de\ea.I\06\e0\d2MB\1c\eb\1d\fe\1c\92\d1\t\f55\82\e8>\a7)\b1&p\9c\e9\84D\bb.9\d6\919A~_\b4\8b_\84\9c\f49S\83\ff\97\f8\1f;(\f9\bd\8b\11/\ef\0f\98\05\de\cf~6m\1fm\nZf?FO\b7\t\cb\'\c7\ba\'u-\ea_\9e\f79\07={\f1\e5\eb\b1_\fbk\ea\92R\8aF0\03V\08]\8d\1f \bc\cf\f0\abk{\fca\91\e3\a9\1d6\f4\9a_\85\99e\08\1b\e6^\80\d8\ff\8d@h\a0\14W\15\06\061\'sM")
  (data $7 (i32.const 6652) "l\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00N\00\00\00T\00o\00t\00a\00l\00 \00r\00e\00s\00i\00s\00t\00a\00n\00c\00e\00 \00s\00h\00o\00u\00l\00d\00 \00b\00e\00 \00n\00o\00n\00-\00n\00e\00g\00a\00t\00i\00v\00e\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
  (data $8 (i32.const 6764) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00a\00s\00s\00e\00m\00b\00l\00y\00/\00i\00n\00d\00e\00x\00.\00t\00s\00\00\00\00\00\00\00\00\00\00\00")
- (data $9 (i32.const 6828) "l\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00N\00\00\00P\00r\00o\00p\00e\00l\00l\00e\00r\00 \00t\00h\00r\00u\00s\00t\00 \00s\00h\00o\00u\00l\00d\00 \00b\00e\00 \00n\00o\00n\00-\00n\00e\00g\00a\00t\00i\00v\00e\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
- (data $10 (i32.const 6940) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00(\00\00\00A\00l\00l\00o\00c\00a\00t\00i\00o\00n\00 \00t\00o\00o\00 \00l\00a\00r\00g\00e\00\00\00\00\00")
- (data $11 (i32.const 7004) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\1e\00\00\00~\00l\00i\00b\00/\00r\00t\00/\00s\00t\00u\00b\00.\00t\00s\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
- (data $12 (i32.const 7068) ",\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\1c\00\00\00I\00n\00v\00a\00l\00i\00d\00 \00l\00e\00n\00g\00t\00h\00")
- (data $13 (i32.const 7116) "L\00\00\00\00\00\00\00\00\00\00\00\01\00\00\000\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
- (data $14 (i32.const 7196) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00m\00a\00s\00s\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
- (data $15 (i32.const 7260) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00.\00\00\00t\00o\00t\00a\00l\00R\00e\00s\00i\00s\00t\00a\00n\00c\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
- (data $16 (i32.const 7340) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00$\00\00\00r\00u\00d\00d\00e\00r\00D\00r\00a\00g\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00")
- (data $17 (i32.const 7404) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00.\00\00\00p\00r\00o\00p\00u\00l\00s\00i\00o\00n\00F\00o\00r\00c\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
- (data $18 (i32.const 7484) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00:\00\00\00M\00a\00s\00s\00 \00s\00u\00r\00g\00e\00 \00s\00h\00o\00u\00l\00d\00 \00n\00o\00t\00 \00b\00e\00 \00z\00e\00r\00o\00\00\00")
- (data $19 (i32.const 7564) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00w\00i\00n\00d\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
- (data $20 (i32.const 7628) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00(\00\00\00c\00u\00r\00r\00e\00n\00t\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00")
- (data $21 (i32.const 7692) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00w\00a\00v\00e\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
- (data $22 (i32.const 7756) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00*\00\00\00n\00e\00t\00F\00o\00r\00c\00e\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00")
- (data $23 (i32.const 7820) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00 \00\00\00s\00u\00r\00g\00e\00D\00o\00t\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00\00\00")
- (data $24 (i32.const 7884) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\002\00\00\00V\00e\00s\00s\00e\00l\00 \00u\00 \00v\00e\00l\00o\00c\00i\00t\00y\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
+ (data $9 (i32.const 6828) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00(\00\00\00A\00l\00l\00o\00c\00a\00t\00i\00o\00n\00 \00t\00o\00o\00 \00l\00a\00r\00g\00e\00\00\00\00\00")
+ (data $10 (i32.const 6892) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\1e\00\00\00~\00l\00i\00b\00/\00r\00t\00/\00s\00t\00u\00b\00.\00t\00s\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
+ (data $11 (i32.const 6956) ",\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\1c\00\00\00I\00n\00v\00a\00l\00i\00d\00 \00l\00e\00n\00g\00t\00h\00")
+ (data $12 (i32.const 7004) "L\00\00\00\00\00\00\00\00\00\00\00\01\00\00\000\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
+ (data $13 (i32.const 7084) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00m\00a\00s\00s\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
+ (data $14 (i32.const 7148) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00.\00\00\00t\00o\00t\00a\00l\00R\00e\00s\00i\00s\00t\00a\00n\00c\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
+ (data $15 (i32.const 7228) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00$\00\00\00r\00u\00d\00d\00e\00r\00D\00r\00a\00g\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00")
+ (data $16 (i32.const 7292) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00.\00\00\00p\00r\00o\00p\00u\00l\00s\00i\00o\00n\00F\00o\00r\00c\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
+ (data $17 (i32.const 7372) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00w\00i\00n\00d\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
+ (data $18 (i32.const 7436) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00(\00\00\00c\00u\00r\00r\00e\00n\00t\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00")
+ (data $19 (i32.const 7500) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00w\00a\00v\00e\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
+ (data $20 (i32.const 7564) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00*\00\00\00n\00e\00t\00F\00o\00r\00c\00e\00S\00u\00r\00g\00e\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00")
+ (data $21 (i32.const 7628) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00 \00\00\00s\00u\00r\00g\00e\00D\00o\00t\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00\00\00")
+ (data $22 (i32.const 7692) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\002\00\00\00V\00e\00s\00s\00e\00l\00 \00u\00 \00v\00e\00l\00o\00c\00i\00t\00y\00 \00i\00n\00v\00a\00l\00i\00d\00\00\00\00\00\00\00\00\00\00\00")
+ (data $23 (i32.const 7772) "l\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00X\00\00\00I\00n\00v\00a\00l\00i\00d\00 \00i\00n\00p\00u\00t\00 \00v\00a\00l\00u\00e\00s\00 \00f\00o\00r\00 \00p\00o\00s\00i\00t\00i\00o\00n\00 \00o\00r\00 \00a\00n\00g\00l\00e\00s\00.\00\00\00\00\00")
  (table $0 1 funcref)
  (elem $0 (i32.const 1))
  (export "calculateWaveFrequency" (func $assembly/index/calculateWaveFrequency))
@@ -4674,7 +4673,6 @@
   (local $value1 f64)
   (local $value2 f64)
   (local $KT f64)
-  (local $propellerThrust f64)
   local.get $vessel
   call $assembly/index/VesselState#get:engineRPM
   f64.const 0.01
@@ -4753,20 +4751,6 @@
   f64.const 4
   call $~lib/math/NativeMath.pow
   f64.mul
-  local.set $propellerThrust
-  local.get $propellerThrust
-  f64.const 0
-  f64.ge
-  i32.eqz
-  if
-   i32.const 6848
-   i32.const 6784
-   i32.const 310
-   i32.const 3
-   call $~lib/builtins/abort
-   unreachable
-  end
-  local.get $propellerThrust
   return
  )
  (func $assembly/index/VesselState#set:engineRPM (param $this i32) (param $engineRPM f64)
@@ -5101,8 +5085,8 @@
   i32.const 1073741820
   i32.gt_u
   if
-   i32.const 6960
-   i32.const 7024
+   i32.const 6848
+   i32.const 6912
    i32.const 33
    i32.const 29
    call $~lib/builtins/abort
@@ -5168,8 +5152,8 @@
   i32.const 1073741804
   i32.gt_u
   if
-   i32.const 6960
-   i32.const 7024
+   i32.const 6848
+   i32.const 6912
    i32.const 86
    i32.const 30
    call $~lib/builtins/abort
@@ -5290,7 +5274,7 @@
   i32.eqz
   if
    i32.const 0
-   i32.const 7024
+   i32.const 6912
    i32.const 45
    i32.const 3
    call $~lib/builtins/abort
@@ -5336,8 +5320,8 @@
     i32.const 1073741820
     i32.gt_u
     if
-     i32.const 6960
-     i32.const 7024
+     i32.const 6848
+     i32.const 6912
      i32.const 52
      i32.const 33
      call $~lib/builtins/abort
@@ -5394,8 +5378,8 @@
   i32.const 1073741804
   i32.gt_u
   if
-   i32.const 6960
-   i32.const 7024
+   i32.const 6848
+   i32.const 6912
    i32.const 99
    i32.const 30
    call $~lib/builtins/abort
@@ -5445,7 +5429,7 @@
    i32.shr_u
    i32.gt_u
    if
-    i32.const 7088
+    i32.const 6976
     i32.const 272
     i32.const 19
     i32.const 48
@@ -5776,7 +5760,7 @@
    i32.const 6
    i32.const 3
    i32.const 4
-   i32.const 7136
+   i32.const 7024
    call $~lib/rt/__newArray
    return
   end
@@ -6264,7 +6248,7 @@
   (local $calculatedSeaState i32)
   (local $x f64)
   (local $speed f64)
-  (local $resistance f64)
+  (local $hullResistance f64)
   (local $waveResistance f64)
   (local $totalResistance f64)
   (local $propulsionForce f64)
@@ -6530,12 +6514,12 @@
   local.get $vessel
   local.get $speed
   call $assembly/index/calculateHullResistance
-  local.set $resistance
+  local.set $hullResistance
   local.get $vessel
   local.get $calculatedSeaState
   call $assembly/index/calculateWaveResistance
   local.set $waveResistance
-  local.get $resistance
+  local.get $hullResistance
   local.get $waveResistance
   f64.add
   local.set $totalResistance
@@ -6546,7 +6530,7 @@
   if
    i32.const 6672
    i32.const 6784
-   i32.const 916
+   i32.const 912
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6670,16 +6654,16 @@
   f64.mul
   local.set $inertiaYaw
   local.get $propulsionForce
-  local.get $totalResistance
-  f64.sub
-  local.get $rudderDrag
-  f64.sub
   local.get $windSurge
   f64.add
   local.get $currentSurge
   f64.add
   local.get $waveSurge
   f64.add
+  local.get $totalResistance
+  f64.sub
+  local.get $rudderDrag
+  f64.sub
   local.set $netForceSurge
   local.get $netForceSurge
   local.get $massSurge
@@ -6699,9 +6683,9 @@
   end
   i32.eqz
   if
-   i32.const 7216
+   i32.const 7104
    i32.const 6784
-   i32.const 990
+   i32.const 986
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6720,9 +6704,9 @@
   end
   i32.eqz
   if
-   i32.const 7280
+   i32.const 7168
    i32.const 6784
-   i32.const 991
+   i32.const 987
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6741,9 +6725,9 @@
   end
   i32.eqz
   if
-   i32.const 7360
+   i32.const 7248
    i32.const 6784
-   i32.const 995
+   i32.const 991
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6755,28 +6739,57 @@
   f64.eq
   i32.eqz
   if
-   i32.const 7424
+   i32.const 7312
    i32.const 6784
-   i32.const 996
+   i32.const 992
    i32.const 3
    call $~lib/builtins/abort
    unreachable
   end
-  local.get $massSurge
+  local.get $windSurge
+  local.get $windSurge
+  f64.sub
   f64.const 0
   f64.eq
   i32.eqz
-  i32.eqz
   if
-   i32.const 7504
+   i32.const 7392
    i32.const 6784
-   i32.const 997
+   i32.const 993
    i32.const 3
    call $~lib/builtins/abort
    unreachable
   end
-  local.get $windSurge
-  local.get $windSurge
+  local.get $currentSurge
+  local.get $currentSurge
+  f64.sub
+  f64.const 0
+  f64.eq
+  i32.eqz
+  if
+   i32.const 7456
+   i32.const 6784
+   i32.const 994
+   i32.const 3
+   call $~lib/builtins/abort
+   unreachable
+  end
+  local.get $waveSurge
+  local.get $waveSurge
+  f64.sub
+  f64.const 0
+  f64.eq
+  i32.eqz
+  if
+   i32.const 7520
+   i32.const 6784
+   i32.const 995
+   i32.const 3
+   call $~lib/builtins/abort
+   unreachable
+  end
+  local.get $netForceSurge
+  local.get $netForceSurge
   f64.sub
   f64.const 0
   f64.eq
@@ -6784,13 +6797,13 @@
   if
    i32.const 7584
    i32.const 6784
-   i32.const 998
+   i32.const 996
    i32.const 3
    call $~lib/builtins/abort
    unreachable
   end
-  local.get $currentSurge
-  local.get $currentSurge
+  local.get $surgeDot
+  local.get $surgeDot
   f64.sub
   f64.const 0
   f64.eq
@@ -6798,49 +6811,7 @@
   if
    i32.const 7648
    i32.const 6784
-   i32.const 999
-   i32.const 3
-   call $~lib/builtins/abort
-   unreachable
-  end
-  local.get $waveSurge
-  local.get $waveSurge
-  f64.sub
-  f64.const 0
-  f64.eq
-  i32.eqz
-  if
-   i32.const 7712
-   i32.const 6784
-   i32.const 1000
-   i32.const 3
-   call $~lib/builtins/abort
-   unreachable
-  end
-  local.get $netForceSurge
-  local.get $netForceSurge
-  f64.sub
-  f64.const 0
-  f64.eq
-  i32.eqz
-  if
-   i32.const 7776
-   i32.const 6784
-   i32.const 1001
-   i32.const 3
-   call $~lib/builtins/abort
-   unreachable
-  end
-  local.get $surgeDot
-  local.get $surgeDot
-  f64.sub
-  f64.const 0
-  f64.eq
-  i32.eqz
-  if
-   i32.const 7840
-   i32.const 6784
-   i32.const 1002
+   i32.const 997
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6854,9 +6825,9 @@
   f64.eq
   i32.eqz
   if
-   i32.const 7904
+   i32.const 7712
    i32.const 6784
-   i32.const 1004
+   i32.const 998
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6907,9 +6878,9 @@
   f64.eq
   i32.eqz
   if
-   i32.const 7904
+   i32.const 7712
    i32.const 6784
-   i32.const 1015
+   i32.const 1010
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -7863,6 +7834,190 @@
   local.get $this
  )
  (func $assembly/index/createVessel (param $x f64) (param $y f64) (param $z f64) (param $psi f64) (param $phi f64) (param $theta f64) (param $u f64) (param $v f64) (param $w f64) (param $r f64) (param $p f64) (param $q f64) (param $throttle f64) (param $rudderAngle f64) (param $mass f64) (param $length f64) (param $beam f64) (param $draft f64) (result i32)
+  local.get $x
+  local.get $x
+  f64.sub
+  f64.const 0
+  f64.eq
+  i32.eqz
+  if (result i32)
+   i32.const 1
+  else
+   local.get $y
+   local.get $y
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $z
+   local.get $z
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $psi
+   local.get $psi
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $phi
+   local.get $phi
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $theta
+   local.get $theta
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $u
+   local.get $u
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $v
+   local.get $v
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $w
+   local.get $w
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $r
+   local.get $r
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $p
+   local.get $p
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $q
+   local.get $q
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $throttle
+   local.get $throttle
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $rudderAngle
+   local.get $rudderAngle
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $mass
+   local.get $mass
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $length
+   local.get $length
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $beam
+   local.get $beam
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $draft
+   local.get $draft
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if
+   i32.const 7792
+   i32.const 6784
+   i32.const 1243
+   i32.const 5
+   call $~lib/builtins/abort
+   unreachable
+  end
   global.get $assembly/index/globalVessel
   i32.const 0
   i32.eq
@@ -7894,6 +8049,29 @@
  )
  (func $assembly/index/setThrottle (param $vesselPtr i32) (param $throttle f64)
   (local $vessel i32)
+  local.get $throttle
+  local.get $throttle
+  f64.sub
+  f64.const 0
+  f64.eq
+  i32.eqz
+  if (result i32)
+   i32.const 1
+  else
+   local.get $throttle
+   f64.const 0
+   f64.lt
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $throttle
+   f64.const 1
+   f64.gt
+  end
+  if
+   return
+  end
   local.get $vesselPtr
   local.set $vessel
   local.get $vessel
@@ -7953,6 +8131,25 @@
  )
  (func $assembly/index/setWaveData (param $vesselPtr i32) (param $height f64) (param $phase f64)
   (local $vessel i32)
+  local.get $height
+  local.get $height
+  f64.sub
+  f64.const 0
+  f64.eq
+  i32.eqz
+  if (result i32)
+   i32.const 1
+  else
+   local.get $phase
+   local.get $phase
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if
+   return
+  end
   local.get $vesselPtr
   local.set $vessel
   local.get $vessel
@@ -7966,6 +8163,15 @@
  )
  (func $assembly/index/setRudderAngle (param $vesselPtr i32) (param $angle f64)
   (local $vessel i32)
+  local.get $angle
+  local.get $angle
+  f64.sub
+  f64.const 0
+  f64.eq
+  i32.eqz
+  if
+   return
+  end
   local.get $vesselPtr
   local.set $vessel
   local.get $vessel
@@ -7992,6 +8198,30 @@
  )
  (func $assembly/index/setBallast (param $vesselPtr i32) (param $level f64)
   (local $vessel i32)
+  local.get $level
+  local.get $level
+  f64.sub
+  f64.const 0
+  f64.eq
+  i32.eqz
+  if (result i32)
+   i32.const 1
+  else
+   local.get $level
+   f64.const 0
+   f64.ge
+   if (result i32)
+    local.get $level
+    f64.const 1
+    f64.le
+   else
+    i32.const 0
+   end
+   i32.eqz
+  end
+  if
+   return
+  end
   local.get $vesselPtr
   local.set $vessel
   local.get $vessel
@@ -8132,6 +8362,35 @@
   (local $vessel i32)
   local.get $vesselPtr
   local.set $vessel
+  local.get $surge
+  local.get $surge
+  f64.sub
+  f64.const 0
+  f64.eq
+  i32.eqz
+  if (result i32)
+   i32.const 1
+  else
+   local.get $sway
+   local.get $sway
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if (result i32)
+   i32.const 1
+  else
+   local.get $heave
+   local.get $heave
+   f64.sub
+   f64.const 0
+   f64.eq
+   i32.eqz
+  end
+  if
+   return
+  end
   local.get $vessel
   local.get $surge
   call $assembly/index/VesselState#set:u
