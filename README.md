@@ -479,9 +479,18 @@ For more details, see the [documentation](./docs) folder or project wiki.
 
 [Mermaid Live][mermaidLiveLink]
 
+[shipResistanceAndPropulsionLink][shipResistanceAndPropulsionWiki]
+
+[skinFrictionDragLink][skinFrictionDragWiki]
+
+[waveMakingResistanceLink][waveMakingResistanceWiki]
+
 [assemblyScriptDocs]: https://www.assemblyscript.org/introduction.html
 [threeJsDocs]: https://threejs.org/docs/
 [webglDocs]: https://webglfundamentals.org/
 [webglMozillaDocs]: https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API
 [machinerySpacesLink]: http://www.machineryspaces.com/index.html
 [mermaidLiveLink]: https://mermaid.live/
+[shipResistanceAndPropulsionWiki]: https://en.wikipedia.org/wiki/Ship_resistance_and_propulsion
+[skinFrictionDragWiki]: https://en.wikipedia.org/wiki/Skin_friction_drag
+[waveMakingResistanceWiki]: https://en.wikipedia.org/wiki/Wave-making_resistance
