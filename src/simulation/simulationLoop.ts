@@ -137,14 +137,10 @@ export class SimulationLoop {
       return; // Already running
     }
 
-    const state = useStore.getState();
-
     this.lastFrameTime = performance.now();
 
     // Using an arrow function instead of bind(this)
     this.animationFrameId = requestAnimationFrame(time => this.loop(time));
-
-    state.setRunning(true);
 
     console.info('Simulation loop started');
   }
@@ -157,34 +153,14 @@ export class SimulationLoop {
     const deltaTime = (currentTime - this.lastFrameTime) / 1000; // in seconds
     this.lastFrameTime = currentTime;
 
-    const state = useStore.getState();
-
-    // Ensure state.simulation is properly initialized with default values if needed
-    if (!state.simulation) {
-      console.error('Simulation state is null, reinitializing');
-      return;
-    }
-
-    // Initialize elapsedTime if it's null
-    if (
-      state.simulation.elapsedTime === null ||
-      state.simulation.elapsedTime === undefined
-    ) {
-      state.incrementTime(0); // This will set elapsedTime to 0
-    }
-
     // Scale delta time by time scale factor
-    const scaledDeltaTime = deltaTime * (state.simulation.timeScale || 1.0);
-    this.accumulatedTime += scaledDeltaTime;
+    this.accumulatedTime += deltaTime;
 
     // Run fixed timestep physics updates
     while (this.accumulatedTime >= this.fixedTimeStep) {
       this.updatePhysics(this.fixedTimeStep);
       this.accumulatedTime -= this.fixedTimeStep;
     }
-
-    // Increment simulation time - ensure this is always called when running
-    state.incrementTime(scaledDeltaTime);
 
     // Update UI state from physics state
     this.updateUIFromPhysics();
@@ -193,7 +169,7 @@ export class SimulationLoop {
     this.updateWaveProperties();
 
     // Process any failures or events
-    this.processEvents(scaledDeltaTime);
+    this.processEvents(deltaTime);
 
     // Continue the loop using arrow function
     this.animationFrameId = requestAnimationFrame(time => this.loop(time));

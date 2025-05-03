@@ -17,7 +17,6 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   const vessel = useStore(state => state.vessel);
   const environment = useStore(state => state.environment);
-  const elapsedTime = useStore(state => state.simulation.elapsedTime);
 
   // Destructure vessel state for easier access
   const { position, orientation, velocity, controls, engineState, alarms } =
@@ -81,35 +80,11 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
     };
   }, [throttleLocal, rudderAngleLocal, controls]);
 
-  // Format simulation time as hh:mm:ss
-  const formatTime = (seconds: number | null | undefined) => {
-    // Handle invalid values
-    if (seconds === undefined || seconds === null || isNaN(seconds)) {
-      return '00:00:00';
-    }
-
-    // Ensure we're working with a non-negative number
-    const timeInSeconds = Math.max(0, Math.floor(seconds));
-
-    const hours = Math.floor(timeInSeconds / 3600);
-    const minutes = Math.floor((timeInSeconds % 3600) / 60);
-    const secs = timeInSeconds % 60;
-
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
   return (
     <div className={`${className} text-white p-4`}>
       {/* Top bar with time and controls */}
       <div className="flex flex-wrap justify-between items-center mb-4 bg-gray-900 p-3 rounded-lg">
         <div className="flex items-center space-x-4">
-          <div className="flex flex-col">
-            <span className="text-xs text-gray-400">Simulation Time</span>
-            <span className="font-mono font-bold">
-              {formatTime(elapsedTime)}
-            </span>
-          </div>
-
           <button
             onClick={() => setShowMachineryPanel(prev => !prev)}
             className={`px-4 py-2 rounded-md ${showMachineryPanel ? 'bg-blue-700' : 'bg-gray-700'}`}

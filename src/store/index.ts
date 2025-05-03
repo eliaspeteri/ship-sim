@@ -6,17 +6,6 @@ import { WasmModule } from '../types/wasm';
 import { EventLogEntry } from '../types/events.types';
 import { EnvironmentState } from '../types/environment.types';
 
-// Simulation control with enhanced features
-interface SimulationControl {
-  isRunning: boolean;
-  timeScale: number;
-  elapsedTime: number; // Simulation time in seconds
-  realStartTime: number; // Real world timestamp when sim started
-  scenarioId: string | null;
-  scenarioName: string | null;
-  debugMode: boolean;
-}
-
 // Machinery failures for more realistic simulation
 interface MachinerySystemStatus {
   // Engine health
@@ -61,12 +50,6 @@ interface SimulationState {
   environment: EnvironmentState;
   updateEnvironment: (environment: Partial<EnvironmentState>) => void;
   setDayNightCycle: (enabled: boolean) => void;
-
-  // Simulation control
-  simulation: SimulationControl;
-  setRunning: (running: boolean) => void;
-  setTimeScale: (scale: number) => void;
-  incrementTime: (deltaTime: number) => void;
 
   // Event log
   eventLog: EventLogEntry[];
@@ -183,16 +166,6 @@ const defaultEnvironmentState: EnvironmentState = {
   timeOfDay: 12,
   precipitation: 'none',
   precipitationIntensity: 0,
-};
-
-const defaultSimulationControl: SimulationControl = {
-  isRunning: false,
-  timeScale: 1.0,
-  elapsedTime: 0,
-  realStartTime: Date.now(),
-  scenarioId: null,
-  scenarioName: null,
-  debugMode: false,
 };
 
 const defaultMachinerySystemStatus: MachinerySystemStatus = {
@@ -405,39 +378,12 @@ const useStore = create<SimulationState>()(
         }
       },
 
-      // Simulation control
-      simulation: defaultSimulationControl,
-      setRunning: running =>
-        set(_state => ({
-          simulation: {
-            ..._state.simulation,
-            isRunning: running,
-            realStartTime:
-              running && !_state.simulation.isRunning
-                ? Date.now()
-                : _state.simulation.realStartTime,
-          },
-        })),
-
-      setTimeScale: scale =>
-        set(state => ({
-          simulation: { ...state.simulation, timeScale: scale },
-        })),
-
-      incrementTime: deltaTime =>
-        set(state => ({
-          simulation: {
-            ...state.simulation,
-            elapsedTime: state.simulation.elapsedTime + deltaTime,
-          },
-        })),
-
       // Event system
       eventLog: [],
       addEvent: event =>
         set(state => {
           // Get the simulation time in seconds
-          const simTimeSeconds = state.simulation.elapsedTime;
+          const simTimeSeconds = Date.now() / 1000; // Replace with actual simulation time
 
           // Convert simulation seconds to hours, minutes, seconds
           const hours = Math.floor(simTimeSeconds / 3600);
