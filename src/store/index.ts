@@ -609,25 +609,13 @@ const useStore = create<SimulationState>()(
     {
       name: 'ship-sim-storage', // Name for localStorage/sessionStorage
       partialize: state => ({
-        vessel: {
-          properties: state.vessel.properties,
-          // include full engineState so rpm, load, temp, oilPressure, fuelConsumption, running, etc. survive re‑hydrate
-          engineState: state.vessel.engineState,
-        },
-        navigation: {
-          route: state.navigation.route,
-        },
-        simulation: {
-          elapsedTime: state.simulation.elapsedTime,
-        },
-        environment: {
-          wind: state.environment.wind,
-          current: state.environment.current,
-          seaState: state.environment.seaState,
-          waveHeight: state.environment.waveHeight,
-          waveDirection: state.environment.waveDirection,
-          visibility: state.environment.visibility,
-        },
+        vessel: state.vessel,
+        eventLog: state.eventLog,
+        machinerySystems: state.machinerySystems,
+        wasmVesselPtr: state.wasmVesselPtr,
+        wasmExports: state.wasmExports,
+        navigation: state.navigation,
+        environment: state.environment,
       }),
     },
   ),
