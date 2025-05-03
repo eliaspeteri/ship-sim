@@ -257,6 +257,20 @@ If we assume 0 degrees is north, and 90 degrees is east, then:
 
 Should test for both surge and sway velocities.
 
+I changed netForceSurge calculation to:
+```ts
+  const netForceSurge =
+    propulsionForce +
+    windSurge +
+    currentSurge +
+    waveSurge -
+    totalResistance * Math.sign(vessel.u) -
+    rudderDrag * Math.sign(vessel.u);
+```
+and now the ship goes straight. It still gains speed even from the slightest force though. It also maintains that speed.
+
+Problem was the missing sign. They were also added to other calculations such as `netForceSway`, `netForceHeave`, `netTorqueRoll`, `netTorquePitch`, and `netTorqueYaw`.
+
 ## Magic numbers
 
 There's also multiple unexplained magic numbers in `assembly/index.ts`. These should be lifted into constants with descriptive names or removed entirely. For example in `updateVesselState` there's this block of code:

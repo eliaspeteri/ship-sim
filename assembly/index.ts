@@ -995,7 +995,6 @@ export function updateVesselState(
   assert(isFinite(netForceSurge), 'netForceSurge invalid');
   assert(isFinite(surgeDot), 'surgeDot invalid');
   assert(isFinite(vessel.u), 'Vessel u velocity invalid');
-  //assert(vessel.throttle <= 0.01 && vessel.u > 0 && surgeDot <= 0);
 
   // Apply limited acceleration (conditional with branches for better coverage)
   if (abs(surgeDot) < 100.0) {
@@ -1009,7 +1008,12 @@ export function updateVesselState(
   assert(isFinite(vessel.u), 'Vessel u velocity invalid');
 
   // Lateral dynamics (sway) - with limits
-  const netForceSway = rudderSway + windSway + currentSway + waveSway;
+  const netForceSway =
+    rudderSway +
+    windSway +
+    currentSway +
+    waveSway -
+    totalResistance * Math.sign(vessel.v) * 0.8; // Apply 80% of surge resistance in sway direction
   const swayDot = netForceSway / massSway;
 
   // Apply limited acceleration
@@ -1022,21 +1026,37 @@ export function updateVesselState(
   }
 
   // Vertical dynamics (heave) - with limits
-  const netForceHeave = waveHeave;
+  const netForceHeave =
+    waveHeave -
+    vessel.w *
+      Math.abs(vessel.w) *
+      0.5 *
+      vessel.waterDensity *
+      vessel.beam *
+      vessel.length *
+      0.02;
   const heaveDot = netForceHeave / massHeave;
 
   // Apply limited acceleration with damping
   if (abs(heaveDot) < 20.0) {
-    vessel.w = vessel.w * 0.95 + heaveDot * safeDt;
+    vessel.w += heaveDot * safeDt;
   } else if (heaveDot > 0) {
-    vessel.w = vessel.w * 0.95 + 20.0 * safeDt;
+    vessel.w += 20.0 * safeDt;
   } else {
-    vessel.w = vessel.w * 0.95 - 20.0 * safeDt;
+    vessel.w -= 20.0 * safeDt;
   }
 
-  // Roll dynamics with damping and limits
+  // Roll dynamics with hydrodynamic damping
+  const rollHydroDamping =
+    -vessel.p *
+    Math.abs(vessel.p) *
+    vessel.waterDensity *
+    vessel.beam *
+    vessel.beam *
+    vessel.length *
+    0.02;
   const rollDamping = -vessel.p * 0.9;
-  const netMomentRoll = waveRoll + rollDamping;
+  const netMomentRoll = waveRoll + rollDamping + rollHydroDamping;
   const rollDot = netMomentRoll / inertiaRoll;
 
   // Apply limited acceleration
@@ -1062,8 +1082,16 @@ export function updateVesselState(
   }
 
   // Pitch dynamics with damping and limits
-  const pitchDamping = -vessel.q * 0.8;
-  const netMomentPitch = wavePitch + pitchDamping;
+  const pitchHydroDamping =
+    -vessel.q *
+    Math.abs(vessel.q) *
+    vessel.waterDensity *
+    vessel.length *
+    vessel.length *
+    vessel.beam *
+    0.015;
+  const pitchDamping = -vessel.q * 0.8 * Math.sign(vessel.q);
+  const netMomentPitch = wavePitch + pitchDamping + pitchHydroDamping;
   const pitchDot = netMomentPitch / inertiaPitch;
 
   // Apply limited acceleration
@@ -1087,8 +1115,18 @@ export function updateVesselState(
     vessel.theta = -0.3;
   }
 
-  // Yaw dynamics with limits
-  const netMomentYaw = rudderYaw + windYaw + currentYaw + waveYaw;
+  // Yaw dynamics with limits and damping
+  const yawHydroDamping =
+    -vessel.r *
+    Math.abs(vessel.r) *
+    vessel.waterDensity *
+    vessel.length *
+    vessel.length *
+    vessel.beam *
+    0.05;
+  const yawDamping = -vessel.r * 1.1 * Math.sign(vessel.r); // Strong damping for yaw
+  const netMomentYaw =
+    rudderYaw + windYaw + currentYaw + waveYaw + yawDamping + yawHydroDamping;
   const yawDot = netMomentYaw / inertiaYaw;
 
   // Apply limited acceleration
