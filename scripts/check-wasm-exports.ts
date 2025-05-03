@@ -27,41 +27,41 @@ const RELEASE_WASM_PATH = path.join(
 
 // Define expected functions that should be exported
 const EXPECTED_EXPORTS: string[] = [
-  // Vessel management
-  'createVessel',
-  'updateVesselState',
-
-  // Control functions
-  'setThrottle',
-  'setRudderAngle',
-  'setBallast',
-  'setWaveData',
-
-  // Wave calculations
-  'calculateWaveHeightAtPosition',
-  'getWaveHeightForSeaState',
-  'calculateWaveLength',
   'calculateBeaufortScale',
   'calculateWaveFrequency',
+  'calculateWaveHeightAtPosition',
+  'calculateWaveLength',
+  'createVessel',
 
-  // Vessel state access functions
+  // getters
+  'getVesselBallastLevel',
+  'getVesselCenterOfGravityY',
+  'getVesselEngineRPM',
+  'getVesselFuelConsumption',
+  'getVesselFuelLevel',
+  'getVesselGM',
+  'getVesselHeading',
+  'getVesselHeaveVelocity',
+  'getVesselPitchAngle',
+  'getVesselRollAngle',
+  'getVesselRudderAngle',
+  'getVesselSpeed',
+  'getVesselSurgeVelocity',
+  'getVesselSwayVelocity',
   'getVesselX',
   'getVesselY',
   'getVesselZ',
-  'getVesselHeading',
-  'getVesselSpeed',
-  'getVesselEngineRPM',
-  'getVesselFuelLevel',
-  'getVesselFuelConsumption',
-  'getVesselGM',
-  'getVesselCenterOfGravityY',
-  'getVesselSurgeVelocity',
-  'getVesselSwayVelocity',
-  'getVesselHeaveVelocity',
+  'getWaveHeightForSeaState',
 
-  // Motion-related functions
-  'getVesselRollAngle',
-  'getVesselPitchAngle',
+  'resetGlobalVessel',
+
+  // setters
+  'setBallast',
+  'setRudderAngle',
+  'setThrottle',
+  'setVesselVelocity',
+  'setWaveData',
+  'updateVesselState',
 ];
 
 /**
