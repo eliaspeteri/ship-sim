@@ -1059,14 +1059,8 @@ export function updateVesselState(
   const netMomentRoll = waveRoll + rollDamping + rollHydroDamping;
   const rollDot = netMomentRoll / inertiaRoll;
 
-  // Apply limited acceleration
-  if (abs(rollDot) < 5.0) {
-    vessel.p += rollDot * safeDt;
-  } else if (rollDot > 0) {
-    vessel.p += 5.0 * safeDt;
-  } else {
-    vessel.p -= 5.0 * safeDt;
-  }
+  // Apply acceleration without artificial limits
+  vessel.p += rollDot * safeDt;
 
   // Update roll angle with stabilizing moment
   vessel.phi += vessel.p * safeDt;
@@ -1087,14 +1081,8 @@ export function updateVesselState(
   const netMomentPitch = wavePitch + pitchDamping + pitchHydroDamping;
   const pitchDot = netMomentPitch / inertiaPitch;
 
-  // Apply limited acceleration
-  if (abs(pitchDot) < 5.0) {
-    vessel.q += pitchDot * safeDt;
-  } else if (pitchDot > 0) {
-    vessel.q += 5.0 * safeDt;
-  } else {
-    vessel.q -= 5.0 * safeDt;
-  }
+  // Apply acceleration without artificial limits
+  vessel.q += pitchDot * safeDt;
 
   // Update pitch angle with stabilizing moment
   vessel.theta += vessel.q * safeDt;
