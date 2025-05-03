@@ -69,12 +69,7 @@ export async function loadWasmModule(): Promise<WasmModule> {
     const imports = {
       env: {
         memory: memory,
-        abort: (
-          messagePtr: number,
-          fileNamePtr: number,
-          line: number,
-          column: number,
-        ) => {
+        abort: (line: number, column: number) => {
           console.error(`AssemblyScript abort: at line ${line}:${column}`);
           throw new Error('WebAssembly module aborted execution');
         },
@@ -232,6 +227,12 @@ export async function loadWasmModule(): Promise<WasmModule> {
         vesselPtr: number,
       ) => number,
       getVesselRollAngle: exports.getVesselRollAngle as (
+        vesselPtr: number,
+      ) => number,
+      getVesselRudderAngle: exports.getVesselRudderAngle as (
+        vesselPtr: number,
+      ) => number,
+      getVesselBallastLevel: exports.getVesselBallastLevel as (
         vesselPtr: number,
       ) => number,
       getVesselPitchAngle: exports.getVesselPitchAngle as (
