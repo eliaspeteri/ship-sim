@@ -51,7 +51,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
   - [ ] Tank
   - [ ] Alarm Indicator
   - [x] Inclinometer
-  - [ ] Depth sounder
+  - [x] Basic depth sounder
   - [ ] Barometer
   - [ ] Wind indicator (anemometer/wind vane)
   - [ ] Rudder angle indicator

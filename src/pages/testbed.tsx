@@ -9,21 +9,25 @@ import { Tank } from '../components/Tank';
 import { Valve } from '../components/Valve';
 import { Pump } from '../components/Pump';
 import { TelegraphLever } from '../components/TelegraphLever';
-import Thermometer from '../components/Thermometer'; // Import the new component
-import Inclinometer from '../components/Inclinometer'; // Import Inclinometer
+import Thermometer from '../components/Thermometer';
+import Inclinometer from '../components/Inclinometer';
+import DepthSounder from '../components/DepthSounder'; // Import DepthSounder
 
 const TestbedPage = () => {
   // Example state for testing components interactively
   const [gaugeValue, setGaugeValue] = useState(50);
   const [leverValue, setLeverValue] = useState(0);
   const [isBooleanOn, setBooleanOn] = useState(false);
-  const [tempValue, setTempValue] = useState(25); // Add state for thermometer
-  const [rollAngle, setRollAngle] = useState(0); // Add state for roll angle
+  const [tempValue, setTempValue] = useState(25);
+  const [rollAngle, setRollAngle] = useState(0);
+  const [depthValue, setDepthValue] = useState(50); // Add state for depth
 
   return (
     <div className="p-8 space-y-8">
       <h1 className="text-2xl font-bold">UI Testbed</h1>
-      <div className="grid grid-cols-3 gap-8">
+      <div className="grid grid-cols-4 gap-8">
+        {' '}
+        {/* Increased to 4 columns */}
         <div>
           <h2 className="font-semibold">MachineGauge</h2>
           <MachineGauge
@@ -142,7 +146,7 @@ const TestbedPage = () => {
         </div>
         <div>
           <h2 className="font-semibold">Inclinometer</h2>
-          <Inclinometer roll={rollAngle} maxAngle={40} />
+          <Inclinometer roll={rollAngle} maxAngle={40} size={180} />
           <input
             type="range"
             min={-45}
@@ -152,6 +156,20 @@ const TestbedPage = () => {
             className="w-full mt-2"
           />
         </div>
+        <div>
+          <h2 className="font-semibold">Depth Sounder</h2>
+          <DepthSounder depth={depthValue} maxDepth={200} units="m" />
+          <input
+            type="range"
+            min={0}
+            max={200}
+            value={depthValue}
+            onChange={e => setDepthValue(Number(e.target.value))}
+            className="w-full mt-2"
+          />
+        </div>
+      </div>
+      <div className="mt-8">
         <MemoryMonitor />
       </div>
     </div>
