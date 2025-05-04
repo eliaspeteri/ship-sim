@@ -208,7 +208,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
               <div className="text-xs text-gray-400">Yaw</div>
               <div className="font-mono">
                 {Math.round(
-                  (((angularVelocity.yaw || 0) * 180) / Math.PI) % 360,
+                  (((angularVelocity?.yaw || 0) * 180) / Math.PI) % 360,
                 )}
                 °
               </div>
