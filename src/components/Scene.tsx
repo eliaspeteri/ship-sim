@@ -1,7 +1,7 @@
 // src/components/Scene.tsx
 'use client';
 
-import { Canvas, useLoader, useThree } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import {
   OrbitControls,
   Sky,

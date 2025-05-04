@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useMemo, useEffect } from 'react';
-import { useFrame, useLoader } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import useStore from '../../store';
 import waterVertexShader from './shaders/water.vert?raw';
@@ -92,7 +92,7 @@ function NewOcean({
       envMap.mapping = THREE.CubeReflectionMapping;
       envMap.needsUpdate = true;
       disposables.current.push(envMap);
-      console.log('Environment map assigned.');
+      console.info('Environment map assigned.');
     } else {
       console.error('Environment map failed to load!');
     }
