@@ -12,6 +12,7 @@ import { TelegraphLever } from '../components/TelegraphLever';
 import Thermometer from '../components/Thermometer';
 import Inclinometer from '../components/Inclinometer';
 import DepthSounder from '../components/DepthSounder';
+import Barometer from '../components/Barometer';
 
 const TestbedPage = () => {
   // Example state for testing components interactively
@@ -22,13 +23,16 @@ const TestbedPage = () => {
   const [rollAngle, setRollAngle] = useState(0);
   const [depthValue, setDepthValue] = useState(50);
   const [depthHistoryLength, setDepthHistoryLength] = useState(50); // State for history length
+  const [pressure, setPressure] = useState(1013);
+  const [refPressure, setRefPressure] = useState(1013);
+  const [temperature, setTemperature] = useState(20);
 
   return (
     <div className="p-8 space-y-8">
       <h1 className="text-2xl font-bold">UI Testbed</h1>
-      <div className="grid grid-cols-4 gap-8">
+      <div className="grid grid-cols-5 gap-8">
         {' '}
-        {/* Increased to 4 columns */}
+        {/* Increased to 5 columns */}
         <div>
           <h2 className="font-semibold">MachineGauge</h2>
           <MachineGauge
@@ -182,6 +186,45 @@ const TestbedPage = () => {
             value={depthHistoryLength}
             onChange={e => setDepthHistoryLength(Number(e.target.value))}
             className="w-full p-1 border rounded"
+          />
+        </div>
+        <div>
+          <h2 className="font-semibold">Barometer</h2>
+          <Barometer
+            pressureHpa={pressure}
+            referencePressureHpa={refPressure}
+            temperatureCelsius={temperature}
+            size={200}
+          />
+          <label className="block text-xs mt-2">Pressure (hPa):</label>
+          <input
+            type="range"
+            min={960}
+            max={1060}
+            step={1}
+            value={pressure}
+            onChange={e => setPressure(Number(e.target.value))}
+            className="w-full"
+          />
+          <label className="block text-xs mt-1">Ref Pressure (hPa):</label>
+          <input
+            type="range"
+            min={960}
+            max={1060}
+            step={1}
+            value={refPressure}
+            onChange={e => setRefPressure(Number(e.target.value))}
+            className="w-full"
+          />
+          <label className="block text-xs mt-1">Temperature (°C):</label>
+          <input
+            type="range"
+            min={-10}
+            max={50}
+            step={1}
+            value={temperature}
+            onChange={e => setTemperature(Number(e.target.value))}
+            className="w-full"
           />
         </div>
       </div>
