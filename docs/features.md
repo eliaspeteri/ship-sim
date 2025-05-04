@@ -36,7 +36,25 @@ This document tracks the major features of the Ship Simulator project, grouped a
 
 ## UI
 - [x] Control panels: Telegraph, bridge controls, system monitors
+  - [ ] Control lever
+  - [x] Telegraph lever
+  - [ ] Valve
+  - [ ] Pump
+  - [ ] Push button
+  - [ ] Switch
+  - [ ] Dial
 - [x] Gauges & Indicators: RPM, temperature, pressure, fuel levels, alarms
+  - [x] Machine gauge
+  - [x] Circular gauge
+  - [x] Compass rose
+  - [x] Thermometer
+  - [ ] Tank
+  - [ ] Alarm Indicator
+  - [x] Inclinometer
+  - [ ] Depth sounder
+  - [ ] Barometer
+  - [ ] Wind indicator (anemometer/wind vane)
+  - [ ] Rudder angle indicator
 - [x] Interactive Diagrams: System schematics, flow diagrams
 - [x] Logs & Reports: Event logs, fuel consumption, voyage data
 

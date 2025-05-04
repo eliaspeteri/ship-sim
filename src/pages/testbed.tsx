@@ -10,6 +10,7 @@ import { Valve } from '../components/Valve';
 import { Pump } from '../components/Pump';
 import { TelegraphLever } from '../components/TelegraphLever';
 import Thermometer from '../components/Thermometer'; // Import the new component
+import Inclinometer from '../components/Inclinometer'; // Import Inclinometer
 
 const TestbedPage = () => {
   // Example state for testing components interactively
@@ -17,11 +18,12 @@ const TestbedPage = () => {
   const [leverValue, setLeverValue] = useState(0);
   const [isBooleanOn, setBooleanOn] = useState(false);
   const [tempValue, setTempValue] = useState(25); // Add state for thermometer
+  const [rollAngle, setRollAngle] = useState(0); // Add state for roll angle
 
   return (
     <div className="p-8 space-y-8">
       <h1 className="text-2xl font-bold">UI Testbed</h1>
-      <div className="grid grid-cols-2 gap-8">
+      <div className="grid grid-cols-3 gap-8">
         <div>
           <h2 className="font-semibold">MachineGauge</h2>
           <MachineGauge
@@ -136,6 +138,18 @@ const TestbedPage = () => {
             max={100}
             value={tempValue}
             onChange={e => setTempValue(Number(e.target.value))}
+          />
+        </div>
+        <div>
+          <h2 className="font-semibold">Inclinometer</h2>
+          <Inclinometer roll={rollAngle} maxAngle={40} />
+          <input
+            type="range"
+            min={-45}
+            max={45}
+            value={rollAngle}
+            onChange={e => setRollAngle(Number(e.target.value))}
+            className="w-full mt-2"
           />
         </div>
         <MemoryMonitor />
