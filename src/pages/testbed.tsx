@@ -11,7 +11,7 @@ import { Pump } from '../components/Pump';
 import { TelegraphLever } from '../components/TelegraphLever';
 import Thermometer from '../components/Thermometer';
 import Inclinometer from '../components/Inclinometer';
-import DepthSounder from '../components/DepthSounder'; // Import DepthSounder
+import DepthSounder from '../components/DepthSounder';
 
 const TestbedPage = () => {
   // Example state for testing components interactively
@@ -20,7 +20,8 @@ const TestbedPage = () => {
   const [isBooleanOn, setBooleanOn] = useState(false);
   const [tempValue, setTempValue] = useState(25);
   const [rollAngle, setRollAngle] = useState(0);
-  const [depthValue, setDepthValue] = useState(50); // Add state for depth
+  const [depthValue, setDepthValue] = useState(50);
+  const [depthHistoryLength, setDepthHistoryLength] = useState(50); // State for history length
 
   return (
     <div className="p-8 space-y-8">
@@ -158,14 +159,29 @@ const TestbedPage = () => {
         </div>
         <div>
           <h2 className="font-semibold">Depth Sounder</h2>
-          <DepthSounder depth={depthValue} maxDepth={200} units="m" />
+          <DepthSounder
+            depth={depthValue}
+            maxDepth={200}
+            units="m"
+            historyLength={depthHistoryLength}
+          />
+          <label className="block text-xs mt-2">Depth:</label>
           <input
             type="range"
             min={0}
             max={200}
             value={depthValue}
             onChange={e => setDepthValue(Number(e.target.value))}
-            className="w-full mt-2"
+            className="w-full"
+          />
+          <label className="block text-xs mt-2">History Length:</label>
+          <input
+            type="number"
+            min={10}
+            max={200}
+            value={depthHistoryLength}
+            onChange={e => setDepthHistoryLength(Number(e.target.value))}
+            className="w-full p-1 border rounded"
           />
         </div>
       </div>

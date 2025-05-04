@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface DepthSounderProps {
   depth: number;
@@ -6,28 +6,74 @@ interface DepthSounderProps {
   units?: string;
   width?: number;
   height?: number;
+  historyLength?: number; // Number of historical points to store/display
 }
 
 const DepthSounder: React.FC<DepthSounderProps> = ({
   depth,
-  maxDepth = 100, // Default max depth for the scale
-  units = 'm', // Default units
-  width = 60, // Base width for the bar + scale area
+  maxDepth = 100,
+  units = 'm',
+  width = 250, // Increased default width for timeline
   height = 200,
+  historyLength = 50, // Default number of history points
 }) => {
+  const [depthHistory, setDepthHistory] = useState<number[]>([]);
+  const prevDepthRef = useRef<number>(0);
+
+  // Update history when depth prop changes
+  useEffect(() => {
+    // Only update if depth actually changed to avoid rapid updates
+    if (depth !== prevDepthRef.current) {
+      setDepthHistory(prevHistory => {
+        const newHistory = [...prevHistory, depth];
+        // Limit history length
+        if (newHistory.length > historyLength) {
+          return newHistory.slice(newHistory.length - historyLength);
+        }
+        return newHistory;
+      });
+      prevDepthRef.current = depth;
+    }
+  }, [depth, historyLength]);
+
   const padding = 10;
   const scaleWidth = 10;
-  const labelPadding = 20; // Add padding for labels
-  const barWidth = width - scaleWidth - padding * 2;
-  const scaleHeight = height - padding * 2;
-  const svgWidth = width + labelPadding; // Increase total SVG width
+  const labelPadding = 25; // Ensure space for labels
+  const chartWidth = width - scaleWidth - padding - labelPadding;
+  const chartHeight = height - padding * 2 - 30; // Space for digital readout below
+  const svgWidth = width;
 
-  // Clamp depth to be within 0 and maxDepth for display
+  // Clamp current depth for digital display
   const displayDepth = Math.max(0, Math.min(depth, maxDepth));
-  const normalizedDepth = displayDepth / maxDepth;
-  const fillHeight = scaleHeight * normalizedDepth;
 
-  // Calculate tick positions (e.g., every 20 units)
+  // Generate points for the seabed path
+  const points = depthHistory
+    .map((histDepth, index) => {
+      const clampedHistDepth = Math.max(0, Math.min(histDepth, maxDepth));
+      const x = padding + (index / (historyLength - 1)) * chartWidth;
+      const y = padding + (clampedHistDepth / maxDepth) * chartHeight;
+      return `${x},${y}`;
+    })
+    .join(' ');
+
+  // Generate path data for the filled area below the line
+  let filledPathData = `M ${padding},${padding + chartHeight}`; // Start bottom-left
+  if (depthHistory.length > 0) {
+    const firstX = padding;
+    const firstY =
+      padding +
+      (Math.max(0, Math.min(depthHistory[0], maxDepth)) / maxDepth) *
+        chartHeight;
+    filledPathData += ` L ${firstX},${firstY}`; // Line up to first point
+    filledPathData += ` L ${points}`; // Line along the history points
+
+    const lastX =
+      padding + ((depthHistory.length - 1) / (historyLength - 1)) * chartWidth;
+    filledPathData += ` L ${lastX},${padding + chartHeight}`; // Line down to bottom-right
+  }
+  filledPathData += ` Z`; // Close path
+
+  // Calculate tick positions
   const numTicks = 5;
   const tickValues = Array.from(
     { length: numTicks + 1 },
@@ -35,45 +81,58 @@ const DepthSounder: React.FC<DepthSounderProps> = ({
   );
 
   return (
-    <div className="flex flex-col items-center">
-      {/* Adjust SVG width and viewBox */}
-      <svg width={svgWidth} height={height} viewBox={`0 0 ${svgWidth} ${height}`}>
-        {/* Background Bar */}
+    <div className="flex flex-col items-center p-2 bg-gray-200 border border-gray-400 rounded">
+      <svg
+        width={svgWidth}
+        height={chartHeight + padding * 2}
+        viewBox={`0 0 ${svgWidth} ${chartHeight + padding * 2}`}
+      >
+        {/* Chart Background */}
         <rect
           x={padding}
           y={padding}
-          width={barWidth}
-          height={scaleHeight}
-          fill="#e0e0e0" // Light gray background
-          stroke="#a0a0a0"
-          strokeWidth="1"
+          width={chartWidth}
+          height={chartHeight}
+          fill="#001f3f" // Dark blue background
         />
-        {/* Depth Fill - Starts from top */}
-        <rect
-          x={padding}
-          y={padding} // Start fill from the top padding edge
-          width={barWidth}
-          height={fillHeight} // Height is calculated depth
-          fill="#3498db" // Blue fill for water
-        />
-
-        {/* Scale Ticks and Labels - Inverted */}
+        {/* Seabed Fill Path - Lighter Dark Blue */}
+        <path d={filledPathData} fill="#003366" opacity="0.7" />{' '}
+        {/* Changed fill color */}
+        {/* Seabed Contour Line - Red */}
+        {points && (
+          <polyline
+            points={points}
+            fill="none"
+            stroke="red" // Changed stroke color to red
+            strokeWidth="2"
+          />
+        )}
+        {/* Scale Ticks and Labels */}
         {tickValues.map((value, index) => {
-          // Y position starts at top and increases downwards
-          const yPos = padding + (scaleHeight * value) / maxDepth;
+          const yPos = padding + (value / maxDepth) * chartHeight;
           return (
             <g key={index}>
+              {/* Tick line across chart area */}
               <line
-                x1={padding + barWidth}
+                x1={padding}
                 y1={yPos}
-                x2={padding + barWidth + scaleWidth}
+                x2={padding + chartWidth}
+                y2={yPos}
+                stroke="#FFFFFF" // White ticks
+                strokeWidth="0.5"
+                opacity="0.3"
+              />
+              {/* Tick mark on the right */}
+              <line
+                x1={padding + chartWidth}
+                y1={yPos}
+                x2={padding + chartWidth + scaleWidth}
                 y2={yPos}
                 stroke="black"
                 strokeWidth="1"
               />
               <text
-                // Position text relative to the end of the scale line
-                x={padding + barWidth + scaleWidth + 3}
+                x={padding + chartWidth + scaleWidth + 3}
                 y={yPos}
                 fontSize="10"
                 textAnchor="start"
@@ -87,8 +146,8 @@ const DepthSounder: React.FC<DepthSounderProps> = ({
         })}
       </svg>
       {/* Digital Readout */}
-      <div className="mt-2 text-center">
-        <span className="text-lg font-semibold">{depth.toFixed(1)}</span>
+      <div className="mt-1 text-center bg-gray-100 px-2 py-1 rounded w-full">
+        <span className="text-xl font-bold">{displayDepth.toFixed(1)}</span>
         <span className="text-sm ml-1">{units}</span>
       </div>
     </div>
