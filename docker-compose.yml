@@ -26,15 +26,8 @@ services:
       dockerfile: Dockerfile.server
     ports:
       - '3001:3001'
-    environment:
-      - NODE_ENV=production
-      - PORT=3001
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/ship_sim
-      - AUTH_SECRET=ship-sim-auth-secret-2025
-      # Admin credentials for initial setup
-      - ADMIN_USERNAME=admin
-      - ADMIN_PASSWORD=ship_sim_admin
-      - ADMIN_EMAIL=admin@shipsim.com
+    env_file:
+      - .env
     volumes:
       - ./prisma:/app/prisma
       - ./scripts:/app/scripts
