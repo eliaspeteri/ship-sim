@@ -231,32 +231,32 @@ function Ocean({
         
         // Primary wave pattern (follows wind)
         float k1 = 2.0 * 3.14159 / ${primaryWave.wavelength.toFixed(2)};
-        float a1 = steepness / k1;
+        float a1 = steepness / k1 * 1.5; // Amplified by 1.5x
         vec2 d1 = normalize(vec2(${primaryWave.direction.x.toFixed(6)}, ${primaryWave.direction.y.toFixed(6)}));
         float f1 = k1 * (d1.x * modifiedPosition.x + d1.y * modifiedPosition.z - (waveSpeed * ${primaryWave.frequency.toFixed(3)}) * time);
         
         modifiedPosition.x += d1.x * a1 * cos(f1);
-        modifiedPosition.y += steepness * ${primaryWave.steepness.toFixed(3)} * sin(f1);
+        modifiedPosition.y += steepness * ${(primaryWave.steepness * 2.0).toFixed(3)} * sin(f1); // Amplified y displacement
         modifiedPosition.z += d1.y * a1 * cos(f1);
         
         // Secondary wave pattern
         float k2 = 2.0 * 3.14159 / ${secondaryWave.wavelength.toFixed(2)};
-        float a2 = steepness / k2 * ${secondaryWave.steepness.toFixed(3)};
+        float a2 = steepness / k2 * ${(secondaryWave.steepness * 1.5).toFixed(3)};
         vec2 d2 = normalize(vec2(${secondaryWave.direction.x.toFixed(6)}, ${secondaryWave.direction.y.toFixed(6)}));
         float f2 = k2 * (d2.x * modifiedPosition.x + d2.y * modifiedPosition.z - (waveSpeed * ${secondaryWave.frequency.toFixed(3)}) * time);
         
         modifiedPosition.x += d2.x * a2 * cos(f2);
-        modifiedPosition.y += steepness * ${secondaryWave.steepness.toFixed(3)} * sin(f2);
+        modifiedPosition.y += steepness * ${(secondaryWave.steepness * 2.0).toFixed(3)} * sin(f2); // Amplified y displacement
         modifiedPosition.z += d2.y * a2 * cos(f2);
         
         // Tertiary wave pattern (small chop waves)
         float k3 = 2.0 * 3.14159 / ${tertiaryWave.wavelength.toFixed(2)};
-        float a3 = steepness / k3 * ${tertiaryWave.steepness.toFixed(3)};
+        float a3 = steepness / k3 * ${(tertiaryWave.steepness * 1.5).toFixed(3)};
         vec2 d3 = normalize(vec2(${tertiaryWave.direction.x.toFixed(6)}, ${tertiaryWave.direction.y.toFixed(6)}));
         float f3 = k3 * (d3.x * modifiedPosition.x + d3.y * modifiedPosition.z - (waveSpeed * ${tertiaryWave.frequency.toFixed(3)}) * time);
         
         modifiedPosition.x += d3.x * a3 * cos(f3);
-        modifiedPosition.y += steepness * ${tertiaryWave.steepness.toFixed(3)} * sin(f3);
+        modifiedPosition.y += steepness * ${(tertiaryWave.steepness * 2.0).toFixed(3)} * sin(f3); // Amplified y displacement
         modifiedPosition.z += d3.y * a3 * cos(f3);
         
         // Calculate wave normal based on derivatives
@@ -280,6 +280,7 @@ function Ocean({
         
         // Use modified position and normal
         transformed = modifiedPosition;
+        objectNormal = waveNormal; // Apply wave normal to the mesh
         `,
       );
 
@@ -309,22 +310,24 @@ function Ocean({
         float waveHeight = vUv.y;
         float foamSpeed = time * ${(0.05 * waveSpeed).toFixed(3)};
         
-        // Noise patterns for foam
-        float smallWaves = sin(vUv.x * 20.0 + foamSpeed) * cos(vUv.y * 20.0 + foamSpeed) * 0.1;
-        float mediumWaves = sin(vUv.x * 10.0 + foamSpeed) * cos(vUv.y * 10.0 + foamSpeed) * 0.2;
-        float largeWaves = sin(vUv.x * 5.0 + foamSpeed) * cos(vUv.y * 5.0 + foamSpeed) * 0.3;
+        // Enhanced noise patterns for foam to create more noticeable wave crests
+        float smallWaves = sin(vUv.x * 20.0 + foamSpeed) * cos(vUv.y * 20.0 + foamSpeed * 1.3) * 0.15;
+        float mediumWaves = sin(vUv.x * 10.0 + foamSpeed * 0.8) * cos(vUv.y * 10.0 + foamSpeed) * 0.25;
+        float largeWaves = sin(vUv.x * 5.0 + foamSpeed * 0.6) * cos(vUv.y * 5.0 + foamSpeed * 0.7) * 0.35;
         
-        // More foam in rough seas
+        // More dynamic foam in rough seas using stepped approach
+        float noiseSum = smallWaves + mediumWaves + largeWaves;
+        float foamBase = smoothstep(0.4, 0.8, noiseSum) * ${(0.5 + computedSeaState * 0.1).toFixed(2)};
         float foamFactor = clamp(
-          smallWaves + mediumWaves + largeWaves + waveHeight * ${seaStateDependent.toFixed(2)}, 
+          foamBase + waveHeight * ${seaStateDependent.toFixed(2)}, 
           0.0, 
           1.0
         );
         
-        // Foam color and application
+        // Foam color and application with increased contrast
         vec3 foamColor = vec3(1.0, 1.0, 1.0);
-        float foamThreshold = ${WAVE_FOAM_THRESHOLD.toFixed(2)} - (${(computedSeaState * 0.03).toFixed(3)});
-        float foamMask = smoothstep(foamThreshold, 0.95, foamFactor);
+        float foamThreshold = ${WAVE_FOAM_THRESHOLD.toFixed(2)} - (${(computedSeaState * 0.04).toFixed(3)});
+        float foamMask = smoothstep(foamThreshold, 0.92, foamFactor);
         
         // Mix water color with foam based on sea state
         vec3 waterColor = mix(reflectionSample, refractionSample, reflectance);
@@ -431,7 +434,7 @@ function Ocean({
       const z = vesselPosition.z;
 
       // Skip wave calculations if position is invalid
-      if (isNaN(x) || isNaN(z)) {
+      if ((x && isNaN(x)) || (z && isNaN(z))) {
         console.warn('Ocean: Invalid vessel position detected:', { x, z });
         return;
       }
@@ -443,7 +446,9 @@ function Ocean({
         wasmExports.calculateWaveLength &&
         wasmExports.calculateWaveFrequency &&
         wasmExports.calculateWaveHeightAtPosition &&
-        wasmExports.setWaveData
+        wasmExports.setWaveData &&
+        x &&
+        z
       ) {
         const seaState = computedSeaState;
         const waveHeightVal = wasmExports.getWaveHeightForSeaState(seaState);
@@ -464,6 +469,17 @@ function Ocean({
             windDir,
             seaState,
           );
+          console.info({
+            x,
+            z,
+            time,
+            waveHeightVal,
+            waveLength,
+            waveFrequency,
+            windDir,
+            seaState,
+            height,
+          });
         } catch (error) {
           console.error(
             'Ocean: Error calculating wave height at position:',

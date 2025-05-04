@@ -6190,11 +6190,6 @@
   local.get $theta
   f64.store offset=40
  )
- (func $assembly/index/VesselState#set:r (param $this i32) (param $r f64)
-  local.get $this
-  local.get $r
-  f64.store offset=72
- )
  (func $assembly/index/VesselState#set:psi (param $this i32) (param $psi f64)
   local.get $this
   local.get $psi
@@ -7249,43 +7244,6 @@
   local.get $inertiaYaw
   f64.div
   local.set $yawDot
-  local.get $yawDot
-  f64.abs
-  f64.const 5
-  f64.lt
-  if
-   local.get $vessel
-   local.get $vessel
-   call $assembly/index/VesselState#get:r
-   local.get $yawDot
-   local.get $safeDt
-   f64.mul
-   f64.add
-   call $assembly/index/VesselState#set:r
-  else
-   local.get $yawDot
-   f64.const 0
-   f64.gt
-   if
-    local.get $vessel
-    local.get $vessel
-    call $assembly/index/VesselState#get:r
-    f64.const 5
-    local.get $safeDt
-    f64.mul
-    f64.add
-    call $assembly/index/VesselState#set:r
-   else
-    local.get $vessel
-    local.get $vessel
-    call $assembly/index/VesselState#get:r
-    f64.const 5
-    local.get $safeDt
-    f64.mul
-    f64.sub
-    call $assembly/index/VesselState#set:r
-   end
-  end
   local.get $vessel
   local.get $vessel
   call $assembly/index/VesselState#get:psi
@@ -7531,6 +7489,11 @@
   global.set $assembly/index/globalVessel
   local.get $vesselPtr
   return
+ )
+ (func $assembly/index/VesselState#set:r (param $this i32) (param $r f64)
+  local.get $this
+  local.get $r
+  f64.store offset=72
  )
  (func $assembly/index/VesselState#set:rudderAngle (param $this i32) (param $rudderAngle f64)
   local.get $this
@@ -8063,7 +8026,7 @@
   if
    i32.const 7792
    i32.const 6784
-   i32.const 1253
+   i32.const 1244
    i32.const 5
    call $~lib/builtins/abort
    unreachable

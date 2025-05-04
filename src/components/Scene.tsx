@@ -1,7 +1,7 @@
 // src/components/Scene.tsx
 'use client';
 
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useLoader, useThree } from '@react-three/fiber';
 import {
   OrbitControls,
   Sky,
@@ -32,13 +32,12 @@ interface OceanProps {
   distortionScale: number;
 }
 
-// Import Ocean dynamically to avoid SSR issues
-const Ocean = dynamic(() => import('./Ocean'), { ssr: false });
+const NewOcean = dynamic(() => import('./Ocean/NewOcean'), { ssr: false });
 
 // Create low detail version for when simulation is in background or performance is low
-const LowDetailOcean = dynamic(
+const LowDetailNewOcean = dynamic(
   () =>
-    import('./Ocean').then(mod => ({
+    import('./Ocean/NewOcean').then(mod => ({
       default: (props: Partial<OceanProps>) => (
         <mod.default
           size={5000}
@@ -278,7 +277,7 @@ export default function Scene({ vesselPosition }: SceneProps) {
   // Default ocean props with higher resolution for better wave definition
   const oceanProps: OceanProps = {
     size: 10000,
-    resolution: lowPerformanceMode ? 128 : 512, // Higher resolution for more detailed waves
+    resolution: lowPerformanceMode ? 128 : 1024, // Higher resolution for more detailed waves
     position: [0, -0.5, 0],
     waterColor: getWaterColor(),
     distortionScale: getDistortionScale(),
@@ -286,7 +285,7 @@ export default function Scene({ vesselPosition }: SceneProps) {
 
   // Determine which ocean component to use based on performance
   const OceanComponent =
-    isTabVisible && !lowPerformanceMode ? Ocean : LowDetailOcean;
+    isTabVisible && !lowPerformanceMode ? NewOcean : LowDetailNewOcean;
 
   return (
     <div style={{ width: '100%', height: '100vh' }}>
@@ -324,14 +323,6 @@ export default function Scene({ vesselPosition }: SceneProps) {
           shadow-mapSize={lowPerformanceMode ? [1024, 1024] : [2048, 2048]}
         />
 
-        {/* Ocean */}
-        <Suspense fallback={null}>
-          <OceanComponent
-            {...oceanProps}
-            position={[vesselPosition.x, -0.5, vesselPosition.y]}
-          />
-        </Suspense>
-
         {/* Precipitation */}
         {environment.precipitation !== 'none' &&
           environment.precipitationIntensity &&
@@ -361,6 +352,14 @@ export default function Scene({ vesselPosition }: SceneProps) {
           heading={vesselPosition.heading}
           shipType={vesselProperties.type}
         />
+
+        {/* Ocean */}
+        <Suspense fallback={null}>
+          <OceanComponent
+            {...oceanProps}
+            position={[vesselPosition.x, -0.5, vesselPosition.y]}
+          />
+        </Suspense>
 
         {/* Camera Controls */}
         <OrbitControls

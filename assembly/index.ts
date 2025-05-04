@@ -1103,15 +1103,6 @@ export function updateVesselState(
     rudderYaw + windYaw + currentYaw + waveYaw + yawDamping + yawHydroDamping;
   const yawDot = netMomentYaw / inertiaYaw;
 
-  // Apply limited acceleration
-  if (abs(yawDot) < 5.0) {
-    vessel.r += yawDot * safeDt;
-  } else if (yawDot > 0) {
-    vessel.r += 5.0 * safeDt;
-  } else {
-    vessel.r -= 5.0 * safeDt;
-  }
-
   // Update heading with normalization
   vessel.psi += vessel.r * safeDt;
 

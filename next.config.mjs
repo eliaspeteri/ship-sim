@@ -38,6 +38,12 @@ export default {
     // Don't attempt to parse WebAssembly files
     config.module.noParse = [...(config.module.noParse || []), /\.wasm$/];
 
+    // Add rule for shader files (.vert, .frag, etc.)
+    config.module.rules.push({
+      test: /\.(glsl|vs|fs|vert|frag)$/,
+      type: 'asset/source',
+    });
+
     return config;
   },
 };
