@@ -137,6 +137,7 @@ export const HelmControl: React.FC<HelmControlProps> = ({
     value: normalizedValue,
     isDragging,
     handleMouseDown,
+    handleDoubleClick,
   } = useLeverDrag({
     initialValue: valueToNormalized(initialValue),
     min: 0, // Corresponds to minAngle (-40)
@@ -144,6 +145,7 @@ export const HelmControl: React.FC<HelmControlProps> = ({
     onChange: norm => onChange(normalizedToValue(norm)),
     dragAxis: 'horizontal', // Horizontal drag controls the normalized value 0-1
     dragSensitivity: 100, // Adjust sensitivity for desired rotation feel
+    resetOnDoubleClick: true,
   });
 
   const currentValue = normalizedToValue(normalizedValue);
@@ -188,6 +190,7 @@ export const HelmControl: React.FC<HelmControlProps> = ({
         viewBox={`0 0 ${size} ${size}`} // Square viewBox
         className="cursor-grab select-none overflow-hidden rounded" // Added rounding
         onMouseDown={handleMouseDown}
+        onDoubleClick={handleDoubleClick}
         style={{
           cursor: isDragging ? 'grabbing' : 'grab',
           backgroundColor: bgColor,

@@ -1,5 +1,5 @@
 /// <reference lib="dom" />
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface UseLeverDragProps {
   initialValue: number;
@@ -10,6 +10,8 @@ interface UseLeverDragProps {
   dragSensitivity?: number;
   /** 'vertical' or 'horizontal' axis for drag calculation. */
   dragAxis?: 'vertical' | 'horizontal';
+  /** If true, double-clicking the component resets the value to the middle. */
+  resetOnDoubleClick?: boolean;
 }
 
 interface UseLeverDragReturn {
@@ -19,14 +21,20 @@ interface UseLeverDragReturn {
    * Mouse down event handler to initiate dragging.
    * Attach this to the draggable element (e.g., lever handle or SVG area).
    */
-  handleMouseDown: React.MouseEventHandler<HTMLDivElement>;
+  handleMouseDown: (e: MouseEvent) => void; // Use Element for broader compatibility
+  /**
+   * Double click event handler to reset the value to the middle.
+   * Attach this to the main component element (e.g., SVG).
+   */
+  handleDoubleClick: (e: MouseEvent) => void; // Use Element for broader compatibility
 }
 
 /**
  * Custom hook to manage the state and logic for dragging a lever control.
  * Encapsulates mouse event handling, value calculation, and state updates.
+ * Optionally allows resetting the value to the middle on double-click.
  * @param props - Configuration for the lever drag behavior.
- * @returns Object containing the current value, dragging state, and mouse down handler.
+ * @returns Object containing the current value, dragging state, and event handlers.
  */
 export const useLeverDrag = ({
   initialValue,
@@ -35,6 +43,7 @@ export const useLeverDrag = ({
   onChange,
   dragSensitivity,
   dragAxis,
+  resetOnDoubleClick = false, // Default to false
 }: UseLeverDragProps): UseLeverDragReturn => {
   const [value, setValue] = useState<number>(initialValue);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -55,7 +64,7 @@ export const useLeverDrag = ({
 
   // Callback to initiate the drag sequence on mouse down.
   const handleMouseDown = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+    (e: MouseEvent) => {
       setIsDragging(true);
       startPosRef.current = { x: e.clientX, y: e.clientY };
       // Store the value at the moment dragging starts.
@@ -94,6 +103,20 @@ export const useLeverDrag = ({
     setIsDragging(false);
   }, []);
 
+  // Callback for handling double click to reset value.
+  const handleDoubleClick = useCallback(
+    (e: MouseEvent) => {
+      if (resetOnDoubleClick) {
+        const middleValue = min + (max - min) / 2;
+        setValue(middleValue);
+        onChange(middleValue);
+        // Optional: Prevent triggering other click/drag actions if needed
+        e.stopPropagation();
+      }
+    },
+    [min, max, onChange, resetOnDoubleClick],
+  );
+
   // Effect to manage global event listeners and cursor style during dragging.
   useEffect(() => {
     if (isDragging) {
@@ -108,12 +131,11 @@ export const useLeverDrag = ({
     }
 
     return () => {
-      console.info('Cleaning up event listeners in useLeverDrag');
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = '';
     };
   }, [isDragging, handleMouseMove, handleMouseUp, effectiveDragAxis]);
 
-  return { value, isDragging, handleMouseDown };
+  return { value, isDragging, handleMouseDown, handleDoubleClick };
 };
