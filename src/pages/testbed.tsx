@@ -16,6 +16,7 @@ import { BallValve } from '../components/BallValve';
 import { RotaryValve } from '../components/RotaryValve';
 import { HelmControl } from '../components/HelmControl';
 import { RudderLever } from '../components/RudderLever';
+import WindIndicator from '../components/WindIndicator';
 
 const TestbedPage = () => {
   const [gaugeValue, setGaugeValue] = useState(50);
@@ -32,6 +33,8 @@ const TestbedPage = () => {
   const [rotaryValveOpenness, setRotaryValveOpenness] = useState<number>(0.5);
   const [helmAngle, setHelmAngle] = useState<number>(0);
   const [rudderLeverAngle, setRudderLeverAngle] = useState<number>(0);
+  const [windDirection, setWindDirection] = useState<number>(0);
+  const [windSpeed, setWindSpeed] = useState<number>(10);
 
   return (
     <div className="p-8 space-y-8">
@@ -307,6 +310,28 @@ const TestbedPage = () => {
                 value: 35,
               },
             ]}
+          />
+        </div>
+        <div>
+          <h2 className="font-semibold">Wind Indicator</h2>
+          <WindIndicator direction={windDirection} speedKnots={windSpeed} />
+          <label className="block text-xs mt-2">Wind Direction:</label>
+          <input
+            type="range"
+            min={0}
+            max={360}
+            value={windDirection}
+            onChange={e => setWindDirection(Number(e.target.value))}
+            className="w-full"
+          />
+          <label className="block text-xs mt-2">Wind Speed (knots):</label>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={windSpeed}
+            onChange={e => setWindSpeed(Number(e.target.value))}
+            className="w-full"
           />
         </div>
       </div>

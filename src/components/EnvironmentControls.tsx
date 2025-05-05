@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import useStore from '../store';
 import { WeatherVisualizer } from './WeatherVisualizer';
 import socketManager from '../networking/socket';
+import WindIndicator from './WindIndicator';
 
 interface EnvironmentControlsProps {
   className?: string;
@@ -89,24 +90,38 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         {/* Wind Information */}
-        <div className="space-y-2 bg-gray-900 bg-opacity-50 p-3 rounded-lg">
-          <h3 className="font-semibold border-b border-gray-700 pb-1">Wind</h3>
+        <div className="space-y-2 bg-gray-900 bg-opacity-50 p-3 rounded-lg flex flex-col items-center">
+          <h3 className="font-semibold border-b border-gray-700 pb-1 w-full">
+            Wind
+          </h3>
 
-          <div className="flex items-center">
-            <label className="w-24">Speed:</label>
-            <span className="w-32">{windSpeed.toFixed(1)} m/s</span>
-          </div>
+          {/* Wind Indicator Visual */}
+          <WindIndicator
+            direction={radToDeg(windDirection)}
+            speedKnots={windSpeed * 1.94384} // Convert m/s to knots
+            size={180}
+          />
 
-          <div className="flex items-center">
-            <label className="w-24">Direction:</label>
-            <span className="w-32">{radToDeg(windDirection)}°</span>
-          </div>
+          <div className="flex flex-col w-full mt-2 space-y-1">
+            <div className="flex items-center">
+              <label className="w-24">Speed:</label>
+              <span className="w-32">
+                {windSpeed.toFixed(1)} m/s ({(windSpeed * 1.94384).toFixed(1)}{' '}
+                kt)
+              </span>
+            </div>
 
-          <div className="flex items-center">
-            <label className="w-24">Gusting:</label>
-            <span className="w-32">
-              {windGusting ? 'Variable winds' : 'Steady wind'}
-            </span>
+            <div className="flex items-center">
+              <label className="w-24">Direction:</label>
+              <span className="w-32">{radToDeg(windDirection)}°</span>
+            </div>
+
+            <div className="flex items-center">
+              <label className="w-24">Gusting:</label>
+              <span className="w-32">
+                {windGusting ? 'Variable winds' : 'Steady wind'}
+              </span>
+            </div>
           </div>
         </div>
 
