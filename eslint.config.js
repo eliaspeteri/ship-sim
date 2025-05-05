@@ -65,6 +65,7 @@ export default [
         HTMLDivElement: 'readonly',
         HTMLInputElement: 'readonly',
         HTMLFormElement: 'readonly',
+        SVGSVGElement: 'readonly',
         NodeJS: 'readonly', // Added NodeJS global
         Buffer: 'readonly', // Added Buffer global
         URLSearchParams: 'readonly', // Added URLSearchParams global
