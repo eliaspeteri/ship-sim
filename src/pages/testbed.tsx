@@ -17,6 +17,7 @@ import { RotaryValve } from '../components/RotaryValve';
 import { HelmControl } from '../components/HelmControl';
 import { RudderLever } from '../components/RudderLever';
 import WindIndicator from '../components/WindIndicator';
+import RudderAngleIndicator from '../components/RudderAngleIndicator';
 
 const TestbedPage = () => {
   const [gaugeValue, setGaugeValue] = useState(50);
@@ -311,6 +312,15 @@ const TestbedPage = () => {
               },
             ]}
           />
+        </div>
+        <div>
+          <h2 className="font-semibold">Rudder Angle Indicator</h2>
+          <RudderAngleIndicator 
+            angle={rudderLeverAngle} 
+            maxAngle={35} 
+            size={240} 
+          />
+          <p className="text-sm mt-2">Use the Rudder Lever to control rudder angle</p>
         </div>
         <div>
           <h2 className="font-semibold">Wind Indicator</h2>

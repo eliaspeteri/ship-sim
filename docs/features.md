@@ -55,7 +55,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
   - [x] Basic depth sounder
   - [x] Barometer
   - [x] Wind indicator (anemometer/wind vane)
-  - [ ] Rudder angle indicator
+  - [x] Rudder angle indicator
 - [x] Interactive Diagrams: System schematics, flow diagrams
 - [x] Logs & Reports: Event logs, fuel consumption, voyage data
 
