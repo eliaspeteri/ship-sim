@@ -274,7 +274,7 @@ const Barometer: React.FC<BarometerProps> = ({
     v => v.toFixed(0), // Pass index, though not used here
   );
 
-  // Weather words (Outermost, Rotated Left)
+  // Weather words (Outermost, Curved Text Path)
   const weatherWords = [
     { label: 'Stormy', hpa: 970 },
     { label: 'Rain', hpa: 985 },
@@ -282,36 +282,50 @@ const Barometer: React.FC<BarometerProps> = ({
     { label: 'Fair', hpa: 1015 },
     { label: 'Very Dry', hpa: 1030 },
   ];
+
+  // Create an invisible arc path for the weather words to follow
+  const weatherPathRadius = weatherScaleRadius * 1.02; // Slightly larger radius for text path
+  const weatherArcStart = getPointOnCircle(
+    center,
+    center,
+    weatherPathRadius,
+    PRESSURE_ANGLE_START,
+  );
+  const weatherArcEnd = getPointOnCircle(
+    center,
+    center,
+    weatherPathRadius,
+    PRESSURE_ANGLE_END,
+  );
+  const weatherArcPath = `M ${weatherArcStart.x} ${weatherArcStart.y} A ${weatherPathRadius} ${weatherPathRadius} 0 1 1 ${weatherArcEnd.x} ${weatherArcEnd.y}`;
+
+  // Generate text path elements for each weather word
   const weatherLabels = weatherWords
     .map(word => {
-      // Only include words within the new hPa range
+      // Only include words within the hPa range
       if (word.hpa < PRESSURE_HPA_MIN || word.hpa > PRESSURE_HPA_MAX)
         return null;
-      const angle = mapValueToAngle(
-        word.hpa,
-        PRESSURE_HPA_MIN,
-        PRESSURE_HPA_MAX,
-        PRESSURE_ANGLE_START,
-        PRESSURE_ANGLE_END,
-      );
-      const pos = getPointOnCircle(center, center, weatherScaleRadius, angle);
+
+      // Calculate percentage position along the path based on pressure value
+      const percentage =
+        ((word.hpa - PRESSURE_HPA_MIN) /
+          (PRESSURE_HPA_MAX - PRESSURE_HPA_MIN)) *
+        100;
+
       return (
-        <text
-          key={word.label}
-          x={pos.x}
-          y={pos.y}
-          textAnchor="middle"
-          dominantBaseline="central"
-          fontSize="9"
-          fontWeight="bold"
-          fill="#222"
-          transform={`rotate(${angle} ${pos.x} ${pos.y})`}
-        >
-          {word.label.toUpperCase()}
+        <text key={word.label} fontSize="9" fontWeight="bold" fill="#222">
+          <textPath
+            href="#weather-path"
+            startOffset={`${percentage}%`}
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
+            {word.label.toUpperCase()}
+          </textPath>
         </text>
       );
     })
-    .filter(Boolean); // Remove null entries
+    .filter(Boolean);
 
   // Temperature Scales (Rotated Right: labelRotation = 180)
   const tempCTicks = generateScaleTicks(
@@ -402,6 +416,11 @@ const Barometer: React.FC<BarometerProps> = ({
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {/* Define paths for reuse */}
+        <defs>
+          <path id="weather-path" d={weatherArcPath} fill="none" />
+        </defs>
+
         {/* Outer Frame */}
         <circle cx={center} cy={center} r={radius} fill="#8b4513" />
         {/* Inner Golden Background */}
@@ -415,7 +434,10 @@ const Barometer: React.FC<BarometerProps> = ({
         />
 
         {/* Scales */}
-        <g id="weather-labels">{weatherLabels}</g>
+        <g id="weather-labels">
+          {/* Weather words follow the curved path */}
+          {weatherLabels}
+        </g>
         <g id="inhg-scale">{inHgTicks}</g>
         <g id="hpa-scale">{hpaTicks}</g>
         <g id="temp-c-scale">{tempCTicks}</g>
