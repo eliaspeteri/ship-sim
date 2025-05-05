@@ -36,7 +36,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
 
 ## UI
 - [x] Control panels: Telegraph, bridge controls, system monitors
-  - [ ] Control lever
+  - [ ] Rudder control lever
   - [x] Telegraph lever
   - [x] Ball Valve
   - [x] Rotary Valve
