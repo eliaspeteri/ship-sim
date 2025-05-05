@@ -84,6 +84,7 @@ interface HelmControlProps {
  * Features a square background, a top-oriented semi-circular display
  * with red/green indication and tick marks.
  * Interaction is via dragging the helm wheel horizontally.
+ * Includes a rotating pointer behind the helm.
  */
 export const HelmControl: React.FC<HelmControlProps> = ({
   value: initialValue,
@@ -106,10 +107,12 @@ export const HelmControl: React.FC<HelmControlProps> = ({
   const tickLength = indicatorArcThickness * 1.5;
   const labelRadius = indicatorArcRadius + tickLength * 1.1; // Move labels slightly further out
   const labelFontSize = size * 0.05;
+  const pointerBaseWidth = size * 0.06; // Width of the pointer base
+  const pointerHeight = size * 0.08; // Height of the pointer
 
   // Angles for the horseshoe display (degrees, 0 is up) - ROTATED 90deg RIGHT
-  const displayStartAngle = 135; // Left side (-40 deg rudder)
-  const displayEndAngle = 405; // Right side (+40 deg rudder) - Use 360 for arc calculation continuity
+  const displayStartAngle = 180; // Left side (-40 deg rudder)
+  const displayEndAngle = 360; // Right side (+40 deg rudder) - Use 360 for arc calculation continuity
   const displayMidAngle = 270; // Top (0 deg rudder)
   const totalDisplaySweep = displayEndAngle - displayStartAngle; // Should be 180
 
@@ -120,6 +123,7 @@ export const HelmControl: React.FC<HelmControlProps> = ({
   const greenColor = '#10B981';
   const tickColor = '#9CA3AF';
   const labelColor = '#E5E7EB';
+  const rotatingPointerColor = '#111827'; // Dark color for the rotating pointer
 
   // --- Drag Logic ---
   const angleRange = maxAngle - minAngle;
@@ -168,6 +172,13 @@ export const HelmControl: React.FC<HelmControlProps> = ({
     displayEndAngle,
   );
 
+  // Define the rotating pointer shape (triangle pointing up)
+  const pointerPoints = `
+    ${centerX - pointerBaseWidth / 2}, ${centerY}
+    ${centerX + pointerBaseWidth / 2}, ${centerY}
+    ${centerX}, ${centerY - pointerHeight}
+  `;
+
   return (
     <div className="flex flex-col items-center p-2">
       <div className="text-white mb-2 text-sm font-semibold">{label}</div>
@@ -182,9 +193,6 @@ export const HelmControl: React.FC<HelmControlProps> = ({
           backgroundColor: bgColor,
         }} // Use SVG background
       >
-        {/* Background Rect (alternative to style) */}
-        {/* <rect width={size} height={size} fill={bgColor} rx={5} /> */}
-
         {/* Indicator Arcs */}
         <path
           d={redArcPath}
@@ -259,7 +267,12 @@ export const HelmControl: React.FC<HelmControlProps> = ({
           );
         })}
 
-        {/* Helm Wheel - Rotates */}
+        {/* Rotating Pointer (drawn BEFORE helm) */}
+        <g transform={`rotate(${helmRotation}, ${centerX}, ${centerY})`}>
+          <polygon points={pointerPoints} fill={rotatingPointerColor} />
+        </g>
+
+        {/* Helm Wheel - Rotates (drawn AFTER pointer) */}
         <g transform={`rotate(${helmRotation - 180}, ${centerX}, ${centerY})`}>
           {/* Rim */}
           <circle
