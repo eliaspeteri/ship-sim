@@ -14,6 +14,8 @@ import DepthSounder from '../components/DepthSounder';
 import Barometer from '../components/Barometer';
 import { BallValve } from '../components/BallValve';
 import { RotaryValve } from '../components/RotaryValve';
+import { HelmControl } from '../components/HelmControl';
+import { RudderLever } from '../components/RudderLever';
 
 const TestbedPage = () => {
   const [gaugeValue, setGaugeValue] = useState(50);
@@ -28,6 +30,8 @@ const TestbedPage = () => {
   const [temperature, setTemperature] = useState(20);
   const [ballValveOpenness, setBallValveOpenness] = useState<number>(1);
   const [rotaryValveOpenness, setRotaryValveOpenness] = useState<number>(0.5);
+  const [helmAngle, setHelmAngle] = useState<number>(0);
+  const [rudderLeverAngle, setRudderLeverAngle] = useState<number>(0);
 
   return (
     <div className="p-8 space-y-8">
@@ -244,6 +248,28 @@ const TestbedPage = () => {
           <div className="text-white text-xs mt-16 ml-5">
             Open: {(rotaryValveOpenness * 100).toFixed(0)}%
           </div>
+        </div>
+        <div>
+          <h2 className="font-semibold">Helm Control</h2>
+          <HelmControl
+            value={helmAngle}
+            onChange={setHelmAngle}
+            minAngle={-40}
+            maxAngle={40}
+            numTicks={9}
+            size={220}
+          />
+        </div>
+        <div>
+          <h2 className="font-semibold">Rudder Lever</h2>
+          <RudderLever
+            value={rudderLeverAngle}
+            onChange={setRudderLeverAngle}
+            minAngle={-35}
+            maxAngle={35}
+            numTicks={7}
+            size={180}
+          />
         </div>
       </div>
       <div className="mt-8">
