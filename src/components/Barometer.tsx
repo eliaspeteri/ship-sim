@@ -315,9 +315,9 @@ const Barometer: React.FC<BarometerProps> = ({
 
   // Temperature Scales (Rotated Right: labelRotation = 180)
   const tempCTicks = generateScaleTicks(
-    // Celsius (Outer)
-    TEMP_CELSIUS_MIN,
-    TEMP_CELSIUS_MAX,
+    // Celsius (Outer) - Inverted scale direction
+    TEMP_CELSIUS_MAX, // Start from max value
+    TEMP_CELSIUS_MIN, // End at min value
     12, // 60 C range / 5 C per tick = 12 ticks
     TEMP_ANGLE_START,
     TEMP_ANGLE_END,
@@ -337,9 +337,9 @@ const Barometer: React.FC<BarometerProps> = ({
   );
 
   const tempFTicks = generateScaleTicks(
-    // Fahrenheit (Inner)
-    TEMP_FAHRENHEIT_MIN,
-    TEMP_FAHRENHEIT_MAX,
+    // Fahrenheit (Inner) - Inverted scale direction
+    TEMP_FAHRENHEIT_MAX, // Start from max value
+    TEMP_FAHRENHEIT_MIN, // End at min value
     11, // ~108 F range / ~10 F per tick = 11 ticks
     TEMP_ANGLE_START,
     TEMP_ANGLE_END,
@@ -367,10 +367,13 @@ const Barometer: React.FC<BarometerProps> = ({
         (TEMP_CELSIUS_MAX - TEMP_CELSIUS_MIN),
     ),
   );
-  // Map normalized value to angle range (135 to 225)
+  // Invert the normalized value to flip the scale direction
+  const invertedTempValueNormalized = 1 - tempValueNormalized;
+
+  // Map normalized value to angle range (now mapping high temps to 135° and low temps to 225°)
   const tempFillAngle =
     TEMP_ANGLE_START +
-    tempValueNormalized * (TEMP_ANGLE_END - TEMP_ANGLE_START);
+    invertedTempValueNormalized * (TEMP_ANGLE_END - TEMP_ANGLE_START);
 
   const tempTubeStart = getPointOnCircle(
     center,
@@ -384,7 +387,7 @@ const Barometer: React.FC<BarometerProps> = ({
     thermometerTubeRadius,
     TEMP_ANGLE_END,
   ); // Right point (225 deg)
-  const tempFillStart = tempTubeStart; // Fill always starts from the minimum temp point
+  const tempFillStart = tempTubeEnd; // Fill starts from the right point (225°)
   const tempFillCurrentEnd = getPointOnCircle(
     center,
     center,
@@ -392,9 +395,9 @@ const Barometer: React.FC<BarometerProps> = ({
     tempFillAngle,
   ); // Point corresponding to current temp
 
-  // Arc flags for the fill path
+  // Arc flags for both tube and fill paths - consistent direction
   const largeArcFlagFill = 0; // Always < 180 degrees
-  const sweepFlagFill = 1; // Always sweep clockwise (positive angle) from start to end
+  const sweepFlagFill = 0; // Sweep counterclockwise
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -420,8 +423,8 @@ const Barometer: React.FC<BarometerProps> = ({
 
         {/* Curved Thermometer Tube */}
         <path
-          // Draw the full tube arc from 135 to 225
-          d={`M ${tempTubeStart.x} ${tempTubeStart.y} A ${thermometerTubeRadius} ${thermometerTubeRadius} 0 ${largeArcFlagFill} ${sweepFlagFill} ${tempTubeEnd.x} ${tempTubeEnd.y}`}
+          // Draw the tube arc from end (225°) to start (135°) for complete 180° flip
+          d={`M ${tempTubeEnd.x} ${tempTubeEnd.y} A ${thermometerTubeRadius} ${thermometerTubeRadius} 0 ${largeArcFlagFill} ${sweepFlagFill} ${tempTubeStart.x} ${tempTubeStart.y}`}
           stroke="gray"
           strokeWidth="6"
           fill="none"
@@ -429,7 +432,7 @@ const Barometer: React.FC<BarometerProps> = ({
         />
         {/* Thermometer Fill */}
         <path
-          // Draw the fill arc from 135 up to the current temp angle
+          // Draw the fill arc from the maximum temp point to the current temp angle
           d={`M ${tempFillStart.x} ${tempFillStart.y} A ${thermometerTubeRadius} ${thermometerTubeRadius} 0 ${largeArcFlagFill} ${sweepFlagFill} ${tempFillCurrentEnd.x} ${tempFillCurrentEnd.y}`}
           stroke="red"
           strokeWidth="4"
