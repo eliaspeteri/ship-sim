@@ -125,14 +125,16 @@ export const TelegraphLever: React.FC<TelegraphLeverProps> = ({
   const pivotColor = '#4B5563';
 
   // --- Drag Hook ---
-  const { value, isDragging, handleMouseDown } = useLeverDrag({
-    initialValue,
-    min,
-    max,
-    onChange,
-    dragAxis: 'vertical',
-    dragSensitivity: 150,
-  });
+  const { value, isDragging, handleMouseDown, handleDoubleClick } =
+    useLeverDrag({
+      initialValue,
+      min,
+      max,
+      onChange,
+      dragAxis: 'horizontal',
+      dragSensitivity: 150,
+      resetOnDoubleClick: true,
+    });
 
   // --- Calculations ---
   const range = max - min;
@@ -159,6 +161,7 @@ export const TelegraphLever: React.FC<TelegraphLeverProps> = ({
         viewBox="0 0 200 140"
         className="cursor-grab select-none" // Prevent text selection during drag
         onMouseDown={handleMouseDown}
+        onDoubleClick={handleDoubleClick}
         style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
       >
         {/* EOT Body Background */}
