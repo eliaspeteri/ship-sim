@@ -32,7 +32,6 @@ const TestbedPage = () => {
   const [temperature, setTemperature] = useState(20);
   const [ballValveOpenness, setBallValveOpenness] = useState<number>(1);
   const [rotaryValveOpenness, setRotaryValveOpenness] = useState<number>(0.5);
-  const [helmAngle, setHelmAngle] = useState<number>(0);
   const [rudderLeverAngle, setRudderLeverAngle] = useState<number>(0);
   const [windDirection, setWindDirection] = useState<number>(0);
   const [windSpeed, setWindSpeed] = useState<number>(10);
@@ -84,12 +83,31 @@ const TestbedPage = () => {
         </div>
         <div>
           <h2 className="font-semibold">AlarmIndicator</h2>
-          <AlarmIndicator active={isBooleanOn} label={''} />
+          <div className="space-y-2">
+            <AlarmIndicator
+              active={isBooleanOn}
+              label={'Engine Overheat'}
+              severity="critical"
+              size={24}
+            />
+            <AlarmIndicator
+              active={isBooleanOn}
+              label={'Low Fuel'}
+              severity="warning"
+              size={20}
+            />
+            <AlarmIndicator
+              active={!isBooleanOn}
+              label={'System Normal'}
+              severity="warning"
+              size={16}
+            />
+          </div>
           <button
             onClick={() => setBooleanOn(a => !a)}
-            className="ml-2 px-2 py-1 bg-gray-200 rounded"
+            className="mt-2 px-2 py-1 bg-gray-200 rounded text-black"
           >
-            Toggle Alarm
+            Toggle Alarms
           </button>
         </div>
         <div>
@@ -256,8 +274,8 @@ const TestbedPage = () => {
         <div>
           <h2 className="font-semibold">Helm Control</h2>
           <HelmControl
-            value={helmAngle}
-            onChange={setHelmAngle}
+            value={rudderLeverAngle}
+            onChange={setRudderLeverAngle}
             minAngle={-40}
             maxAngle={40}
             numTicks={9}
@@ -315,12 +333,14 @@ const TestbedPage = () => {
         </div>
         <div>
           <h2 className="font-semibold">Rudder Angle Indicator</h2>
-          <RudderAngleIndicator 
-            angle={rudderLeverAngle} 
-            maxAngle={35} 
-            size={240} 
+          <RudderAngleIndicator
+            angle={rudderLeverAngle}
+            maxAngle={35}
+            size={240}
           />
-          <p className="text-sm mt-2">Use the Rudder Lever to control rudder angle</p>
+          <p className="text-sm mt-2">
+            Use the Rudder Lever to control rudder angle
+          </p>
         </div>
         <div>
           <h2 className="font-semibold">Wind Indicator</h2>
