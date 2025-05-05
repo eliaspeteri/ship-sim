@@ -1,13 +1,38 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useLeverDrag } from '../hooks/useLeverDrag';
 
-// Helper functions (reused from TelegraphLever/HelmControl)
+// Define the structure for scale markings
+interface RudderMark {
+  label: string;
+  value: number;
+  major?: boolean; // Optional flag for major markings
+}
+
+interface RudderLeverProps {
+  value: number; // Current rudder angle value (e.g., -35 to 35)
+  min: number; // Min value (e.g., -35)
+  max: number; // Max value (e.g., 35)
+  onChange: (value: number) => void; // Callback when value changes
+  label: string; // Label for the control
+  scale: RudderMark[]; // Scale markings definition
+}
+
+/**
+ * Converts polar coordinates (angle in degrees, radius) to Cartesian coordinates (x, y).
+ * Assumes 0 degrees is Up, 90 is Right, 180 is Down, 270 is Left.
+ * @param centerX The x-coordinate of the center point.
+ * @param centerY The y-coordinate of the center point.
+ * @param radius The radius.
+ * @param angleInDegrees The angle in degrees.
+ * @returns The Cartesian coordinates { x, y }.
+ */
 const polarToCartesian = (
   centerX: number,
   centerY: number,
   radius: number,
   angleInDegrees: number,
 ): { x: number; y: number } => {
+  // Adjust angle so that 0 degrees is pointing upwards (mathematical standard is 0 degrees right)
   const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
   return {
     x: centerX + radius * Math.cos(angleInRadians),
@@ -15,288 +40,292 @@ const polarToCartesian = (
   };
 };
 
-const describeArc = (
+/**
+ * Describes the SVG path data ('d' attribute) for a filled arc segment.
+ * @param cx Center X coordinate.
+ * @param cy Center Y coordinate.
+ * @param outerRadius Outer radius of the arc segment.
+ * @param innerRadius Inner radius of the arc segment.
+ * @param startAngleDegrees Start angle in degrees (0=Up, clockwise).
+ * @param endAngleDegrees End angle in degrees (0=Up, clockwise).
+ * @returns SVG path 'd' attribute string for the arc segment.
+ */
+const describeArcSegment = (
   cx: number,
   cy: number,
-  radius: number,
+  outerRadius: number,
+  innerRadius: number,
   startAngleDegrees: number,
   endAngleDegrees: number,
-  sweepFlag: '0' | '1' = '1',
 ): string => {
+  // Avoid issues with arcs of zero or 360 degrees by slightly adjusting the end angle
   const clampedEndAngle =
-    Math.abs(startAngleDegrees - endAngleDegrees) % 360 < 0.01
-      ? endAngleDegrees - 0.01
+    Math.abs(startAngleDegrees - endAngleDegrees) % 360 < 0.001
+      ? endAngleDegrees - 0.01 // If start and end are effectively the same, nudge end slightly
       : endAngleDegrees;
 
-  const adjustedEndAngle =
-    sweepFlag === '1' && clampedEndAngle <= startAngleDegrees
-      ? clampedEndAngle + 360
-      : sweepFlag === '0' && clampedEndAngle >= startAngleDegrees
-        ? clampedEndAngle - 360
-        : clampedEndAngle;
+  const startOuter = polarToCartesian(cx, cy, outerRadius, startAngleDegrees);
+  const endOuter = polarToCartesian(cx, cy, outerRadius, clampedEndAngle);
+  const startInner = polarToCartesian(cx, cy, innerRadius, startAngleDegrees);
+  const endInner = polarToCartesian(cx, cy, innerRadius, clampedEndAngle);
 
-  const start = polarToCartesian(cx, cy, radius, startAngleDegrees);
-  const end = polarToCartesian(cx, cy, radius, adjustedEndAngle);
-
-  const largeArcFlag =
-    Math.abs(adjustedEndAngle - startAngleDegrees) <= 180 ? '0' : '1';
+  const angleDiff = clampedEndAngle - startAngleDegrees;
+  // large-arc-flag is 1 if the arc spans more than 180 degrees
+  const largeArcFlag = Math.abs(angleDiff) <= 180 ? '0' : '1';
+  // sweep-flag is 1 for clockwise, 0 for counter-clockwise
+  const sweepFlag = angleDiff >= 0 ? '1' : '0';
+  // sweep-flag for the inner arc return path (drawn in reverse direction)
+  const sweepFlagReverse = angleDiff >= 0 ? '0' : '1';
 
   const d = [
     'M',
-    start.x,
-    start.y,
+    startOuter.x,
+    startOuter.y, // Move to start point on outer radius
     'A',
-    radius,
-    radius,
+    outerRadius,
+    outerRadius,
     0,
     largeArcFlag,
     sweepFlag,
-    end.x,
-    end.y,
+    endOuter.x,
+    endOuter.y, // Draw outer arc
+    'L',
+    endInner.x,
+    endInner.y, // Line to end point on inner radius
+    'A',
+    innerRadius,
+    innerRadius,
+    0,
+    largeArcFlag,
+    sweepFlagReverse,
+    startInner.x,
+    startInner.y, // Draw inner arc backwards
+    'Z', // Close path (line back to start point on outer radius)
   ].join(' ');
 
   return d;
 };
 
-interface RudderLeverProps {
-  /** Current rudder angle in degrees */
-  value: number;
-  /** Callback when the angle changes */
-  onChange: (value: number) => void;
-  /** Minimum angle (e.g., -35) */
-  minAngle?: number;
-  /** Maximum angle (e.g., 35) */
-  maxAngle?: number;
-  /** Total number of tick marks (including ends and zero) */
-  numTicks?: number;
-  /** Size of the component (width) */
-  size?: number;
-  /** Optional label */
-  label?: string;
-}
-
 /**
- * Renders a lever-style rudder control.
- * Features a horseshoe-shaped arc indicator with red/green fill and tick marks.
- * Interaction is via dragging the lever vertically.
+ * Renders a Rudder Angle Indicator style lever control using SVG.
+ * Displays rudder angle on a 120-degree arc centered at the bottom.
+ * Features red (port) and green (starboard) sections and radial drag interaction.
  */
 export const RudderLever: React.FC<RudderLeverProps> = ({
-  value: initialValue,
+  value: currentValue,
+  min,
+  max,
   onChange,
-  minAngle = -35,
-  maxAngle = 35,
-  numTicks = 8, // e.g., -35, -25, -15, -5, 5, 15, 25, 35 (0 is implied center)
-  size = 150, // Width of the component
-  label = 'Rudder Lever',
+  label,
+  scale,
 }) => {
-  // --- Geometry & Styling ---
-  const width = size;
-  const height = size * 0.8; // Adjust height relative to width
-  const centerX = width / 2;
-  const centerY = height * 0.8; // Pivot point lower down
-  const arcRadius = width * 0.4;
-  const arcThickness = width * 0.08;
-  const tickRadius = arcRadius;
-  const tickLength = arcThickness * 0.6;
-  const labelRadius = arcRadius + tickLength * 1.5;
-  const labelFontSize = width * 0.07;
-  const leverLength = arcRadius * 1.1;
-  const leverWidth = width * 0.05;
-  const knobRadius = leverWidth * 1.5;
+  // --- Component Constants ---
+  const centerX = 100; // SVG center X
+  const centerY = 0; // SVG center Y (Pivot point)
+  const outerRadius = 120; // Outer edge of the colored arcs
+  const innerRadius = 90; // Inner edge of the colored arcs
+  const tickRadius = (outerRadius + innerRadius) / 2; // Radius for tick marks
+  const tickLengthMajor = 10; // Length of major scale ticks
+  const tickLengthMinor = 6; // Length of minor scale ticks
+  const labelRadius = outerRadius + 15; // Radius for placing scale labels
+  const pivotRadius = 32; // Radius of the central pivot circle
+  const handleLength = outerRadius + 32; // Length of the lever arm
+  const handleWidth = 8; // Width of the lever arm
+  const knobRadius = handleWidth; // Radius of the knob at the lever's end
 
-  // Angles for the horseshoe display (degrees, 0 is up)
-  // Adjust angles for a wider, flatter arc compared to HelmControl
-  const displayStartAngle = 225; // ~7:30 o'clock
-  const displayEndAngle = -45; // ~-1:30 o'clock (equivalent to 315 degrees)
-  const displayMidAngle =
-    (displayStartAngle +
-      (displayEndAngle < displayStartAngle
-        ? displayEndAngle + 360
-        : displayEndAngle)) /
-      2 -
-    180; // Center angle (0 degrees rudder)
-  const totalDisplaySweep =
-    (displayEndAngle < displayStartAngle
-      ? displayEndAngle + 360
-      : displayEndAngle) - displayStartAngle;
+  // --- Angle Configuration ---
+  const totalAngleSweep = 120; // Total arc span in degrees
+  const centerAngle = 180; // Angle for the center (bottom) of the arc (0 degrees is Up)
+  const arcStartAngle = centerAngle - totalAngleSweep / 2; // Starting angle (e.g., 210 deg)
+  const arcEndAngle = centerAngle + totalAngleSweep / 2; // Ending angle (e.g., 330 deg)
 
-  // Colors
-  const leverColor = '#111827'; // Very Dark Gray / Metallic Black
-  const knobColor = '#4B5563';
-  const redColor = '#EF4444';
-  const greenColor = '#10B981';
-  const tickColor = '#9CA3AF';
-  const labelColor = '#E5E7EB';
+  // --- Colors ---
+  const bgColor = '#1F2937'; // Gray-800 for the background
+  const portColor = '#EF4444'; // Red-500 for negative values (Port)
+  const starboardColor = '#22C55E'; // Green-500 for positive values (Starboard)
+  const tickColor = '#9CA3AF'; // Gray-400 for scale ticks
+  const labelColor = '#D1D5DB'; // Gray-300 for scale labels
+  const handleColor = '#D1D5DB'; // Gray-100 for the lever handle
+  const pivotColor = '#6B7280'; // Gray-500 for the central pivot
 
-  // --- Drag Logic ---
-  const angleRange = maxAngle - minAngle;
-  const valueToNormalized = (angle: number) =>
-    angleRange === 0 ? 0.5 : (angle - minAngle) / angleRange;
-  const normalizedToValue = (norm: number) => minAngle + norm * angleRange;
+  const svgRef = useRef<SVGSVGElement>(null);
 
-  // Use useLeverDrag with vertical axis
+  // Invert min and max values to fix the drag direction
+  const invertedMin = -max;
+  const invertedMax = -min;
+  const invertedValue = -currentValue;
+
+  // Adapter function to convert from inverted value back to normal value
+  const handleInvertedChange = (invertedValue: number): void => {
+    onChange(-invertedValue); // Convert back from inverted space
+  };
+
+  // Use the lever drag hook with inverted parameters
   const {
-    value: normalizedValue,
+    value: invertedCurrentValue,
     isDragging,
     handleMouseDown,
+    handleDoubleClick,
   } = useLeverDrag({
-    initialValue: valueToNormalized(initialValue),
-    min: 0,
-    max: 1,
-    onChange: norm => onChange(normalizedToValue(norm)),
-    dragAxis: 'vertical', // Drag up/down
-    dragSensitivity: 150, // Adjust sensitivity
+    initialValue: invertedValue,
+    min: invertedMin,
+    max: invertedMax,
+    onChange: handleInvertedChange,
+    dragSensitivity: 200,
+    dragAxis: 'horizontal',
+    resetOnDoubleClick: true,
   });
 
-  const currentValue = normalizedToValue(normalizedValue);
+  // Convert back from inverted space for display
+  const value = -invertedCurrentValue;
 
-  // Calculate lever rotation based on the current value
-  const currentDisplayAngle =
-    displayStartAngle + normalizedValue * totalDisplaySweep;
+  // --- Value to Angle Calculation ---
+  const range = max - min;
+  // Use the non-inverted value for angle calculation
+  const normalizedValue = range === 0 ? 0.5 : (value - min) / range;
+  const currentAngle = arcStartAngle + normalizedValue * totalAngleSweep;
 
-  // --- SVG Paths ---
-  // Background (optional, could just rely on parent container)
-  // const backgroundPath = `...`;
+  // Calculate the angle corresponding to the zero value (used to split red/green arcs)
+  const zeroValueNormalized = range === 0 ? 0.5 : (0 - min) / range;
+  const zeroAngle = arcStartAngle + zeroValueNormalized * totalAngleSweep; // Should be 270 degrees
 
-  // Create filled segments using inner and outer arcs
-  const createFilledArc = (startAng: number, endAng: number, color: string) => {
-    const outerStart = polarToCartesian(
-      centerX,
-      centerY,
-      arcRadius + arcThickness / 2,
-      startAng,
-    );
-    const innerEnd = polarToCartesian(
-      centerX,
-      centerY,
-      arcRadius - arcThickness / 2,
-      endAng,
-    );
-
-    return (
-      <path
-        d={`
-          M ${outerStart.x} ${outerStart.y}
-          ${describeArc(centerX, centerY, arcRadius + arcThickness / 2, startAng, endAng)}
-          L ${innerEnd.x} ${innerEnd.y}
-          ${describeArc(centerX, centerY, arcRadius - arcThickness / 2, endAng, startAng, '0')} 
-          Z
-        `}
-        fill={color}
-      />
-    );
-  };
+  // --- SVG Path Data ---
+  // Generate path data for the red (Port) and green (Starboard) arc segments
+  const portArcPath = describeArcSegment(
+    centerX,
+    centerY,
+    outerRadius,
+    innerRadius,
+    arcStartAngle,
+    zeroAngle,
+  );
+  const starboardArcPath = describeArcSegment(
+    centerX,
+    centerY,
+    outerRadius,
+    innerRadius,
+    zeroAngle,
+    arcEndAngle,
+  );
 
   return (
     <div className="flex flex-col items-center p-2">
-      <div className="text-white mb-2 text-sm font-semibold">{label}</div>
+      {/* Label Text */}
+      <div className="text-white mb-1 text-sm font-semibold">{label}</div>
+      {/* SVG Container */}
       <svg
-        width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        className="cursor-grab select-none bg-gray-700 rounded" // Added background and rounding
-        onMouseDown={handleMouseDown}
-        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+        ref={svgRef}
+        width="100" // Width of the SVG canvas
+        height="150" // Height adjusted to accommodate labels below the arc
+        viewBox="0 0 200 150" // ViewBox defines the coordinate system
+        className="select-none" // Prevent text selection within SVG
+        onMouseDown={handleMouseDown} // Use the hook's mouseDown handler
+        onDoubleClick={handleDoubleClick} // Use the hook's doubleClick handler for resetting to center
+        style={{
+          cursor: isDragging ? 'grabbing' : 'grab', // Use isDragging from the hook
+          backgroundColor: bgColor,
+        }}
       >
-        {/* Background Color Fill (Alternative to path) */}
-        {/* <rect width={width} height={height} fill={bgColor} /> */}
+        {/* Port Arc Segment (Red) */}
+        <path d={portArcPath} fill={portColor} />
 
-        {/* Filled Indicator Arcs */}
-        {createFilledArc(displayStartAngle, displayMidAngle, redColor)}
-        {createFilledArc(displayMidAngle, displayEndAngle, greenColor)}
+        {/* Starboard Arc Segment (Green) */}
+        <path d={starboardArcPath} fill={starboardColor} />
 
-        {/* Tick Marks and Labels */}
-        {Array.from({ length: numTicks + 1 }).map((_, i) => {
-          // +1 to include 0 if not explicitly in ticks
-          const tickValueNorm = i / numTicks;
-          let tickAngleDegrees = minAngle + tickValueNorm * angleRange;
-          // Ensure 0 is always shown if within range
-          if (i !== 0 && i !== numTicks && Math.abs(tickAngleDegrees) < 0.01)
-            return null; // Skip if generating 0 again
-          if (i === 0) tickAngleDegrees = minAngle;
-          if (i === numTicks) tickAngleDegrees = maxAngle;
+        {/* Scale Markings and Labels */}
+        {scale.map(mark => {
+          // Calculate position and angle for each scale mark
+          const markNorm = range === 0 ? 0.5 : (mark.value - min) / range;
+          const angle = arcStartAngle + markNorm * totalAngleSweep;
 
-          const displayAngle =
-            displayStartAngle + tickValueNorm * totalDisplaySweep;
-
+          // Calculate start and end points for the tick line
+          const tickInnerR =
+            tickRadius - (mark.major ? tickLengthMajor : tickLengthMinor) / 2;
+          const tickOuterR =
+            tickRadius + (mark.major ? tickLengthMajor : tickLengthMinor) / 2;
           const tickStart = polarToCartesian(
             centerX,
             centerY,
-            tickRadius - tickLength / 2,
-            displayAngle,
+            tickInnerR,
+            angle,
           );
-          const tickEnd = polarToCartesian(
-            centerX,
-            centerY,
-            tickRadius + tickLength / 2,
-            displayAngle,
-          );
+          const tickEnd = polarToCartesian(centerX, centerY, tickOuterR, angle);
+
+          // Calculate position for the label text
           const labelPos = polarToCartesian(
             centerX,
             centerY,
             labelRadius,
-            displayAngle,
+            angle,
           );
 
-          // Basic label rotation
-          const labelRotation = displayAngle + 90;
+          // Calculate rotation for the label to keep it upright relative to the arc
+          const rotation = angle - centerAngle; // Angle relative to the bottom center (270 deg)
+          const labelTransform = `rotate(${rotation}, ${labelPos.x}, ${labelPos.y})`;
 
           return (
-            <g key={tickAngleDegrees}>
-              {' '}
-              {/* Use angle as key */}
+            <g key={mark.value}>
+              {/* Tick Mark Line */}
               <line
                 x1={tickStart.x}
                 y1={tickStart.y}
                 x2={tickEnd.x}
                 y2={tickEnd.y}
                 stroke={tickColor}
-                strokeWidth={1.5}
+                strokeWidth={mark.major ? 1.5 : 1} // Thicker ticks for major marks
               />
+              {/* Label Text */}
               <text
                 x={labelPos.x}
                 y={labelPos.y}
                 fill={labelColor}
-                fontSize={labelFontSize}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                transform={`rotate(${labelRotation}, ${labelPos.x}, ${labelPos.y})`}
+                fontSize="10" // Font size for labels
+                fontWeight={mark.major ? 'bold' : 'normal'} // Bold font for major labels
+                textAnchor="middle" // Center text horizontally
+                dominantBaseline="middle" // Center text vertically
+                transform={labelTransform} // Apply rotation
               >
-                {tickAngleDegrees.toFixed(0)}
+                {mark.label}
               </text>
             </g>
           );
         })}
 
-        {/* Lever Handle */}
-        <g transform={`rotate(${currentDisplayAngle}, ${centerX}, ${centerY})`}>
-          {/* Arm */}
+        {/* Lever Handle Group - Rotated based on currentAngle */}
+        {/* The handle itself is drawn pointing downwards (270 deg) in its local coordinate system */}
+        <g
+          transform={`rotate(${currentAngle - centerAngle}, ${centerX}, ${centerY})`}
+        >
+          {/* Lever Arm (Rectangle) */}
           <rect
-            x={centerX - leverWidth / 2}
-            y={centerY - leverLength} // Start drawing from the end point inwards
-            width={leverWidth}
-            height={leverLength} // Extend to pivot
-            fill={leverColor}
-            rx={leverWidth / 3}
+            x={centerX - handleWidth / 2} // Center the rectangle horizontally
+            y={centerY + pivotRadius} // Start drawing below the pivot
+            width={handleWidth}
+            height={handleLength} // Length of the arm
+            fill={handleColor}
+            rx={handleWidth / 4} // Slightly rounded corners
           />
-          {/* Knob */}
+          {/* Knob (Circle at the end) */}
           <circle
             cx={centerX}
-            cy={centerY - leverLength}
+            cy={centerY + pivotRadius + handleLength} // Position at the end of the arm
             r={knobRadius}
-            fill={knobColor}
-            stroke={leverColor}
+            fill={handleColor}
+            stroke={pivotColor} // Border color for the knob
             strokeWidth="1"
           />
         </g>
 
-        {/* Pivot Point (optional visual) */}
-        <circle cx={centerX} cy={centerY} r={leverWidth} fill={leverColor} />
+        {/* Central Pivot Point (Circle) */}
+        <circle cx={centerX} cy={centerY} r={pivotRadius} fill={pivotColor} />
       </svg>
-      {/* Value Display */}
-      <div className="mt-2 min-h-[1.5em]">
+
+      {/* Value Display Below SVG */}
+      <div className="mt-1 min-h-[1.5em]">
+        {/* Reserve space for text */}
         <span className="text-white font-mono text-sm">
-          {currentValue.toFixed(1)}°
+          {/* Display value from the hook with one decimal place and degree symbol */}
+          {value.toFixed(1)}°
         </span>
       </div>
     </div>

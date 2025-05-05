@@ -265,10 +265,48 @@ const TestbedPage = () => {
           <RudderLever
             value={rudderLeverAngle}
             onChange={setRudderLeverAngle}
-            minAngle={-35}
-            maxAngle={35}
-            numTicks={7}
-            size={180}
+            min={-35}
+            max={35}
+            label={'Rudder'}
+            scale={[
+              {
+                label: '-35',
+                value: -35,
+              },
+              {
+                label: '-25',
+                value: -25,
+              },
+              {
+                label: '-15',
+                value: -15,
+              },
+              {
+                label: '-5',
+                value: -5,
+              },
+              {
+                label: '0',
+                value: 0,
+                major: true,
+              },
+              {
+                label: '5',
+                value: 5,
+              },
+              {
+                label: '15',
+                value: 15,
+              },
+              {
+                label: '25',
+                value: 25,
+              },
+              {
+                label: '35',
+                value: 35,
+              },
+            ]}
           />
         </div>
       </div>
