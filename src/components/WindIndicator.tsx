@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { JSX } from 'react';
 
 interface WindIndicatorProps {
   /**
@@ -146,7 +146,7 @@ const WindIndicator: React.FC<WindIndicatorProps> = ({
   const speedColor = getWindSpeedColor(speedKnots);
 
   // Generate compass ticks for the 360° circle
-  const compassTicks = [];
+  const compassTicks: JSX.Element[] = [];
   for (let i = 0; i < 360; i += 10) {
     const isMajor = i % 30 === 0;
     const tickLength = isMajor ? 10 : 5;
