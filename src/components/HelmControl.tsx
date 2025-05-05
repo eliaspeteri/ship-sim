@@ -111,8 +111,8 @@ export const HelmControl: React.FC<HelmControlProps> = ({
   const pointerHeight = size * 0.08; // Height of the pointer
 
   // Angles for the horseshoe display (degrees, 0 is up) - ROTATED 90deg RIGHT
-  const displayStartAngle = 180; // Left side (-40 deg rudder)
-  const displayEndAngle = 360; // Right side (+40 deg rudder) - Use 360 for arc calculation continuity
+  const displayStartAngle = 135; // Left side (-40 deg rudder)
+  const displayEndAngle = 405; // Right side (+40 deg rudder) - Use 360 for arc calculation continuity
   const displayMidAngle = 270; // Top (0 deg rudder)
   const totalDisplaySweep = displayEndAngle - displayStartAngle; // Should be 180
 
@@ -151,7 +151,7 @@ export const HelmControl: React.FC<HelmControlProps> = ({
   // Calculate helm rotation based on the current value
   // Map the full angle range (-40 to 40) to a visual rotation range (e.g., -90 to 90 degrees)
   // A normalized value of 0.5 (0 rudder) corresponds to 0 helm rotation.
-  const visualRotationRange = 180; // Total visual rotation span
+  const visualRotationRange = 270; // Total visual rotation span
   const helmRotation = (normalizedValue - 0.5) * visualRotationRange;
 
   // --- SVG Paths ---
