@@ -4,7 +4,6 @@ import { applyVesselControls } from '../simulation';
 import { Pipe } from './Pipe';
 import { MachineGauge } from './MachineGauge';
 import { Tank } from './Tank';
-import { Valve } from './Valve';
 import { Pump } from './Pump';
 
 interface MachineryPanelProps {
@@ -20,12 +19,12 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
   const addEvent = useStore(state => state.addEvent);
 
   // Local state for system components
-  const [fuelValveOpen, setFuelValveOpen] = useState(true);
+  const [fuelValveOpen] = useState(true);
   const [fuelPumpRunning, setFuelPumpRunning] = useState(true);
-  const [coolantValveOpen, setCoolantValveOpen] = useState(true);
+  const [coolantValveOpen] = useState(true);
   const [coolantPumpRunning, setCoolantPumpRunning] = useState(true);
   const [lubePumpRunning, setLubePumpRunning] = useState(true);
-  const [startAirValveOpen, setStartAirValveOpen] = useState(false);
+  const [startAirValveOpen] = useState(false);
 
   // Engine state
   const engineState = vessel.engineState;
@@ -527,14 +526,6 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
               color="#dd6b20"
             />
 
-            <Valve
-              x={100}
-              y={150}
-              isOpen={fuelValveOpen}
-              onChange={setFuelValveOpen}
-              label="Fuel Valve"
-            />
-
             <Pump
               x={180}
               y={150}
@@ -644,14 +635,6 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
               height={80}
             />
 
-            <Valve
-              x={170}
-              y={270}
-              isOpen={coolantValveOpen}
-              onChange={setCoolantValveOpen}
-              label="Coolant Valve"
-            />
-
             <Pump
               x={230}
               y={270}
@@ -691,14 +674,6 @@ const MachineryPanel: React.FC<MachineryPanelProps> = ({ className = '' }) => {
             >
               <div className="text-xs text-center">Air</div>
             </div>
-
-            <Valve
-              x={470}
-              y={270}
-              isOpen={startAirValveOpen}
-              onChange={setStartAirValveOpen}
-              label="Start Air"
-            />
 
             {/* Pipe connections */}
             {/* Fuel system connections */}

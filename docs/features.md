@@ -38,7 +38,8 @@ This document tracks the major features of the Ship Simulator project, grouped a
 - [x] Control panels: Telegraph, bridge controls, system monitors
   - [ ] Control lever
   - [x] Telegraph lever
-  - [ ] Valve
+  - [x] Ball Valve
+  - [x] Rotary Valve
   - [ ] Pump
   - [ ] Push button
   - [ ] Switch
@@ -80,4 +81,4 @@ This document tracks the major features of the Ship Simulator project, grouped a
 - [x] Implemented or present in code/UI
 - [ ] Not yet implemented or unclear
 
-*This list is updated as of April 2025. Please update if you implement new features or clarify existing ones.*
+*This list is updated as of May 2025. Please update if you implement new features or clarify existing ones.*
