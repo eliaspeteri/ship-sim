@@ -54,7 +54,12 @@ const mockAisTargets = [
 ];
 
 // --- Helpers ---
-function latLonToXY(latitude, longitude, center, scale) {
+function latLonToXY(
+  latitude: number,
+  longitude: number,
+  center: { latitude: any; longitude: any },
+  scale: number,
+) {
   // Simple equirectangular projection for small area
   return [
     (longitude - center.longitude) * scale,
@@ -105,6 +110,13 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     longitude: number;
   } | null>(null);
 
+  // --- Tooltip State ---
+  const [tooltip, setTooltip] = useState<null | {
+    x: number;
+    y: number;
+    content: string;
+  }>(null);
+
   // --- Layer Visibility State ---
   const [showCoastline, setShowCoastline] = useState(true);
   const [showBuoys, setShowBuoys] = useState(true);
@@ -138,6 +150,35 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
         }
       : mockShip);
   const scale = 12000; // meters per degree (zoom)
+
+  // --- Scale Bar Calculation ---
+  function getScaleBar() {
+    // Pick a nice round distance for the scale bar (in meters)
+    const zoom = cameraRef.current?.zoom || 1;
+    // 100 pixels in world units
+    const worldDist = 100 / zoom;
+    // Convert worldDist to degrees longitude at center latitude
+    const degLon = worldDist / scale;
+    // Convert degrees to meters (approx, at center latitude)
+    const metersPerDeg = 111320 * Math.cos((center.latitude * Math.PI) / 180);
+    const meters = degLon * metersPerDeg;
+    // Pick a nice round number for the label
+    let label = '';
+    let displayMeters = 0;
+    if (meters > 1000) {
+      displayMeters = Math.round(meters / 100) * 100;
+      label = displayMeters / 1000 + ' km';
+    } else if (meters > 100) {
+      displayMeters = Math.round(meters / 10) * 10;
+      label = displayMeters + ' m';
+    } else {
+      displayMeters = Math.round(meters);
+      label = displayMeters + ' m';
+    }
+    // Convert back to pixel length
+    const px = (displayMeters / metersPerDeg) * scale * zoom;
+    return { px, label };
+  }
 
   // --- Animate Ship Along Route ---
   useEffect(() => {
@@ -191,7 +232,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     };
   }, []);
 
-  // --- Mouse Move Handler for latitude/longitude Overlay ---
+  // --- Enhanced Mouse Move Handler for Tooltip ---
   useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
@@ -213,16 +254,64 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       const longitude = worldX / scale + center.longitude;
       const latitude = center.latitude - worldY / scale;
       setCursorlatitudeLon({ latitude, longitude });
+      // Hit test for tooltip
+      // 1. Waypoints
+      for (let i = 0; i < editableRoute.length; i++) {
+        const wp = editableRoute[i];
+        const dx = (wp.longitude - longitude) * scale;
+        const dy = (wp.latitude - latitude) * scale;
+        if (Math.sqrt(dx * dx + dy * dy) < 12) {
+          setTooltip({
+            x: e.clientX,
+            y: e.clientY,
+            content: `Waypoint #${i + 1}\nLat: ${wp.latitude.toFixed(5)}\nLon: ${wp.longitude.toFixed(5)}`,
+          });
+          return;
+        }
+      }
+      // 2. Buoys
+      for (let i = 0; i < buoys.length; i++) {
+        const b = buoys[i];
+        const dx = (b.longitude - longitude) * scale;
+        const dy = (b.latitude - latitude) * scale;
+        if (Math.sqrt(dx * dx + dy * dy) < 12) {
+          setTooltip({
+            x: e.clientX,
+            y: e.clientY,
+            content: `Buoy (${b.type})\nLat: ${b.latitude.toFixed(5)}\nLon: ${b.longitude.toFixed(5)}`,
+          });
+          return;
+        }
+      }
+      // 3. AIS Targets
+      for (let i = 0; i < aisTargets.length; i++) {
+        const t = aisTargets[i];
+        const dx = (t.lon - longitude) * scale;
+        const dy = (t.lat - latitude) * scale;
+        if (Math.sqrt(dx * dx + dy * dy) < 14) {
+          setTooltip({
+            x: e.clientX,
+            y: e.clientY,
+            content: `AIS: ${t.name || t.mmsi}\nLat: ${t.lat.toFixed(5)}\nLon: ${t.lon.toFixed(5)}\nHeading: ${t.heading}°\nSpeed: ${t.speed} kn`,
+          });
+          return;
+        }
+      }
+      setTooltip(null);
     }
     canvas.addEventListener('pointermove', onPointerMove);
-    canvas.addEventListener('pointerleave', () => setCursorlatitudeLon(null));
+    canvas.addEventListener('pointerleave', () => {
+      setCursorlatitudeLon(null);
+      setTooltip(null);
+    });
     return () => {
       canvas.removeEventListener('pointermove', onPointerMove);
-      canvas.removeEventListener('pointerleave', () =>
-        setCursorlatitudeLon(null),
-      );
+      canvas.removeEventListener('pointerleave', () => {
+        setCursorlatitudeLon(null);
+        setTooltip(null);
+      });
     };
-  }, [size, scale, center]);
+  }, [size, scale, center, editableRoute, buoys, aisTargets]);
 
   // --- Add/Move/Delete Waypoint Handlers ---
   useEffect(() => {
@@ -644,6 +733,87 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
           {cursorlatitudeLon.longitude.toFixed(5)}
         </div>
       )}
+      {/* Tooltip Overlay */}
+      {tooltip && (
+        <div
+          style={{
+            position: 'fixed',
+            left: tooltip.x + 16,
+            top: tooltip.y + 8,
+            background: '#23272e',
+            color: '#e0f2f1',
+            borderRadius: 6,
+            padding: '6px 14px',
+            fontSize: 15,
+            whiteSpace: 'pre',
+            pointerEvents: 'none',
+            zIndex: 100,
+            boxShadow: '0 2px 8px #000a',
+          }}
+        >
+          {tooltip.content}
+        </div>
+      )}
+      {/* Scale Bar Overlay */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 32,
+          bottom: 32,
+          zIndex: 20,
+          pointerEvents: 'none',
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        <div
+          style={{
+            width: getScaleBar().px,
+            height: 6,
+            background: '#e0f2f1',
+            borderRadius: 2,
+            marginRight: 8,
+            boxShadow: '0 1px 4px #0008',
+          }}
+        />
+        <span style={{ color: '#e0f2f1', fontSize: 14 }}>
+          {getScaleBar().label}
+        </span>
+      </div>
+      {/* North Arrow Overlay */}
+      <div
+        style={{
+          position: 'absolute',
+          right: 32,
+          top: 32,
+          zIndex: 20,
+          width: 36,
+          height: 36,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+        }}
+      >
+        <svg width="36" height="36" viewBox="0 0 36 36">
+          <polygon
+            points="18,6 24,30 18,24 12,30"
+            fill="#e0f2f1"
+            stroke="#23272e"
+            strokeWidth="2"
+          />
+          <text
+            x="18"
+            y="20"
+            textAnchor="middle"
+            fontSize="10"
+            fill="#23272e"
+            fontFamily="monospace"
+          >
+            N
+          </text>
+        </svg>
+      </div>
       <div
         style={{
           marginTop: 8,
