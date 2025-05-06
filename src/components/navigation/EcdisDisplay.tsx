@@ -25,6 +25,34 @@ const mockRoute = [
 ];
 const mockShip = { latitude: 60.168, longitude: 24.965, heading: 87 };
 
+// --- Mock AIS Targets ---
+const mockAisTargets = [
+  {
+    mmsi: '123456789',
+    name: 'Vessel A',
+    lat: 60.166,
+    lon: 24.98,
+    heading: 45,
+    speed: 12,
+  },
+  {
+    mmsi: '987654321',
+    name: 'Vessel B',
+    lat: 60.175,
+    lon: 24.95,
+    heading: 270,
+    speed: 9,
+  },
+  {
+    mmsi: '555555555',
+    name: 'Vessel C',
+    lat: 60.172,
+    lon: 24.99,
+    heading: 120,
+    speed: 7,
+  },
+];
+
 // --- Helpers ---
 function latLonToXY(latitude, longitude, center, scale) {
   // Simple equirectangular projection for small area
@@ -87,6 +115,9 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
   // --- Selected Waypoint State ---
   const [selectedWp, setSelectedWp] = useState<number | null>(null);
 
+  // --- AIS State ---
+  const [aisTargets, setAisTargets] = useState(mockAisTargets);
+
   // Chart constants
   const size = 500;
   const center = { latitude: 60.17, longitude: 24.97 };
@@ -135,6 +166,30 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       animationActive.current = false;
     };
   }, [route]);
+
+  // --- Animate AIS Targets (mock movement) ---
+  useEffect(() => {
+    let running = true;
+    function moveTargets() {
+      setAisTargets(targets =>
+        targets.map(t => {
+          // Move each target in heading direction
+          const dist = t.speed * 0.00002; // mock speed factor
+          const rad = (t.heading * Math.PI) / 180;
+          return {
+            ...t,
+            lat: t.lat + Math.cos(rad) * dist,
+            lon: t.lon + Math.sin(rad) * dist,
+          };
+        }),
+      );
+      if (running) setTimeout(moveTargets, 200);
+    }
+    moveTargets();
+    return () => {
+      running = false;
+    };
+  }, []);
 
   // --- Mouse Move Handler for latitude/longitude Overlay ---
   useEffect(() => {
@@ -404,6 +459,37 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     const shipCenter = new THREE.Mesh(shipCenterGeom, shipCenterMat);
     shipCenter.position.set(sx, sy, 4.1);
     scene.add(shipCenter);
+
+    // --- AIS Targets ---
+    aisTargets.forEach(t => {
+      const [x, y] = latLonToXY(t.lat, t.lon, center, scale);
+      // Target icon (triangle)
+      const tgtShape = new THREE.Shape();
+      tgtShape.moveTo(0, -10);
+      tgtShape.lineTo(6, 8);
+      tgtShape.lineTo(-6, 8);
+      tgtShape.lineTo(0, -10);
+      const tgtGeom = new THREE.ShapeGeometry(tgtShape);
+      const tgtMat = new THREE.MeshBasicMaterial({ color: 0x34d399 });
+      const tgtMesh = new THREE.Mesh(tgtGeom, tgtMat);
+      tgtMesh.position.set(x, y, 5);
+      tgtMesh.rotation.z = -THREE.MathUtils.degToRad(t.heading ?? 0);
+      scene.add(tgtMesh);
+      // Label (simple, above target)
+      const labelDiv = document.createElement('div');
+      labelDiv.style.position = 'absolute';
+      labelDiv.style.left = `${x + size / 2 - 20}px`;
+      labelDiv.style.top = `${y + size / 2 - 24}px`;
+      labelDiv.style.color = '#34d399';
+      labelDiv.style.fontSize = '13px';
+      labelDiv.style.fontFamily = 'monospace';
+      labelDiv.style.pointerEvents = 'none';
+      labelDiv.style.zIndex = '20';
+      labelDiv.textContent = t.name || t.mmsi;
+      if (mountRef.current) mountRef.current.appendChild(labelDiv);
+      // Remove label on cleanup
+      setTimeout(() => labelDiv.remove(), 0);
+    });
 
     // --- Pan & Zoom Handlers ---
     const canvas = renderer.domElement;
