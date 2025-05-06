@@ -71,7 +71,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
   - [ ] Electronic Navigation
     - [ ] ECDIS (Electronic Chart Display)
     - [ ] Route planning and monitoring
-    - [ ] GPS/GNSS position display
+    - [x] GPS/GNSS position display
     - [ ] Gyrocompass and magnetic compass
   - [ ] Depth and Speed Instruments
     - [x] Echo sounder
