@@ -135,9 +135,9 @@ const TestbedPage = () => {
             Toggle Alarms
           </button>
         </div>
-        <div>
+        <div className="relative h-24">
           <h2 className="font-semibold">Tank</h2>
-          <Tank level={gaugeValue / 100} x={0} y={0} />
+          <Tank size={100} level={gaugeValue / 100} x={100} y={100} />
         </div>
         <div>
           <h2 className="font-semibold">Pump</h2>
