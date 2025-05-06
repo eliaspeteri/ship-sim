@@ -64,6 +64,8 @@ export default [
         alert: 'readonly',
         ImageData: 'readonly',
         MouseEvent: 'readonly',
+        PointerEvent: 'readonly',
+        WheelEvent: 'readonly',
         HTMLCanvasElement: 'readonly',
         HTMLDivElement: 'readonly',
         HTMLInputElement: 'readonly',
