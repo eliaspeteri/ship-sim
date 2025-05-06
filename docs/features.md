@@ -69,8 +69,29 @@ This document tracks the major features of the Ship Simulator project, grouped a
     - [x] ARPA (Automatic Radar Plotting Aid)
     - [ ] Target tracking and collision avoidance
   - [ ] Electronic Navigation
-    - [ ] ECDIS (Electronic Chart Display)
-    - [ ] Route planning and monitoring
+    - [x] ECDIS (Electronic Chart Display)
+      - [x] Pan and zoom controls
+      - [x] Dynamic ship position updates (live or mock movement)
+      - [x] Cursor lat/lon readout overlay
+      - [x] Chart layer toggles (coastline, buoys, route)
+      - [x] Waypoint/route editing (add, move, delete)
+      - [x] AIS/target overlays (mock or real)
+      - [x] Chart scale bar and north arrow
+      - [x] Info popups (tooltips) for buoys, waypoints, AIS targets
+      - [ ] Route export/import (JSON/CSV/GPX)
+      - [x] Chart layer management (multiple chart types, opacity, ordering)
+      - [x] Chart object search & highlight (waypoints, buoys, AIS)
+      - [ ] Measurement tools (distance, bearing, area)
+      - [ ] Route leg info (distance, bearing, ETA)
+      - [ ] Safety features (contours, CPA/TCPA, guard zones)
+      - [ ] Weather/environment overlays
+      - [ ] Radar overlay integration
+      - [ ] Undo/redo for route editing
+      - [ ] Print/export chart view as image
+      - [ ] Customizable color schemes (night/day mode)
+      - [ ] Context menu on right-click
+      - [ ] Minimap/overview window
+      - [ ] Smooth transitions/animations for zoom and pan
     - [x] GPS/GNSS position display
     - [ ] Gyrocompass and magnetic compass
   - [ ] Depth and Speed Instruments
