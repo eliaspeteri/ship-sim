@@ -74,6 +74,11 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     lon: number;
   } | null>(null);
 
+  // --- Layer Visibility State ---
+  const [showCoastline, setShowCoastline] = useState(true);
+  const [showBuoys, setShowBuoys] = useState(true);
+  const [showRoute, setShowRoute] = useState(true);
+
   // Chart constants
   const size = 500;
   const center = { lat: 60.17, lon: 24.97 };
@@ -185,110 +190,116 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     sceneRef.current = scene;
 
     // --- Coastline ---
-    const coastShape = new THREE.Shape();
-    coastline.forEach(([lat, lon], i) => {
-      const [x, y] = latLonToXY(lat, lon, center, scale);
-      if (i === 0) coastShape.moveTo(x, y);
-      else coastShape.lineTo(x, y);
-    });
-    const coastGeom = new THREE.ShapeGeometry(coastShape);
-    const coastMat = new THREE.MeshBasicMaterial({ color: 0xb7c9a7 });
-    const coastMesh = new THREE.Mesh(coastGeom, coastMat);
-    scene.add(coastMesh);
-    // Coastline outline
-    const coastLineMat = new THREE.LineBasicMaterial({
-      color: 0x7a8c6e,
-      linewidth: 2,
-    });
-    const coastLinePoints = coastline.map(([lat, lon]) => {
-      const [x, y] = latLonToXY(lat, lon, center, scale);
-      return new THREE.Vector3(x, y, 1);
-    });
-    const coastLineGeom = new THREE.BufferGeometry().setFromPoints(
-      coastLinePoints,
-    );
-    const coastLine = new THREE.Line(coastLineGeom, coastLineMat);
-    scene.add(coastLine);
+    if (showCoastline) {
+      const coastShape = new THREE.Shape();
+      coastline.forEach(([lat, lon], i) => {
+        const [x, y] = latLonToXY(lat, lon, center, scale);
+        if (i === 0) coastShape.moveTo(x, y);
+        else coastShape.lineTo(x, y);
+      });
+      const coastGeom = new THREE.ShapeGeometry(coastShape);
+      const coastMat = new THREE.MeshBasicMaterial({ color: 0xb7c9a7 });
+      const coastMesh = new THREE.Mesh(coastGeom, coastMat);
+      scene.add(coastMesh);
+      // Coastline outline
+      const coastLineMat = new THREE.LineBasicMaterial({
+        color: 0x7a8c6e,
+        linewidth: 2,
+      });
+      const coastLinePoints = coastline.map(([lat, lon]) => {
+        const [x, y] = latLonToXY(lat, lon, center, scale);
+        return new THREE.Vector3(x, y, 1);
+      });
+      const coastLineGeom = new THREE.BufferGeometry().setFromPoints(
+        coastLinePoints,
+      );
+      const coastLine = new THREE.Line(coastLineGeom, coastLineMat);
+      scene.add(coastLine);
+    }
 
     // --- Buoys ---
-    buoys.forEach(b => {
-      const [x, y] = latLonToXY(b.lat, b.lon, center, scale);
-      const buoyGeom = new THREE.CircleGeometry(7, 24);
-      const buoyMat = new THREE.MeshBasicMaterial({
-        color: b.type === 'starboard' ? 0x2dd4bf : 0xf87171,
-      });
-      const buoyMesh = new THREE.Mesh(buoyGeom, buoyMat);
-      buoyMesh.position.set(x, y, 2);
-      scene.add(buoyMesh);
-      // Outline
-      const outlineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
-      const outlineGeom = new THREE.CircleGeometry(7, 24);
-      const outlineVertices = outlineGeom.getAttribute('position');
-      const outlinePoints: THREE.Vector3[] = [];
-      for (let i = 0; i < outlineVertices.count; i++) {
-        outlinePoints.push(
-          new THREE.Vector3(
-            outlineVertices.getX(i),
-            outlineVertices.getY(i),
-            outlineVertices.getZ(i),
-          ),
+    if (showBuoys) {
+      buoys.forEach(b => {
+        const [x, y] = latLonToXY(b.lat, b.lon, center, scale);
+        const buoyGeom = new THREE.CircleGeometry(7, 24);
+        const buoyMat = new THREE.MeshBasicMaterial({
+          color: b.type === 'starboard' ? 0x2dd4bf : 0xf87171,
+        });
+        const buoyMesh = new THREE.Mesh(buoyGeom, buoyMat);
+        buoyMesh.position.set(x, y, 2);
+        scene.add(buoyMesh);
+        // Outline
+        const outlineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+        const outlineGeom = new THREE.CircleGeometry(7, 24);
+        const outlineVertices = outlineGeom.getAttribute('position');
+        const outlinePoints: THREE.Vector3[] = [];
+        for (let i = 0; i < outlineVertices.count; i++) {
+          outlinePoints.push(
+            new THREE.Vector3(
+              outlineVertices.getX(i),
+              outlineVertices.getY(i),
+              outlineVertices.getZ(i),
+            ),
+          );
+        }
+        outlinePoints.push(outlinePoints[0]); // Close the loop
+        const outlineLineGeom = new THREE.BufferGeometry().setFromPoints(
+          outlinePoints,
         );
-      }
-      outlinePoints.push(outlinePoints[0]); // Close the loop
-      const outlineLineGeom = new THREE.BufferGeometry().setFromPoints(
-        outlinePoints,
-      );
-      const outline = new THREE.Line(outlineLineGeom, outlineMat);
-      outline.position.set(x, y, 2.1);
-      scene.add(outline);
-    });
+        const outline = new THREE.Line(outlineLineGeom, outlineMat);
+        outline.position.set(x, y, 2.1);
+        scene.add(outline);
+      });
+    }
 
     // --- Route ---
-    const routeLineMat = new THREE.LineDashedMaterial({
-      color: 0xfbbf24,
-      dashSize: 8,
-      gapSize: 6,
-    });
-    const routeLinePoints = routePoints.map(([lat, lon]) => {
-      const [x, y] = latLonToXY(lat, lon, center, scale);
-      return new THREE.Vector3(x, y, 3);
-    });
-    const routeLineGeom = new THREE.BufferGeometry().setFromPoints(
-      routeLinePoints,
-    );
-    const routeLine = new THREE.Line(routeLineGeom, routeLineMat);
-    routeLine.computeLineDistances();
-    scene.add(routeLine);
-    // Waypoints
-    routePoints.forEach(([lat, lon]) => {
-      const [x, y] = latLonToXY(lat, lon, center, scale);
-      const wpGeom = new THREE.CircleGeometry(5, 16);
-      const wpMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
-      const wpMesh = new THREE.Mesh(wpGeom, wpMat);
-      wpMesh.position.set(x, y, 3.1);
-      scene.add(wpMesh);
-      // Outline
-      const wpOutlineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
-      const wpOutlineGeom = new THREE.CircleGeometry(5, 16);
-      const wpOutlineVertices = wpOutlineGeom.getAttribute('position');
-      const wpOutlinePoints: THREE.Vector3[] = [];
-      for (let i = 0; i < wpOutlineVertices.count; i++) {
-        wpOutlinePoints.push(
-          new THREE.Vector3(
-            wpOutlineVertices.getX(i),
-            wpOutlineVertices.getY(i),
-            wpOutlineVertices.getZ(i),
-          ),
-        );
-      }
-      wpOutlinePoints.push(wpOutlinePoints[0]); // Close the loop
-      const wpOutlineLineGeom = new THREE.BufferGeometry().setFromPoints(
-        wpOutlinePoints,
+    if (showRoute) {
+      const routeLineMat = new THREE.LineDashedMaterial({
+        color: 0xfbbf24,
+        dashSize: 8,
+        gapSize: 6,
+      });
+      const routeLinePoints = routePoints.map(([lat, lon]) => {
+        const [x, y] = latLonToXY(lat, lon, center, scale);
+        return new THREE.Vector3(x, y, 3);
+      });
+      const routeLineGeom = new THREE.BufferGeometry().setFromPoints(
+        routeLinePoints,
       );
-      const wpOutline = new THREE.Line(wpOutlineLineGeom, wpOutlineMat);
-      wpOutline.position.set(x, y, 3.2);
-      scene.add(wpOutline);
-    });
+      const routeLine = new THREE.Line(routeLineGeom, routeLineMat);
+      routeLine.computeLineDistances();
+      scene.add(routeLine);
+      // Waypoints
+      routePoints.forEach(([lat, lon]) => {
+        const [x, y] = latLonToXY(lat, lon, center, scale);
+        const wpGeom = new THREE.CircleGeometry(5, 16);
+        const wpMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
+        const wpMesh = new THREE.Mesh(wpGeom, wpMat);
+        wpMesh.position.set(x, y, 3.1);
+        scene.add(wpMesh);
+        // Outline
+        const wpOutlineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+        const wpOutlineGeom = new THREE.CircleGeometry(5, 16);
+        const wpOutlineVertices = wpOutlineGeom.getAttribute('position');
+        const wpOutlinePoints: THREE.Vector3[] = [];
+        for (let i = 0; i < wpOutlineVertices.count; i++) {
+          wpOutlinePoints.push(
+            new THREE.Vector3(
+              wpOutlineVertices.getX(i),
+              wpOutlineVertices.getY(i),
+              wpOutlineVertices.getZ(i),
+            ),
+          );
+        }
+        wpOutlinePoints.push(wpOutlinePoints[0]); // Close the loop
+        const wpOutlineLineGeom = new THREE.BufferGeometry().setFromPoints(
+          wpOutlinePoints,
+        );
+        const wpOutline = new THREE.Line(wpOutlineLineGeom, wpOutlineMat);
+        wpOutline.position.set(x, y, 3.2);
+        scene.add(wpOutline);
+      });
+    }
 
     // --- Own Ship ---
     const [sx, sy] = latLonToXY(ship.lat, ship.lon, center, scale);
@@ -369,7 +380,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       window.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('wheel', onWheel);
     };
-  }, [shipPosition, route, chartData]);
+  }, [shipPosition, route, chartData, showCoastline, showBuoys, showRoute]);
 
   // --- Overlay Info (static for MVP) ---
   return (
@@ -397,6 +408,32 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
           ECDIS (three.js MVP)
         </span>
         <span style={{ fontSize: 14 }}>Scale: 1:{scale}</span>
+      </div>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
+        <label>
+          <input
+            type="checkbox"
+            checked={showCoastline}
+            onChange={e => setShowCoastline(e.target.checked)}
+          />{' '}
+          Coastline
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={showBuoys}
+            onChange={e => setShowBuoys(e.target.checked)}
+          />{' '}
+          Buoys
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={showRoute}
+            onChange={e => setShowRoute(e.target.checked)}
+          />{' '}
+          Route
+        </label>
       </div>
       <div
         ref={mountRef}
