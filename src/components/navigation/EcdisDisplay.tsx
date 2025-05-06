@@ -130,6 +130,39 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
   // --- AIS State ---
   const [aisTargets, setAisTargets] = useState(mockAisTargets);
 
+  // --- Chart Layer Management State ---
+  const [chartLayers, setChartLayers] = useState([
+    { id: 'vector', name: 'Vector Chart', visible: true, opacity: 1 },
+    { id: 'raster', name: 'Raster Chart', visible: false, opacity: 0.7 },
+  ]);
+
+  // --- Chart Layer UI Handlers ---
+  function toggleLayer(id: string) {
+    setChartLayers(layers =>
+      layers.map(l => (l.id === id ? { ...l, visible: !l.visible } : l)),
+    );
+  }
+  function setLayerOpacity(id: string, opacity: number) {
+    setChartLayers(layers =>
+      layers.map(l => (l.id === id ? { ...l, opacity } : l)),
+    );
+  }
+  function moveLayer(id: string, dir: 'up' | 'down') {
+    setChartLayers(layers => {
+      const idx = layers.findIndex(l => l.id === id);
+      if (idx < 0) return layers;
+      const newIdx =
+        dir === 'up'
+          ? Math.max(0, idx - 1)
+          : Math.min(layers.length - 1, idx + 1);
+      if (idx === newIdx) return layers;
+      const arr = [...layers];
+      const [removed] = arr.splice(idx, 1);
+      arr.splice(newIdx, 0, removed);
+      return arr;
+    });
+  }
+
   // Chart constants
   const size = 500;
   const center = { latitude: 60.17, longitude: 24.97 };
@@ -414,33 +447,56 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // --- Coastline ---
-    if (showCoastline) {
-      const coastShape = new THREE.Shape();
-      coastline.forEach(([latitude, longitude], i) => {
-        const [x, y] = latLonToXY(latitude, longitude, center, scale);
-        if (i === 0) coastShape.moveTo(x, y);
-        else coastShape.lineTo(x, y);
-      });
-      const coastGeom = new THREE.ShapeGeometry(coastShape);
-      const coastMat = new THREE.MeshBasicMaterial({ color: 0xb7c9a7 });
-      const coastMesh = new THREE.Mesh(coastGeom, coastMat);
-      scene.add(coastMesh);
-      // Coastline outline
-      const coastLineMat = new THREE.LineBasicMaterial({
-        color: 0x7a8c6e,
-        linewidth: 2,
-      });
-      const coastLinePoints = coastline.map(([latitude, longitude]) => {
-        const [x, y] = latLonToXY(latitude, longitude, center, scale);
-        return new THREE.Vector3(x, y, 1);
-      });
-      const coastLineGeom = new THREE.BufferGeometry().setFromPoints(
-        coastLinePoints,
-      );
-      const coastLine = new THREE.Line(coastLineGeom, coastLineMat);
-      scene.add(coastLine);
-    }
+    // --- Chart Layers ---
+    chartLayers.forEach(layer => {
+      if (!layer.visible) return;
+      if (layer.id === 'vector') {
+        // Vector chart: draw coastline as before, with opacity
+        if (showCoastline) {
+          const coastShape = new THREE.Shape();
+          coastline.forEach(([latitude, longitude], i) => {
+            const [x, y] = latLonToXY(latitude, longitude, center, scale);
+            if (i === 0) coastShape.moveTo(x, y);
+            else coastShape.lineTo(x, y);
+          });
+          const coastGeom = new THREE.ShapeGeometry(coastShape);
+          const coastMat = new THREE.MeshBasicMaterial({
+            color: 0xb7c9a7,
+            transparent: true,
+            opacity: layer.opacity,
+          });
+          const coastMesh = new THREE.Mesh(coastGeom, coastMat);
+          scene.add(coastMesh);
+          // Coastline outline
+          const coastLineMat = new THREE.LineBasicMaterial({
+            color: 0x7a8c6e,
+            linewidth: 2,
+            transparent: true,
+            opacity: layer.opacity,
+          });
+          const coastLinePoints = coastline.map(([latitude, longitude]) => {
+            const [x, y] = latLonToXY(latitude, longitude, center, scale);
+            return new THREE.Vector3(x, y, 1);
+          });
+          const coastLineGeom = new THREE.BufferGeometry().setFromPoints(
+            coastLinePoints,
+          );
+          const coastLine = new THREE.Line(coastLineGeom, coastLineMat);
+          scene.add(coastLine);
+        }
+      } else if (layer.id === 'raster') {
+        // Raster chart: draw a semi-transparent colored rectangle as a mock
+        const rasterGeom = new THREE.PlaneGeometry(size, size);
+        const rasterMat = new THREE.MeshBasicMaterial({
+          color: 0x3b4252,
+          transparent: true,
+          opacity: layer.opacity,
+        });
+        const rasterMesh = new THREE.Mesh(rasterGeom, rasterMat);
+        rasterMesh.position.set(0, 0, 0.5);
+        scene.add(rasterMesh);
+      }
+    });
 
     // --- Buoys ---
     if (showBuoys) {
@@ -639,7 +695,15 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       window.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('wheel', onWheel);
     };
-  }, [shipPosition, route, chartData, showCoastline, showBuoys, showRoute]);
+  }, [
+    shipPosition,
+    route,
+    chartData,
+    showCoastline,
+    showBuoys,
+    showRoute,
+    chartLayers,
+  ]);
 
   // --- Overlay Info (static for MVP) ---
   return (
@@ -669,6 +733,52 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
         <span style={{ fontSize: 14 }}>Scale: 1:{scale}</span>
       </div>
       <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
+        {/* Chart Layer Management UI */}
+        {chartLayers.map((layer, i) => (
+          <div
+            key={layer.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              background: '#23272e',
+              borderRadius: 6,
+              padding: '2px 8px',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={layer.visible}
+              onChange={() => toggleLayer(layer.id)}
+            />
+            <span>{layer.name}</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={layer.opacity}
+              onChange={e =>
+                setLayerOpacity(layer.id, parseFloat(e.target.value))
+              }
+              style={{ width: 60 }}
+            />
+            <button
+              onClick={() => moveLayer(layer.id, 'up')}
+              disabled={i === 0}
+              style={{ fontSize: 12 }}
+            >
+              ↑
+            </button>
+            <button
+              onClick={() => moveLayer(layer.id, 'down')}
+              disabled={i === chartLayers.length - 1}
+              style={{ fontSize: 12 }}
+            >
+              ↓
+            </button>
+          </div>
+        ))}
         <label>
           <input
             type="checkbox"
