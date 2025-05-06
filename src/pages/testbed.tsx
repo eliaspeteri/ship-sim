@@ -278,8 +278,8 @@ const TestbedPage = () => {
           <HelmControl
             value={rudderLeverAngle}
             onChange={setRudderLeverAngle}
-            minAngle={-40}
-            maxAngle={40}
+            minAngle={-35}
+            maxAngle={35}
             numTicks={9}
             size={220}
           />
