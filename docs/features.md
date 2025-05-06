@@ -62,6 +62,52 @@ This document tracks the major features of the Ship Simulator project, grouped a
 - [ ] Radar & Navigation: Basic radar display, AIS integration
 - [x] Logs & Reports: Event logs, fuel consumption, voyage data
 
+## IMO Mandatory Bridge Systems
+- [ ] Navigation Systems
+  - [ ] Radar Systems
+    - [ ] X-band/S-band radar display
+    - [ ] ARPA (Automatic Radar Plotting Aid)
+    - [ ] Target tracking and collision avoidance
+  - [ ] Electronic Navigation
+    - [ ] ECDIS (Electronic Chart Display)
+    - [ ] Route planning and monitoring
+    - [ ] GPS/GNSS position display
+    - [ ] Gyrocompass and magnetic compass
+  - [ ] Depth and Speed Instruments
+    - [x] Echo sounder
+    - [ ] Speed log (through water and over ground)
+- [ ] Communication Systems
+  - [ ] GMDSS Components
+    - [ ] DSC (Digital Selective Calling)
+    - [ ] NAVTEX receiver
+    - [ ] INMARSAT communications
+    - [ ] EPIRB status monitoring
+  - [ ] Standard Communications
+    - [x] VHF radio
+    - [ ] MF/HF radio
+    - [ ] Internal communications
+- [ ] Safety Monitoring Systems
+  - [ ] Steering System Monitoring
+    - [ ] Steering gear failure alarm
+    - [ ] Steering mode indicator
+    - [ ] Steering power unit status
+  - [ ] Critical Systems Status
+    - [ ] Fire detection system
+    - [ ] Watertight door status
+    - [ ] Emergency power status
+  - [ ] Propulsion Monitoring
+    - [x] Engine controls status
+    - [ ] Propulsion power failure alarms
+    - [x] Propeller RPM/pitch indicators
+- [ ] Environmental Monitoring
+  - [x] Weather instruments
+    - [x] Wind speed and direction
+    - [x] Barometric pressure
+    - [ ] Air temperature
+  - [ ] Visibility Systems
+    - [ ] Visibility monitoring
+    - [ ] Day/night indicator
+
 ## Simulation Scenarios
 - [x] Normal Operations
   - [x] Start/stop engine
