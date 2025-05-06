@@ -61,6 +61,7 @@ export default [
         fetch: 'readonly',
         requestAnimationFrame: 'readonly',
         cancelAnimationFrame: 'readonly',
+        alert: 'readonly',
         MouseEvent: 'readonly',
         HTMLDivElement: 'readonly',
         HTMLInputElement: 'readonly',
