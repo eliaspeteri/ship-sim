@@ -14,21 +14,24 @@ const mockCoastline = [
   [24.93, 60.16],
 ];
 const mockBuoys = [
-  { lat: 60.165, lon: 24.96, type: 'starboard' },
-  { lat: 60.175, lon: 24.98, type: 'port' },
+  { latitude: 60.165, longitude: 24.96, type: 'starboard' },
+  { latitude: 60.175, longitude: 24.98, type: 'port' },
 ];
 const mockRoute = [
-  { lat: 60.162, lon: 24.94 },
-  { lat: 60.168, lon: 24.96 },
-  { lat: 60.174, lon: 24.98 },
-  { lat: 60.178, lon: 25.0 },
+  { latitude: 60.162, longitude: 24.94 },
+  { latitude: 60.168, longitude: 24.96 },
+  { latitude: 60.174, longitude: 24.98 },
+  { latitude: 60.178, longitude: 25.0 },
 ];
-const mockShip = { lat: 60.168, lon: 24.965, heading: 87 };
+const mockShip = { latitude: 60.168, longitude: 24.965, heading: 87 };
 
 // --- Helpers ---
-function latLonToXY(lat, lon, center, scale) {
+function latLonToXY(latitude, longitude, center, scale) {
   // Simple equirectangular projection for small area
-  return [(lon - center.lon) * scale, -(lat - center.lat) * scale];
+  return [
+    (longitude - center.longitude) * scale,
+    -(latitude - center.latitude) * scale,
+  ];
 }
 
 export interface EcdisDisplayProps {
@@ -36,7 +39,7 @@ export interface EcdisDisplayProps {
   route?: Array<{ latitude: number; longitude: number }>;
   chartData?: {
     coastline: Array<[number, number]>;
-    buoys: Array<{ lat: number; lon: number; type: string }>;
+    buoys: Array<{ latitude: number; longitude: number; type: string }>;
   };
 }
 
@@ -62,16 +65,16 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
 
   // --- Ship Animation State ---
   const [animatedShip, setAnimatedShip] = useState<{
-    lat: number;
-    lon: number;
+    latitude: number;
+    longitude: number;
     heading: number;
   } | null>(null);
   const animationActive = useRef(true);
 
-  // --- Cursor Lat/Lon State ---
-  const [cursorLatLon, setCursorLatLon] = useState<{
-    lat: number;
-    lon: number;
+  // --- Cursor latitude/longitude State ---
+  const [cursorlatitudeLon, setCursorlatitudeLon] = useState<{
+    latitude: number;
+    longitude: number;
   } | null>(null);
 
   // --- Layer Visibility State ---
@@ -79,21 +82,27 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
   const [showBuoys, setShowBuoys] = useState(true);
   const [showRoute, setShowRoute] = useState(true);
 
+  // --- Editable Route State ---
+  const [editableRoute, setEditableRoute] = useState(route ?? mockRoute);
+  // --- Selected Waypoint State ---
+  const [selectedWp, setSelectedWp] = useState<number | null>(null);
+
   // Chart constants
   const size = 500;
-  const center = { lat: 60.17, lon: 24.97 };
+  const center = { latitude: 60.17, longitude: 24.97 };
   const coastline = (chartData?.coastline ?? mockCoastline).map(
-    ([lon, lat]) => [lat, lon],
+    ([longitude, latitude]) => [latitude, longitude],
   );
   const buoys = chartData?.buoys ?? mockBuoys;
-  const routePoints = (route ?? mockRoute).map(wp => [wp.lat, wp.lon]);
+  // Use editable route for animation and rendering
+  const routePoints = editableRoute.map(wp => [wp.latitude, wp.longitude]);
   // Use animated ship if available, else prop or mock
   const ship =
     animatedShip ||
     (shipPosition
       ? {
-          lat: shipPosition.latitude,
-          lon: shipPosition.longitude,
+          latitude: shipPosition.latitude,
+          longitude: shipPosition.longitude,
           heading: shipPosition.heading ?? 0,
         }
       : mockShip);
@@ -107,17 +116,18 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     animationActive.current = true;
     function step() {
       if (!animationActive.current) return;
-      const [lat1, lon1] = routePoints[idx];
-      const [lat2, lon2] = routePoints[(idx + 1) % routePoints.length];
+      const [latitude1, lon1] = routePoints[idx];
+      const [latitude2, lon2] = routePoints[(idx + 1) % routePoints.length];
       t += 0.002; // speed
       if (t > 1) {
         t = 0;
         idx = (idx + 1) % routePoints.length;
       }
-      const lat = lat1 + (lat2 - lat1) * t;
-      const lon = lon1 + (lon2 - lon1) * t;
-      const heading = (Math.atan2(lon2 - lon1, lat2 - lat1) * 180) / Math.PI;
-      setAnimatedShip({ lat, lon, heading });
+      const latitude = latitude1 + (latitude2 - latitude1) * t;
+      const longitude = lon1 + (lon2 - lon1) * t;
+      const heading =
+        (Math.atan2(lon2 - lon1, latitude2 - latitude1) * 180) / Math.PI;
+      setAnimatedShip({ latitude, longitude, heading });
       setTimeout(step, 100);
     }
     step();
@@ -126,7 +136,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     };
   }, [route]);
 
-  // --- Mouse Move Handler for Lat/Lon Overlay ---
+  // --- Mouse Move Handler for latitude/longitude Overlay ---
   useEffect(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
@@ -145,17 +155,88 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       const worldX = x / zoom + panX;
       const worldY = y / zoom + panY;
       // Inverse projection
-      const lon = worldX / scale + center.lon;
-      const lat = center.lat - worldY / scale;
-      setCursorLatLon({ lat, lon });
+      const longitude = worldX / scale + center.longitude;
+      const latitude = center.latitude - worldY / scale;
+      setCursorlatitudeLon({ latitude, longitude });
     }
     canvas.addEventListener('pointermove', onPointerMove);
-    canvas.addEventListener('pointerleave', () => setCursorLatLon(null));
+    canvas.addEventListener('pointerleave', () => setCursorlatitudeLon(null));
     return () => {
       canvas.removeEventListener('pointermove', onPointerMove);
-      canvas.removeEventListener('pointerleave', () => setCursorLatLon(null));
+      canvas.removeEventListener('pointerleave', () =>
+        setCursorlatitudeLon(null),
+      );
     };
   }, [size, scale, center]);
+
+  // --- Add/Move/Delete Waypoint Handlers ---
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    const canvas = renderer.domElement;
+    let draggingWp: number | null = null;
+    function screenTolatitudeLon(e: PointerEvent) {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left - size / 2;
+      const y = e.clientY - rect.top - size / 2;
+      const cam = cameraRef.current;
+      if (!cam) return null;
+      const zoom = cam.zoom;
+      const panX = cam.position.x;
+      const panY = cam.position.y;
+      const worldX = x / zoom + panX;
+      const worldY = y / zoom + panY;
+      const longitude = worldX / scale + center.longitude;
+      const latitude = center.latitude - worldY / scale;
+      return { latitude, longitude };
+    }
+    function onPointerDown(e: PointerEvent) {
+      // Check if near a waypoint
+      const pt = screenTolatitudeLon(e);
+      if (!pt) return;
+      for (let i = 0; i < editableRoute.length; i++) {
+        const wp = editableRoute[i];
+        const dx = (wp.longitude - pt.longitude) * scale;
+        const dy = (wp.latitude - pt.latitude) * scale;
+        if (Math.sqrt(dx * dx + dy * dy) < 12) {
+          draggingWp = i;
+          setSelectedWp(i);
+          return;
+        }
+      }
+      // Otherwise, add new waypoint
+      setEditableRoute([...editableRoute, pt]);
+      setSelectedWp(editableRoute.length);
+    }
+    function onPointerMove(e: PointerEvent) {
+      if (draggingWp !== null) {
+        const pt = screenTolatitudeLon(e);
+        if (!pt) return;
+        setEditableRoute(route =>
+          route.map((wp, i) => (i === draggingWp ? pt : wp)),
+        );
+      }
+    }
+    function onPointerUp() {
+      draggingWp = null;
+    }
+    canvas.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    return () => {
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [editableRoute, size, scale, center]);
+
+  // --- Delete Waypoint Handler ---
+  function deleteSelectedWaypoint() {
+    if (selectedWp !== null) {
+      setEditableRoute(route => route.filter((_, i) => i !== selectedWp));
+      setSelectedWp(null);
+    }
+  }
 
   // --- Setup Three.js scene ---
   useEffect(() => {
@@ -192,8 +273,8 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     // --- Coastline ---
     if (showCoastline) {
       const coastShape = new THREE.Shape();
-      coastline.forEach(([lat, lon], i) => {
-        const [x, y] = latLonToXY(lat, lon, center, scale);
+      coastline.forEach(([latitude, longitude], i) => {
+        const [x, y] = latLonToXY(latitude, longitude, center, scale);
         if (i === 0) coastShape.moveTo(x, y);
         else coastShape.lineTo(x, y);
       });
@@ -206,8 +287,8 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
         color: 0x7a8c6e,
         linewidth: 2,
       });
-      const coastLinePoints = coastline.map(([lat, lon]) => {
-        const [x, y] = latLonToXY(lat, lon, center, scale);
+      const coastLinePoints = coastline.map(([latitude, longitude]) => {
+        const [x, y] = latLonToXY(latitude, longitude, center, scale);
         return new THREE.Vector3(x, y, 1);
       });
       const coastLineGeom = new THREE.BufferGeometry().setFromPoints(
@@ -220,7 +301,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     // --- Buoys ---
     if (showBuoys) {
       buoys.forEach(b => {
-        const [x, y] = latLonToXY(b.lat, b.lon, center, scale);
+        const [x, y] = latLonToXY(b.latitude, b.longitude, center, scale);
         const buoyGeom = new THREE.CircleGeometry(7, 24);
         const buoyMat = new THREE.MeshBasicMaterial({
           color: b.type === 'starboard' ? 0x2dd4bf : 0xf87171,
@@ -259,8 +340,8 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
         dashSize: 8,
         gapSize: 6,
       });
-      const routeLinePoints = routePoints.map(([lat, lon]) => {
-        const [x, y] = latLonToXY(lat, lon, center, scale);
+      const routeLinePoints = routePoints.map(([latitude, longitude]) => {
+        const [x, y] = latLonToXY(latitude, longitude, center, scale);
         return new THREE.Vector3(x, y, 3);
       });
       const routeLineGeom = new THREE.BufferGeometry().setFromPoints(
@@ -270,28 +351,31 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       routeLine.computeLineDistances();
       scene.add(routeLine);
       // Waypoints
-      routePoints.forEach(([lat, lon]) => {
-        const [x, y] = latLonToXY(lat, lon, center, scale);
-        const wpGeom = new THREE.CircleGeometry(5, 16);
-        const wpMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
+      editableRoute.forEach((wp, i) => {
+        const [x, y] = latLonToXY(wp.latitude, wp.longitude, center, scale);
+        const isSelected = selectedWp === i;
+        const wpGeom = new THREE.CircleGeometry(isSelected ? 8 : 5, 16);
+        const wpMat = new THREE.MeshBasicMaterial({
+          color: isSelected ? 0xf87171 : 0xfbbf24,
+        });
         const wpMesh = new THREE.Mesh(wpGeom, wpMat);
         wpMesh.position.set(x, y, 3.1);
         scene.add(wpMesh);
         // Outline
         const wpOutlineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
-        const wpOutlineGeom = new THREE.CircleGeometry(5, 16);
+        const wpOutlineGeom = new THREE.CircleGeometry(isSelected ? 8 : 5, 16);
         const wpOutlineVertices = wpOutlineGeom.getAttribute('position');
         const wpOutlinePoints: THREE.Vector3[] = [];
-        for (let i = 0; i < wpOutlineVertices.count; i++) {
+        for (let j = 0; j < wpOutlineVertices.count; j++) {
           wpOutlinePoints.push(
             new THREE.Vector3(
-              wpOutlineVertices.getX(i),
-              wpOutlineVertices.getY(i),
-              wpOutlineVertices.getZ(i),
+              wpOutlineVertices.getX(j),
+              wpOutlineVertices.getY(j),
+              wpOutlineVertices.getZ(j),
             ),
           );
         }
-        wpOutlinePoints.push(wpOutlinePoints[0]); // Close the loop
+        wpOutlinePoints.push(wpOutlinePoints[0]);
         const wpOutlineLineGeom = new THREE.BufferGeometry().setFromPoints(
           wpOutlinePoints,
         );
@@ -302,7 +386,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     }
 
     // --- Own Ship ---
-    const [sx, sy] = latLonToXY(ship.lat, ship.lon, center, scale);
+    const [sx, sy] = latLonToXY(ship.latitude, ship.longitude, center, scale);
     const shipShape = new THREE.Shape();
     shipShape.moveTo(0, -14);
     shipShape.lineTo(7, 10);
@@ -434,6 +518,14 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
           />{' '}
           Route
         </label>
+        {selectedWp !== null && (
+          <button
+            onClick={deleteSelectedWaypoint}
+            style={{ color: '#f87171', marginLeft: 16 }}
+          >
+            Delete Waypoint #{selectedWp + 1}
+          </button>
+        )}
       </div>
       <div
         ref={mountRef}
@@ -446,8 +538,8 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
           position: 'relative',
         }}
       />
-      {/* Lat/Lon Overlay */}
-      {cursorLatLon && (
+      {/* latitude/longitude Overlay */}
+      {cursorlatitudeLon && (
         <div
           style={{
             position: 'absolute',
@@ -462,7 +554,8 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
             zIndex: 10,
           }}
         >
-          Lat: {cursorLatLon.lat.toFixed(5)}, Lon: {cursorLatLon.lon.toFixed(5)}
+          latitude: {cursorlatitudeLon.latitude.toFixed(5)}, longitude:{' '}
+          {cursorlatitudeLon.longitude.toFixed(5)}
         </div>
       )}
       <div
@@ -474,7 +567,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
         }}
       >
         <span>
-          Ship: {ship.lat.toFixed(5)}, {ship.lon.toFixed(5)}
+          Ship: {ship.latitude.toFixed(5)}, {ship.longitude.toFixed(5)}
         </span>
         <span>Heading: {ship.heading?.toFixed(1)}°</span>
       </div>
