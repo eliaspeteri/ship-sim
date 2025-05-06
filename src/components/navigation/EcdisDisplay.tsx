@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
 // --- Mock Data ---
@@ -60,6 +60,14 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     lastY: number;
   } | null>(null);
 
+  // --- Ship Animation State ---
+  const [animatedShip, setAnimatedShip] = useState<{
+    lat: number;
+    lon: number;
+    heading: number;
+  } | null>(null);
+  const animationActive = useRef(true);
+
   // Chart constants
   const size = 500;
   const center = { lat: 60.17, lon: 24.97 };
@@ -68,14 +76,44 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
   );
   const buoys = chartData?.buoys ?? mockBuoys;
   const routePoints = (route ?? mockRoute).map(wp => [wp.lat, wp.lon]);
-  const ship = shipPosition
-    ? {
-        lat: shipPosition.latitude,
-        lon: shipPosition.longitude,
-        heading: shipPosition.heading ?? 0,
-      }
-    : mockShip;
+  // Use animated ship if available, else prop or mock
+  const ship =
+    animatedShip ||
+    (shipPosition
+      ? {
+          lat: shipPosition.latitude,
+          lon: shipPosition.longitude,
+          heading: shipPosition.heading ?? 0,
+        }
+      : mockShip);
   const scale = 12000; // meters per degree (zoom)
+
+  // --- Animate Ship Along Route ---
+  useEffect(() => {
+    if (!routePoints.length) return;
+    let idx = 0;
+    let t = 0;
+    animationActive.current = true;
+    function step() {
+      if (!animationActive.current) return;
+      const [lat1, lon1] = routePoints[idx];
+      const [lat2, lon2] = routePoints[(idx + 1) % routePoints.length];
+      t += 0.002; // speed
+      if (t > 1) {
+        t = 0;
+        idx = (idx + 1) % routePoints.length;
+      }
+      const lat = lat1 + (lat2 - lat1) * t;
+      const lon = lon1 + (lon2 - lon1) * t;
+      const heading = (Math.atan2(lon2 - lon1, lat2 - lat1) * 180) / Math.PI;
+      setAnimatedShip({ lat, lon, heading });
+      setTimeout(step, 100);
+    }
+    step();
+    return () => {
+      animationActive.current = false;
+    };
+  }, [route]);
 
   // --- Setup Three.js scene ---
   useEffect(() => {
@@ -88,7 +126,6 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     }
 
     // Camera: Orthographic for 2D
-    const aspect = 1;
     const viewSize = size;
     const cam = new THREE.OrthographicCamera(
       -viewSize / 2,
