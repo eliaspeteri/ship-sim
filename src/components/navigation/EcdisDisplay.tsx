@@ -138,7 +138,10 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
 
   // --- Search State ---
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResult, setSearchResult] = useState<null | { type: string; index: number }>(null);
+  const [searchResult, setSearchResult] = useState<null | {
+    type: string;
+    index: number;
+  }>(null);
 
   // --- Search Handler ---
   function handleSearch(e: React.FormEvent) {
@@ -160,7 +163,10 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     }
     // Search AIS targets
     for (let i = 0; i < aisTargets.length; i++) {
-      if ((aisTargets[i].name || '').toLowerCase().includes(q) || (aisTargets[i].mmsi || '').toLowerCase().includes(q)) {
+      if (
+        (aisTargets[i].name || '').toLowerCase().includes(q) ||
+        (aisTargets[i].mmsi || '').toLowerCase().includes(q)
+      ) {
         setSearchResult({ type: 'ais', index: i });
         return;
       }
@@ -171,7 +177,8 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
   // --- Auto-pan to search result ---
   useEffect(() => {
     if (!searchResult) return;
-    let lat = 0, lon = 0;
+    let lat = 0,
+      lon = 0;
     if (searchResult.type === 'waypoint') {
       lat = editableRoute[searchResult.index].latitude;
       lon = editableRoute[searchResult.index].longitude;
@@ -558,10 +565,15 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     if (showBuoys) {
       buoys.forEach((b, i) => {
         const [x, y] = latLonToXY(b.latitude, b.longitude, center, scale);
-        const isSearched = searchResult?.type === 'buoy' && searchResult.index === i;
+        const isSearched =
+          searchResult?.type === 'buoy' && searchResult.index === i;
         const buoyGeom = new THREE.CircleGeometry(isSearched ? 12 : 7, 24);
         const buoyMat = new THREE.MeshBasicMaterial({
-          color: isSearched ? 0x34d399 : b.type === 'starboard' ? 0x2dd4bf : 0xf87171,
+          color: isSearched
+            ? 0x34d399
+            : b.type === 'starboard'
+              ? 0x2dd4bf
+              : 0xf87171,
         });
         const buoyMesh = new THREE.Mesh(buoyGeom, buoyMat);
         buoyMesh.position.set(x, y, 2);
@@ -611,8 +623,12 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       editableRoute.forEach((wp, i) => {
         const [x, y] = latLonToXY(wp.latitude, wp.longitude, center, scale);
         const isSelected = selectedWp === i;
-        const isSearched = searchResult?.type === 'waypoint' && searchResult.index === i;
-        const wpGeom = new THREE.CircleGeometry(isSelected ? 8 : isSearched ? 10 : 5, 16);
+        const isSearched =
+          searchResult?.type === 'waypoint' && searchResult.index === i;
+        const wpGeom = new THREE.CircleGeometry(
+          isSelected ? 8 : isSearched ? 10 : 5,
+          16,
+        );
         const wpMat = new THREE.MeshBasicMaterial({
           color: isSearched ? 0x34d399 : isSelected ? 0xf87171 : 0xfbbf24,
         });
@@ -621,7 +637,10 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
         scene.add(wpMesh);
         // Outline
         const wpOutlineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
-        const wpOutlineGeom = new THREE.CircleGeometry(isSelected ? 8 : isSearched ? 10 : 5, 16);
+        const wpOutlineGeom = new THREE.CircleGeometry(
+          isSelected ? 8 : isSearched ? 10 : 5,
+          16,
+        );
         const wpOutlineVertices = wpOutlineGeom.getAttribute('position');
         const wpOutlinePoints: THREE.Vector3[] = [];
         for (let j = 0; j < wpOutlineVertices.count; j++) {
@@ -666,7 +685,8 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     // --- AIS Targets ---
     aisTargets.forEach((t, i) => {
       const [x, y] = latLonToXY(t.lat, t.lon, center, scale);
-      const isSearched = searchResult?.type === 'ais' && searchResult.index === i;
+      const isSearched =
+        searchResult?.type === 'ais' && searchResult.index === i;
       // Target icon (triangle)
       const tgtShape = new THREE.Shape();
       tgtShape.moveTo(0, isSearched ? -16 : -10);
@@ -674,7 +694,9 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       tgtShape.lineTo(isSearched ? -10 : -6, isSearched ? 14 : 8);
       tgtShape.lineTo(0, isSearched ? -16 : -10);
       const tgtGeom = new THREE.ShapeGeometry(tgtShape);
-      const tgtMat = new THREE.MeshBasicMaterial({ color: isSearched ? 0xfbbf24 : 0x34d399 });
+      const tgtMat = new THREE.MeshBasicMaterial({
+        color: isSearched ? 0xfbbf24 : 0x34d399,
+      });
       const tgtMesh = new THREE.Mesh(tgtGeom, tgtMat);
       tgtMesh.position.set(x, y, 5);
       tgtMesh.rotation.z = -THREE.MathUtils.degToRad(t.heading ?? 0);
@@ -791,15 +813,38 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
         </span>
         <span style={{ fontSize: 14 }}>Scale: 1:{scale}</span>
       </div>
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+      <form
+        onSubmit={handleSearch}
+        style={{ display: 'flex', gap: 8, marginBottom: 8 }}
+      >
         <input
           type="text"
           placeholder="Search waypoint, buoy, AIS..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          style={{ fontSize: 15, padding: '2px 8px', borderRadius: 4, border: '1px solid #444', background: '#23272e', color: '#e0f2f1', width: 220 }}
+          style={{
+            fontSize: 15,
+            padding: '2px 8px',
+            borderRadius: 4,
+            border: '1px solid #444',
+            background: '#23272e',
+            color: '#e0f2f1',
+            width: 220,
+          }}
         />
-        <button type="submit" style={{ fontSize: 15, padding: '2px 12px', borderRadius: 4, background: '#60a5fa', color: '#fff', border: 'none' }}>Search</button>
+        <button
+          type="submit"
+          style={{
+            fontSize: 15,
+            padding: '2px 12px',
+            borderRadius: 4,
+            background: '#60a5fa',
+            color: '#fff',
+            border: 'none',
+          }}
+        >
+          Search
+        </button>
         {searchResult && (
           <span style={{ color: '#34d399', fontSize: 15, marginLeft: 8 }}>
             Found {searchResult.type} #{searchResult.index + 1}
