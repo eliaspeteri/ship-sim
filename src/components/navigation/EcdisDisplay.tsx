@@ -136,6 +136,62 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     { id: 'raster', name: 'Raster Chart', visible: false, opacity: 0.7 },
   ]);
 
+  // --- Search State ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResult, setSearchResult] = useState<null | { type: string; index: number }>(null);
+
+  // --- Search Handler ---
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const q = searchQuery.trim().toLowerCase();
+    // Search waypoints
+    for (let i = 0; i < editableRoute.length; i++) {
+      if (`waypoint #${i + 1}`.toLowerCase().includes(q)) {
+        setSearchResult({ type: 'waypoint', index: i });
+        return;
+      }
+    }
+    // Search buoys
+    for (let i = 0; i < buoys.length; i++) {
+      if ((buoys[i].type || '').toLowerCase().includes(q)) {
+        setSearchResult({ type: 'buoy', index: i });
+        return;
+      }
+    }
+    // Search AIS targets
+    for (let i = 0; i < aisTargets.length; i++) {
+      if ((aisTargets[i].name || '').toLowerCase().includes(q) || (aisTargets[i].mmsi || '').toLowerCase().includes(q)) {
+        setSearchResult({ type: 'ais', index: i });
+        return;
+      }
+    }
+    setSearchResult(null);
+  }
+
+  // --- Auto-pan to search result ---
+  useEffect(() => {
+    if (!searchResult) return;
+    let lat = 0, lon = 0;
+    if (searchResult.type === 'waypoint') {
+      lat = editableRoute[searchResult.index].latitude;
+      lon = editableRoute[searchResult.index].longitude;
+    } else if (searchResult.type === 'buoy') {
+      lat = buoys[searchResult.index].latitude;
+      lon = buoys[searchResult.index].longitude;
+    } else if (searchResult.type === 'ais') {
+      lat = aisTargets[searchResult.index].lat;
+      lon = aisTargets[searchResult.index].lon;
+    }
+    // Center camera on found object
+    panRef.current.x = (lon - center.longitude) * scale;
+    panRef.current.y = -(lat - center.latitude) * scale;
+    if (cameraRef.current) {
+      cameraRef.current.position.x = panRef.current.x;
+      cameraRef.current.position.y = panRef.current.y;
+      cameraRef.current.updateProjectionMatrix();
+    }
+  }, [searchResult]);
+
   // --- Chart Layer UI Handlers ---
   function toggleLayer(id: string) {
     setChartLayers(layers =>
@@ -500,26 +556,27 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
 
     // --- Buoys ---
     if (showBuoys) {
-      buoys.forEach(b => {
+      buoys.forEach((b, i) => {
         const [x, y] = latLonToXY(b.latitude, b.longitude, center, scale);
-        const buoyGeom = new THREE.CircleGeometry(7, 24);
+        const isSearched = searchResult?.type === 'buoy' && searchResult.index === i;
+        const buoyGeom = new THREE.CircleGeometry(isSearched ? 12 : 7, 24);
         const buoyMat = new THREE.MeshBasicMaterial({
-          color: b.type === 'starboard' ? 0x2dd4bf : 0xf87171,
+          color: isSearched ? 0x34d399 : b.type === 'starboard' ? 0x2dd4bf : 0xf87171,
         });
         const buoyMesh = new THREE.Mesh(buoyGeom, buoyMat);
         buoyMesh.position.set(x, y, 2);
         scene.add(buoyMesh);
         // Outline
         const outlineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
-        const outlineGeom = new THREE.CircleGeometry(7, 24);
+        const outlineGeom = new THREE.CircleGeometry(isSearched ? 12 : 7, 24);
         const outlineVertices = outlineGeom.getAttribute('position');
         const outlinePoints: THREE.Vector3[] = [];
-        for (let i = 0; i < outlineVertices.count; i++) {
+        for (let j = 0; j < outlineVertices.count; j++) {
           outlinePoints.push(
             new THREE.Vector3(
-              outlineVertices.getX(i),
-              outlineVertices.getY(i),
-              outlineVertices.getZ(i),
+              outlineVertices.getX(j),
+              outlineVertices.getY(j),
+              outlineVertices.getZ(j),
             ),
           );
         }
@@ -554,16 +611,17 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       editableRoute.forEach((wp, i) => {
         const [x, y] = latLonToXY(wp.latitude, wp.longitude, center, scale);
         const isSelected = selectedWp === i;
-        const wpGeom = new THREE.CircleGeometry(isSelected ? 8 : 5, 16);
+        const isSearched = searchResult?.type === 'waypoint' && searchResult.index === i;
+        const wpGeom = new THREE.CircleGeometry(isSelected ? 8 : isSearched ? 10 : 5, 16);
         const wpMat = new THREE.MeshBasicMaterial({
-          color: isSelected ? 0xf87171 : 0xfbbf24,
+          color: isSearched ? 0x34d399 : isSelected ? 0xf87171 : 0xfbbf24,
         });
         const wpMesh = new THREE.Mesh(wpGeom, wpMat);
         wpMesh.position.set(x, y, 3.1);
         scene.add(wpMesh);
         // Outline
         const wpOutlineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
-        const wpOutlineGeom = new THREE.CircleGeometry(isSelected ? 8 : 5, 16);
+        const wpOutlineGeom = new THREE.CircleGeometry(isSelected ? 8 : isSearched ? 10 : 5, 16);
         const wpOutlineVertices = wpOutlineGeom.getAttribute('position');
         const wpOutlinePoints: THREE.Vector3[] = [];
         for (let j = 0; j < wpOutlineVertices.count; j++) {
@@ -606,16 +664,17 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     scene.add(shipCenter);
 
     // --- AIS Targets ---
-    aisTargets.forEach(t => {
+    aisTargets.forEach((t, i) => {
       const [x, y] = latLonToXY(t.lat, t.lon, center, scale);
+      const isSearched = searchResult?.type === 'ais' && searchResult.index === i;
       // Target icon (triangle)
       const tgtShape = new THREE.Shape();
-      tgtShape.moveTo(0, -10);
-      tgtShape.lineTo(6, 8);
-      tgtShape.lineTo(-6, 8);
-      tgtShape.lineTo(0, -10);
+      tgtShape.moveTo(0, isSearched ? -16 : -10);
+      tgtShape.lineTo(isSearched ? 10 : 6, isSearched ? 14 : 8);
+      tgtShape.lineTo(isSearched ? -10 : -6, isSearched ? 14 : 8);
+      tgtShape.lineTo(0, isSearched ? -16 : -10);
       const tgtGeom = new THREE.ShapeGeometry(tgtShape);
-      const tgtMat = new THREE.MeshBasicMaterial({ color: 0x34d399 });
+      const tgtMat = new THREE.MeshBasicMaterial({ color: isSearched ? 0xfbbf24 : 0x34d399 });
       const tgtMesh = new THREE.Mesh(tgtGeom, tgtMat);
       tgtMesh.position.set(x, y, 5);
       tgtMesh.rotation.z = -THREE.MathUtils.degToRad(t.heading ?? 0);
@@ -624,15 +683,14 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       const labelDiv = document.createElement('div');
       labelDiv.style.position = 'absolute';
       labelDiv.style.left = `${x + size / 2 - 20}px`;
-      labelDiv.style.top = `${y + size / 2 - 24}px`;
-      labelDiv.style.color = '#34d399';
-      labelDiv.style.fontSize = '13px';
+      labelDiv.style.top = `${y + size / 2 - (isSearched ? 36 : 24)}px`;
+      labelDiv.style.color = isSearched ? '#fbbf24' : '#34d399';
+      labelDiv.style.fontSize = isSearched ? '15px' : '13px';
       labelDiv.style.fontFamily = 'monospace';
       labelDiv.style.pointerEvents = 'none';
       labelDiv.style.zIndex = '20';
       labelDiv.textContent = t.name || t.mmsi;
       if (mountRef.current) mountRef.current.appendChild(labelDiv);
-      // Remove label on cleanup
       setTimeout(() => labelDiv.remove(), 0);
     });
 
@@ -703,6 +761,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     showBuoys,
     showRoute,
     chartLayers,
+    searchResult,
   ]);
 
   // --- Overlay Info (static for MVP) ---
@@ -732,6 +791,21 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
         </span>
         <span style={{ fontSize: 14 }}>Scale: 1:{scale}</span>
       </div>
+      <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <input
+          type="text"
+          placeholder="Search waypoint, buoy, AIS..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          style={{ fontSize: 15, padding: '2px 8px', borderRadius: 4, border: '1px solid #444', background: '#23272e', color: '#e0f2f1', width: 220 }}
+        />
+        <button type="submit" style={{ fontSize: 15, padding: '2px 12px', borderRadius: 4, background: '#60a5fa', color: '#fff', border: 'none' }}>Search</button>
+        {searchResult && (
+          <span style={{ color: '#34d399', fontSize: 15, marginLeft: 8 }}>
+            Found {searchResult.type} #{searchResult.index + 1}
+          </span>
+        )}
+      </form>
       <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
         {/* Chart Layer Management UI */}
         {chartLayers.map((layer, i) => (
