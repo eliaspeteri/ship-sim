@@ -144,7 +144,7 @@ export const HelmControl: React.FC<HelmControlProps> = ({
     max: 1, // Corresponds to maxAngle (+40)
     onChange: norm => onChange(normalizedToValue(norm)),
     dragAxis: 'horizontal', // Horizontal drag controls the normalized value 0-1
-    dragSensitivity: 100, // Adjust sensitivity for desired rotation feel
+    dragSensitivity: 300, // Adjust sensitivity for desired rotation feel
     resetOnDoubleClick: true,
   });
 

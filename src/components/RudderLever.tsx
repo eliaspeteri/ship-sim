@@ -171,7 +171,7 @@ export const RudderLever: React.FC<RudderLeverProps> = ({
     min: invertedMin,
     max: invertedMax,
     onChange: handleInvertedChange,
-    dragSensitivity: 200,
+    dragSensitivity: 300,
     dragAxis: 'horizontal',
     resetOnDoubleClick: true,
   });
