@@ -125,6 +125,13 @@ const TestbedPage = () => {
   const [radioTransmitting] = useState(false);
   const [radioReceiving, setRadioReceiving] = useState(false);
 
+  // States for RadarDisplay environment
+  const [environment, setEnvironment] = useState({
+    seaState: 10,
+    rainIntensity: 10,
+    visibility: 10,
+  });
+
   return (
     <div className="p-8 space-y-8">
       <h1 className="text-2xl font-bold">UI Testbed</h1>
@@ -845,10 +852,119 @@ const TestbedPage = () => {
           }}
         />
       </div>
-      {/* X-Band/S-Band section */}
-      <RadarDisplay
-        environment={{ seaState: 10, rainIntensity: 10, visibility: 10 }}
-      />
+
+      {/* Radar Display Section */}
+      <div className="mt-12">
+        <h2 className="text-xl font-bold mb-4">X-band/S-band Radar Display</h2>
+        <div className="bg-gray-800 p-6 rounded-lg">
+          <div className="flex flex-col items-center">
+            <RadarDisplay
+              size={500}
+              initialTargets={[
+                {
+                  id: 'target-1',
+                  distance: 4.2,
+                  bearing: 45,
+                  size: 0.8,
+                  speed: 12,
+                  course: 190,
+                  type: 'ship',
+                  isTracked: true,
+                },
+                {
+                  id: 'target-2',
+                  distance: 2.5,
+                  bearing: 180,
+                  size: 0.6,
+                  speed: 8,
+                  course: 270,
+                  type: 'ship',
+                },
+                {
+                  id: 'target-3',
+                  distance: 1.8,
+                  bearing: 300,
+                  size: 0.9,
+                  speed: 0,
+                  course: 0,
+                  type: 'land',
+                },
+              ]}
+              environment={{
+                seaState: 3,
+                rainIntensity: 2,
+                visibility: 8,
+              }}
+            />
+
+            {/* Environmental controls for testing */}
+            <div className="mt-8 w-full max-w-3xl p-4 bg-gray-700 rounded-lg">
+              <h3 className="text-lg font-semibold mb-3">
+                Environment Controls
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Sea State: {environment.seaState}
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={10}
+                    step={1}
+                    value={environment.seaState}
+                    onChange={e =>
+                      setEnvironment(prev => ({
+                        ...prev,
+                        seaState: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Rain Intensity: {environment.rainIntensity}
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={10}
+                    step={1}
+                    value={environment.rainIntensity}
+                    onChange={e =>
+                      setEnvironment(prev => ({
+                        ...prev,
+                        rainIntensity: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Visibility: {environment.visibility}
+                  </label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={10}
+                    step={1}
+                    value={environment.visibility}
+                    onChange={e =>
+                      setEnvironment(prev => ({
+                        ...prev,
+                        visibility: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

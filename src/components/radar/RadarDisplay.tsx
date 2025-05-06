@@ -17,6 +17,18 @@ import {
   polarToCartesian,
 } from './utils';
 import RadarControls from './RadarControls';
+import ARPAPanel from './ARPAPanel';
+import {
+  ARPASettings,
+  ARPATarget,
+  ARPATargetStatus,
+  DEFAULT_ARPA_SETTINGS,
+  OwnShipData,
+  convertToARPATarget,
+  getTargetStatus,
+  getVectorEndpoint,
+  processRadarTargets,
+} from './arpa';
 
 interface RadarDisplayProps {
   size?: number;
@@ -25,6 +37,7 @@ interface RadarDisplayProps {
   environment?: RadarEnvironment;
   onSettingsChange?: (settings: RadarSettings) => void;
   className?: string;
+  ownShipData?: OwnShipData;
 }
 
 const DEFAULT_SETTINGS: RadarSettings = {
@@ -46,6 +59,13 @@ const DEFAULT_ENVIRONMENT: RadarEnvironment = {
   visibility: 8,
 };
 
+const DEFAULT_OWN_SHIP: OwnShipData = {
+  position: { lat: 0, lon: 0 },
+  course: 0,
+  speed: 0,
+  heading: 0,
+};
+
 const RANGE_OPTIONS = [0.5, 1.5, 3, 6, 12, 24, 48];
 
 export default function RadarDisplay({
@@ -55,14 +75,13 @@ export default function RadarDisplay({
   environment = DEFAULT_ENVIRONMENT,
   onSettingsChange,
   className = '',
+  ownShipData = DEFAULT_OWN_SHIP,
 }: RadarDisplayProps) {
-  // Merge default settings with initial settings
   const [settings, setSettings] = useState<RadarSettings>({
     ...DEFAULT_SETTINGS,
     ...initialSettings,
   });
 
-  // State for targets, EBL, VRM, and guard zones
   const [targets, setTargets] = useState<RadarTarget[]>(initialTargets);
   const [ebl, setEbl] = useState<EBL>({ active: false, angle: 0 });
   const [vrm, setVrm] = useState<VRM>({ active: false, distance: 0 });
@@ -74,25 +93,26 @@ export default function RadarDisplay({
     outerRange: 3,
   });
 
-  // Canvas refs
+  const [arpaSettings, setArpaSettings] = useState<ARPASettings>(
+    DEFAULT_ARPA_SETTINGS,
+  );
+  const [arpaTargets, setArpaTargets] = useState<ARPATarget[]>([]);
+  const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
+  const [showArpaPanel, setShowArpaPanel] = useState(false);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const radarSweepRef = useRef<HTMLDivElement>(null);
-
-  // Animation frame ref
   const animationFrameRef = useRef<number | null>(null);
-
-  // Current sweep angle
   const [sweepAngle, setSweepAngle] = useState(0);
-
-  // Animation control
   const [isAnimating] = useState(true);
 
-  // Refs for performance
   const settingsRef = useRef(settings);
   const environmentRef = useRef(environment);
   const targetsRef = useRef(targets);
+  const arpaSettingsRef = useRef(arpaSettings);
+  const arpaTargetsRef = useRef(arpaTargets);
+  const ownShipRef = useRef(ownShipData);
 
-  // Update refs when props change
   useEffect(() => {
     settingsRef.current = settings;
     if (onSettingsChange) {
@@ -108,24 +128,29 @@ export default function RadarDisplay({
     targetsRef.current = targets;
   }, [targets]);
 
-  // Setup canvas and start animation
+  useEffect(() => {
+    arpaSettingsRef.current = arpaSettings;
+  }, [arpaSettings]);
+
+  useEffect(() => {
+    arpaTargetsRef.current = arpaTargets;
+  }, [arpaTargets]);
+
+  useEffect(() => {
+    ownShipRef.current = ownShipData;
+  }, [ownShipData]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Set canvas size
     canvas.width = size;
     canvas.height = size;
 
-    // Start animation
     const animateRadar = () => {
-      // Update sweep angle
       setSweepAngle(prev => (prev + 1) % 360);
-
-      // Draw radar
       drawRadar();
 
-      // Continue animation
       if (isAnimating) {
         animationFrameRef.current = requestAnimationFrame(animateRadar);
       }
@@ -133,7 +158,6 @@ export default function RadarDisplay({
 
     animationFrameRef.current = requestAnimationFrame(animateRadar);
 
-    // Cleanup on unmount
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -141,14 +165,38 @@ export default function RadarDisplay({
     };
   }, [size, isAnimating]);
 
-  // Update radar sweep visual element position
   useEffect(() => {
     if (radarSweepRef.current) {
       radarSweepRef.current.style.transform = `rotate(${sweepAngle}deg)`;
     }
   }, [sweepAngle]);
 
-  // Draw the radar display
+  useEffect(() => {
+    if (!showArpaPanel) return;
+
+    const intervalId = setInterval(() => {
+      const updatedArpaTargets = processRadarTargets(
+        targetsRef.current,
+        arpaTargetsRef.current,
+        arpaSettingsRef.current,
+        ownShipRef.current,
+      );
+
+      setArpaTargets(updatedArpaTargets);
+
+      if (selectedTargetId) {
+        const targetExists = updatedArpaTargets.some(
+          t => t.id === selectedTargetId,
+        );
+        if (!targetExists) {
+          setSelectedTargetId(null);
+        }
+      }
+    }, 2000);
+
+    return () => clearInterval(intervalId);
+  }, [showArpaPanel, selectedTargetId]);
+
   const drawRadar = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -159,6 +207,8 @@ export default function RadarDisplay({
     const currSettings = settingsRef.current;
     const currEnvironment = environmentRef.current;
     const currTargets = targetsRef.current;
+    const currArpaSettings = arpaSettingsRef.current;
+    const currArpaTargets = arpaTargetsRef.current;
 
     const {
       band,
@@ -172,36 +222,36 @@ export default function RadarDisplay({
     } = currSettings;
     const radius = size / 2;
 
-    // Clear canvas with semi-transparent background for trail effect
     ctx.fillStyle = nightMode
       ? 'rgba(0, 10, 20, 0.15)'
       : 'rgba(0, 20, 10, 0.15)';
     ctx.fillRect(0, 0, size, size);
 
-    // Draw background
     ctx.beginPath();
     ctx.arc(radius, radius, radius - 2, 0, Math.PI * 2);
     ctx.fillStyle = nightMode ? '#000B14' : '#001A14';
     ctx.fill();
 
-    // Draw range rings
     ctx.strokeStyle = nightMode ? '#113344' : '#114433';
     ctx.lineWidth = 1;
 
-    // Calculate number of range rings based on range
     const numRings = 5;
     for (let i = 1; i <= numRings; i++) {
       const ringRadius = (radius - 2) * (i / numRings);
       ctx.beginPath();
       ctx.arc(radius, radius, ringRadius, 0, Math.PI * 2);
       ctx.stroke();
+
+      if (i < numRings) {
+        const ringRange = ((range * i) / numRings).toFixed(1);
+        ctx.fillStyle = nightMode ? '#335566' : '#336655';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${ringRange}`, radius, radius - ringRadius + 12);
+      }
     }
 
-    // Draw cardinal direction lines
-    ctx.strokeStyle = nightMode ? '#1E4966' : '#1E664D';
-    ctx.lineWidth = 1;
-
-    // Calculate rotation based on orientation and heading
     let rotationAngle = 0;
     if (orientation === 'north-up') {
       rotationAngle = 0;
@@ -209,60 +259,6 @@ export default function RadarDisplay({
       rotationAngle = heading;
     }
 
-    // Draw heading lines (N, E, S, W)
-    for (let i = 0; i < 4; i++) {
-      const angle = (i * 90 - rotationAngle + 360) % 360;
-      const angleRad = angle * (Math.PI / 180);
-
-      ctx.beginPath();
-      ctx.moveTo(radius, radius);
-      ctx.lineTo(
-        radius + Math.sin(angleRad) * (radius - 2),
-        radius - Math.cos(angleRad) * (radius - 2),
-      );
-      ctx.stroke();
-
-      // Add cardinal direction labels
-      const labelRadius = radius - 20;
-      const labelX = radius + Math.sin(angleRad) * labelRadius;
-      const labelY = radius - Math.cos(angleRad) * labelRadius;
-
-      ctx.fillStyle = nightMode ? '#5599CC' : '#55CC99';
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      let label = '';
-      switch (i) {
-        case 0:
-          label = 'N';
-          break;
-        case 1:
-          label = 'E';
-          break;
-        case 2:
-          label = 'S';
-          break;
-        case 3:
-          label = 'W';
-          break;
-      }
-
-      ctx.fillText(label, labelX, labelY);
-    }
-
-    // Draw heading marker
-    if (orientation === 'head-up') {
-      ctx.beginPath();
-      ctx.moveTo(radius, 10);
-      ctx.lineTo(radius - 10, 30);
-      ctx.lineTo(radius + 10, 30);
-      ctx.closePath();
-      ctx.fillStyle = nightMode ? '#5599CC' : '#55CC99';
-      ctx.fill();
-    }
-
-    // Draw EBL if active
     if (ebl.active) {
       const angleRad =
         ((ebl.angle - rotationAngle + 360) % 360) * (Math.PI / 180);
@@ -277,7 +273,6 @@ export default function RadarDisplay({
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Add angle label
       ctx.fillStyle = nightMode ? '#FFAA33' : '#FFAA33';
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'left';
@@ -285,7 +280,6 @@ export default function RadarDisplay({
       ctx.fillText(`EBL: ${ebl.angle.toFixed(1)}°`, 10, size - 10);
     }
 
-    // Draw VRM if active
     if (vrm.active) {
       const vrmRadius = (vrm.distance / range) * (radius - 2);
 
@@ -295,7 +289,6 @@ export default function RadarDisplay({
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Add distance label
       ctx.fillStyle = nightMode ? '#FFAA33' : '#FFAA33';
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'left';
@@ -303,7 +296,6 @@ export default function RadarDisplay({
       ctx.fillText(`VRM: ${vrm.distance.toFixed(1)} NM`, 10, 10);
     }
 
-    // Draw guard zone if active
     if (guardZone.active) {
       const innerRadius = (guardZone.innerRange / range) * (radius - 2);
       const outerRadius = (guardZone.outerRange / range) * (radius - 2);
@@ -312,27 +304,20 @@ export default function RadarDisplay({
       const endAngle =
         ((guardZone.endAngle - rotationAngle + 360) % 360) * (Math.PI / 180);
 
-      // Create guard zone path
       ctx.beginPath();
-      // Outer arc
       ctx.arc(radius, radius, outerRadius, startAngle, endAngle);
-      // Line to inner arc
       ctx.lineTo(
         radius + Math.cos(endAngle) * innerRadius,
         radius + Math.sin(endAngle) * innerRadius,
       );
-      // Inner arc (counter-clockwise)
       ctx.arc(radius, radius, innerRadius, endAngle, startAngle, true);
-      // Close path
       ctx.closePath();
 
-      // Fill guard zone with semi-transparent color
       ctx.fillStyle = nightMode
         ? 'rgba(255, 0, 0, 0.15)'
         : 'rgba(255, 0, 0, 0.15)';
       ctx.fill();
 
-      // Stroke guard zone border
       ctx.strokeStyle = nightMode
         ? 'rgba(255, 0, 0, 0.5)'
         : 'rgba(255, 0, 0, 0.5)';
@@ -340,20 +325,16 @@ export default function RadarDisplay({
       ctx.stroke();
     }
 
-    // Generate radar noise
     const noiseLevel = generateRadarNoise(band, currEnvironment, gain);
     const noisePattern = generateNoisePattern(size, size, noiseLevel);
 
-    // Apply noise pattern with low opacity
     ctx.globalAlpha = 0.2;
     ctx.putImageData(noisePattern, 0, 0);
     ctx.globalAlpha = 1.0;
 
-    // Draw targets
     currTargets.forEach(target => {
-      if (target.distance > range) return; // Skip targets outside range
+      if (target.distance > range) return;
 
-      // Calculate target visibility
       const visibility = calculateTargetVisibility(
         target,
         band,
@@ -363,9 +344,8 @@ export default function RadarDisplay({
         currEnvironment,
       );
 
-      if (visibility <= 0) return; // Skip invisible targets
+      if (visibility <= 0) return;
 
-      // Convert target polar coordinates to Cartesian
       const { x, y } = polarToCartesian(
         target.distance,
         (target.bearing - rotationAngle + 360) % 360,
@@ -373,59 +353,135 @@ export default function RadarDisplay({
         radius,
       );
 
-      // Draw target
       const targetSize = 3 + target.size * 4;
 
-      // Draw with visibility-based opacity
       ctx.globalAlpha = visibility;
 
       if (target.type === 'land') {
-        // Land masses are irregular shapes
         ctx.fillStyle = nightMode ? '#AAF7' : '#AFA7';
         ctx.beginPath();
         ctx.arc(x, y, targetSize * 2, 0, Math.PI * 2);
         ctx.fill();
       } else {
-        // Ships and other targets are dots
         ctx.fillStyle = nightMode ? '#5F5' : '#5F5';
         ctx.beginPath();
         ctx.arc(x, y, targetSize, 0, Math.PI * 2);
         ctx.fill();
 
-        // If target is tracked by ARPA, add track vector
-        if (target.isTracked) {
-          // Calculate vector end point based on course and speed
-          const vectorLength = (target.speed / 10) * (radius / 5);
-          const courseRad = target.course * (Math.PI / 180);
+        if (target.isTracked && showArpaPanel) {
+          const arpaTarget = currArpaTargets.find(at => at.id === target.id);
 
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.lineTo(
-            x + Math.sin(courseRad) * vectorLength,
-            y - Math.cos(courseRad) * vectorLength,
-          );
-          ctx.strokeStyle = nightMode ? '#5F5' : '#5F5';
-          ctx.lineWidth = 1;
-          ctx.stroke();
+          if (arpaTarget) {
+            const targetStatus = getTargetStatus(arpaTarget, currArpaSettings);
 
-          // Add tracking box
-          ctx.beginPath();
-          ctx.rect(
-            x - targetSize * 1.5,
-            y - targetSize * 1.5,
-            targetSize * 3,
-            targetSize * 3,
-          );
-          ctx.strokeStyle = nightMode ? '#5F5' : '#5F5';
-          ctx.lineWidth = 1;
-          ctx.stroke();
+            let color;
+            switch (targetStatus) {
+              case ARPATargetStatus.DANGEROUS:
+                color = '#FF3333';
+                break;
+              case ARPATargetStatus.LOST:
+                color = '#888888';
+                break;
+              case ARPATargetStatus.ACQUIRING:
+                color = '#FFAA33';
+                break;
+              default:
+                color = '#55FF55';
+            }
+
+            if (targetStatus !== ARPATargetStatus.ACQUIRING) {
+              const vectorEndpoint = getVectorEndpoint(
+                arpaTarget,
+                currArpaSettings,
+                ownShipRef.current,
+              );
+
+              const { x: endX, y: endY } = polarToCartesian(
+                vectorEndpoint.distance,
+                (vectorEndpoint.bearing - rotationAngle + 360) % 360,
+                range,
+                radius,
+              );
+
+              ctx.beginPath();
+              ctx.moveTo(x, y);
+              ctx.lineTo(endX, endY);
+              ctx.strokeStyle = color;
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+
+            ctx.beginPath();
+            ctx.rect(
+              x - targetSize * 1.5,
+              y - targetSize * 1.5,
+              targetSize * 3,
+              targetSize * 3,
+            );
+            ctx.strokeStyle = color;
+            ctx.lineWidth = targetStatus === ARPATargetStatus.DANGEROUS ? 2 : 1;
+            ctx.stroke();
+
+            if (targetStatus === ARPATargetStatus.DANGEROUS) {
+              ctx.beginPath();
+              ctx.arc(x, y, targetSize * 4, 0, Math.PI * 2);
+              ctx.strokeStyle = '#FF3333';
+              ctx.lineWidth = 1;
+              ctx.setLineDash([5, 3]);
+              ctx.stroke();
+              ctx.setLineDash([]);
+            }
+
+            ctx.fillStyle = color;
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(
+              arpaTarget.trackId.replace('ARPA-', ''),
+              x + targetSize * 2,
+              y - targetSize * 2,
+            );
+
+            if (
+              arpaTarget.historicalPositions.length > 1 &&
+              targetStatus !== ARPATargetStatus.ACQUIRING
+            ) {
+              ctx.beginPath();
+
+              const numPositions = Math.min(
+                currArpaSettings.historyPointsCount,
+                arpaTarget.historicalPositions.length,
+              );
+
+              for (let i = 1; i < numPositions; i++) {
+                const historyIndex =
+                  arpaTarget.historicalPositions.length - 1 - i;
+                if (historyIndex < 0) break;
+
+                const historyPos = arpaTarget.historicalPositions[historyIndex];
+                const { x: histX, y: histY } = polarToCartesian(
+                  historyPos.distance,
+                  (historyPos.bearing - rotationAngle + 360) % 360,
+                  range,
+                  radius,
+                );
+
+                ctx.beginPath();
+                ctx.arc(histX, histY, targetSize * 0.7, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.globalAlpha = Math.max(0.2, 1 - i * 0.2);
+                ctx.fill();
+              }
+
+              ctx.globalAlpha = visibility;
+            }
+          }
         }
       }
 
       ctx.globalAlpha = 1.0;
     });
 
-    // Draw the sweep line effect
     ctx.beginPath();
     ctx.moveTo(radius, radius);
     const sweepRad = sweepAngle * (Math.PI / 180);
@@ -439,10 +495,8 @@ export default function RadarDisplay({
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Draw sea clutter
     const seaState = currEnvironment.seaState;
     if (seaState > 0) {
-      // Draw sea clutter as a gradient from center
       const seaClutterGradient = ctx.createRadialGradient(
         radius,
         radius,
@@ -471,10 +525,8 @@ export default function RadarDisplay({
       ctx.globalAlpha = 1.0;
     }
 
-    // Draw rain clutter
     const rainIntensity = currEnvironment.rainIntensity;
     if (rainIntensity > 0) {
-      // Draw random speckles across the radar for rain
       const rainClutterStrength = getRainClutterStrength(
         band,
         rainIntensity,
@@ -486,17 +538,14 @@ export default function RadarDisplay({
           : 'rgba(85, 255, 85, 0.5)';
         ctx.globalAlpha = rainClutterStrength * 0.3;
 
-        // More speckles for stronger rain
         const numSpeckles = Math.floor(rainClutterStrength * 500);
 
         for (let i = 0; i < numSpeckles; i++) {
-          // Random position within the radar circle
           const angle = Math.random() * Math.PI * 2;
           const distance = Math.random() * (radius - 2);
           const x = radius + Math.cos(angle) * distance;
           const y = radius + Math.sin(angle) * distance;
 
-          // Draw speckle
           ctx.beginPath();
           ctx.arc(x, y, 1, 0, Math.PI * 2);
           ctx.fill();
@@ -506,24 +555,24 @@ export default function RadarDisplay({
       }
     }
 
-    // Draw radar information
     ctx.fillStyle = nightMode ? '#5599CC' : '#55CC99';
     ctx.font = '14px monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
 
-    // Band and range
     ctx.fillText(`${band}-BAND ${range} NM`, size - 10, size - 10);
 
-    // Draw gain info
     ctx.textAlign = 'left';
     ctx.fillText(`GAIN: ${gain}%`, 10, size - 30);
 
-    // Draw clutter reduction info
     ctx.fillText(`SEA: ${seaClutter}% RAIN: ${rainClutter}%`, 10, size - 50);
+
+    if (showArpaPanel) {
+      ctx.textAlign = 'right';
+      ctx.fillText(`ARPA: ${arpaTargets.length} TARGETS`, size - 10, size - 30);
+    }
   };
 
-  // Handle range change
   const handleRangeChange = (direction: 'increase' | 'decrease') => {
     setSettings(prev => {
       const currentIndex = RANGE_OPTIONS.indexOf(prev.range);
@@ -539,7 +588,6 @@ export default function RadarDisplay({
     });
   };
 
-  // Handle setting changes
   const handleSettingChange = (
     setting: keyof RadarSettings,
     value: number | boolean | string | RadarBand,
@@ -547,7 +595,6 @@ export default function RadarDisplay({
     setSettings(prev => ({ ...prev, [setting]: value }));
   };
 
-  // Handle EBL control
   const handleEblToggle = () => {
     setEbl(prev => ({ ...prev, active: !prev.active }));
   };
@@ -556,7 +603,6 @@ export default function RadarDisplay({
     setEbl(prev => ({ ...prev, angle }));
   };
 
-  // Handle VRM control
   const handleVrmToggle = () => {
     setVrm(prev => ({ ...prev, active: !prev.active }));
   };
@@ -565,7 +611,6 @@ export default function RadarDisplay({
     setVrm(prev => ({ ...prev, distance: Math.min(distance, settings.range) }));
   };
 
-  // Add a random target for testing
   const addRandomTarget = () => {
     const newTarget: RadarTarget = {
       id: `target-${Date.now()}`,
@@ -579,6 +624,38 @@ export default function RadarDisplay({
     };
 
     setTargets(prev => [...prev, newTarget]);
+  };
+
+  const handleArpaSettingChange = (setting: keyof ARPASettings, value: any) => {
+    setArpaSettings(prev => ({ ...prev, [setting]: value }));
+  };
+
+  const handleAcquireTarget = () => {
+    const untracked = targets.filter(
+      t =>
+        !arpaTargets.some(at => at.id === t.id) &&
+        t.type !== 'land' &&
+        t.distance <= arpaSettings.autoAcquisitionRange,
+    );
+
+    if (untracked.length > 0) {
+      const closest = [...untracked].sort((a, b) => a.distance - b.distance)[0];
+      const newArpaTarget = convertToARPATarget(closest, ownShipData);
+      setArpaTargets(prev => [...prev, newArpaTarget]);
+      setSelectedTargetId(closest.id);
+    }
+  };
+
+  const handleCancelTarget = (targetId: string) => {
+    setArpaTargets(prev => prev.filter(t => t.id !== targetId));
+
+    if (selectedTargetId === targetId) {
+      setSelectedTargetId(null);
+    }
+  };
+
+  const toggleArpaPanel = () => {
+    setShowArpaPanel(prev => !prev);
   };
 
   return (
@@ -611,18 +688,38 @@ export default function RadarDisplay({
         />
       </div>
 
-      <RadarControls
-        settings={settings}
-        onSettingChange={handleSettingChange}
-        onRangeChange={handleRangeChange}
-        ebl={ebl}
-        vrm={vrm}
-        onEblToggle={handleEblToggle}
-        onEblAngleChange={handleEblAngleChange}
-        onVrmToggle={handleVrmToggle}
-        onVrmDistanceChange={handleVrmDistanceChange}
-        onAddTarget={addRandomTarget}
-      />
+      <div className="flex mt-4">
+        <div className="flex-1">
+          <RadarControls
+            settings={settings}
+            onSettingChange={handleSettingChange}
+            onRangeChange={handleRangeChange}
+            ebl={ebl}
+            vrm={vrm}
+            onEblToggle={handleEblToggle}
+            onEblAngleChange={handleEblAngleChange}
+            onVrmToggle={handleVrmToggle}
+            onVrmDistanceChange={handleVrmDistanceChange}
+            onAddTarget={addRandomTarget}
+            onToggleArpa={toggleArpaPanel}
+            arpaEnabled={showArpaPanel}
+          />
+        </div>
+
+        {showArpaPanel && (
+          <div className="w-72 ml-4">
+            <ARPAPanel
+              arpaTargets={arpaTargets}
+              selectedTargetId={selectedTargetId}
+              onSelectTarget={setSelectedTargetId}
+              arpaSettings={arpaSettings}
+              onSettingChange={handleArpaSettingChange}
+              onAcquireTarget={handleAcquireTarget}
+              onCancelTarget={handleCancelTarget}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

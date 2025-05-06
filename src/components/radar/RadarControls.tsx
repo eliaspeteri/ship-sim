@@ -15,6 +15,8 @@ interface RadarControlsProps {
   onVrmToggle: () => void;
   onVrmDistanceChange: (distance: number) => void;
   onAddTarget?: () => void; // Optional for testing purposes
+  onToggleArpa?: () => void; // New prop for ARPA toggle
+  arpaEnabled?: boolean; // New prop to show ARPA status
 }
 
 export default function RadarControls({
@@ -28,6 +30,8 @@ export default function RadarControls({
   onVrmToggle,
   onVrmDistanceChange,
   onAddTarget,
+  onToggleArpa,
+  arpaEnabled = false,
 }: RadarControlsProps) {
   return (
     <div className="mt-4 bg-gray-900 p-4 rounded-lg text-gray-100">
@@ -222,6 +226,19 @@ export default function RadarControls({
                 disabled={!vrm.active}
               />
             </div>
+
+            {/* ARPA Toggle */}
+            {onToggleArpa && (
+              <div className="flex justify-between items-center w-full pt-2 border-t border-gray-700">
+                <span className="text-sm">ARPA Mode</span>
+                <PushButton
+                  label={arpaEnabled ? 'Disable ARPA' : 'Enable ARPA'}
+                  onClick={onToggleArpa}
+                  color={arpaEnabled ? 'secondary' : 'primary'}
+                  size="small"
+                />
+              </div>
+            )}
 
             {/* Test Controls (only for development) */}
             {onAddTarget && (

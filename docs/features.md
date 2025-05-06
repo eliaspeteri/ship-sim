@@ -66,7 +66,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
 - [ ] Navigation Systems
   - [ ] Radar Systems
     - [x] X-band/S-band radar display
-    - [ ] ARPA (Automatic Radar Plotting Aid)
+    - [x] ARPA (Automatic Radar Plotting Aid)
     - [ ] Target tracking and collision avoidance
   - [ ] Electronic Navigation
     - [ ] ECDIS (Electronic Chart Display)
