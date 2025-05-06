@@ -65,7 +65,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
 ## IMO Mandatory Bridge Systems
 - [ ] Navigation Systems
   - [ ] Radar Systems
-    - [ ] X-band/S-band radar display
+    - [x] X-band/S-band radar display
     - [ ] ARPA (Automatic Radar Plotting Aid)
     - [ ] Target tracking and collision avoidance
   - [ ] Electronic Navigation

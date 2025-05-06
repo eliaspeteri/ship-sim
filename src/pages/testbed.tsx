@@ -20,6 +20,7 @@ import WindIndicator from '../components/WindIndicator';
 import RudderAngleIndicator from '../components/RudderAngleIndicator';
 import { PushButton } from '../components/PushButton';
 import { Telex } from '../components/communication/Telex';
+import RadarDisplay from '../components/radar/RadarDisplay';
 import {
   PushSwitch,
   RockerSwitch,
@@ -844,6 +845,10 @@ const TestbedPage = () => {
           }}
         />
       </div>
+      {/* X-Band/S-Band section */}
+      <RadarDisplay
+        environment={{ seaState: 10, rainIntensity: 10, visibility: 10 }}
+      />
     </div>
   );
 };
