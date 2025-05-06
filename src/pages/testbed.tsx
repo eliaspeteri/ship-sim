@@ -19,6 +19,7 @@ import { RudderLever } from '../components/RudderLever';
 import WindIndicator from '../components/WindIndicator';
 import RudderAngleIndicator from '../components/RudderAngleIndicator';
 import { PushButton } from '../components/PushButton';
+import { PushSwitch, RockerSwitch, ToggleSwitch } from '../components/switches';
 
 const TestbedPage = () => {
   const [gaugeValue, setGaugeValue] = useState(50);
@@ -37,6 +38,11 @@ const TestbedPage = () => {
   const [windDirection, setWindDirection] = useState<number>(0);
   const [windSpeed, setWindSpeed] = useState<number>(10);
   const [buttonClicks, setButtonClicks] = useState(0);
+
+  // States for the switch components
+  const [pushSwitchActive, setPushSwitchActive] = useState(false);
+  const [rockerSwitchActive, setRockerSwitchActive] = useState(false);
+  const [toggleSwitchOn, setToggleSwitchOn] = useState(false);
 
   return (
     <div className="p-8 space-y-8">
@@ -392,6 +398,130 @@ const TestbedPage = () => {
               onClick={() => alert('Should not happen!')}
               disabled={true}
               color="primary"
+            />
+          </div>
+        </div>
+        <div>
+          <h2 className="font-semibold">Push Switch</h2>
+          <div className="space-y-6 flex flex-col items-center">
+            <PushSwitch
+              isActive={pushSwitchActive}
+              onToggle={setPushSwitchActive}
+              activeColor="#10B981" // Green color
+              size={60}
+              label="Engine Start"
+            >
+              <span>ON</span>
+            </PushSwitch>
+
+            <PushSwitch
+              isActive={pushSwitchActive}
+              onToggle={setPushSwitchActive}
+              activeColor="#EF4444" // Red color
+              size={50}
+              label="Emergency Stop"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="currentColor"
+              >
+                <path d="M13 3h-2v10h2V3zm0 18h-2v-2h2v2z" />
+              </svg>
+            </PushSwitch>
+
+            <PushSwitch
+              isActive={!pushSwitchActive}
+              onToggle={val => setPushSwitchActive(!val)}
+              activeColor="#F59E0B" // Amber color
+              size={40}
+              disabled={true}
+              label="Disabled"
+            >
+              <span>X</span>
+            </PushSwitch>
+          </div>
+        </div>
+
+        <div>
+          <h2 className="font-semibold">Rocker Switch</h2>
+          <div className="space-y-6 flex flex-col items-center">
+            <RockerSwitch
+              isActive={rockerSwitchActive}
+              onToggle={setRockerSwitchActive}
+              activeColor="#3B82F6" // Blue color
+              width={60}
+              height={30}
+              label="Lights"
+            >
+              <span>ON</span>
+            </RockerSwitch>
+
+            <RockerSwitch
+              isActive={rockerSwitchActive}
+              onToggle={setRockerSwitchActive}
+              activeColor="#10B981" // Green color
+              width={70}
+              height={35}
+              useBarIndicator={true}
+              label="Navigation"
+            >
+              <span>NAV</span>
+            </RockerSwitch>
+
+            <RockerSwitch
+              isActive={!rockerSwitchActive}
+              onToggle={val => setRockerSwitchActive(!val)}
+              activeColor="#F59E0B" // Amber color
+              width={80}
+              height={40}
+              disabled={true}
+              label="Disabled"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="currentColor"
+              >
+                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+              </svg>
+            </RockerSwitch>
+          </div>
+        </div>
+
+        <div>
+          <h2 className="font-semibold">Toggle Switch</h2>
+          <div className="space-y-6 flex flex-col items-center">
+            <ToggleSwitch
+              isOn={toggleSwitchOn}
+              onToggle={setToggleSwitchOn}
+              width={60}
+              height={40}
+              label="Power"
+              labelPosition="right"
+            />
+
+            <ToggleSwitch
+              isOn={toggleSwitchOn}
+              onToggle={setToggleSwitchOn}
+              width={80}
+              height={50}
+              baseColor="#1F2937" // Darker base
+              leverColor="#E5E7EB" // Lighter handle
+              label="Fuel Pump"
+              labelPosition="left"
+            />
+
+            <ToggleSwitch
+              isOn={!toggleSwitchOn}
+              onToggle={val => setToggleSwitchOn(!val)}
+              width={70}
+              height={45}
+              disabled={true}
+              label="Disabled"
+              labelPosition="bottom"
             />
           </div>
         </div>
