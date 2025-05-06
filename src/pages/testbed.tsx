@@ -18,7 +18,12 @@ import { RudderLever } from '../components/RudderLever';
 import WindIndicator from '../components/WindIndicator';
 import RudderAngleIndicator from '../components/RudderAngleIndicator';
 import { PushButton } from '../components/PushButton';
-import { PushSwitch, RockerSwitch, ToggleSwitch } from '../components/switches';
+import {
+  PushSwitch,
+  RockerSwitch,
+  ToggleSwitch,
+  ChangeoverSwitch,
+} from '../components/switches';
 import { RotaryDial } from '../components/dials';
 import { MarineRadio } from '../components/radio';
 
@@ -44,6 +49,11 @@ const TestbedPage = () => {
   const [pushSwitchActive, setPushSwitchActive] = useState(false);
   const [rockerSwitchActive, setRockerSwitchActive] = useState(false);
   const [toggleSwitchOn, setToggleSwitchOn] = useState(false);
+
+  // States for the changeover switch
+  const [twoWaySwitchPosition, setTwoWaySwitchPosition] = useState<number>(1);
+  const [threeWaySwitchPosition, setThreeWaySwitchPosition] =
+    useState<string>('auto');
 
   // States for the dial components
   const [dialValue, setDialValue] = useState(50);
@@ -529,6 +539,34 @@ const TestbedPage = () => {
               disabled={true}
               label="Disabled"
               labelPosition="bottom"
+            />
+          </div>
+        </div>
+
+        <div>
+          <h2 className="font-semibold">Changeover Switch</h2>
+          <div className="space-y-6 flex flex-col items-center">
+            <ChangeoverSwitch
+              position={twoWaySwitchPosition}
+              onPositionChange={setTwoWaySwitchPosition}
+              positions={[
+                { value: 1, label: 'INPUT 1' },
+                { value: 2, label: 'INPUT 2' },
+              ]}
+              label="Two-Way Switch"
+              size={80}
+            />
+
+            <ChangeoverSwitch
+              position={threeWaySwitchPosition}
+              onPositionChange={setThreeWaySwitchPosition}
+              positions={[
+                { value: 'manual', label: 'MANUAL' },
+                { value: 'auto', label: 'AUTO' },
+                { value: 'off', label: 'OFF' },
+              ]}
+              label="Three-Way Switch"
+              size={100}
             />
           </div>
         </div>
