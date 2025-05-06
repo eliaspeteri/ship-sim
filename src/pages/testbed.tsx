@@ -6,6 +6,7 @@ import { AlarmIndicator } from '../components/AlarmIndicator';
 import MemoryMonitor from '../components/MemoryMonitor';
 import { Tank } from '../components/Tank';
 import { Pump } from '../components/Pump';
+import { EnhancedPump } from '../components/EnhancedPump';
 import { TelegraphLever } from '../components/TelegraphLever';
 import Thermometer from '../components/Thermometer';
 import Inclinometer from '../components/Inclinometer';
@@ -57,6 +58,14 @@ const TestbedPage = () => {
 
   // States for the dial components
   const [dialValue, setDialValue] = useState(50);
+
+  // States for enhanced pump components
+  const [pumpIsRunning, setPumpIsRunning] = useState(false);
+  const [pumpSpeed, setPumpSpeed] = useState(0.7);
+  const [pumpMode, setPumpMode] = useState<'manual' | 'auto'>('manual');
+  const [pumpTemperature, setPumpTemperature] = useState(45);
+  const [pumpHealth, setPumpHealth] = useState(1.0);
+  const [pumpInletPressure, setPumpInletPressure] = useState(1.0);
 
   // Sample position data for the radio (ship's current location)
   const shipPosition = {
@@ -629,6 +638,135 @@ const TestbedPage = () => {
                   {radioTransmitting ? ' • TRANSMITTING' : ''}
                 </span>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="col-span-5 mt-8">
+        <h2 className="font-semibold text-xl mb-6">Enhanced Pumps</h2>
+        <div className="grid grid-cols-3 gap-12 items-start">
+          {/* Centrifugal Pump */}
+          <div className="flex flex-col items-center">
+            <h3 className="font-semibold mb-2">Centrifugal Pump</h3>
+            <div className="relative h-[240px] w-[240px]">
+              <EnhancedPump
+                x={120}
+                y={120}
+                isRunning={pumpIsRunning}
+                onChange={setPumpIsRunning}
+                speed={pumpSpeed}
+                onSpeedChange={setPumpSpeed}
+                health={pumpHealth}
+                mode={pumpMode}
+                onModeChange={setPumpMode}
+                temperature={pumpTemperature}
+                inletPressure={pumpInletPressure}
+                outletPressure={pumpInletPressure + pumpSpeed * 3.5}
+                label="Cooling Water Pump"
+                pumpType="centrifugal"
+                size={180}
+              />
+            </div>
+            <div className="w-full mt-4 space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm">Health:</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={pumpHealth}
+                  onChange={e => setPumpHealth(Number(e.target.value))}
+                  className="ml-2 flex-grow"
+                />
+                <span className="text-sm ml-2 w-10 text-right">
+                  {(pumpHealth * 100).toFixed(0)}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm">Temperature:</span>
+                <input
+                  type="range"
+                  min={25}
+                  max={95}
+                  step={1}
+                  value={pumpTemperature}
+                  onChange={e => setPumpTemperature(Number(e.target.value))}
+                  className="ml-2 flex-grow"
+                />
+                <span className="text-sm ml-2 w-10 text-right">
+                  {pumpTemperature}°C
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm">Inlet Pressure:</span>
+                <input
+                  type="range"
+                  min={0.1}
+                  max={3}
+                  step={0.1}
+                  value={pumpInletPressure}
+                  onChange={e => setPumpInletPressure(Number(e.target.value))}
+                  className="ml-2 flex-grow"
+                />
+                <span className="text-sm ml-2 w-10 text-right">
+                  {pumpInletPressure.toFixed(1)} bar
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Gear Pump */}
+          <div className="flex flex-col items-center">
+            <h3 className="font-semibold mb-2">Gear Pump</h3>
+            <div className="relative h-[240px] w-[240px]">
+              <EnhancedPump
+                x={120}
+                y={120}
+                isRunning={pumpIsRunning}
+                onChange={setPumpIsRunning}
+                speed={pumpSpeed}
+                onSpeedChange={setPumpSpeed}
+                health={Math.min(0.9, pumpHealth)} // Slightly worse health for demo
+                temperature={pumpTemperature * 1.1} // Slightly higher temp for demo
+                inletPressure={pumpInletPressure}
+                outletPressure={pumpInletPressure + pumpSpeed * 5} // Higher pressure differential
+                label="Lube Oil Pump"
+                pumpType="gear"
+                size={180}
+              />
+            </div>
+            <div className="mt-4 text-sm space-y-1">
+              <p>Click the pump to see detailed stats</p>
+              <p>Click the control buttons to interact</p>
+              <p>Adjust speed with the speed control</p>
+            </div>
+          </div>
+
+          {/* Screw Pump */}
+          <div className="flex flex-col items-center">
+            <h3 className="font-semibold mb-2">Screw Pump</h3>
+            <div className="relative h-[240px] w-[240px]">
+              <EnhancedPump
+                x={120}
+                y={120}
+                isRunning={pumpIsRunning}
+                onChange={setPumpIsRunning}
+                speed={pumpSpeed}
+                onSpeedChange={setPumpSpeed}
+                health={pumpHealth < 0.3 ? 0.2 : 0.95} // Either very good or very bad
+                temperature={pumpHealth < 0.3 ? 85 : 42} // Overheating when health is poor
+                inletPressure={
+                  pumpInletPressure < 0.5 ? 0.2 : pumpInletPressure
+                } // Show cavitation condition
+                outletPressure={
+                  (pumpInletPressure < 0.5 ? 0.2 : pumpInletPressure) +
+                  pumpSpeed * 4
+                }
+                label="Fuel Transfer Pump"
+                pumpType="screw"
+                size={180}
+              />
             </div>
           </div>
         </div>

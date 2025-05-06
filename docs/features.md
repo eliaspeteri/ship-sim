@@ -40,7 +40,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
   - [x] Telegraph lever
   - [x] Ball Valve
   - [x] Rotary Valve
-  - [ ] Pump
+  - [x] Pump
   - [x] Push button
   - [x] Switch
   - [x] Dial
@@ -51,7 +51,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
   - [x] Circular gauge
   - [x] Compass rose
   - [x] Thermometer
-  - [ ] Tank
+  - [x] Tank
   - [x] Alarm Indicator
   - [x] Inclinometer
   - [x] Basic depth sounder
