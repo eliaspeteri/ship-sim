@@ -1,6 +1,6 @@
 # Ship Simulator Features
 
-This document tracks the major features of the Ship Simulator project, grouped as in the README. Features that are implemented or have clear code evidence are checked. Others are left unchecked. This list is based on code, bug reports, and project structure as of April 2025. If a feature's status is unclear, please confirm or update as needed.
+This document tracks the major features of the Ship Simulator project, grouped as in the README. Features that are implemented or have clear code evidence are checked. Others are left unchecked. This list is based on code, bug reports, and project structure as of May 2025. If a feature's status is unclear, please confirm or update as needed.
 
 ## Physics Simulation Core
 - [x] Hydrodynamics
@@ -58,7 +58,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
   - [x] Barometer
   - [x] Wind indicator (anemometer/wind vane)
   - [x] Rudder angle indicator
-- [ ] Interactive Diagrams: System schematics, flow diagrams
+- [x] Interactive Diagrams: System schematics, flow diagrams
 - [ ] Radar & Navigation: Basic radar display, AIS integration
 - [x] Logs & Reports: Event logs, fuel consumption, voyage data
 
