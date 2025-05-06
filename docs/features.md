@@ -45,7 +45,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
   - [x] Switch
   - [x] Dial
   - [x] Radio
-  - [ ] Telex
+  - [x] Telex
 - [x] Gauges & Indicators: RPM, temperature, pressure, fuel levels, alarms
   - [x] Machine gauge
   - [x] Circular gauge
@@ -59,6 +59,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
   - [x] Wind indicator (anemometer/wind vane)
   - [x] Rudder angle indicator
 - [ ] Interactive Diagrams: System schematics, flow diagrams
+- [ ] Radar & Navigation: Basic radar display, AIS integration
 - [x] Logs & Reports: Event logs, fuel consumption, voyage data
 
 ## Simulation Scenarios

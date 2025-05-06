@@ -19,6 +19,7 @@ import { RudderLever } from '../components/RudderLever';
 import WindIndicator from '../components/WindIndicator';
 import RudderAngleIndicator from '../components/RudderAngleIndicator';
 import { PushButton } from '../components/PushButton';
+import { Telex } from '../components/communication/Telex';
 import {
   PushSwitch,
   RockerSwitch,
@@ -66,6 +67,50 @@ const TestbedPage = () => {
   const [pumpTemperature, setPumpTemperature] = useState(45);
   const [pumpHealth, setPumpHealth] = useState(1.0);
   const [pumpInletPressure, setPumpInletPressure] = useState(1.0);
+
+  // States for the Telex component
+  const [telexConnected] = useState(true);
+  const [telexMessages, setTelexMessages] = useState([
+    {
+      id: 'msg-1',
+      sender: 'HARBOR-OPS',
+      recipient: 'SHIP-SIM1',
+      content: 'Requesting your ETA at Rotterdam port. Please advise.',
+      timestamp: new Date(Date.now() - 3600000), // 1 hour ago
+      isOutgoing: false,
+      isRead: true,
+    },
+    {
+      id: 'msg-2',
+      sender: 'SHIP-SIM1',
+      recipient: 'HARBOR-OPS',
+      content:
+        'ETA Rotterdam 17:30 local time. Requesting pilot boarding arrangements.',
+      timestamp: new Date(Date.now() - 2700000), // 45 minutes ago
+      isOutgoing: true,
+      isRead: true,
+    },
+    {
+      id: 'msg-3',
+      sender: 'COAST-GUARD',
+      recipient: 'SHIP-SIM1',
+      content:
+        'Weather advisory: Strong winds expected in your vicinity. Reduce speed and maintain vigilance.',
+      timestamp: new Date(Date.now() - 900000), // 15 minutes ago
+      isOutgoing: false,
+      isRead: false,
+    },
+  ]);
+
+  // Sample contacts for Telex
+  const telexContacts = [
+    { id: 'HARBOR-OPS', name: 'Harbor Operations', isStation: true },
+    { id: 'COAST-GUARD', name: 'Coast Guard Station', isStation: true },
+    { id: 'WEATHER-SVC', name: 'Weather Service', isStation: true },
+    { id: 'SHIP-OWNER', name: 'Ship Owner Office', isStation: true },
+    { id: 'SHIP-MARU', name: 'M/V Tokyo Maru', isStation: false },
+    { id: 'SHIP-STAR', name: 'M/V North Star', isStation: false },
+  ];
 
   // Sample position data for the radio (ship's current location)
   const shipPosition = {
@@ -773,6 +818,31 @@ const TestbedPage = () => {
       </div>
       <div className="mt-8">
         <MemoryMonitor />
+      </div>
+
+      {/* Telex Section */}
+      <div className="col-span-5 mt-12 p-6 bg-gray-800 rounded-lg">
+        <h2 className="font-semibold text-xl mb-4">Ship Telex System</h2>
+
+        <Telex
+          shipIdentification="SHIP-SIM1"
+          contacts={telexContacts}
+          initialMessages={telexMessages}
+          initialConnected={telexConnected}
+          onSendMessage={message => {
+            const newMessage = {
+              id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+              timestamp: new Date(),
+              isRead: true,
+              ...message,
+            };
+            setTelexMessages(prev => [...prev, newMessage]);
+          }}
+          onPrintMessage={messageId => {
+            console.log(`Message ${messageId} printed`);
+            // In a real implementation, this could trigger actual printing or logging
+          }}
+        />
       </div>
     </div>
   );
