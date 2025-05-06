@@ -18,6 +18,7 @@ import { HelmControl } from '../components/HelmControl';
 import { RudderLever } from '../components/RudderLever';
 import WindIndicator from '../components/WindIndicator';
 import RudderAngleIndicator from '../components/RudderAngleIndicator';
+import { PushButton } from '../components/PushButton';
 
 const TestbedPage = () => {
   const [gaugeValue, setGaugeValue] = useState(50);
@@ -35,6 +36,7 @@ const TestbedPage = () => {
   const [rudderLeverAngle, setRudderLeverAngle] = useState<number>(0);
   const [windDirection, setWindDirection] = useState<number>(0);
   const [windSpeed, setWindSpeed] = useState<number>(10);
+  const [buttonClicks, setButtonClicks] = useState(0);
 
   return (
     <div className="p-8 space-y-8">
@@ -363,6 +365,35 @@ const TestbedPage = () => {
             onChange={e => setWindSpeed(Number(e.target.value))}
             className="w-full"
           />
+        </div>
+        <div>
+          <h2 className="font-semibold">PushButton</h2>
+          <div className="space-y-2 flex flex-col items-start">
+            <PushButton
+              label={`Clicked ${buttonClicks} times`}
+              onClick={() => setButtonClicks(c => c + 1)}
+              color="primary"
+              size="medium"
+            />
+            <PushButton
+              label="Secondary Small"
+              onClick={() => alert('Secondary clicked!')}
+              color="secondary"
+              size="small"
+            />
+            <PushButton
+              label="Danger Large"
+              onClick={() => alert('Danger clicked!')}
+              color="danger"
+              size="large"
+            />
+            <PushButton
+              label="Disabled Button"
+              onClick={() => alert('Should not happen!')}
+              disabled={true}
+              color="primary"
+            />
+          </div>
         </div>
       </div>
       <div className="mt-8">
