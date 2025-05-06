@@ -68,6 +68,12 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
   } | null>(null);
   const animationActive = useRef(true);
 
+  // --- Cursor Lat/Lon State ---
+  const [cursorLatLon, setCursorLatLon] = useState<{
+    lat: number;
+    lon: number;
+  } | null>(null);
+
   // Chart constants
   const size = 500;
   const center = { lat: 60.17, lon: 24.97 };
@@ -114,6 +120,37 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       animationActive.current = false;
     };
   }, [route]);
+
+  // --- Mouse Move Handler for Lat/Lon Overlay ---
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    const canvas = renderer.domElement;
+    function onPointerMove(e: PointerEvent) {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left - size / 2;
+      const y = e.clientY - rect.top - size / 2;
+      // Apply pan and zoom
+      const cam = cameraRef.current;
+      if (!cam) return;
+      const zoom = cam.zoom;
+      const panX = cam.position.x;
+      const panY = cam.position.y;
+      // Convert screen to world coordinates
+      const worldX = x / zoom + panX;
+      const worldY = y / zoom + panY;
+      // Inverse projection
+      const lon = worldX / scale + center.lon;
+      const lat = center.lat - worldY / scale;
+      setCursorLatLon({ lat, lon });
+    }
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerleave', () => setCursorLatLon(null));
+    return () => {
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerleave', () => setCursorLatLon(null));
+    };
+  }, [size, scale, center]);
 
   // --- Setup Three.js scene ---
   useEffect(() => {
@@ -369,8 +406,28 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
           borderRadius: 8,
           overflow: 'hidden',
           background: '#22304a',
+          position: 'relative',
         }}
       />
+      {/* Lat/Lon Overlay */}
+      {cursorLatLon && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 24,
+            top: size + 24,
+            background: '#23272e',
+            color: '#e0f2f1',
+            borderRadius: 6,
+            padding: '4px 12px',
+            fontSize: 15,
+            pointerEvents: 'none',
+            zIndex: 10,
+          }}
+        >
+          Lat: {cursorLatLon.lat.toFixed(5)}, Lon: {cursorLatLon.lon.toFixed(5)}
+        </div>
+      )}
       <div
         style={{
           marginTop: 8,
