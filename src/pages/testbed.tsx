@@ -30,6 +30,7 @@ import {
 import { RotaryDial } from '../components/dials';
 import { MarineRadio } from '../components/radio';
 import { GpsDisplay } from '../components/navigation/GpsDisplay';
+import { EcdisDisplay } from '../components/navigation/EcdisDisplay';
 
 const TestbedPage = () => {
   const [gaugeValue, setGaugeValue] = useState(50);
@@ -699,6 +700,11 @@ const TestbedPage = () => {
         <div className="col-span-2 mt-8 flex flex-col items-center">
           <h2 className="font-semibold">GPS/GNSS Position Display</h2>
           <GpsDisplay />
+        </div>
+        {/* ECDIS MVP Display */}
+        <div className="col-span-2 mt-8 flex flex-col items-center">
+          <h2 className="font-semibold">ECDIS MVP Display</h2>
+          <EcdisDisplay />
         </div>
       </div>
       <div className="col-span-5 mt-8">
