@@ -41,7 +41,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
   - [x] Ball Valve
   - [x] Rotary Valve
   - [ ] Pump
-  - [ ] Push button
+  - [x] Push button
   - [ ] Switch
   - [ ] Dial
   - [ ] Radio
