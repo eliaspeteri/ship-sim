@@ -21,6 +21,7 @@ import RudderAngleIndicator from '../components/RudderAngleIndicator';
 import { PushButton } from '../components/PushButton';
 import { PushSwitch, RockerSwitch, ToggleSwitch } from '../components/switches';
 import { RotaryDial } from '../components/dials';
+import { MarineRadio } from '../components/radio';
 
 const TestbedPage = () => {
   const [gaugeValue, setGaugeValue] = useState(50);
@@ -47,6 +48,18 @@ const TestbedPage = () => {
 
   // States for the dial components
   const [dialValue, setDialValue] = useState(50);
+
+  // Sample position data for the radio (ship's current location)
+  const shipPosition = {
+    latitude: 38.889248,
+    longitude: -77.050636,
+  };
+
+  // States for the marine radio
+  const [radioChannel, setRadioChannel] = useState(16);
+  const [radioFrequency, setRadioFrequency] = useState(156.8);
+  const [radioTransmitting] = useState(false);
+  const [radioReceiving, setRadioReceiving] = useState(false);
 
   return (
     <div className="p-8 space-y-8">
@@ -544,6 +557,50 @@ const TestbedPage = () => {
             />
             <div className="text-white text-sm">
               Value: {dialValue.toFixed(0)}%
+            </div>
+          </div>
+        </div>
+        <div className="col-span-2">
+          <h2 className="font-semibold">Marine Radio</h2>
+          <div className="mt-4 flex flex-col items-center">
+            <MarineRadio
+              initialChannel={radioChannel}
+              onChannelChange={(channel, frequency) => {
+                setRadioChannel(channel);
+                setRadioFrequency(frequency);
+              }}
+              position={shipPosition}
+            />
+
+            {/* Radio test controls */}
+            <div className="mt-4 bg-gray-800 p-3 rounded-lg w-full">
+              <h3 className="text-sm font-semibold text-gray-200 mb-2">
+                Test Radio Reception
+              </h3>
+              <div className="flex justify-between items-center">
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">
+                    Receiving Signal:
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={radioReceiving}
+                      onChange={e => setRadioReceiving(e.target.checked)}
+                    />
+                    <span className="text-xs text-gray-300">
+                      {radioReceiving ? 'On' : 'Off'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3">
+                <span className="text-xs text-gray-300">
+                  Current Channel: {radioChannel} ({radioFrequency.toFixed(3)}{' '}
+                  MHz)
+                  {radioTransmitting ? ' • TRANSMITTING' : ''}
+                </span>
+              </div>
             </div>
           </div>
         </div>

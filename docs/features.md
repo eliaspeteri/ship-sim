@@ -44,7 +44,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
   - [x] Push button
   - [x] Switch
   - [x] Dial
-  - [ ] Radio
+  - [x] Radio
   - [ ] Telex
 - [x] Gauges & Indicators: RPM, temperature, pressure, fuel levels, alarms
   - [x] Machine gauge
