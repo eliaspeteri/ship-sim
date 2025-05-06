@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { MachineGauge } from '../components/MachineGauge';
 import { CircularGauge } from '../components/CircularGauge';
 import { CompassRose } from '../components/CompassRose';
-import { ControlLever } from '../components/ControlLever';
 import { AlarmIndicator } from '../components/AlarmIndicator';
 import MemoryMonitor from '../components/MemoryMonitor';
 import { Tank } from '../components/Tank';
@@ -96,16 +95,7 @@ const TestbedPage = () => {
           <h2 className="font-semibold">CompassRose</h2>
           <CompassRose heading={gaugeValue * 3.6} />
         </div>
-        <div>
-          <h2 className="font-semibold">ControlLever</h2>
-          <ControlLever
-            value={leverValue}
-            onChange={setLeverValue}
-            min={-1}
-            max={1}
-            label="Throttle"
-          />
-        </div>
+
         <div>
           <h2 className="font-semibold">AlarmIndicator</h2>
           <div className="space-y-2">
