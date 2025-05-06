@@ -20,6 +20,7 @@ import WindIndicator from '../components/WindIndicator';
 import RudderAngleIndicator from '../components/RudderAngleIndicator';
 import { PushButton } from '../components/PushButton';
 import { PushSwitch, RockerSwitch, ToggleSwitch } from '../components/switches';
+import { RotaryDial } from '../components/dials';
 
 const TestbedPage = () => {
   const [gaugeValue, setGaugeValue] = useState(50);
@@ -43,6 +44,9 @@ const TestbedPage = () => {
   const [pushSwitchActive, setPushSwitchActive] = useState(false);
   const [rockerSwitchActive, setRockerSwitchActive] = useState(false);
   const [toggleSwitchOn, setToggleSwitchOn] = useState(false);
+
+  // States for the dial components
+  const [dialValue, setDialValue] = useState(50);
 
   return (
     <div className="p-8 space-y-8">
@@ -523,6 +527,24 @@ const TestbedPage = () => {
               label="Disabled"
               labelPosition="bottom"
             />
+          </div>
+        </div>
+
+        <div>
+          <h2 className="font-semibold">Rotary Dial</h2>
+          <div className="flex flex-col items-center space-y-4">
+            <RotaryDial
+              value={dialValue}
+              onChange={setDialValue}
+              min={0}
+              max={100}
+              label="Power"
+              unit="%"
+              size={120}
+            />
+            <div className="text-white text-sm">
+              Value: {dialValue.toFixed(0)}%
+            </div>
           </div>
         </div>
       </div>
