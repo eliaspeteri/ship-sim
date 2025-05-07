@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { TopNavigationBar } from '../common/TopNavigationBar';
 import { RightStatusPanel } from '../common/RightStatusPanel';
 import { RouteInfoPanel } from '../common/RouteInfoPanel';
+import { EBLControl, EBLState } from './EBLControl';
+import { VRMControl, VRMState } from './VRMControl';
 
 // --- Mock Data ---
 const mockCoastline = [
@@ -212,6 +214,32 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
   const [editableRoute, setEditableRoute] = useState(route ?? mockRoute);
   // --- Selected Waypoint State ---
   const [selectedWp, setSelectedWp] = useState<number | null>(null);
+
+  // --- EBL & VRM State ---
+  const [ebl1, setEbl1] = useState<EBLState>({
+    id: 'EBL1',
+    isActive: false,
+    bearing: 0,
+    origin: 'ship',
+  });
+  const [ebl2, setEbl2] = useState<EBLState>({
+    id: 'EBL2',
+    isActive: false,
+    bearing: 90,
+    origin: 'ship',
+  });
+  const [vrm1, setVrm1] = useState<VRMState>({
+    id: 'VRM1',
+    isActive: false,
+    radius: 1,
+    origin: 'ship',
+  });
+  const [vrm2, setVrm2] = useState<VRMState>({
+    id: 'VRM2',
+    isActive: false,
+    radius: 2,
+    origin: 'ship',
+  });
 
   // --- AIS State ---
   const [aisTargets, setAisTargets] = useState(mockAisTargets);
@@ -968,6 +996,72 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
 
     // --- Render loop ---
     function animate() {
+      // Clear previous EBLs and VRMs
+      scene.children
+        .filter(obj => obj.userData.isEBL || obj.userData.isVRM)
+        .forEach(obj => scene.remove(obj));
+
+      // Draw EBLs
+      [ebl1, ebl2].forEach(ebl => {
+        if (ebl.isActive) {
+          const [originX, originY] = ebl.origin === 'ship' ? [sx, sy] : [0, 0]; // Assuming 0,0 for chart center if not ship
+          const length = size * 2; // Make line long enough to cross the screen
+          const angleRad = THREE.MathUtils.degToRad(90 - ebl.bearing); // Adjust for Three.js coordinate system
+          const endX = originX + length * Math.cos(angleRad);
+          const endY = originY + length * Math.sin(angleRad);
+
+          const eblMaterial = new THREE.LineBasicMaterial({
+            color: 0xfbbf24,
+            linewidth: 1,
+          });
+          const eblPoints = [
+            new THREE.Vector3(originX, originY, 6),
+            new THREE.Vector3(endX, endY, 6),
+          ];
+          const eblGeometry = new THREE.BufferGeometry().setFromPoints(
+            eblPoints,
+          );
+          const eblLine = new THREE.Line(eblGeometry, eblMaterial);
+          eblLine.userData.isEBL = true;
+          scene.add(eblLine);
+        }
+      });
+
+      // Draw VRMs
+      [vrm1, vrm2].forEach(vrm => {
+        if (vrm.isActive) {
+          const [originX, originY] = vrm.origin === 'ship' ? [sx, sy] : [0, 0]; // Assuming 0,0 for chart center if not ship
+          // Convert NM to pixels: 1 NM = 1852 meters. Scale is meters per degree.
+          // This is a rough approximation and needs proper projection for accuracy.
+          const radiusInMeters = vrm.radius * 1852;
+          const radiusInPixels =
+            (radiusInMeters /
+              (111320 * Math.cos((center.latitude * Math.PI) / 180))) *
+            scale;
+
+          const vrmMaterial = new THREE.LineBasicMaterial({
+            color: 0x34d399,
+            linewidth: 1,
+          });
+          const vrmCircleGeometry = new THREE.CircleGeometry(
+            radiusInPixels,
+            64,
+          );
+          // Remove the center vertex to make it a line loop
+          const positions =
+            vrmCircleGeometry.attributes.position.array.slice(3); // Remove first vertex (center)
+          const vrmGeometry = new THREE.BufferGeometry();
+          vrmGeometry.setAttribute(
+            'position',
+            new THREE.Float32BufferAttribute(positions, 3),
+          );
+          const vrmCircle = new THREE.LineLoop(vrmGeometry, vrmMaterial);
+          vrmCircle.position.set(originX, originY, 6);
+          vrmCircle.userData.isVRM = true;
+          scene.add(vrmCircle);
+        }
+      });
+
       renderer.render(scene, cam);
       animationRef.current = requestAnimationFrame(animate);
     }
@@ -996,6 +1090,10 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     chartLayers,
     searchResult,
     measurementMode,
+    ebl1,
+    ebl2,
+    vrm1,
+    vrm2,
   ]);
 
   // --- Overlay Info (static for MVP) ---
@@ -1042,6 +1140,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
+        height: 'calc(100vh - 100px)', // Example: Adjust as needed for your app layout
       }}
     >
       <TopNavigationBar
@@ -1049,21 +1148,26 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
         activeTab={'NAVI'}
         brand={'ECDIS'}
       />
-      <div style={{ display: 'flex', flexDirection: 'row', width: '100%' }}>
-        <div style={{ flex: '0 0 auto', width: size + 32, padding: 16 }}>
-          {/* ...existing chart controls, overlays, and chart rendering... */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 8,
-            }}
-          >
-            <span style={{ fontWeight: 700, fontSize: 18 }}>
-              ECDIS (three.js MVP)
-            </span>
-            <span style={{ fontSize: 14 }}>Scale: 1:{scale}</span>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          width: '100%',
+          flexGrow: 1,
+        }}
+      >
+        <div
+          style={{
+            flexGrow: 1,
+            width: size + 32,
+            padding: 16,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Controls above the chart */}
+          <div style={{ marginBottom: 8 }}>
+            {/* ECDIS (three.js MVP) title and Scale text REMOVED */}
           </div>
           {/* Measurement Tool Toggle */}
           <div style={{ marginBottom: 8 }}>
@@ -1086,6 +1190,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
               </span>
             )}
           </div>
+          {/* Search Form */}
           <form
             onSubmit={handleSearch}
             style={{ display: 'flex', gap: 8, marginBottom: 8 }}
@@ -1124,8 +1229,15 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
               </span>
             )}
           </form>
-          <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
-            {/* Chart Layer Management UI */}
+          {/* Chart Layer Toggles */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 16,
+              marginBottom: 8,
+            }}
+          >
             {chartLayers.map((layer, i) => (
               <div
                 key={layer.id}
@@ -1204,14 +1316,15 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
               </button>
             )}
           </div>
+          {/* This is the chartViewPort - set to grow */}
           <div
             style={{
-              width: size,
-              height: size,
+              flexGrow: 1,
               borderRadius: 8,
               overflow: 'hidden',
               background: '#22304a',
               position: 'relative',
+              minHeight: 300,
             }}
           >
             <div
@@ -1307,24 +1420,110 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
                   </svg>
                 );
               })()}
-          </div>
+            {/* Scale Bar & EBL Controls Overlay */}
+            <div // Container for EBLs and Scale Bar
+              style={{
+                position: 'absolute',
+                left: 32,
+                bottom: 32,
+                zIndex: 20,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <EBLControl eblState={ebl1} setEblState={setEbl1} />
+              <EBLControl eblState={ebl2} setEblState={setEbl2} />
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  pointerEvents: 'none',
+                  gap: '8px',
+                }}
+              >
+                <div
+                  style={{
+                    width: getScaleBar().px,
+                    height: 6,
+                    background: '#e0f2f1',
+                    borderRadius: 2,
+                    boxShadow: '0 1px 4px #0008',
+                  }}
+                />
+                <span style={{ color: '#e0f2f1', fontSize: 14 }}>
+                  {getScaleBar().label}
+                </span>
+              </div>
+            </div>
+
+            {/* North Arrow Overlay */}
+            <div
+              style={{
+                position: 'absolute',
+                right: 32,
+                top: 32,
+                zIndex: 20,
+                width: 36,
+                height: 36,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+              }}
+            >
+              <svg width="36" height="36" viewBox="0 0 36 36">
+                <polygon
+                  points="18,6 24,30 18,24 12,30"
+                  fill="#e0f2f1"
+                  stroke="#23272e"
+                  strokeWidth="2"
+                />
+                <text
+                  x="18"
+                  y="20"
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill="#23272e"
+                  fontFamily="monospace"
+                >
+                  N
+                </text>
+              </svg>
+            </div>
+
+            {/* VRM Controls Overlay */}
+            <div
+              style={{
+                position: 'absolute',
+                right: 32,
+                bottom: 32,
+                zIndex: 20,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <VRMControl vrmState={vrm1} setVrmState={setVrm1} />
+              <VRMControl vrmState={vrm2} setVrmState={setVrm2} />
+            </div>
+          </div>{' '}
+          {/* End of chartViewPort */}
           {/* latitude/longitude Overlay */}
           {cursorlatitudeLon && (
             <div
               style={{
-                position: 'absolute',
-                left: 24,
-                top: size + 24,
+                marginTop: 8,
                 background: '#23272e',
                 color: '#e0f2f1',
                 borderRadius: 6,
                 padding: '4px 12px',
                 fontSize: 15,
                 pointerEvents: 'none',
-                zIndex: 10,
+                textAlign: 'center',
               }}
             >
-              latitude: {cursorlatitudeLon.latitude.toFixed(5)}, longitude:{' '}
+              Lat: {cursorlatitudeLon.latitude.toFixed(5)}, Lon:{' '}
               {cursorlatitudeLon.longitude.toFixed(5)}
             </div>
           )}
@@ -1349,79 +1548,6 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
               {tooltip.content}
             </div>
           )}
-          {/* Scale Bar Overlay */}
-          <div
-            style={{
-              position: 'absolute',
-              left: 32,
-              bottom: 32,
-              zIndex: 20,
-              pointerEvents: 'none',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <div
-              style={{
-                width: getScaleBar().px,
-                height: 6,
-                background: '#e0f2f1',
-                borderRadius: 2,
-                marginRight: 8,
-                boxShadow: '0 1px 4px #0008',
-              }}
-            />
-            <span style={{ color: '#e0f2f1', fontSize: 14 }}>
-              {getScaleBar().label}
-            </span>
-          </div>
-          {/* North Arrow Overlay */}
-          <div
-            style={{
-              position: 'absolute',
-              right: 32,
-              top: 32,
-              zIndex: 20,
-              width: 36,
-              height: 36,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'none',
-            }}
-          >
-            <svg width="36" height="36" viewBox="0 0 36 36">
-              <polygon
-                points="18,6 24,30 18,24 12,30"
-                fill="#e0f2f1"
-                stroke="#23272e"
-                strokeWidth="2"
-              />
-              <text
-                x="18"
-                y="20"
-                textAnchor="middle"
-                fontSize="10"
-                fill="#23272e"
-                fontFamily="monospace"
-              >
-                N
-              </text>
-            </svg>
-          </div>
-          <div
-            style={{
-              marginTop: 8,
-              fontSize: 14,
-              display: 'flex',
-              justifyContent: 'space-between',
-            }}
-          >
-            <span>
-              Ship: {ship.latitude.toFixed(5)}, {ship.longitude.toFixed(5)}
-            </span>
-            <span>Heading: {ship.heading?.toFixed(1)}°</span>
-          </div>
         </div>
         <RightStatusPanel navData={navData}>
           <RouteInfoPanel routeInfo={routeInfo} />
