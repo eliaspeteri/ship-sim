@@ -78,11 +78,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
     - [x] Echo sounder
     - [ ] Speed log (through water and over ground)
 - [ ] Communication Systems
-  - [ ] GMDSS Components
-    - [ ] DSC (Digital Selective Calling)
-    - [ ] NAVTEX receiver
-    - [ ] INMARSAT communications
-    - [ ] EPIRB status monitoring
+  - [ ] GMDSS Components (see docs/features/gmdss.md for detailed feature tracking)
   - [ ] Standard Communications
     - [x] VHF radio
     - [ ] MF/HF radio
