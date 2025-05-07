@@ -85,7 +85,7 @@ export default function RadarDisplay({
   const [targets, setTargets] = useState<RadarTarget[]>(initialTargets);
   const [ebl, setEbl] = useState<EBL>({ active: false, angle: 0 });
   const [vrm, setVrm] = useState<VRM>({ active: false, distance: 0 });
-  const [guardZone] = useState<GuardZone>({
+  const [guardZone, setGuardZone] = useState<GuardZone>({
     active: false,
     startAngle: 320,
     endAngle: 40,
@@ -332,6 +332,24 @@ export default function RadarDisplay({
     ctx.putImageData(noisePattern, 0, 0);
     ctx.globalAlpha = 1.0;
 
+    const isTargetInGuardZone = (target: RadarTarget): boolean => {
+      if (!guardZone.active) return false;
+      let start = guardZone.startAngle % 360;
+      let end = guardZone.endAngle % 360;
+      let bearing = target.bearing % 360;
+      if (start < 0) start += 360;
+      if (end < 0) end += 360;
+      if (bearing < 0) bearing += 360;
+      const inAngle =
+        start < end
+          ? bearing >= start && bearing <= end
+          : bearing >= start || bearing <= end;
+      const inRange =
+        target.distance >= guardZone.innerRange &&
+        target.distance <= guardZone.outerRange;
+      return inAngle && inRange;
+    };
+
     currTargets.forEach(target => {
       if (target.distance > range) return;
 
@@ -356,6 +374,16 @@ export default function RadarDisplay({
       const targetSize = 3 + target.size * 4;
 
       ctx.globalAlpha = visibility;
+
+      if (isTargetInGuardZone(target)) {
+        ctx.beginPath();
+        ctx.arc(x, y, targetSize * 2, 0, Math.PI * 2);
+        ctx.strokeStyle = '#FF0000';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 2]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
 
       if (target.type === 'land') {
         ctx.fillStyle = nightMode ? '#AAF7' : '#AFA7';
@@ -611,6 +639,13 @@ export default function RadarDisplay({
     setVrm(prev => ({ ...prev, distance: Math.min(distance, settings.range) }));
   };
 
+  const handleGuardZoneChange = (
+    field: keyof GuardZone,
+    value: number | boolean,
+  ) => {
+    setGuardZone(prev => ({ ...prev, [field]: value }));
+  };
+
   const addRandomTarget = () => {
     const newTarget: RadarTarget = {
       id: `target-${Date.now()}`,
@@ -703,6 +738,8 @@ export default function RadarDisplay({
             onAddTarget={addRandomTarget}
             onToggleArpa={toggleArpaPanel}
             arpaEnabled={showArpaPanel}
+            guardZone={guardZone}
+            onGuardZoneChange={handleGuardZoneChange}
           />
         </div>
 

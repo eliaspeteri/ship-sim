@@ -1,5 +1,5 @@
 import React from 'react';
-import { EBL, RadarSettings, VRM } from './types';
+import { EBL, RadarSettings, VRM, GuardZone } from './types';
 import { PushButton } from '../PushButton';
 import { ChangeoverSwitch } from '../switches';
 import { RotaryDial } from '../dials';
@@ -17,6 +17,8 @@ interface RadarControlsProps {
   onAddTarget?: () => void; // Optional for testing purposes
   onToggleArpa?: () => void; // New prop for ARPA toggle
   arpaEnabled?: boolean; // New prop to show ARPA status
+  guardZone?: GuardZone;
+  onGuardZoneChange?: (field: keyof GuardZone, value: number | boolean) => void;
 }
 
 export default function RadarControls({
@@ -32,6 +34,8 @@ export default function RadarControls({
   onAddTarget,
   onToggleArpa,
   arpaEnabled = false,
+  guardZone,
+  onGuardZoneChange,
 }: RadarControlsProps) {
   return (
     <div className="mt-4 bg-gray-900 p-4 rounded-lg text-gray-100">
@@ -226,6 +230,72 @@ export default function RadarControls({
                 disabled={!vrm.active}
               />
             </div>
+
+            {/* Guard Zone Controls */}
+            {guardZone && onGuardZoneChange && (
+              <div className="mt-6 p-3 bg-gray-800 rounded-lg">
+                <h4 className="font-semibold text-sm mb-2">Guard Zone</h4>
+                <div className="flex items-center mb-2">
+                  <label className="text-xs mr-2">Enable</label>
+                  <input
+                    type="checkbox"
+                    checked={guardZone.active}
+                    onChange={e =>
+                      onGuardZoneChange('active', e.target.checked)
+                    }
+                    className="mr-4"
+                  />
+                  <label className="text-xs mr-2">Start</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={359}
+                    value={guardZone.startAngle}
+                    onChange={e =>
+                      onGuardZoneChange('startAngle', Number(e.target.value))
+                    }
+                    className="w-14 mr-2 text-black rounded px-1"
+                  />
+                  <label className="text-xs mr-2">End</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={359}
+                    value={guardZone.endAngle}
+                    onChange={e =>
+                      onGuardZoneChange('endAngle', Number(e.target.value))
+                    }
+                    className="w-14 mr-2 text-black rounded px-1"
+                  />
+                </div>
+                <div className="flex items-center">
+                  <label className="text-xs mr-2">Inner NM</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={guardZone.outerRange}
+                    step={0.1}
+                    value={guardZone.innerRange}
+                    onChange={e =>
+                      onGuardZoneChange('innerRange', Number(e.target.value))
+                    }
+                    className="w-16 mr-2 text-black rounded px-1"
+                  />
+                  <label className="text-xs mr-2">Outer NM</label>
+                  <input
+                    type="number"
+                    min={guardZone.innerRange}
+                    max={24}
+                    step={0.1}
+                    value={guardZone.outerRange}
+                    onChange={e =>
+                      onGuardZoneChange('outerRange', Number(e.target.value))
+                    }
+                    className="w-16 text-black rounded px-1"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* ARPA Toggle */}
             {onToggleArpa && (
