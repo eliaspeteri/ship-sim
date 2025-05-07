@@ -83,7 +83,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
       - [ ] Route export/import (JSON/CSV/GPX)
       - [x] Chart layer management (multiple chart types, opacity, ordering)
       - [x] Chart object search & highlight (waypoints, buoys, AIS)
-      - [ ] Measurement tools (distance, bearing, area)
+      - [x] Measurement tools (distance, bearing, area)
       - [ ] Route leg info (distance, bearing, ETA)
       - [ ] Safety features (contours, CPA/TCPA, guard zones)
       - [ ] Weather/environment overlays
