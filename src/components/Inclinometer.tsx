@@ -121,13 +121,48 @@ const Inclinometer: React.FC<InclinometerProps> = ({
   return (
     <div className="flex flex-col items-center">
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+        <defs>
+          {/* Shiny gold gradient for the golden background */}
+          <linearGradient
+            id="goldenBezelGradient"
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="100%"
+          >
+            <stop offset="0%" stopColor="#fff8dc" />
+            <stop offset="30%" stopColor="#ffe066" />
+            <stop offset="50%" stopColor="#daa520" />
+            <stop offset="70%" stopColor="#fff8dc" />
+            <stop offset="100%" stopColor="#b8860b" />
+          </linearGradient>
+          {/* Drop shadow for depth */}
+          <filter
+            id="goldDropShadow"
+            x="-20%"
+            y="-20%"
+            width="140%"
+            height="140%"
+          >
+            <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+            <feOffset dx="1" dy="1" result="offsetblur" />
+            <feComponentTransfer>
+              <feFuncA type="linear" slope="0.5" />
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
         {/* Wooden Frame */}
         <path d={framePath} fill="#8b4513" stroke="#5a2d0c" strokeWidth="1" />
 
-        {/* Golden Background */}
+        {/* Golden Background with metallic shine */}
         <path
           d={backgroundPath}
-          fill="#daa520"
+          fill="url(#goldenBezelGradient)"
+          filter="url(#goldDropShadow)"
           stroke="#b8860b"
           strokeWidth="1"
         />

@@ -59,7 +59,6 @@ export const CompassRose: React.FC<CompassRoseProps> = ({
 
   // Style constants
   const backgroundColor = '#000000'; // Black for the rotating card
-  const goldenRingColor = '#DAA520'; // Gold color
   const fixedTickColor = '#D1D5DB'; // Light gray (gray-300)
   const fixedNumberColor = '#D1D5DB'; // Light gray (gray-300)
   const cardMajorTickColor = '#FFFFFF'; // white
@@ -103,13 +102,48 @@ export const CompassRose: React.FC<CompassRoseProps> = ({
       viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
       className="select-none"
     >
-      {/* Fixed Golden Outer Ring */}
+      <defs>
+        {/* Shiny gold gradient for the outer ring */}
+        <linearGradient
+          id="goldenBezelGradient"
+          x1="0%"
+          y1="0%"
+          x2="100%"
+          y2="100%"
+        >
+          <stop offset="0%" stopColor="#fff8dc" />
+          <stop offset="30%" stopColor="#ffe066" />
+          <stop offset="50%" stopColor="#daa520" />
+          <stop offset="70%" stopColor="#fff8dc" />
+          <stop offset="100%" stopColor="#b8860b" />
+        </linearGradient>
+        {/* Drop shadow for depth */}
+        <filter
+          id="goldDropShadow"
+          x="-20%"
+          y="-20%"
+          width="140%"
+          height="140%"
+        >
+          <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+          <feOffset dx="1" dy="1" result="offsetblur" />
+          <feComponentTransfer>
+            <feFuncA type="linear" slope="0.5" />
+          </feComponentTransfer>
+          <feMerge>
+            <feMergeNode />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      {/* Fixed Golden Outer Ring with metallic shine */}
       <circle
         cx={center}
         cy={center}
         r={goldenRingOuterRadius}
-        fill={goldenRingColor}
-        stroke="#B8860B" // Optional darker border for the gold ring
+        fill="url(#goldenBezelGradient)"
+        filter="url(#goldDropShadow)"
+        stroke="#B8860B"
         strokeWidth="1"
       />
       {/* Cutout for the inner card - ensures gold ring is just a ring */}
@@ -117,7 +151,7 @@ export const CompassRose: React.FC<CompassRoseProps> = ({
         cx={center}
         cy={center}
         r={goldenRingInnerRadius}
-        fill={backgroundColor} // Fill with card background color initially
+        fill={backgroundColor}
       />
       {/* Fixed Ticks and Numbers on Golden Ring */}
       <g>
