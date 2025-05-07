@@ -31,6 +31,10 @@ import { RotaryDial } from '../components/dials';
 import { MarineRadio } from '../components/radio';
 import { GpsDisplay } from '../components/navigation/GpsDisplay';
 import { EcdisDisplay } from '../components/navigation/EcdisDisplay';
+import {
+  ConningDisplay,
+  ConningDisplayData,
+} from '../components/bridge/ConningDisplay';
 
 const TestbedPage = () => {
   const [gaugeValue, setGaugeValue] = useState(50);
@@ -705,6 +709,45 @@ const TestbedPage = () => {
         <div className="col-span-2 mt-8 flex flex-col items-center">
           <h2 className="font-semibold">ECDIS MVP Display</h2>
           <EcdisDisplay />
+        </div>
+        {/* Conning Display */}
+        <div
+          style={{
+            marginTop: 48,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            width: '100%',
+          }}
+        >
+          <h2 style={{ fontWeight: 'bold', fontSize: 20, marginBottom: 16 }}>
+            Conning Display
+          </h2>
+          {/**
+           * Mock data for the conning display. This can be replaced with real ship data in the future.
+           */}
+          <ConningDisplay
+            data={
+              {
+                date: '26 09 2011',
+                time: '15:51:53',
+                latitude: 60.17,
+                longitude: 24.95,
+                heading: 350,
+                windDirection: 120,
+                windSpeed: 18,
+                pitch: 2,
+                roll: -1,
+                dopplerLog: 15.2,
+                rateOfTurn: 30,
+                propellers: [
+                  { azimuth: 45, pitch: 80, rpm: 120, side: 'port' },
+                  { azimuth: 50, pitch: 90, rpm: 125, side: 'starboard' },
+                ],
+                dials: [75, 60],
+              } as ConningDisplayData
+            }
+          />
         </div>
       </div>
       <div className="col-span-5 mt-8">
