@@ -12,8 +12,8 @@ function formatLatLon(value: number, isLat: boolean): string {
 // Mock generator for GPS data
 function useMockGpsData() {
   const [data, setData] = useState({
-    latitude: 60.1708 + Math.random() * 0.01,
-    longitude: 24.9375 + Math.random() * 0.01,
+    latitude: 0,
+    longitude: 0,
     utc: new Date(),
     sog: 14.2, // knots
     cog: 87.5, // degrees
