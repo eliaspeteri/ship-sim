@@ -68,6 +68,8 @@ This document tracks the major features of the Ship Simulator project, grouped a
     - [x] X-band/S-band radar display
     - [x] ARPA (Automatic Radar Plotting Aid)
     - [ ] Target tracking and collision avoidance
+    - [ ] COLREGS
+    - [ ] Trial maneuvers
   - [ ] Electronic Navigation
     - [x] ECDIS (Electronic Chart Display)
       - [x] Pan and zoom controls
@@ -128,6 +130,12 @@ This document tracks the major features of the Ship Simulator project, grouped a
   - [ ] Visibility Systems
     - [ ] Visibility monitoring
     - [ ] Day/night indicator
+- [ ] Alert systems (BNWAS)
+    - [ ] Bridge Navigational Watch Alarm System (BNWAS)
+        - [ ] Alert system for watchkeeping officers
+        - [ ] Monitoring of officer presence
+        - [ ] Alarm reset and acknowledgment
+        - [ ] Integration with other systems (e.g., radar, ECDIS)
 
 ## Simulation Scenarios
 - [x] Normal Operations
