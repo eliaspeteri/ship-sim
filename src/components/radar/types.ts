@@ -54,3 +54,25 @@ export interface GuardZone {
   innerRange: number; // Inner range in nautical miles
   outerRange: number; // Outer range in nautical miles
 }
+
+/**
+ * AIS target type for radar/ECIDS overlays.
+ */
+export interface AISTarget {
+  /** Maritime Mobile Service Identity */
+  mmsi: string;
+  /** Vessel name */
+  name: string;
+  /** Distance from own ship in nautical miles */
+  distance: number;
+  /** Bearing from own ship in degrees (0-359) */
+  bearing: number;
+  /** Course over ground in degrees */
+  course: number;
+  /** Speed over ground in knots */
+  speed: number;
+  /** Optional: true heading in degrees */
+  heading?: number;
+  /** Optional: vessel type (cargo, tanker, etc.) */
+  vesselType?: string;
+}

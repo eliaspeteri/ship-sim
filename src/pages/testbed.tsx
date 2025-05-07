@@ -20,6 +20,7 @@ import RudderAngleIndicator from '../components/RudderAngleIndicator';
 import { PushButton } from '../components/PushButton';
 import { Telex } from '../components/communication/Telex';
 import RadarDisplay from '../components/radar/RadarDisplay';
+import { AISTarget } from '../components/radar/types';
 import {
   PushSwitch,
   RockerSwitch,
@@ -136,6 +137,40 @@ const TestbedPage = () => {
     rainIntensity: 10,
     visibility: 10,
   });
+
+  // --- Mock AIS Targets for Radar ---
+  const mockAisTargets: AISTarget[] = [
+    {
+      mmsi: '123456789',
+      name: 'Vessel A',
+      distance: 2.2,
+      bearing: 60,
+      course: 45,
+      speed: 12,
+      heading: 50,
+      vesselType: 'cargo',
+    },
+    {
+      mmsi: '987654321',
+      name: 'Vessel B',
+      distance: 3.8,
+      bearing: 210,
+      course: 220,
+      speed: 16,
+      heading: 225,
+      vesselType: 'tanker',
+    },
+    {
+      mmsi: '555000111',
+      name: 'Vessel C',
+      distance: 1.5,
+      bearing: 320,
+      course: 310,
+      speed: 9,
+      heading: 315,
+      vesselType: 'fishing',
+    },
+  ];
 
   return (
     <div className="p-8 space-y-8">
@@ -939,6 +974,7 @@ const TestbedPage = () => {
                 rainIntensity: 2,
                 visibility: 8,
               }}
+              aisTargets={mockAisTargets}
             />
 
             {/* Environmental controls for testing */}

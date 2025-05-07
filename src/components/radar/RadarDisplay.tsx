@@ -7,6 +7,7 @@ import {
   RadarSettings,
   RadarTarget,
   VRM,
+  AISTarget, // Import AISTarget from types
 } from './types';
 import {
   calculateTargetVisibility,
@@ -38,6 +39,10 @@ interface RadarDisplayProps {
   onSettingsChange?: (settings: RadarSettings) => void;
   className?: string;
   ownShipData?: OwnShipData;
+  /**
+   * List of AIS targets to display on the radar.
+   */
+  aisTargets?: AISTarget[];
 }
 
 const DEFAULT_SETTINGS: RadarSettings = {
@@ -76,6 +81,7 @@ export default function RadarDisplay({
   onSettingsChange,
   className = '',
   ownShipData = DEFAULT_OWN_SHIP,
+  aisTargets = [],
 }: RadarDisplayProps) {
   const [settings, setSettings] = useState<RadarSettings>({
     ...DEFAULT_SETTINGS,
@@ -508,6 +514,45 @@ export default function RadarDisplay({
       }
 
       ctx.globalAlpha = 1.0;
+    });
+
+    // Draw AIS targets
+    aisTargets.forEach(ais => {
+      if (ais.distance > range) return;
+      const { x, y } = polarToCartesian(
+        ais.distance,
+        (ais.bearing - rotationAngle + 360) % 360,
+        range,
+        radius,
+      );
+      // Draw AIS as a blue diamond
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(
+        (((ais.heading ?? ais.course) - rotationAngle) * Math.PI) / 180,
+      );
+      ctx.beginPath();
+      ctx.moveTo(0, -8); // Top
+      ctx.lineTo(7, 0); // Right
+      ctx.lineTo(0, 8); // Bottom
+      ctx.lineTo(-7, 0); // Left
+      ctx.closePath();
+      ctx.fillStyle = nightMode ? '#3AB7FF' : '#2563EB';
+      ctx.globalAlpha = 0.95;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 1.0;
+      ctx.stroke();
+      ctx.restore();
+      // Draw MMSI or name below
+      ctx.save();
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = nightMode ? '#BFEFFF' : '#1E293B';
+      ctx.fillText(ais.name || ais.mmsi, x, y + 10);
+      ctx.restore();
     });
 
     ctx.beginPath();
