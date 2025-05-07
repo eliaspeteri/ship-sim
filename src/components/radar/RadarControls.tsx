@@ -6,7 +6,10 @@ import { RotaryDial } from '../dials';
 
 interface RadarControlsProps {
   settings: RadarSettings;
-  onSettingChange: (setting: keyof RadarSettings, value: any) => void;
+  onSettingChange: (
+    setting: keyof RadarSettings,
+    value: boolean | number | string,
+  ) => void;
   onRangeChange: (direction: 'increase' | 'decrease') => void;
   ebl: EBL;
   vrm: VRM;

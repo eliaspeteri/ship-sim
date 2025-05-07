@@ -926,7 +926,7 @@ const TestbedPage = () => {
             setTelexMessages(prev => [...prev, newMessage]);
           }}
           onPrintMessage={messageId => {
-            console.log(`Message ${messageId} printed`);
+            console.info(`Message ${messageId} printed`);
             // In a real implementation, this could trigger actual printing or logging
           }}
         />

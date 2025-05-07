@@ -706,7 +706,10 @@ export default function RadarDisplay({
     setTargets(prev => [...prev, newTarget]);
   };
 
-  const handleArpaSettingChange = (setting: keyof ARPASettings, value: any) => {
+  const handleArpaSettingChange = (
+    setting: keyof ARPASettings,
+    value: boolean | number,
+  ) => {
     setArpaSettings(prev => ({ ...prev, [setting]: value }));
   };
 

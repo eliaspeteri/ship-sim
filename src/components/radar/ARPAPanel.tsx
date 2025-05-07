@@ -12,7 +12,10 @@ interface ARPAPanelProps {
   selectedTargetId: string | null;
   onSelectTarget: (targetId: string) => void;
   arpaSettings: ARPASettings;
-  onSettingChange: (setting: keyof ARPASettings, value: any) => void;
+  onSettingChange: (
+    setting: keyof ARPASettings,
+    value: boolean | number,
+  ) => void;
   onAcquireTarget: () => void;
   onCancelTarget: (targetId: string) => void;
   className?: string;

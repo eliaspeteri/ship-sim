@@ -63,7 +63,7 @@ const mockAisTargets = [
 function latLonToXY(
   latitude: number,
   longitude: number,
-  center: { latitude: any; longitude: any },
+  center: { latitude: number; longitude: number },
   scale: number,
 ) {
   // Simple equirectangular projection for small area

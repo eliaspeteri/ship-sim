@@ -34,7 +34,7 @@ export interface SchematicComponent {
   /** Flow rate through the component (relative unit 0-1) */
   flowRate?: number;
   /** Any additional data specific to this component type */
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 /**
@@ -66,7 +66,7 @@ export interface SchematicConnection {
   /** Connection points */
   points?: { x: number; y: number }[];
   /** Any additional data */
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 /**
