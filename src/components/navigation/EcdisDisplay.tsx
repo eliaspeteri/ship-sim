@@ -67,6 +67,89 @@ function latLonToXY(
   ];
 }
 
+/**
+ * Calculate the great-circle distance (meters) and initial bearing (degrees) between two lat/lon points.
+ * Uses the haversine formula for distance and forward azimuth for bearing.
+ * @param lat1 Latitude of point 1
+ * @param lon1 Longitude of point 1
+ * @param lat2 Latitude of point 2
+ * @param lon2 Longitude of point 2
+ * @returns { distance: number, bearing: number }
+ */
+function calculateDistanceAndBearing(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): { distance: number; bearing: number } {
+  const R = 6371000; // Earth radius in meters
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+  const y = Math.sin(dLon) * Math.cos(toRad(lat2));
+  const x =
+    Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+    Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon);
+  let bearing = (Math.atan2(y, x) * 180) / Math.PI;
+  bearing = (bearing + 360) % 360;
+  return { distance, bearing };
+}
+
+/**
+ * Converts screen coordinates to latitude/longitude
+ * Accounts for chart position, pan, and zoom
+ *
+ * @param x Client X coordinate (from mouse event)
+ * @param y Client Y coordinate (from mouse event)
+ * @param canvas Canvas element reference
+ * @param camera Camera reference for current view state
+ * @param center Center coordinates of the map
+ * @param scale Scale factor for the map
+ * @returns Latitude/longitude coordinates or null if conversion fails
+ */
+function screenToLatLon(
+  x: number,
+  y: number,
+  canvas: HTMLCanvasElement,
+  camera: THREE.OrthographicCamera,
+  center: { latitude: number; longitude: number },
+  scale: number,
+): { latitude: number; longitude: number } | null {
+  // Get canvas position in the viewport
+  const rect = canvas.getBoundingClientRect();
+
+  // Convert client coordinates to canvas-relative coordinates
+  const canvasX = x - rect.left;
+  const canvasY = y - rect.top;
+
+  // Convert to normalized device coordinates (NDC) centered on the canvas
+  const ndcX = canvasX - rect.width / 2;
+  const ndcY = canvasY - rect.height / 2;
+
+  // Convert to world coordinates using camera parameters
+  const zoom = camera.zoom;
+  const panX = camera.position.x;
+  const panY = camera.position.y;
+
+  // Apply zoom and pan to get world coordinates
+  const worldX = ndcX / zoom + panX;
+  const worldY = ndcY / zoom + panY;
+
+  // Convert world coordinates to lat/lon
+  const longitude = worldX / scale + center.longitude;
+  const latitude = center.latitude - worldY / scale;
+
+  return { latitude, longitude };
+}
+
 export interface EcdisDisplayProps {
   shipPosition?: { latitude: number; longitude: number; heading?: number };
   route?: Array<{ latitude: number; longitude: number }>;
@@ -142,6 +225,18 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     type: string;
     index: number;
   }>(null);
+
+  // --- Measurement Tool State ---
+  const [measurementMode, setMeasurementMode] = useState<boolean>(false);
+  const [measurementStart, setMeasurementStart] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [measurementEnd, setMeasurementEnd] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const isMeasuringRef = useRef(false);
 
   // --- Search Handler ---
   function handleSearch(e: React.FormEvent) {
@@ -411,6 +506,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
 
   // --- Add/Move/Delete Waypoint Handlers ---
   useEffect(() => {
+    if (measurementMode) return; // Disable route editing when measuring
     const renderer = rendererRef.current;
     if (!renderer) return;
     const canvas = renderer.domElement;
@@ -468,7 +564,70 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
     };
-  }, [editableRoute, size, scale, center]);
+  }, [editableRoute, size, scale, center, measurementMode]);
+
+  // --- Measurement Tool Mouse Handlers ---
+  useEffect(() => {
+    if (!measurementMode) return;
+
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+
+    const canvas = renderer.domElement;
+
+    function onPointerDown(e: PointerEvent) {
+      const camera = cameraRef.current;
+      if (!camera) return;
+
+      const point = screenToLatLon(
+        e.clientX,
+        e.clientY,
+        canvas,
+        camera,
+        center,
+        scale,
+      );
+
+      if (!point) return;
+
+      setMeasurementStart(point);
+      setMeasurementEnd(point);
+      isMeasuringRef.current = true;
+    }
+
+    function onPointerMove(e: PointerEvent) {
+      if (!isMeasuringRef.current) return;
+
+      const camera = cameraRef.current;
+      if (!camera) return;
+
+      const point = screenToLatLon(
+        e.clientX,
+        e.clientY,
+        canvas,
+        camera,
+        center,
+        scale,
+      );
+
+      if (!point) return;
+      setMeasurementEnd(point);
+    }
+
+    function onPointerUp() {
+      isMeasuringRef.current = false;
+    }
+
+    canvas.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+
+    return () => {
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [measurementMode, size, scale, center]);
 
   // --- Delete Waypoint Handler ---
   function deleteSelectedWaypoint() {
@@ -719,6 +878,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     // --- Pan & Zoom Handlers ---
     const canvas = renderer.domElement;
     function onPointerDown(e: PointerEvent) {
+      if (measurementMode) return;
       dragState.current = {
         dragging: true,
         lastX: e.clientX,
@@ -726,11 +886,12 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       };
     }
     function onPointerMove(e: PointerEvent) {
+      if (measurementMode) return;
       if (dragState.current?.dragging) {
         const dx = e.clientX - dragState.current.lastX;
         const dy = e.clientY - dragState.current.lastY;
-        panRef.current.x -= dx / cam.zoom; // Invert pan direction
-        panRef.current.y += dy / cam.zoom; // Invert pan direction
+        panRef.current.x -= dx / cam.zoom;
+        panRef.current.y += dy / cam.zoom;
         cam.position.x = panRef.current.x;
         cam.position.y = panRef.current.y;
         cam.updateProjectionMatrix();
@@ -739,9 +900,11 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       }
     }
     function onPointerUp() {
+      if (measurementMode) return;
       if (dragState.current) dragState.current.dragging = false;
     }
     function onWheel(e: WheelEvent) {
+      if (measurementMode) return;
       e.preventDefault();
       const zoomFactor = 1.1;
       if (e.deltaY < 0) zoomRef.current *= zoomFactor;
@@ -784,6 +947,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     showRoute,
     chartLayers,
     searchResult,
+    measurementMode,
   ]);
 
   // --- Overlay Info (static for MVP) ---
@@ -812,6 +976,27 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
           ECDIS (three.js MVP)
         </span>
         <span style={{ fontSize: 14 }}>Scale: 1:{scale}</span>
+      </div>
+      {/* Measurement Tool Toggle */}
+      <div style={{ marginBottom: 8 }}>
+        <label style={{ fontSize: 15, marginRight: 12 }}>
+          <input
+            type="checkbox"
+            checked={measurementMode}
+            onChange={e => {
+              setMeasurementMode(e.target.checked);
+              setMeasurementStart(null);
+              setMeasurementEnd(null);
+            }}
+            style={{ marginRight: 6 }}
+          />
+          Measurement Tool
+        </label>
+        {measurementMode && (
+          <span style={{ color: '#60a5fa', fontSize: 15, marginLeft: 8 }}>
+            Click and drag to measure distance/bearing
+          </span>
+        )}
       </div>
       <form
         onSubmit={handleSearch}
@@ -932,7 +1117,6 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
         )}
       </div>
       <div
-        ref={mountRef}
         style={{
           width: size,
           height: size,
@@ -941,7 +1125,115 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
           background: '#22304a',
           position: 'relative',
         }}
-      />
+      >
+        <div
+          ref={mountRef}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: '100%',
+            height: '100%',
+            zIndex: 1,
+          }}
+        />
+        {/* Measurement Line Overlay (SVG) */}
+        {measurementMode &&
+          measurementStart &&
+          measurementEnd &&
+          (() => {
+            const camera = cameraRef.current;
+            if (!camera) return null;
+
+            // Calculate coordinates including pan and zoom
+            const zoom = camera.zoom;
+            const panX = camera.position.x;
+            const panY = camera.position.y;
+
+            // Project lat/lon to screen coordinates
+            const [x1, y1] = latLonToXY(
+              measurementStart.latitude,
+              measurementStart.longitude,
+              center,
+              scale,
+            );
+
+            const [x2, y2] = latLonToXY(
+              measurementEnd.latitude,
+              measurementEnd.longitude,
+              center,
+              scale,
+            );
+
+            // Apply zoom and pan to the points for correct positioning in the SVG
+            const svgX1 = (x1 - panX) * zoom + size / 2;
+            const svgY1 = (y1 - panY) * zoom + size / 2;
+            const svgX2 = (x2 - panX) * zoom + size / 2;
+            const svgY2 = (y2 - panY) * zoom + size / 2;
+
+            const { distance, bearing } = calculateDistanceAndBearing(
+              measurementStart.latitude,
+              measurementStart.longitude,
+              measurementEnd.latitude,
+              measurementEnd.longitude,
+            );
+
+            return (
+              <svg
+                width={size}
+                height={size}
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
+                  zIndex: 2,
+                }}
+              >
+                <line
+                  x1={svgX1}
+                  y1={svgY1}
+                  x2={svgX2}
+                  y2={svgY2}
+                  stroke="#60a5fa"
+                  strokeWidth={3}
+                  strokeDasharray="8 6"
+                />
+                <circle
+                  cx={svgX1}
+                  cy={svgY1}
+                  r={7}
+                  fill="#60a5fa"
+                  opacity={0.7}
+                />
+                <circle
+                  cx={svgX2}
+                  cy={svgY2}
+                  r={7}
+                  fill="#fbbf24"
+                  opacity={0.7}
+                />
+                <text
+                  x={(svgX1 + svgX2) / 2 + 10}
+                  y={(svgY1 + svgY2) / 2 - 10}
+                  fill="#fff"
+                  fontSize={18}
+                  fontFamily="monospace"
+                  stroke="#23272e"
+                  strokeWidth={0.5}
+                  paintOrder="stroke"
+                >
+                  {distance > 1000
+                    ? `${(distance / 1000).toFixed(2)} km`
+                    : `${distance.toFixed(1)} m`}{' '}
+                  | {bearing.toFixed(1)}°
+                </text>
+              </svg>
+            );
+          })()}
+      </div>
       {/* latitude/longitude Overlay */}
       {cursorlatitudeLon && (
         <div
