@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { MachineGauge } from '../components/MachineGauge';
 import { CircularGauge } from '../components/CircularGauge';
 import { CompassRose } from '../components/CompassRose';
-import { AlarmIndicator } from '../components/AlarmIndicator';
+import { AlarmIndicator } from '../components/alarms/AlarmIndicator';
 import MemoryMonitor from '../components/MemoryMonitor';
 import { Tank } from '../components/Tank';
 import { EnhancedPump } from '../components/EnhancedPump';
