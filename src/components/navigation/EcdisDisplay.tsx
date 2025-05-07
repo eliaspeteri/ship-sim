@@ -428,73 +428,118 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     const renderer = rendererRef.current;
     if (!renderer) return;
     const canvas = renderer.domElement;
+
     function onPointerMove(e: PointerEvent) {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left - size / 2;
-      const y = e.clientY - rect.top - size / 2;
-      // Apply pan and zoom
-      const cam = cameraRef.current;
-      if (!cam) return;
-      const zoom = cam.zoom;
-      const panX = cam.position.x;
-      const panY = cam.position.y;
-      // Convert screen to world coordinates
-      const worldX = x / zoom + panX;
-      const worldY = y / zoom + panY;
-      // Inverse projection
-      const longitude = worldX / scale + center.longitude;
-      const latitude = center.latitude - worldY / scale;
-      setCursorlatitudeLon({ latitude, longitude });
-      // Hit test for tooltip
+      const camera = cameraRef.current;
+      if (!camera) return;
+
+      // Use consistent coordinate calculation
+      const point = screenToLatLon(
+        e.clientX,
+        e.clientY,
+        canvas,
+        camera,
+        center,
+        scale,
+      );
+
+      if (!point) return;
+
+      setCursorlatitudeLon(point);
+
+      // Calculate hit testing directly in world space using consistent calculations
+      const hitTestRadiusWorld = 10 / camera.zoom; // Convert 10 px to world units
+
+      // === Hit test for tooltip using world coordinates ===
+
       // 1. Waypoints
-      for (let i = 0; i < editableRoute.length; i++) {
-        const wp = editableRoute[i];
-        const dx = (wp.longitude - longitude) * scale;
-        const dy = (wp.latitude - latitude) * scale;
-        if (Math.sqrt(dx * dx + dy * dy) < 12) {
+      for (const wp of editableRoute) {
+        // Convert both cursor and waypoint to world coordinates for consistent comparison
+        const [wpX, wpY] = latLonToXY(wp.latitude, wp.longitude, center, scale);
+        const [ptX, ptY] = latLonToXY(
+          point.latitude,
+          point.longitude,
+          center,
+          scale,
+        );
+
+        const dx = wpX - ptX;
+        const dy = wpY - ptY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < hitTestRadiusWorld) {
           setTooltip({
             x: e.clientX,
             y: e.clientY,
-            content: `Waypoint #${i + 1}\nLat: ${wp.latitude.toFixed(5)}\nLon: ${wp.longitude.toFixed(5)}`,
+            content: `Waypoint #${editableRoute.indexOf(wp) + 1}\nLat: ${wp.latitude.toFixed(5)}\nLon: ${wp.longitude.toFixed(5)}`,
           });
           return;
         }
       }
+
       // 2. Buoys
-      for (let i = 0; i < buoys.length; i++) {
-        const b = buoys[i];
-        const dx = (b.longitude - longitude) * scale;
-        const dy = (b.latitude - latitude) * scale;
-        if (Math.sqrt(dx * dx + dy * dy) < 12) {
+      for (const buoy of buoys) {
+        const [bX, bY] = latLonToXY(
+          buoy.latitude,
+          buoy.longitude,
+          center,
+          scale,
+        );
+        const [ptX, ptY] = latLonToXY(
+          point.latitude,
+          point.longitude,
+          center,
+          scale,
+        );
+
+        const dx = bX - ptX;
+        const dy = bY - ptY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < hitTestRadiusWorld) {
           setTooltip({
             x: e.clientX,
             y: e.clientY,
-            content: `Buoy (${b.type})\nLat: ${b.latitude.toFixed(5)}\nLon: ${b.longitude.toFixed(5)}`,
+            content: `Buoy (${buoy.type})\nLat: ${buoy.latitude.toFixed(5)}\nLon: ${buoy.longitude.toFixed(5)}`,
           });
           return;
         }
       }
+
       // 3. AIS Targets
-      for (let i = 0; i < aisTargets.length; i++) {
-        const t = aisTargets[i];
-        const dx = (t.lon - longitude) * scale;
-        const dy = (t.lat - latitude) * scale;
-        if (Math.sqrt(dx * dx + dy * dy) < 14) {
+      for (const target of aisTargets) {
+        const [tX, tY] = latLonToXY(target.lat, target.lon, center, scale);
+        const [ptX, ptY] = latLonToXY(
+          point.latitude,
+          point.longitude,
+          center,
+          scale,
+        );
+
+        const dx = tX - ptX;
+        const dy = tY - ptY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // AIS targets might need a slightly larger hit area
+        if (distance < hitTestRadiusWorld * 1.2) {
           setTooltip({
             x: e.clientX,
             y: e.clientY,
-            content: `AIS: ${t.name || t.mmsi}\nLat: ${t.lat.toFixed(5)}\nLon: ${t.lon.toFixed(5)}\nHeading: ${t.heading}°\nSpeed: ${t.speed} kn`,
+            content: `AIS: ${target.name || target.mmsi}\nLat: ${target.lat.toFixed(5)}\nLon: ${target.lon.toFixed(5)}\nHeading: ${target.heading}°\nSpeed: ${target.speed} kn`,
           });
           return;
         }
       }
+
       setTooltip(null);
     }
+
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerleave', () => {
       setCursorlatitudeLon(null);
       setTooltip(null);
     });
+
     return () => {
       canvas.removeEventListener('pointermove', onPointerMove);
       canvas.removeEventListener('pointerleave', () => {
@@ -1198,22 +1243,8 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
                   x2={svgX2}
                   y2={svgY2}
                   stroke="#60a5fa"
-                  strokeWidth={3}
-                  strokeDasharray="8 6"
-                />
-                <circle
-                  cx={svgX1}
-                  cy={svgY1}
-                  r={7}
-                  fill="#60a5fa"
-                  opacity={0.7}
-                />
-                <circle
-                  cx={svgX2}
-                  cy={svgY2}
-                  r={7}
-                  fill="#fbbf24"
-                  opacity={0.7}
+                  strokeWidth={1}
+                  strokeDasharray=""
                 />
                 <text
                   x={(svgX1 + svgX2) / 2 + 10}
