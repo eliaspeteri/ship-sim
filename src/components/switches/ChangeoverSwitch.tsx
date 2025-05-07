@@ -80,15 +80,13 @@ export function ChangeoverSwitch(
   const positionIndex = positions.findIndex(p => p.value === position);
   const positionCount = positions.length;
 
-  // Convert between normalized value (0-1) and position index
-  const normalizedToIndex = (normalized: number): number => {
-    const rawIndex = Math.round(normalized * (positionCount - 1));
-    return Math.max(0, Math.min(positionCount - 1, rawIndex));
-  };
-
   const indexToNormalized = (index: number): number => {
     return positionCount <= 1 ? 0 : index / (positionCount - 1);
   };
+
+  // --- Drag state for smooth handle rotation and snapping ---
+  // Track the last snapped index to avoid repeated onPositionChange calls
+  const lastSnappedIndexRef = React.useRef(positionIndex);
 
   // Use lever drag to handle rotation via dragging
   const {
@@ -100,10 +98,15 @@ export function ChangeoverSwitch(
     min: 0,
     max: 1,
     onChange: value => {
-      const newIndex = normalizedToIndex(value);
-      // Only trigger change if the position actually changed
-      if (newIndex !== positionIndex && !positions[newIndex].disabled) {
-        onPositionChange(positions[newIndex].value);
+      // Snap to the next position only when passing the midpoint between positions
+      const floatIndex = value * (positionCount - 1);
+      const snappedIndex = Math.round(floatIndex);
+      if (
+        snappedIndex !== lastSnappedIndexRef.current &&
+        !positions[snappedIndex].disabled
+      ) {
+        lastSnappedIndexRef.current = snappedIndex;
+        onPositionChange(positions[snappedIndex].value);
       }
     },
     dragAxis: 'horizontal',
@@ -117,9 +120,8 @@ export function ChangeoverSwitch(
     const maxAngleRange = positionCount > 2 ? 270 : 180;
     // Calculate the angle between positions
     const angleStep = maxAngleRange / (positionCount - 1);
-    // Calculate the starting angle to center the positions (90 degrees offset to start from top)
-    const startAngle = 90 + (360 - maxAngleRange) / 2;
-
+    // Calculate the starting angle to center the positions (start from top, 0 deg)
+    const startAngle = -maxAngleRange / 2;
     // Return the angle for this position
     return startAngle + index * angleStep;
   };
@@ -128,18 +130,17 @@ export function ChangeoverSwitch(
   const getPositionCoordinates = (angle: number): { x: number; y: number } => {
     // Convert angle to radians
     const radians = (angle * Math.PI) / 180;
-
     // Calculate coordinates on the circle
-    const x = radius + positionRadius * Math.cos(radians);
-    const y = radius + positionRadius * Math.sin(radians);
-
+    const x = radius + positionRadius * Math.cos(radians - Math.PI / 2);
+    const y = radius + positionRadius * Math.sin(radians - Math.PI / 2);
     return { x, y };
   };
 
-  // Calculate the handle rotation angle - add 90 degrees to point to the current position
+  // Calculate the handle rotation angle - smoothly follows drag, snaps on release
   const getCurrentAngle = (): number => {
-    const currentIndex = normalizedToIndex(normalizedValue);
-    return getPositionAngle(currentIndex);
+    // Use the continuous drag value for smooth rotation
+    const floatIndex = normalizedValue * (positionCount - 1);
+    return getPositionAngle(floatIndex);
   };
 
   // Calculate label styles based on position
