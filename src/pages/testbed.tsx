@@ -5,7 +5,6 @@ import { CompassRose } from '../components/CompassRose';
 import { AlarmIndicator } from '../components/AlarmIndicator';
 import MemoryMonitor from '../components/MemoryMonitor';
 import { Tank } from '../components/Tank';
-import { Pump } from '../components/Pump';
 import { EnhancedPump } from '../components/EnhancedPump';
 import { TelegraphLever } from '../components/TelegraphLever';
 import Thermometer from '../components/Thermometer';
@@ -207,17 +206,7 @@ const TestbedPage = () => {
           <h2 className="font-semibold">Tank</h2>
           <Tank size={100} level={gaugeValue / 100} x={100} y={100} />
         </div>
-        <div>
-          <h2 className="font-semibold">Pump</h2>
-          <Pump
-            x={0}
-            y={0}
-            isRunning={isBooleanOn}
-            onChange={function (running: boolean): void {
-              console.log(`Pump is now ${running ? 'running' : 'stopped'}`);
-            }}
-          />
-        </div>
+
         <div>
           <h2 className="font-semibold">TelegraphLever</h2>
           <TelegraphLever
