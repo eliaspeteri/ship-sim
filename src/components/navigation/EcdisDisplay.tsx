@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { TopNavigationBar } from '../common/TopNavigationBar';
+import { RightStatusPanel } from '../common/RightStatusPanel';
 
 // --- Mock Data ---
 const mockCoastline = [
@@ -996,388 +998,412 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
   ]);
 
   // --- Overlay Info (static for MVP) ---
+  const navData = [
+    { label: 'Lat', value: ship.latitude.toFixed(5) },
+    { label: 'Lon', value: ship.longitude.toFixed(5) },
+    { label: 'HDG', value: `${ship.heading?.toFixed(1)}°` },
+    { label: 'SOG', value: '12.0 kn' },
+    { label: 'COG', value: '87.0°' },
+    { label: 'Scale', value: `1:${scale}` },
+    { label: 'Datum', value: 'WGS84' },
+    { label: 'GPS', value: 'OK' },
+  ];
+
   return (
     <div
       style={{
         background: '#1a2230',
         borderRadius: 12,
         boxShadow: '0 2px 12px #0008',
-        padding: 16,
-        width: size + 32,
+        padding: 0,
+        width: size + 232, // extra width for right panel
         color: '#e0f2f1',
         fontFamily: 'monospace',
         position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 8,
-        }}
-      >
-        <span style={{ fontWeight: 700, fontSize: 18 }}>
-          ECDIS (three.js MVP)
-        </span>
-        <span style={{ fontSize: 14 }}>Scale: 1:{scale}</span>
-      </div>
-      {/* Measurement Tool Toggle */}
-      <div style={{ marginBottom: 8 }}>
-        <label style={{ fontSize: 15, marginRight: 12 }}>
-          <input
-            type="checkbox"
-            checked={measurementMode}
-            onChange={e => {
-              setMeasurementMode(e.target.checked);
-              setMeasurementStart(null);
-              setMeasurementEnd(null);
-            }}
-            style={{ marginRight: 6 }}
-          />
-          Measurement Tool
-        </label>
-        {measurementMode && (
-          <span style={{ color: '#60a5fa', fontSize: 15, marginLeft: 8 }}>
-            Click and drag to measure distance/bearing
-          </span>
-        )}
-      </div>
-      <form
-        onSubmit={handleSearch}
-        style={{ display: 'flex', gap: 8, marginBottom: 8 }}
-      >
-        <input
-          type="text"
-          placeholder="Search waypoint, buoy, AIS..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          style={{
-            fontSize: 15,
-            padding: '2px 8px',
-            borderRadius: 4,
-            border: '1px solid #444',
-            background: '#23272e',
-            color: '#e0f2f1',
-            width: 220,
-          }}
-        />
-        <button
-          type="submit"
-          style={{
-            fontSize: 15,
-            padding: '2px 12px',
-            borderRadius: 4,
-            background: '#60a5fa',
-            color: '#fff',
-            border: 'none',
-          }}
-        >
-          Search
-        </button>
-        {searchResult && (
-          <span style={{ color: '#34d399', fontSize: 15, marginLeft: 8 }}>
-            Found {searchResult.type} #{searchResult.index + 1}
-          </span>
-        )}
-      </form>
-      <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
-        {/* Chart Layer Management UI */}
-        {chartLayers.map((layer, i) => (
+      <TopNavigationBar
+        tabs={['NAVI', 'CHARTS', 'PLAN', 'OTHERS']}
+        activeTab={'NAVI'}
+        brand={'ECDIS'}
+      />
+      <div style={{ display: 'flex', flexDirection: 'row', width: '100%' }}>
+        <div style={{ flex: '0 0 auto', width: size + 32, padding: 16 }}>
+          {/* ...existing chart controls, overlays, and chart rendering... */}
           <div
-            key={layer.id}
             style={{
               display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
-              gap: 4,
-              background: '#23272e',
-              borderRadius: 6,
-              padding: '2px 8px',
+              marginBottom: 8,
             }}
           >
-            <input
-              type="checkbox"
-              checked={layer.visible}
-              onChange={() => toggleLayer(layer.id)}
-            />
-            <span>{layer.name}</span>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={layer.opacity}
-              onChange={e =>
-                setLayerOpacity(layer.id, parseFloat(e.target.value))
-              }
-              style={{ width: 60 }}
-            />
-            <button
-              onClick={() => moveLayer(layer.id, 'up')}
-              disabled={i === 0}
-              style={{ fontSize: 12 }}
-            >
-              ↑
-            </button>
-            <button
-              onClick={() => moveLayer(layer.id, 'down')}
-              disabled={i === chartLayers.length - 1}
-              style={{ fontSize: 12 }}
-            >
-              ↓
-            </button>
+            <span style={{ fontWeight: 700, fontSize: 18 }}>
+              ECDIS (three.js MVP)
+            </span>
+            <span style={{ fontSize: 14 }}>Scale: 1:{scale}</span>
           </div>
-        ))}
-        <label>
-          <input
-            type="checkbox"
-            checked={showCoastline}
-            onChange={e => setShowCoastline(e.target.checked)}
-          />{' '}
-          Coastline
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={showBuoys}
-            onChange={e => setShowBuoys(e.target.checked)}
-          />{' '}
-          Buoys
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={showRoute}
-            onChange={e => setShowRoute(e.target.checked)}
-          />{' '}
-          Route
-        </label>
-        {selectedWp !== null && (
-          <button
-            onClick={deleteSelectedWaypoint}
-            style={{ color: '#f87171', marginLeft: 16 }}
+          {/* Measurement Tool Toggle */}
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 15, marginRight: 12 }}>
+              <input
+                type="checkbox"
+                checked={measurementMode}
+                onChange={e => {
+                  setMeasurementMode(e.target.checked);
+                  setMeasurementStart(null);
+                  setMeasurementEnd(null);
+                }}
+                style={{ marginRight: 6 }}
+              />
+              Measurement Tool
+            </label>
+            {measurementMode && (
+              <span style={{ color: '#60a5fa', fontSize: 15, marginLeft: 8 }}>
+                Click and drag to measure distance/bearing
+              </span>
+            )}
+          </div>
+          <form
+            onSubmit={handleSearch}
+            style={{ display: 'flex', gap: 8, marginBottom: 8 }}
           >
-            Delete Waypoint #{selectedWp + 1}
-          </button>
-        )}
-      </div>
-      <div
-        style={{
-          width: size,
-          height: size,
-          borderRadius: 8,
-          overflow: 'hidden',
-          background: '#22304a',
-          position: 'relative',
-        }}
-      >
-        <div
-          ref={mountRef}
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            width: '100%',
-            height: '100%',
-            zIndex: 1,
-          }}
-        />
-        {/* Measurement Line Overlay (SVG) */}
-        {measurementMode &&
-          measurementStart &&
-          measurementEnd &&
-          (() => {
-            const camera = cameraRef.current;
-            if (!camera) return null;
-
-            // Calculate coordinates including pan and zoom
-            const zoom = camera.zoom;
-            const panX = camera.position.x;
-            const panY = camera.position.y;
-
-            // Project lat/lon to screen coordinates
-            const [x1, y1] = latLonToXY(
-              measurementStart.latitude,
-              measurementStart.longitude,
-              center,
-              scale,
-            );
-
-            const [x2, y2] = latLonToXY(
-              measurementEnd.latitude,
-              measurementEnd.longitude,
-              center,
-              scale,
-            );
-
-            // Apply zoom and pan to the points for correct positioning in the SVG
-            const svgX1 = (x1 - panX) * zoom + size / 2;
-            const svgY1 = (y1 - panY) * zoom + size / 2;
-            const svgX2 = (x2 - panX) * zoom + size / 2;
-            const svgY2 = (y2 - panY) * zoom + size / 2;
-
-            const { distance, bearing } = calculateDistanceAndBearing(
-              measurementStart.latitude,
-              measurementStart.longitude,
-              measurementEnd.latitude,
-              measurementEnd.longitude,
-            );
-
-            return (
-              <svg
-                width={size}
-                height={size}
+            <input
+              type="text"
+              placeholder="Search waypoint, buoy, AIS..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{
+                fontSize: 15,
+                padding: '2px 8px',
+                borderRadius: 4,
+                border: '1px solid #444',
+                background: '#23272e',
+                color: '#e0f2f1',
+                width: 220,
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                fontSize: 15,
+                padding: '2px 12px',
+                borderRadius: 4,
+                background: '#60a5fa',
+                color: '#fff',
+                border: 'none',
+              }}
+            >
+              Search
+            </button>
+            {searchResult && (
+              <span style={{ color: '#34d399', fontSize: 15, marginLeft: 8 }}>
+                Found {searchResult.type} #{searchResult.index + 1}
+              </span>
+            )}
+          </form>
+          <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
+            {/* Chart Layer Management UI */}
+            {chartLayers.map((layer, i) => (
+              <div
+                key={layer.id}
                 style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  width: '100%',
-                  height: '100%',
-                  pointerEvents: 'none',
-                  zIndex: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  background: '#23272e',
+                  borderRadius: 6,
+                  padding: '2px 8px',
                 }}
               >
-                <line
-                  x1={svgX1}
-                  y1={svgY1}
-                  x2={svgX2}
-                  y2={svgY2}
-                  stroke="#60a5fa"
-                  strokeWidth={1}
-                  strokeDasharray=""
+                <input
+                  type="checkbox"
+                  checked={layer.visible}
+                  onChange={() => toggleLayer(layer.id)}
                 />
-                <text
-                  x={(svgX1 + svgX2) / 2 + 10}
-                  y={(svgY1 + svgY2) / 2 - 10}
-                  fill="#fff"
-                  fontSize={18}
-                  fontFamily="monospace"
-                  stroke="#23272e"
-                  strokeWidth={0.5}
-                  paintOrder="stroke"
+                <span>{layer.name}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={layer.opacity}
+                  onChange={e =>
+                    setLayerOpacity(layer.id, parseFloat(e.target.value))
+                  }
+                  style={{ width: 60 }}
+                />
+                <button
+                  onClick={() => moveLayer(layer.id, 'up')}
+                  disabled={i === 0}
+                  style={{ fontSize: 12 }}
                 >
-                  {distance > 1000
-                    ? `${(distance / 1000).toFixed(2)} km`
-                    : `${distance.toFixed(1)} m`}{' '}
-                  | {bearing.toFixed(1)}°
-                </text>
-              </svg>
-            );
-          })()}
-      </div>
-      {/* latitude/longitude Overlay */}
-      {cursorlatitudeLon && (
-        <div
-          style={{
-            position: 'absolute',
-            left: 24,
-            top: size + 24,
-            background: '#23272e',
-            color: '#e0f2f1',
-            borderRadius: 6,
-            padding: '4px 12px',
-            fontSize: 15,
-            pointerEvents: 'none',
-            zIndex: 10,
-          }}
-        >
-          latitude: {cursorlatitudeLon.latitude.toFixed(5)}, longitude:{' '}
-          {cursorlatitudeLon.longitude.toFixed(5)}
-        </div>
-      )}
-      {/* Tooltip Overlay */}
-      {tooltip && (
-        <div
-          style={{
-            position: 'fixed',
-            left: tooltip.x + 16,
-            top: tooltip.y + 8,
-            background: '#23272e',
-            color: '#e0f2f1',
-            borderRadius: 6,
-            padding: '6px 14px',
-            fontSize: 15,
-            whiteSpace: 'pre',
-            pointerEvents: 'none',
-            zIndex: 100,
-            boxShadow: '0 2px 8px #000a',
-          }}
-        >
-          {tooltip.content}
-        </div>
-      )}
-      {/* Scale Bar Overlay */}
-      <div
-        style={{
-          position: 'absolute',
-          left: 32,
-          bottom: 32,
-          zIndex: 20,
-          pointerEvents: 'none',
-          display: 'flex',
-          alignItems: 'center',
-        }}
-      >
-        <div
-          style={{
-            width: getScaleBar().px,
-            height: 6,
-            background: '#e0f2f1',
-            borderRadius: 2,
-            marginRight: 8,
-            boxShadow: '0 1px 4px #0008',
-          }}
-        />
-        <span style={{ color: '#e0f2f1', fontSize: 14 }}>
-          {getScaleBar().label}
-        </span>
-      </div>
-      {/* North Arrow Overlay */}
-      <div
-        style={{
-          position: 'absolute',
-          right: 32,
-          top: 32,
-          zIndex: 20,
-          width: 36,
-          height: 36,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          pointerEvents: 'none',
-        }}
-      >
-        <svg width="36" height="36" viewBox="0 0 36 36">
-          <polygon
-            points="18,6 24,30 18,24 12,30"
-            fill="#e0f2f1"
-            stroke="#23272e"
-            strokeWidth="2"
-          />
-          <text
-            x="18"
-            y="20"
-            textAnchor="middle"
-            fontSize="10"
-            fill="#23272e"
-            fontFamily="monospace"
+                  ↑
+                </button>
+                <button
+                  onClick={() => moveLayer(layer.id, 'down')}
+                  disabled={i === chartLayers.length - 1}
+                  style={{ fontSize: 12 }}
+                >
+                  ↓
+                </button>
+              </div>
+            ))}
+            <label>
+              <input
+                type="checkbox"
+                checked={showCoastline}
+                onChange={e => setShowCoastline(e.target.checked)}
+              />{' '}
+              Coastline
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={showBuoys}
+                onChange={e => setShowBuoys(e.target.checked)}
+              />{' '}
+              Buoys
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={showRoute}
+                onChange={e => setShowRoute(e.target.checked)}
+              />{' '}
+              Route
+            </label>
+            {selectedWp !== null && (
+              <button
+                onClick={deleteSelectedWaypoint}
+                style={{ color: '#f87171', marginLeft: 16 }}
+              >
+                Delete Waypoint #{selectedWp + 1}
+              </button>
+            )}
+          </div>
+          <div
+            style={{
+              width: size,
+              height: size,
+              borderRadius: 8,
+              overflow: 'hidden',
+              background: '#22304a',
+              position: 'relative',
+            }}
           >
-            N
-          </text>
-        </svg>
-      </div>
-      <div
-        style={{
-          marginTop: 8,
-          fontSize: 14,
-          display: 'flex',
-          justifyContent: 'space-between',
-        }}
-      >
-        <span>
-          Ship: {ship.latitude.toFixed(5)}, {ship.longitude.toFixed(5)}
-        </span>
-        <span>Heading: {ship.heading?.toFixed(1)}°</span>
+            <div
+              ref={mountRef}
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: 1,
+              }}
+            />
+            {/* Measurement Line Overlay (SVG) */}
+            {measurementMode &&
+              measurementStart &&
+              measurementEnd &&
+              (() => {
+                const camera = cameraRef.current;
+                if (!camera) return null;
+
+                // Calculate coordinates including pan and zoom
+                const zoom = camera.zoom;
+                const panX = camera.position.x;
+                const panY = camera.position.y;
+
+                // Project lat/lon to screen coordinates
+                const [x1, y1] = latLonToXY(
+                  measurementStart.latitude,
+                  measurementStart.longitude,
+                  center,
+                  scale,
+                );
+
+                const [x2, y2] = latLonToXY(
+                  measurementEnd.latitude,
+                  measurementEnd.longitude,
+                  center,
+                  scale,
+                );
+
+                // Apply zoom and pan to the points for correct positioning in the SVG
+                const svgX1 = (x1 - panX) * zoom + size / 2;
+                const svgY1 = (y1 - panY) * zoom + size / 2;
+                const svgX2 = (x2 - panX) * zoom + size / 2;
+                const svgY2 = (y2 - panY) * zoom + size / 2;
+
+                const { distance, bearing } = calculateDistanceAndBearing(
+                  measurementStart.latitude,
+                  measurementStart.longitude,
+                  measurementEnd.latitude,
+                  measurementEnd.longitude,
+                );
+
+                return (
+                  <svg
+                    width={size}
+                    height={size}
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      width: '100%',
+                      height: '100%',
+                      pointerEvents: 'none',
+                      zIndex: 2,
+                    }}
+                  >
+                    <line
+                      x1={svgX1}
+                      y1={svgY1}
+                      x2={svgX2}
+                      y2={svgY2}
+                      stroke="#60a5fa"
+                      strokeWidth={1}
+                      strokeDasharray=""
+                    />
+                    <text
+                      x={(svgX1 + svgX2) / 2 + 10}
+                      y={(svgY1 + svgY2) / 2 - 10}
+                      fill="#fff"
+                      fontSize={18}
+                      fontFamily="monospace"
+                      stroke="#23272e"
+                      strokeWidth={0.5}
+                      paintOrder="stroke"
+                    >
+                      {distance > 1000
+                        ? `${(distance / 1000).toFixed(2)} km`
+                        : `${distance.toFixed(1)} m`}{' '}
+                      | {bearing.toFixed(1)}°
+                    </text>
+                  </svg>
+                );
+              })()}
+          </div>
+          {/* latitude/longitude Overlay */}
+          {cursorlatitudeLon && (
+            <div
+              style={{
+                position: 'absolute',
+                left: 24,
+                top: size + 24,
+                background: '#23272e',
+                color: '#e0f2f1',
+                borderRadius: 6,
+                padding: '4px 12px',
+                fontSize: 15,
+                pointerEvents: 'none',
+                zIndex: 10,
+              }}
+            >
+              latitude: {cursorlatitudeLon.latitude.toFixed(5)}, longitude:{' '}
+              {cursorlatitudeLon.longitude.toFixed(5)}
+            </div>
+          )}
+          {/* Tooltip Overlay */}
+          {tooltip && (
+            <div
+              style={{
+                position: 'fixed',
+                left: tooltip.x + 16,
+                top: tooltip.y + 8,
+                background: '#23272e',
+                color: '#e0f2f1',
+                borderRadius: 6,
+                padding: '6px 14px',
+                fontSize: 15,
+                whiteSpace: 'pre',
+                pointerEvents: 'none',
+                zIndex: 100,
+                boxShadow: '0 2px 8px #000a',
+              }}
+            >
+              {tooltip.content}
+            </div>
+          )}
+          {/* Scale Bar Overlay */}
+          <div
+            style={{
+              position: 'absolute',
+              left: 32,
+              bottom: 32,
+              zIndex: 20,
+              pointerEvents: 'none',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <div
+              style={{
+                width: getScaleBar().px,
+                height: 6,
+                background: '#e0f2f1',
+                borderRadius: 2,
+                marginRight: 8,
+                boxShadow: '0 1px 4px #0008',
+              }}
+            />
+            <span style={{ color: '#e0f2f1', fontSize: 14 }}>
+              {getScaleBar().label}
+            </span>
+          </div>
+          {/* North Arrow Overlay */}
+          <div
+            style={{
+              position: 'absolute',
+              right: 32,
+              top: 32,
+              zIndex: 20,
+              width: 36,
+              height: 36,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none',
+            }}
+          >
+            <svg width="36" height="36" viewBox="0 0 36 36">
+              <polygon
+                points="18,6 24,30 18,24 12,30"
+                fill="#e0f2f1"
+                stroke="#23272e"
+                strokeWidth="2"
+              />
+              <text
+                x="18"
+                y="20"
+                textAnchor="middle"
+                fontSize="10"
+                fill="#23272e"
+                fontFamily="monospace"
+              >
+                N
+              </text>
+            </svg>
+          </div>
+          <div
+            style={{
+              marginTop: 8,
+              fontSize: 14,
+              display: 'flex',
+              justifyContent: 'space-between',
+            }}
+          >
+            <span>
+              Ship: {ship.latitude.toFixed(5)}, {ship.longitude.toFixed(5)}
+            </span>
+            <span>Heading: {ship.heading?.toFixed(1)}°</span>
+          </div>
+        </div>
+        <RightStatusPanel navData={navData} />
       </div>
     </div>
   );
