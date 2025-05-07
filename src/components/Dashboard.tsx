@@ -3,7 +3,7 @@ import useStore from '../store';
 import { getSimulationLoop } from '../simulation';
 import MachineryPanel from './MachineryPanel';
 import EventLog from './EventLog';
-import { AlarmIndicator } from './AlarmIndicator';
+import { AlarmIndicator } from './alarms/AlarmIndicator';
 import { CompassRose } from './CompassRose';
 import { ControlLever } from './ControlLever';
 import { TelegraphLever } from './TelegraphLever';
