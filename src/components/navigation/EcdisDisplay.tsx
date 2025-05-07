@@ -5,6 +5,7 @@ import { RightStatusPanel } from '../common/RightStatusPanel';
 import { RouteInfoPanel } from '../common/RouteInfoPanel';
 import { EBLControl, EBLState } from './EBLControl';
 import { VRMControl, VRMState } from './VRMControl';
+import { StatusPanelSchema } from '../common/StatusPanelTypes';
 
 // --- Mock Data ---
 const mockCoastline = [
@@ -1097,15 +1098,118 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
   ]);
 
   // --- Overlay Info (static for MVP) ---
-  const navData = [
-    { label: 'Lat', value: ship.latitude.toFixed(5) },
-    { label: 'Lon', value: ship.longitude.toFixed(5) },
-    { label: 'HDG', value: `${ship.heading?.toFixed(1)}°` },
-    { label: 'SOG', value: '12.0 kn' },
-    { label: 'COG', value: '87.0°' },
-    { label: 'Scale', value: `1:${scale}` },
-    { label: 'Datum', value: 'WGS84' },
-    { label: 'GPS', value: 'OK' },
+  const navDataForPanel = {
+    hdg: `${ship.heading?.toFixed(1)}°`,
+    hdgStatus: 'SNR', // Mocked
+    spd: '50.0kn', // Mocked, replace with actual ship.speed when available
+    spdStatus: 'SNR', // Mocked
+    wt: '0.0kn', // Mocked
+    cog: '0.0°', // Mocked, replace with actual COG when available
+    cogStatus: 'NON', // Mocked
+    sog: '0.0kn', // Mocked, replace with actual SOG when available
+    sogStatus: 'NON', // Mocked
+    posn_lat: `${ship.latitude.toFixed(5)}' N`,
+    posn_lon: `${ship.longitude.toFixed(5)}' E`,
+    posnFilter: 'H', // Mocked
+    offset: 'Offset', // Mocked label
+    wgs84: 'WGS84', // Mocked
+  };
+
+  // Schema definition for the RightStatusPanel
+  const panelSchema: StatusPanelSchema = [
+    [
+      {
+        id: 'hdg',
+        label: 'HDG',
+        mainValue: {
+          text: 'data:hdg',
+          className: 'text-2xl text-green-400 font-bold',
+        },
+        statusValue: {
+          text: 'data:hdgStatus',
+          className: 'text-xs text-gray-400 self-end pb-0.5',
+        },
+        boxClassName: 'flex-grow',
+      },
+    ],
+    [
+      {
+        id: 'spd',
+        label: 'SPD',
+        mainValue: {
+          text: 'data:spd',
+          className: 'text-xl text-white font-bold',
+        },
+        statusValue: {
+          text: 'data:spdStatus',
+          className: 'text-xs text-gray-400 self-end',
+        },
+        boxClassName: 'w-1/2',
+      },
+      {
+        id: 'wt',
+        label: 'WT',
+        mainValue: {
+          text: 'data:wt',
+          className: 'text-xl text-white font-bold',
+        },
+        boxClassName: 'w-1/2',
+      },
+    ],
+    [
+      {
+        id: 'cog',
+        label: 'COG',
+        mainValue: {
+          text: 'data:cog',
+          className: 'text-xl text-white font-bold',
+        },
+        statusValue: {
+          text: 'data:cogStatus',
+          className: 'text-xs text-gray-400 self-end',
+        },
+        boxClassName: 'w-1/2',
+      },
+      {
+        id: 'sog',
+        label: 'SOG',
+        mainValue: {
+          text: 'data:sog',
+          className: 'text-xl text-white font-bold',
+        },
+        statusValue: {
+          text: 'data:sogStatus',
+          className: 'text-xs text-gray-400 self-end',
+        },
+        boxClassName: 'w-1/2',
+      },
+    ],
+    [
+      {
+        id: 'posn',
+        label: 'POSN',
+        additionalLines: [
+          { text: 'data:posn_lat', className: 'text-sm text-white' },
+          { text: 'data:posn_lon', className: 'text-sm text-white' },
+        ],
+        statusValue: {
+          text: 'data:posnFilter',
+          className: 'text-xs text-gray-400 self-start pt-0.5',
+        }, // Aligned with label
+        boxClassName: 'flex-grow',
+      },
+    ],
+    [
+      {
+        id: 'offset',
+        label: 'Offset', // This seems to be a label for the WGS84 value based on image
+        mainValue: {
+          text: 'data:wgs84',
+          className: 'text-sm text-white text-center',
+        }, // Centered as it takes full width
+        boxClassName: 'flex-grow',
+      },
+    ],
   ];
 
   // --- Route Info Section (mocked for now) ---
@@ -1166,9 +1270,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
           }}
         >
           {/* Controls above the chart */}
-          <div style={{ marginBottom: 8 }}>
-            {/* ECDIS (three.js MVP) title and Scale text REMOVED */}
-          </div>
+          <div style={{ marginBottom: 8 }}></div>
           {/* Measurement Tool Toggle */}
           <div style={{ marginBottom: 8 }}>
             <label style={{ fontSize: 15, marginRight: 12 }}>
@@ -1549,7 +1651,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
             </div>
           )}
         </div>
-        <RightStatusPanel navData={navData}>
+        <RightStatusPanel schema={panelSchema} data={navDataForPanel}>
           <RouteInfoPanel routeInfo={routeInfo} />
         </RightStatusPanel>
       </div>

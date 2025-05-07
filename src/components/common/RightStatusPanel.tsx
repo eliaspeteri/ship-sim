@@ -1,68 +1,39 @@
 import React from 'react';
+import { StatusPanelSchema } from './StatusPanelTypes';
+import { StatusBoxContent } from './StatusBoxContent';
 
-/**
- * RightStatusPanel provides a consistent side panel for navigation data, alarms, and system status.
- * Data is passed as props for flexibility.
- */
-export interface RightStatusPanelProps {
-  navData: Array<{ label: string; value: string; color?: string }>;
-  alarms?: string[];
-  status?: string;
+interface RightStatusPanelProps {
   children?: React.ReactNode;
+  schema: StatusPanelSchema;
+  data: Record<string, string | number | undefined>; // Updated type for data
 }
 
 export const RightStatusPanel: React.FC<RightStatusPanelProps> = ({
-  navData,
-  alarms = [],
-  status,
   children,
-}) => (
-  <div
-    style={{
-      width: 200,
-      background: '#23272e',
-      borderTopRightRadius: 12,
-      borderBottomRightRadius: 12,
-      padding: '18px 16px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 18,
-      minHeight: 532,
-      boxShadow: '-2px 0 8px #0004',
-    }}
-  >
-    <div
-      style={{
-        fontWeight: 700,
-        fontSize: 16,
-        color: '#60a5fa',
-        marginBottom: 8,
-      }}
-    >
-      NAV DATA
+  schema,
+  data,
+}) => {
+  return (
+    <div className="bg-gray-800 text-white w-64 p-1 space-y-1 flex flex-col h-full overflow-y-auto">
+      {/* Boxed Data Section */}
+      <div className="flex-shrink-0">
+        {schema.map((row, rowIndex) => (
+          <div key={rowIndex} className="flex space-x-px mb-px">
+            {row.map(box => (
+              <div
+                key={box.id}
+                className={`bg-gray-700 p-1 border border-gray-600 ${box.boxClassName || 'flex-1'}`}
+                style={{ minHeight: '40px' }} // Ensure boxes have a minimum height
+              >
+                <StatusBoxContent box={box} data={data} />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* Existing children, e.g., RouteInfoPanel */}
+      <div className="flex-grow overflow-y-auto">{children}</div>
     </div>
-    {navData.map((item, i) => (
-      <div
-        key={i}
-        style={{
-          fontSize: 15,
-          marginBottom: 6,
-          color: item.color || '#e0f2f1',
-        }}
-      >
-        {item.label}: {item.value}
-      </div>
-    ))}
-    {status && <div style={{ fontSize: 15, marginBottom: 6 }}>{status}</div>}
-    {alarms.length > 0 ? (
-      <div style={{ fontSize: 15, marginBottom: 6, color: '#f87171' }}>
-        Alarms: {alarms.join(', ')}
-      </div>
-    ) : (
-      <div style={{ fontSize: 15, marginBottom: 6, color: '#fbbf24' }}>
-        No Alarms
-      </div>
-    )}
-    {children}
-  </div>
-);
+  );
+};
