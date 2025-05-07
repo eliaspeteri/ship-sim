@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { TopNavigationBar } from '../common/TopNavigationBar';
 import { RightStatusPanel } from '../common/RightStatusPanel';
+import { RouteInfoPanel } from '../common/RouteInfoPanel';
 
 // --- Mock Data ---
 const mockCoastline = [
@@ -1009,6 +1010,25 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     { label: 'GPS', value: 'OK' },
   ];
 
+  // --- Route Info Section (mocked for now) ---
+  const routeInfo: Array<{ label: string; value: string }> = [
+    { label: 'Route', value: 'Helsinki → Tallinn' },
+    { label: 'Plan SPD', value: '16.0 kn' },
+    { label: 'Plan CRS', value: '187.0°' },
+    { label: 'CRS to STR', value: '187.5°' },
+    { label: 'CH limit', value: '50 m' },
+    { label: 'Off track', value: '12 m' },
+    { label: 'HAND', value: 'AUTO' },
+    { label: 'To WPT', value: 'WP3' },
+    { label: 'Dist WPT', value: '2.1 nm' },
+    { label: 'Time', value: '00:08' },
+    { label: 'Turn RAD', value: '0.2 nm' },
+    { label: 'Turn rate', value: '12°/min' },
+    { label: 'UKC', value: '8.5 m' },
+    { label: 'Next WPT', value: 'WP4' },
+    { label: 'Next', value: '195.0°' },
+  ];
+
   return (
     <div
       style={{
@@ -1403,7 +1423,9 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
             <span>Heading: {ship.heading?.toFixed(1)}°</span>
           </div>
         </div>
-        <RightStatusPanel navData={navData} />
+        <RightStatusPanel navData={navData}>
+          <RouteInfoPanel routeInfo={routeInfo} />
+        </RightStatusPanel>
       </div>
     </div>
   );
