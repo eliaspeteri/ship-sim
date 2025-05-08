@@ -28,8 +28,6 @@ interface OceanProps {
   size: number;
   resolution: number;
   position: [number, number, number];
-  waterColor: string;
-  distortionScale: number;
 }
 
 const NewOcean = dynamic(() => import('./Ocean/NewOcean'), { ssr: false });
@@ -43,8 +41,6 @@ const LowDetailNewOcean = dynamic(
           size={5000}
           resolution={64}
           position={[0, -0.5, 0]}
-          waterColor="#001e0f"
-          distortionScale={3.7}
           {...props}
         />
       ),
@@ -243,44 +239,11 @@ export default function Scene({ vesselPosition }: SceneProps) {
     setLowPerformanceMode(isLow);
   }, []);
 
-  // Calculate water color based on environment conditions
-  const getWaterColor = useCallback(() => {
-    // Base deep ocean color
-    let baseColor = '#001e0f';
-
-    // Adjust color based on time of day
-    if (environment.timeOfDay < 6 || environment.timeOfDay > 18) {
-      // Darker at night
-      baseColor = '#00090a';
-    } else if (environment.timeOfDay < 8 || environment.timeOfDay > 16) {
-      // Dawn/dusk tint
-      baseColor = '#00121a';
-    }
-
-    // Adjust for stormy conditions
-    if (environment.seaState > 5) {
-      baseColor = '#001620'; // Darker, stormier color
-    }
-
-    return baseColor;
-  }, [environment.timeOfDay, environment.seaState]);
-
-  // Calculate distortion scale based on sea state
-  const getDistortionScale = useCallback(() => {
-    // Base distortion
-    const baseDistortion = 3.7;
-
-    // Increase distortion with sea state
-    return baseDistortion * (1 + environment.seaState * 0.15);
-  }, [environment.seaState]);
-
   // Default ocean props with higher resolution for better wave definition
   const oceanProps: OceanProps = {
     size: 10000,
     resolution: lowPerformanceMode ? 128 : 1024, // Higher resolution for more detailed waves
-    position: [0, -0.5, 0],
-    waterColor: getWaterColor(),
-    distortionScale: getDistortionScale(),
+    position: [vesselPosition.x, -0.5, vesselPosition.y],
   };
 
   // Determine which ocean component to use based on performance
