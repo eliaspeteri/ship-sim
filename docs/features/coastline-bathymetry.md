@@ -575,8 +575,8 @@ graph TD
     C --> D[Advanced Blending & Merging]
     D --> E[Generate Raster Tiles]
     E --> F[Serve Tiles via Docker TileServer]
-    F --> G1[2D Client (MapLibre/OpenLayers)]
-    F --> G2[3D Client (Three.js)]
+    F --> G2D[2D Client: MapLibre/OpenLayers]
+    F --> G3D[3D Client: Three.js]
 ```
 
 ---
