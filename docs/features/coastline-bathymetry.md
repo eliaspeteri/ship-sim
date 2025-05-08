@@ -774,11 +774,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    DataSources[DEM, Bathymetry, Coastline Data] --> Preprocessing[Preprocessing & Blending Scripts]
-    Preprocessing --> Tiles[Raster/Vector Tiles]
+    DataSources[DEM and Bathymetry and Coastline Data] --> Preprocessing[Preprocessing and Blending Scripts]
+    Preprocessing --> Tiles[Raster or Vector Tiles]
     Tiles --> TileServer[Docker Tile Server]
-    TileServer --> WebClient[2D/3D Web Client]
-    TileServer --> GameEngine[Game Engine/Simulator (optional)]
+    TileServer --> WebClient[2D or 3D Web Client]
+    TileServer --> GameEngine[Game Engine or Simulator]
 ```
 
 ---
