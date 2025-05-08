@@ -37,18 +37,19 @@ interface NewOceanProps {
   position?: [number, number, number];
 }
 
+/**
+ * Beaufort scale calculation based on wind speed.
+ * @see https://en.wikipedia.org/wiki/Beaufort_scale
+ * Formula is B = (v/0.836)^(2/3)
+ * @param windSpeed - Wind speed in m/s
+ */
 function calculateBeaufortScale(windSpeed: number): number {
-  if (windSpeed < 0.5) return 0;
-  if (windSpeed < 1.5) return 1;
-  if (windSpeed < 3.3) return 2;
-  if (windSpeed < 5.5) return 3;
-  if (windSpeed < 8.0) return 4;
-  if (windSpeed < 10.8) return 5;
-  if (windSpeed < 13.9) return 6;
-  if (windSpeed < 17.2) return 7;
-  if (windSpeed < 20.8) return 8;
-  if (windSpeed < 24.5) return 9;
-  return Math.min(9, Math.floor((windSpeed - 24.5) / 4) + 9);
+  const beaufortScale = Math.pow(windSpeed / 0.836, 2 / 3);
+  return Math.min(Math.max(beaufortScale, 0), 12); // Clamp to [0, 12]
+}
+
+function quantize(value: number, step: number): number {
+  return Math.round(value / step) * step;
 }
 
 function NewOcean({
