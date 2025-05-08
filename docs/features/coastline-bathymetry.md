@@ -1,7 +1,10 @@
-# Table of Contents
+# Importing and Using Multi-Resolution Coastline and Bathymetric Data
+
+## Table of Contents
+
 1. [Goal](#goal)
 2. [Why](#why)
-3. [Smallest Possible Steps](#smallest-possible-steps)
+3. [Feature Details](#feature-details)
 4. [Alternative Path: Using External APIs and Public Tile Servers](#alternative-path-using-external-apis-and-public-tile-servers)
 5. [3D Graphics and Heightmaps Integration](#3d-graphics-and-heightmaps-integration)
 6. [Data Source Comparison: Pros and Cons](#data-source-comparison-pros-and-cons)
@@ -22,57 +25,64 @@
 
 ---
 
-# Importing and Using Multi-Resolution Coastline and Bathymetric Data
-
 ## Goal
+
 Integrate global coastline and bathymetric data into the ship simulator, supporting multiple levels of detail (LOD) for efficient rendering and network performance. The system should allow dynamic loading of data based on the user's viewport and zoom level, similar to industry standards in GIS and game development.
 
 ## Why
+
 - Large GeoJSON files (e.g., 18MB for 1:10m coastlines) are too big for real-time or networked applications.
 - Efficient rendering and data transfer are critical for ECDIS and navigation systems.
 - Multi-resolution data enables smooth zooming and panning, with appropriate detail at each scale.
 
-## Smallest Possible Steps
+## Feature Details
 
-### 1. Research and Select Data Formats
+### Research and Select Data Formats
+
 - Identify available coastline and bathymetric datasets (e.g., Natural Earth, GEBCO).
 - Research vector tile formats (.mvt, .pbf) and their specifications.
 - Compare preprocessing tools: Tippecanoe, mapshaper, GDAL, and document their pros/cons.
 - Decide on the optimal data format and preprocessing toolchain.
 
-### 2. Preprocess Source Data
+### Preprocess Source Data
+
 - Download source GeoJSON and bathymetric data.
 - For each desired resolution (1:110m, 1:50m, 1:10m):
   - Simplify geometries for the target zoom level.
   - Convert simplified data to vector tiles using the chosen tool.
   - Validate the output tiles for correctness and completeness.
 
-### 3. Set Up Tile Server or Static Hosting
+### Set Up Tile Server or Static Hosting
+
 - Choose between a dynamic tile server or static file hosting.
 - Install and configure the chosen tile server (e.g., TileServer GL) or set up static hosting.
 - Organize generated tiles into folders by zoom level and region.
 - Test tile serving locally and/or remotely.
 
-### 4. Client Integration
+### Client Integration
+
 - Select a mapping library with vector tile support (e.g., MapLibre GL JS, OpenLayers).
 - Integrate the mapping library into the ECDIS/chart system.
 - Implement dynamic tile loading based on viewport and zoom.
 - Implement automatic LOD switching as the user zooms in/out.
 - Style the coastline and bathymetry layers for clarity and performance.
 
-### 5. Performance Optimization
+### Performance Optimization
+
 - Enable gzip/deflate compression for tile delivery on the server/hosting.
 - Profile rendering performance in the client (FPS, memory usage).
 - Profile network usage (tile size, load times).
 - Optimize tile size, geometry complexity, and rendering code as needed.
 
-### 6. Testing and Validation
+### Testing and Validation
+
 - Test tile loading and rendering in various regions and zoom levels.
 - Validate the visual accuracy of coastlines and bathymetry.
 - Test performance under different network conditions.
 - Gather feedback from users and stakeholders.
 
-### 7. Documentation and Maintenance
+### Documentation and Maintenance
+
 - Document the data pipeline: source, preprocessing, tile generation, hosting.
 - Document integration steps for the client.
 - Write update procedures for new data releases.
@@ -82,7 +92,8 @@ Integrate global coastline and bathymetric data into the ship simulator, support
 
 ## Alternative Path: Using External APIs and Public Tile Servers
 
-### Goal
+### Goal of Alternative Path
+
 Leverage existing public APIs and tile servers to provide coastline, bathymetric, and elevation data for both 2D and 3D graphics, minimizing infrastructure and preprocessing work.
 
 ### Minimal Required Steps
@@ -115,7 +126,8 @@ Leverage existing public APIs and tile servers to provide coastline, bathymetric
 
 ## 3D Graphics and Heightmaps Integration
 
-### Goal
+### Goal of 3D Graphics Integration
+
 Enable the use of bathymetric and elevation data for 3D graphics in the simulator, supporting realistic underwater and land terrain visualization around water bodies.
 
 ### Smallest Required Steps
@@ -157,6 +169,7 @@ Enable the use of bathymetric and elevation data for 3D graphics in the simulato
 ## Data Source Comparison: Pros and Cons
 
 ### GEBCO (General Bathymetric Chart of the Oceans)
+
 - **Pros:**
   - Truly global coverage (oceans and land)
   - Freely available, regularly updated
@@ -167,6 +180,7 @@ Enable the use of bathymetric and elevation data for 3D graphics in the simulato
   - Some artifacts in land/sea transitions
 
 ### SRTM30_PLUS
+
 - **Pros:**
   - Combines SRTM land elevation with ocean bathymetry
   - Higher land resolution (SRTM: ~30m, but SRTM30_PLUS is resampled to 30 arc-seconds, ~1km)
@@ -177,6 +191,7 @@ Enable the use of bathymetric and elevation data for 3D graphics in the simulato
   - May have voids or artifacts in mountainous/coastal regions
 
 ### ETOPO1/ETOPO2022
+
 - **Pros:**
   - Global coverage, including polar regions
   - Integrates multiple sources (GEBCO, SRTM, ICESat, etc.)
@@ -193,7 +208,7 @@ Enable the use of bathymetric and elevation data for 3D graphics in the simulato
 
 1. **Reproject to Common Grid**
    - Use GDAL or QGIS to reproject all datasets to the same CRS (e.g., WGS84) and resolution.
-     - https://gdal.org/en/stable/programs/gdalwarp.html
+     - <https://gdal.org/en/stable/programs/gdalwarp.html>
 
 2. **Define Coverage Priority**
    - Use SRTM for land (where available, for high-res terrain).
@@ -206,7 +221,7 @@ Enable the use of bathymetric and elevation data for 3D graphics in the simulato
 
 4. **Merge Rasters**
    - Use gdal_merge.py or QGIS raster calculator to combine rasters, prioritizing higher-resolution data.
-     - https://gdal.org/en/stable/programs/gdal_merge.html
+     - <https://gdal.org/en/stable/programs/gdal_merge.html>
    - Fill voids or missing data with the next-best source.
 
 5. **Validate and Clean Up**
@@ -216,15 +231,16 @@ Enable the use of bathymetric and elevation data for 3D graphics in the simulato
 6. **Export and Tile**
    - Export the merged DEM as GeoTIFF or other suitable format.
    - Use tiling tools (e.g., gdal2tiles, Tippecanoe for vector, or custom scripts) to generate tiles for serving.
-     - https://gdal.org/en/stable/programs/gdal2tiles.html
-     - https://github.com/felt/tippecanoe
+     - <https://gdal.org/en/stable/programs/gdal2tiles.html>
+     - <https://github.com/felt/tippecanoe>
 
 ### Tools
+
 - GDAL (gdalwarp, gdal_merge.py)
 - QGIS raster calculator
-  - https://download.qgis.org/qgisdata/QGIS-Documentation-2.6/live/html/en/docs/user_manual/working_with_raster/raster_calculator.html
+  - <https://download.qgis.org/qgisdata/QGIS-Documentation-2.6/live/html/en/docs/user_manual/working_with_raster/raster_calculator.html>
 - Custom Python scripts (e.g., rasterio, numpy)
-  - https://rasterio.readthedocs.io/en/stable/
+  - <https://rasterio.readthedocs.io/en/stable/>
 
 ---
 
@@ -233,6 +249,7 @@ Enable the use of bathymetric and elevation data for 3D graphics in the simulato
 This section provides a ready-to-run workflow for merging SRTM, GEBCO/ETOPO1, and using the Natural Earth coastline as a seam, plus instructions for tiling and running a tile server in Docker.
 
 ### Prerequisites
+
 - Linux system with `gdal`, `python3`, and `pip` installed
 - Downloaded datasets:
   - SRTM (GeoTIFF)
@@ -240,7 +257,8 @@ This section provides a ready-to-run workflow for merging SRTM, GEBCO/ETOPO1, an
   - Natural Earth coastline (GeoJSON, 1:110m)
 
 ### Directory Structure Example
-```
+
+```plaintext
 data/
   srtm.tif
   gebco.tif
@@ -249,6 +267,7 @@ output/
 ```
 
 ### Bash Script: Merge and Tile DEMs
+
 Save as `scripts/merge_and_tile.sh` and make executable (`chmod +x scripts/merge_and_tile.sh`).
 
 ```bash
@@ -388,8 +407,8 @@ python3 scripts/merge_and_blend.py
 
 A simple and popular choice is [TileServer GL](https://github.com/maptiler/tileserver-gl) for vector/raster tiles. Here’s a minimal setup:
 
-### 1. Docker Compose File (docker-compose.yml)
-Add to your project root:
+### Docker Compose File (docker-compose.yml)
+
 ```yaml
 version: '3'
 services:
@@ -403,13 +422,15 @@ services:
       - TILESERVER_CONFIG=/data/config.json
 ```
 
-### 2. Start the Server
+### Start the Server
+
 ```bash
 docker-compose up -d
 echo "TileServer running at http://localhost:8080"
 ```
 
-### 3. Access Tiles
+### Access Tiles
+
 - Raster tiles: `http://localhost:8080/data/{z}/{x}/{y}.png`
 - Vector tiles (if generated): `http://localhost:8080/data/{z}/{x}/{y}.pbf`
 
@@ -418,9 +439,11 @@ echo "TileServer running at http://localhost:8080"
 ## Client Integration: 2D and 3D (Detailed)
 
 ### 2D Client (MapLibre GL JS / OpenLayers)
-1. Ensure your tile server is running and accessible (e.g., http://localhost:8080/data/{z}/{x}/{y}.png).
+
+1. Ensure your tile server is running and accessible (e.g., <http://localhost:8080/data/{z}/{x}/{y}.png>).
 2. In your client code, add a raster tile layer:
    - **MapLibre GL JS**:
+
      ```js
      map.addSource('bathymetry', {
        type: 'raster',
@@ -434,7 +457,9 @@ echo "TileServer running at http://localhost:8080"
        paint: {}
      });
      ```
+
    - **OpenLayers**:
+
      ```js
      import TileLayer from 'ol/layer/Tile';
      import XYZ from 'ol/source/XYZ';
@@ -447,6 +472,7 @@ echo "TileServer running at http://localhost:8080"
      ```
 
 ### 3D Client (Three.js)
+
 1. Use a tile loader (e.g., [three.js examples/terrain](https://threejs.org/examples/?q=terrain#webgl_geometry_terrain)) or custom code to fetch and apply raster tiles as heightmaps.
 2. For each visible tile:
    - Fetch the PNG tile from the server.
@@ -456,7 +482,8 @@ echo "TileServer running at http://localhost:8080"
 3. For seamless LOD, load higher-resolution tiles as the camera zooms in.
 4. Optionally, overlay vector coastline data for visual clarity.
 
-#### Example (Three.js, pseudo-code):
+#### Example (Three.js, pseudo-code)
+
 ```js
 const loader = new THREE.TextureLoader();
 loader.load('http://localhost:8080/data/5/17/10.png', texture => {
@@ -470,24 +497,29 @@ loader.load('http://localhost:8080/data/5/17/10.png', texture => {
 ## FAQ, Troubleshooting, and Best Practices
 
 ### Data Licensing and Attribution
+
 - Always review and comply with the licensing terms of SRTM, GEBCO, ETOPO1, and Natural Earth datasets.
 - When using external APIs or third-party tiles, provide attribution as required by the provider.
 
 ### Coordinate Systems and Projections
+
 - Ensure all datasets are reprojected to a common CRS (typically WGS84/EPSG:4326) before merging or tiling.
 - Be aware of projection distortions, especially at high latitudes.
 
 ### Performance and Security
+
 - For production, consider using a CDN or caching proxy in front of your tile server.
 - Secure your Docker containers and restrict access to the tile server as needed.
 - Monitor tile server performance and disk usage.
 
 ### Troubleshooting
+
 - If tiles do not align, check CRS, resolution, and tile origin.
 - If the tile server fails to start, check Docker logs and file permissions.
 - For rendering artifacts at seams, adjust the buffer size in the blending script or inspect the coastline mask.
 
 ### Best Practices
+
 - Document your data pipeline and update schedule.
 - Automate data downloads and processing where possible.
 - Regularly validate the visual output in both 2D and 3D clients.
@@ -495,24 +527,29 @@ loader.load('http://localhost:8080/data/5/17/10.png', texture => {
 
 ---
 
-# Quickstart
+## Quickstart
 
 Follow these steps to get up and running quickly:
+
 1. Clone the repository and install dependencies.
 2. Download and prepare the required datasets (SRTM, GEBCO, Natural Earth coastline).
 3. Run the automated data download and blending script:
+
    ```bash
    bash scripts/download_and_update.sh
    ```
+
 4. Start the tile server in Docker:
+
    ```bash
    docker-compose up -d
    ```
+
 5. Integrate the tiles into your 2D or 3D client as described below.
 
 ---
 
-# Status and Milestones
+## Status and Milestones
 
 - **Last updated:** May 8, 2025
 - **Current status:** End-to-end workflow implemented, advanced blending and automation in place, client integration documented.
@@ -524,7 +561,8 @@ Follow these steps to get up and running quickly:
 
 ---
 
-# Glossary
+## Glossary
+
 - **DEM:** Digital Elevation Model
 - **LOD:** Level of Detail
 - **CRS:** Coordinate Reference System
@@ -536,7 +574,8 @@ Follow these steps to get up and running quickly:
 
 ---
 
-# How to Contribute
+## How to Contribute
+
 - Fork the repository and create a feature branch.
 - Make your changes and ensure all scripts and documentation are updated.
 - Run the validation checklist below before submitting a pull request.
@@ -544,39 +583,43 @@ Follow these steps to get up and running quickly:
 
 ---
 
-# Validation and Test Checklist
+## Validation and Test Checklist
+
 - [ ] All scripts run without errors on a clean Linux environment.
 - [ ] Tiles are generated and served correctly at all zoom levels.
 - [ ] Coastline blending is visually smooth at land/sea boundaries.
 - [ ] 2D and 3D clients load and render tiles as expected.
 - [ ] Data sources are up to date and attribution is provided.
-- [ ] Docker tile server starts and serves tiles at http://localhost:8080.
+- [ ] Docker tile server starts and serves tiles at <http://localhost:8080>.
 - [ ] Documentation is up to date and clear for new contributors.
 
 ---
 
-# Monitoring, Logging, and Production Notes
+## Monitoring, Logging, and Production Notes
+
 - Use Docker logs to monitor the tile server:
+
   ```bash
   docker-compose logs -f tileserver
   ```
+
 - For production, consider using a CDN or caching proxy in front of the tile server.
 - Monitor disk usage in the output/tiles directory and set up alerts if needed.
 - Pin versions of Python, GDAL, and other dependencies in your scripts for reproducibility.
 
 ---
 
-# Summary Diagram
+## Summary Diagram
 
 ```mermaid
 graph TD
-    A[Download Datasets] --> B[Preprocess & Reproject]
-    B --> C[Rasterize Coastline]
-    C --> D[Advanced Blending & Merging]
-    D --> E[Generate Raster Tiles]
-    E --> F[Serve Tiles via Docker TileServer]
-    F --> G2D[2D Client: MapLibre/OpenLayers]
-    F --> G3D[3D Client: Three.js]
+    DownloadDatasets[Download Datasets] --> PreprocessReproject[Preprocess and Reproject]
+    PreprocessReproject --> RasterizeCoastline[Rasterize Coastline]
+    RasterizeCoastline --> AdvancedBlendingMerging[Advanced Blending and Merging]
+    AdvancedBlendingMerging --> GenerateRasterTiles[Generate Raster Tiles]
+    GenerateRasterTiles --> ServeTilesDocker[Serve Tiles via Docker TileServer]
+    ServeTilesDocker --> Client2D[2D Client: MapLibre or OpenLayers]
+    ServeTilesDocker --> Client3D[3D Client: Three.js]
 ```
 
 ---
