@@ -7251,6 +7251,10 @@
   call $assembly/index/VesselState#get:r
   local.get $safeDt
   f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:r
+  call $~lib/math/NativeMath.sign
+  f64.mul
   f64.add
   call $assembly/index/VesselState#set:psi
   local.get $vessel

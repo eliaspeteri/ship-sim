@@ -1104,7 +1104,7 @@ export function updateVesselState(
   const yawDot = netMomentYaw / inertiaYaw;
 
   // Update heading with normalization
-  vessel.psi += vessel.r * safeDt;
+  vessel.psi += vessel.r * safeDt * Math.sign(vessel.r);
 
   // Normalize heading to [0, 2π) range
   // Use if statements for better branch coverage
