@@ -131,7 +131,7 @@ function NewOcean({
       peakThreshold,
       troughThreshold,
     };
-  }, [seaState, windSpeed]);
+  }, [seaState, quantize(windSpeed, 0.1)]);
 
   const waterColors = useMemo(() => {
     const dayFactor = Math.max(
