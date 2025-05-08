@@ -1,3 +1,20 @@
+# Table of Contents
+1. [Goal](#goal)
+2. [Why](#why)
+3. [Smallest Possible Steps](#smallest-possible-steps)
+4. [Alternative Path: Using External APIs and Public Tile Servers](#alternative-path-using-external-apis-and-public-tile-servers)
+5. [3D Graphics and Heightmaps Integration](#3d-graphics-and-heightmaps-integration)
+6. [Data Source Comparison: Pros and Cons](#data-source-comparison-pros-and-cons)
+7. [Merging Data Sources: Step-by-Step Workflow](#merging-data-sources-step-by-step-workflow)
+8. [Automated DEM Merging and Tiling Workflow](#automated-dem-merging-and-tiling-workflow)
+9. [Advanced Blending Script (Python)](#advanced-blending-script-python)
+10. [Automated Data Download and Update Script (Bash)](#automated-data-download-and-update-script-bash)
+11. [Running a Tile Server in Docker](#running-a-tile-server-in-docker)
+12. [Client Integration: 2D and 3D (Detailed)](#client-integration-2d-and-3d-detailed)
+13. [FAQ, Troubleshooting, and Best Practices](#faq-troubleshooting-and-best-practices)
+
+---
+
 # Importing and Using Multi-Resolution Coastline and Bathymetric Data
 
 ## Goal
@@ -89,34 +106,6 @@ Leverage existing public APIs and tile servers to provide coastline, bathymetric
 
 ---
 
-### Decision Points: Pros and Cons
-
-- **Vector Tiles (.mvt, .pbf)**
-  - Pros: Small, styleable, efficient for 2D/3D vector data, widely supported.
-  - Cons: Not all APIs provide elevation/bathymetry as vector attributes; may require custom processing for 3D.
-
-- **Raster Tiles (PNG, JPEG)**
-  - Pros: Directly usable for heightmaps and textures, simple to integrate.
-  - Cons: Larger files, less flexible for styling, fixed resolution.
-
-- **Quantized Mesh (e.g., Cesium format)**
-  - Pros: Highly efficient for 3D terrain, supports LOD, optimized streaming.
-  - Cons: Requires specific client support (e.g., CesiumJS, custom loaders for Three.js), less general-purpose.
-
-- **External APIs**
-  - Pros: No need to preprocess or host data, quick to prototype, access to up-to-date global datasets.
-  - Cons: Potential licensing/cost issues, dependency on third-party uptime, limited customization, possible rate limits.
-
-- **Self-Hosted Tiles**
-  - Pros: Full control, can preprocess for custom needs, no external dependencies.
-  - Cons: Requires infrastructure, ongoing maintenance, initial setup effort.
-
----
-
-This alternative path is suitable for rapid prototyping or when infrastructure resources are limited. For production or custom requirements, consider self-hosting and preprocessing as described in the main workflow above.
-
----
-
 ## 3D Graphics and Heightmaps Integration
 
 ### Goal
@@ -190,6 +179,8 @@ Enable the use of bathymetric and elevation data for 3D graphics in the simulato
   - Lower resolution than SRTM for land
   - May smooth out sharp features
   - Some inconsistencies at land/sea boundaries
+
+---
 
 ## Merging Data Sources: Step-by-Step Workflow
 
@@ -281,48 +272,6 @@ gdal_calc.py -A "$SRTM" -B "$OUTDIR/gebco_resampled.tif" -C "$MASK" --outfile="$
 gdal2tiles.py -z 0-7 "$MERGED" "$TILES"
 
 echo "Merging and tiling complete. Tiles in $TILES"
-```
-
-### Python Alternative (rasterio)
-If you prefer Python, see below for a similar workflow using rasterio and numpy. Save as `scripts/merge_and_tile.py`.
-
-```python
-import rasterio
-import numpy as np
-from rasterio.features import rasterize
-from rasterio.warp import reproject, Resampling
-from osgeo import gdal
-import subprocess
-
-# Paths
-srtm = 'data/srtm.tif'
-gebco = 'data/gebco.tif'
-coastline = 'data/coastline.geojson'
-merged = 'output/merged_dem.tif'
-
-# 1. Open SRTM as reference
-dst = rasterio.open(srtm)
-profile = dst.profile
-
-# 2. Reproject GEBCO to match SRTM
-gdal.Warp('output/gebco_resampled.tif', gebco, format='GTiff', xRes=profile['transform'][0], yRes=-profile['transform'][4], dstSRS=profile['crs'])
-
-# 3. Rasterize coastline
-with rasterio.open(srtm) as ref:
-    shapes = [(f["geometry"], 1) for f in rasterio.open(coastline).read(1)]
-    mask = rasterize([(f["geometry"], 1) for f in rasterio.open(coastline)], out_shape=ref.shape, transform=ref.transform, fill=0, dtype='uint8')
-
-# 4. Merge DEMs
-with rasterio.open(srtm) as src_a, rasterio.open('output/gebco_resampled.tif') as src_b:
-    a = src_a.read(1)
-    b = src_b.read(1)
-    merged_dem = np.where(mask == 1, a, b)
-    with rasterio.open(merged, 'w', **profile) as dst:
-        dst.write(merged_dem, 1)
-
-# 5. Generate tiles (call gdal2tiles)
-subprocess.run(['gdal2tiles.py', '-z', '0-7', merged, 'output/tiles'])
-print('Merging and tiling complete.')
 ```
 
 ---
@@ -459,145 +408,7 @@ echo "TileServer running at http://localhost:8080"
 
 ---
 
-## Advanced 3D Client Integration (Three.js)
-
-This section provides a detailed, step-by-step workflow for loading and rendering DEM raster tiles as 3D terrain in Three.js. It covers tile fetching, decoding, mesh generation, and LOD management.
-
-### Prerequisites
-- Node.js and npm installed
-- three, @react-three/fiber, and supporting packages installed (if using React)
-- Tile server running and accessible (see above)
-
-### 1. Install Required Packages
-If not already present:
-```bash
-npm install three
-npm install @react-three/fiber @react-three/drei
-```
-
-### 2. Tile Fetching and Decoding
-- For each visible tile (z, x, y):
-  1. Construct the tile URL: `http://localhost:8080/data/{z}/{x}/{y}.png`
-  2. Fetch the PNG tile using fetch or an image loader.
-  3. Decode the PNG to a heightmap array. In the browser, use an offscreen canvas:
-
-```js
-async function fetchHeightmap(url) {
-  return new Promise((resolve, reject) => {
-    const img = new window.Image();
-    img.crossOrigin = 'Anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      const data = ctx.getImageData(0, 0, img.width, img.height).data;
-      // Convert RGBA to height (assuming grayscale PNG)
-      const heightmap = new Float32Array(img.width * img.height);
-      for (let i = 0; i < img.width * img.height; i++) {
-        heightmap[i] = data[i * 4]; // 0-255, scale as needed
-      }
-      resolve({ heightmap, width: img.width, height: img.height });
-    };
-    img.onerror = reject;
-    img.src = url;
-  });
-}
-```
-
-### 3. Mesh Generation
-- For each tile, create a PlaneGeometry mesh and displace vertices according to the heightmap:
-
-```js
-function createTerrainMesh(heightmap, width, height, scale = 1, zScale = 1) {
-  const geometry = new THREE.PlaneGeometry(scale, scale, width - 1, height - 1);
-  const vertices = geometry.attributes.position;
-  for (let i = 0; i < vertices.count; i++) {
-    // Map 1D index to 2D
-    const ix = i % width;
-    const iy = Math.floor(i / width);
-    const h = heightmap[iy * width + ix];
-    vertices.setZ(i, h * zScale); // zScale to exaggerate or normalize
-  }
-  geometry.computeVertexNormals();
-  return geometry;
-}
-```
-
-### 4. Positioning Tiles
-- Position each mesh in world coordinates based on its tile indices (z, x, y):
-
-```js
-function tileToWorld(z, x, y, tileSize = 256, scale = 1) {
-  // Convert tile indices to world coordinates (Web Mercator projection)
-  const n = Math.pow(2, z);
-  const lon = (x / n) * 360 - 180;
-  const lat = (Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) * 180) / Math.PI;
-  // Convert lat/lon to your world coordinates as needed
-  // For a flat map, you might use x*scale, y*scale
-  return { x: x * scale, y: y * scale };
-}
-```
-
-### 5. LOD Management
-- As the camera zooms in/out, load higher/lower zoom level tiles.
-- Unload meshes for tiles that are no longer visible.
-- Optionally, use a quadtree or similar structure for efficient tile management.
-
-### 6. Example Integration (React + Three.js)
-
-```jsx
-import { useEffect, useRef } from 'react';
-import * as THREE from 'three';
-
-function TerrainTile({ z, x, y, scale, zScale }) {
-  const meshRef = useRef();
-  useEffect(() => {
-    let mounted = true;
-    fetchHeightmap(`http://localhost:8080/data/${z}/${x}/${y}.png`).then(({ heightmap, width, height }) => {
-      if (!mounted) return;
-      const geometry = createTerrainMesh(heightmap, width, height, scale, zScale);
-      meshRef.current.geometry.dispose();
-      meshRef.current.geometry = geometry;
-    });
-    return () => { mounted = false; };
-  }, [z, x, y, scale, zScale]);
-  const { x: wx, y: wy } = tileToWorld(z, x, y, 256, scale);
-  return (
-    <mesh ref={meshRef} position={[wx, wy, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-      <planeGeometry args={[scale, scale, 255, 255]} />
-      <meshStandardMaterial color="#b7c9a7" wireframe={false} />
-    </mesh>
-  );
-}
-```
-
-### 7. Overlaying Coastlines
-- Fetch and render vector coastline data (e.g., as GeoJSON) on top of the terrain for visual clarity.
-- Use THREE.Line or THREE.LineSegments to draw coastlines.
-
-### 8. Required Commands (Full Workflow)
-
-```bash
-# 1. Download and update data
-tools/scripts/download_and_update.sh
-
-# 2. (Re)build tiles if needed (already triggered by script above)
-# 3. Start the tile server
-docker-compose up -d
-
-# 4. Start your development server (if using Next.js/React)
-npm run dev
-```
-
----
-
-This workflow enables high-performance, multi-resolution 3D terrain rendering in Three.js using your own DEM tiles, with smooth blending at coastlines and easy Docker-based serving.
-
----
-
-## Client Integration: Step-by-Step Instructions
+## Client Integration: 2D and 3D (Detailed)
 
 ### 2D Client (MapLibre GL JS / OpenLayers)
 1. Ensure your tile server is running and accessible (e.g., http://localhost:8080/data/{z}/{x}/{y}.png).
@@ -649,4 +460,40 @@ loader.load('http://localhost:8080/data/5/17/10.png', texture => {
 
 ---
 
-For more advanced integration (e.g., dynamic tile loading, caching, or blending multiple layers), see the documentation for your chosen mapping or 3D library. You can also refer to the ECDIS and OceanFloor components in your codebase for integration patterns.
+## FAQ, Troubleshooting, and Best Practices
+
+### Data Licensing and Attribution
+- Always review and comply with the licensing terms of SRTM, GEBCO, ETOPO1, and Natural Earth datasets.
+- When using external APIs or third-party tiles, provide attribution as required by the provider.
+
+### Coordinate Systems and Projections
+- Ensure all datasets are reprojected to a common CRS (typically WGS84/EPSG:4326) before merging or tiling.
+- Be aware of projection distortions, especially at high latitudes.
+
+### Performance and Security
+- For production, consider using a CDN or caching proxy in front of your tile server.
+- Secure your Docker containers and restrict access to the tile server as needed.
+- Monitor tile server performance and disk usage.
+
+### Troubleshooting
+- If tiles do not align, check CRS, resolution, and tile origin.
+- If the tile server fails to start, check Docker logs and file permissions.
+- For rendering artifacts at seams, adjust the buffer size in the blending script or inspect the coastline mask.
+
+### Best Practices
+- Document your data pipeline and update schedule.
+- Automate data downloads and processing where possible.
+- Regularly validate the visual output in both 2D and 3D clients.
+- Keep this documentation up to date as your workflow evolves.
+
+---
+
+# Summary Diagram
+
+*Consider adding a diagram or flowchart here to visualize the full data pipeline from download to client rendering.*
+
+---
+
+This workflow enables high-performance, multi-resolution 3D terrain rendering in Three.js using your own DEM tiles, with smooth blending at coastlines and easy Docker-based serving.
+
+---
