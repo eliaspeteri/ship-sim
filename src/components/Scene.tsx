@@ -82,49 +82,50 @@ function ContextLossHandler({ onContextLost }: { onContextLost: () => void }) {
 }
 
 // Performance monitoring component
+/**
+ * Monitors rendering performance using requestAnimationFrame for accurate FPS measurement.
+ * Calls onPerformanceDrop(true) if average FPS drops below 30, and onPerformanceDrop(false) if above 40.
+ * Uses a rolling window of the last 60 frames for smoothing.
+ */
 function PerformanceMonitor({
   onPerformanceDrop,
 }: {
   onPerformanceDrop: (isLow: boolean) => void;
 }) {
-  const frameRates: number[] = useRef<number[]>([]).current;
-  const lastTime = useRef(performance.now());
-  const checkInterval = useRef<number | null>(null);
+  const frameTimes = useRef<number[]>([]);
+  const lastFrame = useRef<number>(performance.now());
+  const rafId = useRef<number | null>(null);
+  const lastLow = useRef<boolean | null>(null);
 
   useEffect(() => {
-    const checkPerformance = () => {
+    let mounted = true;
+    function loop() {
+      if (!mounted) return;
       const now = performance.now();
-      const delta = now - lastTime.current;
-      lastTime.current = now;
-
-      // Calculate FPS (cap at 60)
+      const delta = now - lastFrame.current;
+      lastFrame.current = now;
       const fps = Math.min(1000 / delta, 60);
-
-      // Keep last 60 frames for analysis
-      frameRates.push(fps);
-      if (frameRates.length > 60) frameRates.shift();
-
-      // Get average FPS
+      frameTimes.current.push(fps);
+      if (frameTimes.current.length > 60) frameTimes.current.shift();
       const avgFps =
-        frameRates.reduce((sum, fps) => sum + fps, 0) / frameRates.length;
-
-      // Signal low performance if average drops below 30fps
-      if (avgFps < 30) {
+        frameTimes.current.reduce((sum, f) => sum + f, 0) /
+        frameTimes.current.length;
+      // Only call onPerformanceDrop if state changes
+      if (avgFps < 30 && lastLow.current !== true) {
         onPerformanceDrop(true);
-      } else if (avgFps > 40) {
+        lastLow.current = true;
+      } else if (avgFps > 40 && lastLow.current !== false) {
         onPerformanceDrop(false);
+        lastLow.current = false;
       }
-    };
-
-    // Check every second
-    checkInterval.current = window.setInterval(checkPerformance, 1000);
-
+      rafId.current = requestAnimationFrame(loop);
+    }
+    rafId.current = requestAnimationFrame(loop);
     return () => {
-      console.info('Cleaning up performance monitor...');
-      if (checkInterval.current) window.clearInterval(checkInterval.current);
+      mounted = false;
+      if (rafId.current !== null) cancelAnimationFrame(rafId.current);
     };
-  }, [frameRates, onPerformanceDrop]);
-
+  }, [onPerformanceDrop]);
   return null;
 }
 
