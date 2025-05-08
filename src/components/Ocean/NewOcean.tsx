@@ -6,37 +6,30 @@ import * as THREE from 'three';
 import useStore from '../../store';
 import waterVertexShader from './shaders/water.vert?raw';
 import waterFragmentShader from './shaders/water.frag?raw';
-
-// Constants for wave parameter calculation
-const BASE_AMPLITUDE = 6.95;
-const AMPLITUDE_PER_SEASTATE = 0.95;
-const MAX_AMPLITUDE = 9.5;
-
-const BASE_FREQUENCY = 1.5;
-const FREQUENCY_DROP_PER_SEASTATE = 0.1;
-const MIN_FREQUENCY = 0.2;
-
-const BASE_SPEED = 0.6;
-const SPEED_PER_WINDSPEED = 0.02;
-const MAX_SPEED = 1.0;
-
-const BASE_PERSISTENCE = 0.25;
-const PERSISTENCE_PER_SEASTATE = 0.03;
-const MAX_PERSISTENCE = 0.6;
-
-const BASE_LACUNARITY = 3.8;
-const LACUNARITY_PER_SEASTATE = 0.05;
-const MAX_LACUNARITY = 2.5;
-
-const BASE_PEAK_THRESHOLD = 0.02;
-const PEAK_THRESHOLD_PER_SEASTATE = 0.015;
-const MAX_PEAK_THRESHOLD = 0.2;
-
-const BASE_TROUGH_THRESHOLD = -0.005;
-const TROUGH_THRESHOLD_PER_SEASTATE = -0.005;
-const MIN_TROUGH_THRESHOLD = -0.1;
-
-const SMOOTHING_SPEED = 1.5;
+import {
+  MAX_AMPLITUDE,
+  BASE_AMPLITUDE,
+  AMPLITUDE_PER_SEASTATE,
+  MIN_FREQUENCY,
+  BASE_FREQUENCY,
+  FREQUENCY_DROP_PER_SEASTATE,
+  MAX_SPEED,
+  BASE_SPEED,
+  SPEED_PER_WINDSPEED,
+  MAX_PERSISTENCE,
+  BASE_PERSISTENCE,
+  PERSISTENCE_PER_SEASTATE,
+  MAX_LACUNARITY,
+  BASE_LACUNARITY,
+  LACUNARITY_PER_SEASTATE,
+  MAX_PEAK_THRESHOLD,
+  BASE_PEAK_THRESHOLD,
+  PEAK_THRESHOLD_PER_SEASTATE,
+  MIN_TROUGH_THRESHOLD,
+  BASE_TROUGH_THRESHOLD,
+  TROUGH_THRESHOLD_PER_SEASTATE,
+  SMOOTHING_SPEED,
+} from './constants';
 
 interface NewOceanProps {
   size?: number;
