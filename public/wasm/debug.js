@@ -71,6 +71,9 @@ export const {
   getVesselRudderAngle,
   getVesselBallastLevel,
   setVesselVelocity,
+  getVesselRollRate,
+  getVesselPitchRate,
+  getVesselYawRate,
   resetGlobalVessel,
 } = await (async url => instantiate(
   await (async () => {

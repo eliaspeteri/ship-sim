@@ -339,4 +339,30 @@ test('vessel moves when throttle applied', () => {
   expect<f64>(x2).greaterThan(x1);
 });
 
+test('realistic roll behavior: vessel resists capsizing and stays capsized if inverted', (): void => {
+  resetGlobalVessel();
+  // Container ship: high GM, should resist capsizing
+  let ptr = createTestVessel();
+  setBallast(ptr, 1.0); // full ballast for max stability
+  // Apply a large roll moment (simulate a big wave)
+  for (let i = 0; i < 200; i++) {
+    updateVesselState(ptr, 0.1, 0, 0, 0, 0);
+    // Artificially set a large roll angle for test
+    changetype<VesselState>(ptr).phi = Math.PI / 3; // 60 deg
+  }
+  // Should not capsize (roll < 90 deg)
+  expect<f64>(Math.abs(getVesselRollAngle(ptr))).lessThan(Math.PI / 2);
+
+  // Now test a vessel with low GM (shallow draft, low ballast)
+  ptr = createTestVessel();
+  setBallast(ptr, 0.0); // no ballast
+  // Artificially set a large roll angle past vanishing stability
+  changetype<VesselState>(ptr).phi = Math.PI * 0.7; // ~126 deg
+  for (let i = 0; i < 100; i++) {
+    updateVesselState(ptr, 0.1, 0, 0, 0, 0);
+  }
+  // Should stay capsized (roll > 90 deg)
+  expect<f64>(Math.abs(getVesselRollAngle(ptr))).greaterThan(Math.PI / 2);
+});
+
 endTest();

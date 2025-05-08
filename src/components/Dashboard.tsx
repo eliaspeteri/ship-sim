@@ -213,6 +213,31 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
                 °
               </div>
             </div>
+            {/* Angular velocity */}
+            <div className="bg-gray-800 p-2 rounded">
+              <div className="text-xs text-gray-400">Angular Velocity</div>
+              <div className="font-mono">
+                Yaw{' '}
+                {Math.round(
+                  (((angularVelocity?.yaw || 0) * 180) / Math.PI) % 360,
+                )}
+                °/s
+              </div>
+              <div>
+                Pitch{' '}
+                {Math.round(
+                  (((angularVelocity?.pitch || 0) * 180) / Math.PI) % 360,
+                )}
+                °/s
+              </div>
+              <div>
+                Roll{' '}
+                {Math.round(
+                  (((angularVelocity?.roll || 0) * 180) / Math.PI) % 360,
+                )}
+                °/s
+              </div>
+            </div>
           </div>
 
           {/* Environmental info */}

@@ -3,8 +3,8 @@
  (type $1 (func (param i32 f64)))
  (type $2 (func (param f64) (result f64)))
  (type $3 (func (param i32) (result i32)))
- (type $4 (func (param i32 i32)))
- (type $5 (func (param i32 f64) (result f64)))
+ (type $4 (func (param i32 f64) (result f64)))
+ (type $5 (func (param i32 i32)))
  (type $6 (func (param i32 f64 f64) (result f64)))
  (type $7 (func (param i32 i32) (result i32)))
  (type $8 (func (param i32 i32 i32 i32)))
@@ -150,6 +150,9 @@
  (export "getVesselRudderAngle" (func $assembly/index/getVesselRudderAngle))
  (export "getVesselBallastLevel" (func $assembly/index/getVesselBallastLevel))
  (export "setVesselVelocity" (func $assembly/index/setVesselVelocity))
+ (export "getVesselRollRate" (func $assembly/index/getVesselRollRate))
+ (export "getVesselPitchRate" (func $assembly/index/getVesselPitchRate))
+ (export "getVesselYawRate" (func $assembly/index/getVesselYawRate))
  (export "resetGlobalVessel" (func $assembly/index/resetGlobalVessel))
  (export "memory" (memory $0))
  (export "table" (table $0))
@@ -6180,6 +6183,158 @@
   local.get $GM
   return
  )
+ (func $assembly/index/calculateRealisticStabilizingMoment (param $vessel i32) (param $phi f64) (result f64)
+  (local $phiDeg f64)
+  (local $GM f64)
+  (local $gz f64)
+  (local $x f64)
+  (local $absPhi f64)
+  (local $maxGz f64)
+  (local $ratio f64)
+  (local $overAngle f64)
+  (local $maxNegative f64)
+  (local $value1 f64)
+  (local $value2 f64)
+  (local $negativeRatio f64)
+  (local $pastUpsideDown f64)
+  (local $value1|15 f64)
+  (local $value2|16 f64)
+  (local $recoveryRatio f64)
+  (local $x|18 f64)
+  (local $stabilizingMoment f64)
+  local.get $phi
+  f64.const 180
+  global.get $~lib/math/NativeMath.PI
+  f64.div
+  f64.mul
+  local.set $phiDeg
+  local.get $vessel
+  call $assembly/index/calculateGM
+  local.set $GM
+  block $~lib/math/NativeMath.abs|inlined.12 (result f64)
+   local.get $phiDeg
+   local.set $x
+   local.get $x
+   f64.abs
+   br $~lib/math/NativeMath.abs|inlined.12
+  end
+  local.set $absPhi
+  local.get $absPhi
+  f64.const 35
+  f64.le
+  if
+   local.get $GM
+   local.get $phi
+   call $~lib/math/NativeMath.sin
+   f64.mul
+   local.set $gz
+  else
+   local.get $absPhi
+   f64.const 70
+   f64.le
+   if
+    local.get $GM
+    f64.const 35
+    global.get $~lib/math/NativeMath.PI
+    f64.const 180
+    f64.div
+    f64.mul
+    call $~lib/math/NativeMath.sin
+    f64.mul
+    local.set $maxGz
+    f64.const 70
+    local.get $absPhi
+    f64.sub
+    f64.const 70
+    f64.const 35
+    f64.sub
+    f64.div
+    local.set $ratio
+    local.get $maxGz
+    local.get $ratio
+    f64.mul
+    local.set $gz
+   else
+    local.get $absPhi
+    f64.const 70
+    f64.sub
+    local.set $overAngle
+    f64.const -0.5
+    local.get $GM
+    f64.mul
+    local.set $maxNegative
+    local.get $absPhi
+    f64.const 180
+    f64.le
+    if
+     block $~lib/math/NativeMath.min|inlined.4 (result f64)
+      local.get $overAngle
+      f64.const 90
+      f64.const 70
+      f64.sub
+      f64.div
+      local.set $value1
+      f64.const 1
+      local.set $value2
+      local.get $value1
+      local.get $value2
+      f64.min
+      br $~lib/math/NativeMath.min|inlined.4
+     end
+     local.set $negativeRatio
+     local.get $maxNegative
+     local.get $negativeRatio
+     f64.mul
+     local.set $gz
+    else
+     local.get $absPhi
+     f64.const 180
+     f64.sub
+     local.set $pastUpsideDown
+     block $~lib/math/NativeMath.min|inlined.5 (result f64)
+      local.get $pastUpsideDown
+      f64.const 90
+      f64.div
+      local.set $value1|15
+      f64.const 1
+      local.set $value2|16
+      local.get $value1|15
+      local.get $value2|16
+      f64.min
+      br $~lib/math/NativeMath.min|inlined.5
+     end
+     local.set $recoveryRatio
+     local.get $maxNegative
+     f64.const 1
+     local.get $recoveryRatio
+     f64.sub
+     f64.mul
+     local.set $gz
+    end
+   end
+  end
+  local.get $phi
+  call $~lib/math/NativeMath.sign
+  block $~lib/math/NativeMath.abs|inlined.13 (result f64)
+   local.get $gz
+   local.set $x|18
+   local.get $x|18
+   f64.abs
+   br $~lib/math/NativeMath.abs|inlined.13
+  end
+  f64.mul
+  local.set $gz
+  local.get $gz
+  f64.neg
+  local.get $vessel
+  call $assembly/index/VesselState#get:mass
+  f64.mul
+  global.get $assembly/config/GRAVITY
+  f64.mul
+  local.set $stabilizingMoment
+  local.get $stabilizingMoment
+  return
+ )
  (func $assembly/index/VesselState#set:q (param $this i32) (param $q f64)
   local.get $this
   local.get $q
@@ -6189,6 +6344,160 @@
   local.get $this
   local.get $theta
   f64.store offset=40
+ )
+ (func $assembly/index/calculateRealisticPitchStabilizingMoment (param $vessel i32) (param $theta f64) (result f64)
+  (local $thetaDeg f64)
+  (local $leverArm f64)
+  (local $gz f64)
+  (local $x f64)
+  (local $absTheta f64)
+  (local $maxGz f64)
+  (local $ratio f64)
+  (local $overAngle f64)
+  (local $maxNegative f64)
+  (local $value1 f64)
+  (local $value2 f64)
+  (local $negativeRatio f64)
+  (local $pastUpsideDown f64)
+  (local $value1|15 f64)
+  (local $value2|16 f64)
+  (local $recoveryRatio f64)
+  (local $x|18 f64)
+  (local $stabilizingMoment f64)
+  local.get $theta
+  f64.const 180
+  global.get $~lib/math/NativeMath.PI
+  f64.div
+  f64.mul
+  local.set $thetaDeg
+  local.get $vessel
+  call $assembly/index/VesselState#get:length
+  f64.const 0.4
+  f64.mul
+  local.set $leverArm
+  block $~lib/math/NativeMath.abs|inlined.15 (result f64)
+   local.get $thetaDeg
+   local.set $x
+   local.get $x
+   f64.abs
+   br $~lib/math/NativeMath.abs|inlined.15
+  end
+  local.set $absTheta
+  local.get $absTheta
+  f64.const 20
+  f64.le
+  if
+   local.get $leverArm
+   local.get $theta
+   call $~lib/math/NativeMath.sin
+   f64.mul
+   local.set $gz
+  else
+   local.get $absTheta
+   f64.const 45
+   f64.le
+   if
+    local.get $leverArm
+    f64.const 20
+    global.get $~lib/math/NativeMath.PI
+    f64.const 180
+    f64.div
+    f64.mul
+    call $~lib/math/NativeMath.sin
+    f64.mul
+    local.set $maxGz
+    f64.const 45
+    local.get $absTheta
+    f64.sub
+    f64.const 45
+    f64.const 20
+    f64.sub
+    f64.div
+    local.set $ratio
+    local.get $maxGz
+    local.get $ratio
+    f64.mul
+    local.set $gz
+   else
+    local.get $absTheta
+    f64.const 45
+    f64.sub
+    local.set $overAngle
+    f64.const -0.5
+    local.get $leverArm
+    f64.mul
+    local.set $maxNegative
+    local.get $absTheta
+    f64.const 90
+    f64.le
+    if
+     block $~lib/math/NativeMath.min|inlined.6 (result f64)
+      local.get $overAngle
+      f64.const 90
+      f64.const 45
+      f64.sub
+      f64.div
+      local.set $value1
+      f64.const 1
+      local.set $value2
+      local.get $value1
+      local.get $value2
+      f64.min
+      br $~lib/math/NativeMath.min|inlined.6
+     end
+     local.set $negativeRatio
+     local.get $maxNegative
+     local.get $negativeRatio
+     f64.mul
+     local.set $gz
+    else
+     local.get $absTheta
+     f64.const 90
+     f64.sub
+     local.set $pastUpsideDown
+     block $~lib/math/NativeMath.min|inlined.7 (result f64)
+      local.get $pastUpsideDown
+      f64.const 90
+      f64.div
+      local.set $value1|15
+      f64.const 1
+      local.set $value2|16
+      local.get $value1|15
+      local.get $value2|16
+      f64.min
+      br $~lib/math/NativeMath.min|inlined.7
+     end
+     local.set $recoveryRatio
+     local.get $maxNegative
+     f64.const 1
+     local.get $recoveryRatio
+     f64.sub
+     f64.mul
+     local.set $gz
+    end
+   end
+  end
+  local.get $theta
+  call $~lib/math/NativeMath.sign
+  block $~lib/math/NativeMath.abs|inlined.16 (result f64)
+   local.get $gz
+   local.set $x|18
+   local.get $x|18
+   f64.abs
+   br $~lib/math/NativeMath.abs|inlined.16
+  end
+  f64.mul
+  local.set $gz
+  local.get $gz
+  f64.neg
+  local.get $vessel
+  call $assembly/index/VesselState#get:mass
+  f64.mul
+  global.get $assembly/config/GRAVITY
+  f64.mul
+  local.set $stabilizingMoment
+  local.get $stabilizingMoment
+  return
  )
  (func $assembly/index/VesselState#set:psi (param $this i32) (param $psi f64)
   local.get $this
@@ -6282,18 +6591,20 @@
   (local $heaveDot f64)
   (local $x|70 f64)
   (local $rollHydroDamping f64)
+  (local $extremeAngleFactor f64)
+  (local $x|73 f64)
+  (local $extremeAngleDamping f64)
   (local $rollDamping f64)
   (local $netMomentRoll f64)
   (local $rollDot f64)
-  (local $GM f64)
   (local $stabilizingMoment f64)
-  (local $x|77 f64)
+  (local $x|79 f64)
   (local $pitchHydroDamping f64)
   (local $pitchDamping f64)
   (local $netMomentPitch f64)
   (local $pitchDot f64)
   (local $pitchStabilizing f64)
-  (local $x|83 f64)
+  (local $x|85 f64)
   (local $yawHydroDamping f64)
   (local $yawDamping f64)
   (local $netMomentYaw f64)
@@ -6308,8 +6619,8 @@
   (local $deltaY f64)
   (local $fuelTankCapacity f64)
   (local $fuelConsumptionRate f64)
-  (local $value1|98 f64)
-  (local $value2|99 f64)
+  (local $value1|100 f64)
+  (local $value2|101 f64)
   (local $effectiveFuelRate f64)
   local.get $vesselPtr
   local.set $vessel
@@ -6533,7 +6844,7 @@
   if
    i32.const 6672
    i32.const 6784
-   i32.const 912
+   i32.const 1035
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6696,7 +7007,7 @@
   if
    i32.const 7104
    i32.const 6784
-   i32.const 985
+   i32.const 1108
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6717,7 +7028,7 @@
   if
    i32.const 7168
    i32.const 6784
-   i32.const 986
+   i32.const 1109
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6738,7 +7049,7 @@
   if
    i32.const 7248
    i32.const 6784
-   i32.const 990
+   i32.const 1113
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6752,7 +7063,7 @@
   if
    i32.const 7312
    i32.const 6784
-   i32.const 991
+   i32.const 1114
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6766,7 +7077,7 @@
   if
    i32.const 7392
    i32.const 6784
-   i32.const 992
+   i32.const 1115
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6780,7 +7091,7 @@
   if
    i32.const 7456
    i32.const 6784
-   i32.const 993
+   i32.const 1116
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6794,7 +7105,7 @@
   if
    i32.const 7520
    i32.const 6784
-   i32.const 994
+   i32.const 1117
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6808,7 +7119,7 @@
   if
    i32.const 7584
    i32.const 6784
-   i32.const 995
+   i32.const 1118
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6822,7 +7133,7 @@
   if
    i32.const 7648
    i32.const 6784
-   i32.const 996
+   i32.const 1119
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6838,7 +7149,7 @@
   if
    i32.const 7712
    i32.const 6784
-   i32.const 997
+   i32.const 1120
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -6891,7 +7202,7 @@
   if
    i32.const 7712
    i32.const 6784
-   i32.const 1008
+   i32.const 1131
    i32.const 3
    call $~lib/builtins/abort
    unreachable
@@ -7049,10 +7360,47 @@
   f64.mul
   local.set $rollHydroDamping
   local.get $vessel
+  call $assembly/index/VesselState#get:phi
+  call $~lib/math/NativeMath.sin
+  f64.const 2
+  call $~lib/math/NativeMath.pow
+  local.set $extremeAngleFactor
+  local.get $vessel
+  call $assembly/index/VesselState#get:p
+  f64.neg
+  block $~lib/math/NativeMath.abs|inlined.11 (result f64)
+   local.get $vessel
+   call $assembly/index/VesselState#get:p
+   local.set $x|73
+   local.get $x|73
+   f64.abs
+   br $~lib/math/NativeMath.abs|inlined.11
+  end
+  f64.mul
+  local.get $extremeAngleFactor
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:waterDensity
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:beam
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:beam
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:draft
+  f64.mul
+  f64.const 0.5
+  f64.mul
+  local.set $extremeAngleDamping
+  local.get $vessel
   call $assembly/index/VesselState#get:p
   f64.neg
   f64.const 0.9
   f64.mul
+  local.get $extremeAngleDamping
+  f64.sub
   local.set $rollDamping
   local.get $waveRoll
   local.get $rollDamping
@@ -7082,18 +7430,9 @@
   f64.add
   call $assembly/index/VesselState#set:phi
   local.get $vessel
-  call $assembly/index/calculateGM
-  local.set $GM
   local.get $vessel
   call $assembly/index/VesselState#get:phi
-  f64.neg
-  local.get $GM
-  f64.mul
-  local.get $vessel
-  call $assembly/index/VesselState#get:mass
-  f64.mul
-  global.get $assembly/config/GRAVITY
-  f64.mul
+  call $assembly/index/calculateRealisticStabilizingMoment
   local.set $stabilizingMoment
   local.get $vessel
   local.get $vessel
@@ -7108,13 +7447,13 @@
   local.get $vessel
   call $assembly/index/VesselState#get:q
   f64.neg
-  block $~lib/math/NativeMath.abs|inlined.11 (result f64)
+  block $~lib/math/NativeMath.abs|inlined.14 (result f64)
    local.get $vessel
    call $assembly/index/VesselState#get:q
-   local.set $x|77
-   local.get $x|77
+   local.set $x|79
+   local.get $x|79
    f64.abs
-   br $~lib/math/NativeMath.abs|inlined.11
+   br $~lib/math/NativeMath.abs|inlined.14
   end
   f64.mul
   local.get $vessel
@@ -7170,16 +7509,9 @@
   f64.add
   call $assembly/index/VesselState#set:theta
   local.get $vessel
+  local.get $vessel
   call $assembly/index/VesselState#get:theta
-  f64.neg
-  local.get $vessel
-  call $assembly/index/VesselState#get:length
-  f64.mul
-  local.get $vessel
-  call $assembly/index/VesselState#get:mass
-  f64.mul
-  f64.const 0.05
-  f64.mul
+  call $assembly/index/calculateRealisticPitchStabilizingMoment
   local.set $pitchStabilizing
   local.get $vessel
   local.get $vessel
@@ -7194,13 +7526,13 @@
   local.get $vessel
   call $assembly/index/VesselState#get:r
   f64.neg
-  block $~lib/math/NativeMath.abs|inlined.12 (result f64)
+  block $~lib/math/NativeMath.abs|inlined.17 (result f64)
    local.get $vessel
    call $assembly/index/VesselState#get:r
-   local.set $x|83
-   local.get $x|83
+   local.set $x|85
+   local.get $x|85
    f64.abs
-   br $~lib/math/NativeMath.abs|inlined.12
+   br $~lib/math/NativeMath.abs|inlined.17
   end
   f64.mul
   local.get $vessel
@@ -7454,13 +7786,13 @@
    local.set $fuelConsumptionRate
    block $~lib/math/NativeMath.max|inlined.5 (result f64)
     local.get $fuelConsumptionRate
-    local.set $value1|98
+    local.set $value1|100
     f64.const 0.01
     local.get $safeDt
     f64.mul
-    local.set $value2|99
-    local.get $value1|98
-    local.get $value2|99
+    local.set $value2|101
+    local.get $value1|100
+    local.get $value2|101
     f64.max
     br $~lib/math/NativeMath.max|inlined.5
    end
@@ -8030,7 +8362,7 @@
   if
    i32.const 7792
    i32.const 6784
-   i32.const 1244
+   i32.const 1386
    i32.const 5
    call $~lib/builtins/abort
    unreachable
@@ -8390,6 +8722,21 @@
   call $assembly/index/VesselState#set:w
   local.get $vessel
   global.set $assembly/index/globalVessel
+ )
+ (func $assembly/index/getVesselRollRate (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/index/VesselState#get:p
+  return
+ )
+ (func $assembly/index/getVesselPitchRate (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/index/VesselState#get:q
+  return
+ )
+ (func $assembly/index/getVesselYawRate (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/index/VesselState#get:r
+  return
  )
  (func $assembly/index/resetGlobalVessel
   i32.const 0

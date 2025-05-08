@@ -26,7 +26,7 @@ export const LACUNARITY_PER_SEASTATE = 1;
 export const MAX_LACUNARITY = 2.18;
 
 // Peak threshold
-export const BASE_PEAK_THRESHOLD = 0.08;
+export const BASE_PEAK_THRESHOLD = 0.12;
 export const PEAK_THRESHOLD_PER_SEASTATE = 0.015; // Adjusted from 0.015
 export const MAX_PEAK_THRESHOLD = 0.2; // Doubled to allow more whitecaps at higher sea states
 

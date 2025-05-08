@@ -538,6 +538,129 @@ function calculateGM(vessel: VesselState): f64 {
 }
 
 /**
+ * Calculates a realistic stabilizing moment for the vessel based on roll angle.
+ * Uses a nonlinear righting arm (GZ) curve that decreases at large heel angles.
+ * @param vessel - The vessel state
+ * @param phi - Roll angle in radians
+ * @returns Stabilizing moment in N·m
+ */
+function calculateRealisticStabilizingMoment(
+  vessel: VesselState,
+  phi: f64,
+): f64 {
+  // Convert phi to degrees for easier calculation
+  const phiDeg = phi * (180.0 / Math.PI);
+
+  // Calculate the basic GM-based righting arm for small angles
+  const GM = calculateGM(vessel);
+
+  // Angle of vanishing stability (typically 60-80 degrees for cargo vessels)
+  const vanishingStabilityAngle = 70.0;
+
+  // Maximum angle where the GZ curve is highest (typically around 30-45 degrees)
+  const maxGzAngle = 35.0;
+
+  // Calculate a more realistic GZ curve that:
+  // 1. Increases linearly for small angles (proportional to GM * sin(phi))
+  // 2. Reaches maximum around 30-40 degrees
+  // 3. Decreases until reaching zero at the vanishing stability angle
+  // 4. Becomes negative (capsizing moment) beyond vanishing stability
+
+  let gz: f64;
+  const absPhi = Math.abs(phiDeg);
+
+  if (absPhi <= maxGzAngle) {
+    // Region 1: From 0 to max GZ - increasing righting arm
+    gz = GM * Math.sin(phi);
+  } else if (absPhi <= vanishingStabilityAngle) {
+    // Region 2: From max GZ to vanishing stability - decreasing righting arm
+    // Linear interpolation from max value to zero
+    const maxGz = GM * Math.sin(maxGzAngle * (Math.PI / 180.0));
+    const ratio =
+      (vanishingStabilityAngle - absPhi) /
+      (vanishingStabilityAngle - maxGzAngle);
+    gz = maxGz * ratio;
+  } else {
+    // Region 3: Beyond vanishing stability - negative righting arm (capsizing moment)
+    // Increases to a negative value, then gradually diminishes as the vessel inverts
+    const overAngle = absPhi - vanishingStabilityAngle;
+    const maxNegative = -0.5 * GM; // Maximum negative GZ
+
+    if (absPhi <= 180.0) {
+      // Calculate negative GZ until vessel is upside down
+      const negativeRatio = Math.min(
+        overAngle / (90.0 - vanishingStabilityAngle),
+        1.0,
+      );
+      gz = maxNegative * negativeRatio;
+    } else {
+      // Vessel is past upside down, GZ starts increasing back toward zero
+      // (eventually it would become positive again as the vessel continues rolling)
+      const pastUpsideDown = absPhi - 180.0;
+      const recoveryRatio = Math.min(pastUpsideDown / 90.0, 1.0);
+      gz = maxNegative * (1.0 - recoveryRatio);
+    }
+  }
+
+  // Apply the sign based on the original phi direction
+  gz = Math.sign(phi) * Math.abs(gz);
+
+  // Calculate moment from GZ
+  const stabilizingMoment = -gz * vessel.mass * GRAVITY;
+
+  return stabilizingMoment;
+}
+
+/**
+ * Calculates a realistic stabilizing moment for the vessel based on pitch angle.
+ * Uses a nonlinear righting arm (GZ) curve that decreases at large pitch angles.
+ * @param vessel - The vessel state
+ * @param theta - Pitch angle in radians
+ * @returns Stabilizing moment in N·m
+ */
+function calculateRealisticPitchStabilizingMoment(
+  vessel: VesselState,
+  theta: f64,
+): f64 {
+  // Convert theta to degrees
+  const thetaDeg: f64 = theta * (180.0 / Math.PI);
+  // Use length as the lever arm for pitch stability (approximation)
+  const leverArm: f64 = vessel.length * 0.4; // 40% of length as typical for pitch
+  // Angle of vanishing stability for pitch (typically less than roll)
+  const vanishingStabilityAngle: f64 = 45.0;
+  const maxGzAngle: f64 = 20.0;
+  let gz: f64;
+  const absTheta: f64 = Math.abs(thetaDeg);
+  if (absTheta <= maxGzAngle) {
+    gz = leverArm * Math.sin(theta);
+  } else if (absTheta <= vanishingStabilityAngle) {
+    const maxGz: f64 = leverArm * Math.sin(maxGzAngle * (Math.PI / 180.0));
+    const ratio: f64 =
+      (vanishingStabilityAngle - absTheta) /
+      (vanishingStabilityAngle - maxGzAngle);
+    gz = maxGz * ratio;
+  } else {
+    // Negative righting moment beyond vanishing stability
+    const overAngle: f64 = absTheta - vanishingStabilityAngle;
+    const maxNegative: f64 = -0.5 * leverArm;
+    if (absTheta <= 90.0) {
+      const negativeRatio: f64 = Math.min(
+        overAngle / (90.0 - vanishingStabilityAngle),
+        1.0,
+      );
+      gz = maxNegative * negativeRatio;
+    } else {
+      const pastUpsideDown: f64 = absTheta - 90.0;
+      const recoveryRatio: f64 = Math.min(pastUpsideDown / 90.0, 1.0);
+      gz = maxNegative * (1.0 - recoveryRatio);
+    }
+  }
+  gz = Math.sign(theta) * Math.abs(gz);
+  const stabilizingMoment: f64 = -gz * vessel.mass * GRAVITY;
+  return stabilizingMoment;
+}
+
+/**
  * Gets the wave height for a given sea state (Beaufort scale).
  * @param seaState - The sea state (0-12, Beaufort scale)
  * @returns The wave height in meters
@@ -1055,7 +1178,21 @@ export function updateVesselState(
     vessel.beam *
     vessel.length *
     0.02;
-  const rollDamping = -vessel.p * 0.9;
+
+  // Enhance damping at extreme angles to simulate water resistance when capsized
+  const extremeAngleFactor = Math.pow(Math.sin(vessel.phi), 2.0);
+  const extremeAngleDamping =
+    -vessel.p *
+    Math.abs(vessel.p) *
+    extremeAngleFactor *
+    vessel.waterDensity *
+    vessel.beam *
+    vessel.beam *
+    vessel.draft *
+    0.5;
+
+  const rollDamping = -vessel.p * 0.9 - extremeAngleDamping;
+
   const netMomentRoll = waveRoll + rollDamping + rollHydroDamping;
   const rollDot = netMomentRoll / inertiaRoll;
 
@@ -1064,8 +1201,10 @@ export function updateVesselState(
 
   // Update roll angle with stabilizing moment
   vessel.phi += vessel.p * safeDt;
-  const GM = calculateGM(vessel);
-  const stabilizingMoment = -vessel.phi * GM * vessel.mass * GRAVITY;
+  const stabilizingMoment = calculateRealisticStabilizingMoment(
+    vessel,
+    vessel.phi,
+  );
   vessel.p += (stabilizingMoment / inertiaRoll) * safeDt;
 
   // Pitch dynamics with damping and limits
@@ -1086,7 +1225,10 @@ export function updateVesselState(
 
   // Update pitch angle with stabilizing moment
   vessel.theta += vessel.q * safeDt;
-  const pitchStabilizing = -vessel.theta * vessel.length * vessel.mass * 0.05;
+  const pitchStabilizing = calculateRealisticPitchStabilizingMoment(
+    vessel,
+    vessel.theta,
+  );
   vessel.q += (pitchStabilizing / inertiaPitch) * safeDt;
 
   // Yaw dynamics with limits and damping
@@ -1535,6 +1677,36 @@ export function setVesselVelocity(
   vessel.v = sway;
   vessel.w = heave;
   globalVessel = vessel;
+}
+
+/**
+ * Gets the vessel's roll rate (p).
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The roll rate in radians/sec
+ * @external
+ */
+export function getVesselRollRate(vesselPtr: usize): f64 {
+  return changetype<VesselState>(vesselPtr).p;
+}
+
+/**
+ * Gets the vessel's pitch rate (q).
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The pitch rate in radians/sec
+ * @external
+ */
+export function getVesselPitchRate(vesselPtr: usize): f64 {
+  return changetype<VesselState>(vesselPtr).q;
+}
+
+/**
+ * Gets the vessel's yaw rate (r).
+ * @param vesselPtr - Pointer to the vessel instance
+ * @returns The yaw rate in radians/sec
+ * @external
+ */
+export function getVesselYawRate(vesselPtr: usize): f64 {
+  return changetype<VesselState>(vesselPtr).r;
 }
 
 /**

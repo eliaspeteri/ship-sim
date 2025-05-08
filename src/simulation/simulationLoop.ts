@@ -434,6 +434,19 @@ export class SimulationLoop {
         heave: this.wasmBridge.getVesselHeaveVelocity(vesselPtr),
       };
 
+      // Add angular velocity (roll, pitch, yaw)
+      vesselUpdate.angularVelocity = {
+        roll: this.wasmBridge.getVesselRollRate
+          ? this.wasmBridge.getVesselRollRate(vesselPtr)
+          : 0,
+        pitch: this.wasmBridge.getVesselPitchRate
+          ? this.wasmBridge.getVesselPitchRate(vesselPtr)
+          : 0,
+        yaw: this.wasmBridge.getVesselYawRate
+          ? this.wasmBridge.getVesselYawRate(vesselPtr)
+          : 0,
+      };
+
       // Update engine state from WASM after each step
       const engineUpdate = {
         rpm: this.wasmBridge.getVesselEngineRPM(vesselPtr),

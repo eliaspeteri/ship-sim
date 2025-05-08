@@ -209,6 +209,24 @@ export declare function getVesselBallastLevel(vesselPtr: number): number;
  */
 export declare function setVesselVelocity(vesselPtr: number, surge: number, sway: number, heave: number): void;
 /**
+ * assembly/index/getVesselRollRate
+ * @param vesselPtr `usize`
+ * @returns `f64`
+ */
+export declare function getVesselRollRate(vesselPtr: number): number;
+/**
+ * assembly/index/getVesselPitchRate
+ * @param vesselPtr `usize`
+ * @returns `f64`
+ */
+export declare function getVesselPitchRate(vesselPtr: number): number;
+/**
+ * assembly/index/getVesselYawRate
+ * @param vesselPtr `usize`
+ * @returns `f64`
+ */
+export declare function getVesselYawRate(vesselPtr: number): number;
+/**
  * assembly/index/resetGlobalVessel
  */
 export declare function resetGlobalVessel(): void;

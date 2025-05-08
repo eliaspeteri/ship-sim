@@ -90,6 +90,9 @@ export interface WasmModule {
   getVesselSurgeVelocity: (vesselPtr: number) => number;
   getVesselSwayVelocity: (vesselPtr: number) => number;
   getVesselHeaveVelocity: (vesselPtr: number) => number;
+  getVesselRollRate: (vesselPtr: number) => number;
+  getVesselPitchRate: (vesselPtr: number) => number;
+  getVesselYawRate: (vesselPtr: number) => number;
 
   // Wave physics
   setWaveData: (

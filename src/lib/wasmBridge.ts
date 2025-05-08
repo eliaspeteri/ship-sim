@@ -325,4 +325,31 @@ export class WasmBridge {
   public getVesselHeaveVelocity(vesselPtr: number): number {
     return this.wasmModule.getVesselHeaveVelocity(vesselPtr);
   }
+
+  /**
+   * Gets the vessel roll rate (p)
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Roll rate in radians/sec
+   */
+  public getVesselRollRate(vesselPtr: number): number {
+    return this.wasmModule.getVesselRollRate(vesselPtr);
+  }
+
+  /**
+   * Gets the vessel pitch rate (q)
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Pitch rate in radians/sec
+   */
+  public getVesselPitchRate(vesselPtr: number): number {
+    return this.wasmModule.getVesselPitchRate(vesselPtr);
+  }
+
+  /**
+   * Gets the vessel yaw rate (r)
+   * @param vesselPtr - Pointer to vessel in WASM memory
+   * @returns Yaw rate in radians/sec
+   */
+  public getVesselYawRate(vesselPtr: number): number {
+    return this.wasmModule.getVesselYawRate(vesselPtr);
+  }
 }
