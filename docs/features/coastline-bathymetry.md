@@ -12,6 +12,13 @@
 11. [Running a Tile Server in Docker](#running-a-tile-server-in-docker)
 12. [Client Integration: 2D and 3D (Detailed)](#client-integration-2d-and-3d-detailed)
 13. [FAQ, Troubleshooting, and Best Practices](#faq-troubleshooting-and-best-practices)
+14. [Quickstart](#quickstart)
+15. [Status and Milestones](#status-and-milestones)
+16. [Glossary](#glossary)
+17. [How to Contribute](#how-to-contribute)
+18. [Validation and Test Checklist](#validation-and-test-checklist)
+19. [Monitoring, Logging, and Production Notes](#monitoring-logging-and-production-notes)
+20. [Summary Diagram](#summary-diagram)
 
 ---
 
@@ -488,9 +495,89 @@ loader.load('http://localhost:8080/data/5/17/10.png', texture => {
 
 ---
 
+# Quickstart
+
+Follow these steps to get up and running quickly:
+1. Clone the repository and install dependencies.
+2. Download and prepare the required datasets (SRTM, GEBCO, Natural Earth coastline).
+3. Run the automated data download and blending script:
+   ```bash
+   bash scripts/download_and_update.sh
+   ```
+4. Start the tile server in Docker:
+   ```bash
+   docker-compose up -d
+   ```
+5. Integrate the tiles into your 2D or 3D client as described below.
+
+---
+
+# Status and Milestones
+
+- **Last updated:** May 8, 2025
+- **Current status:** End-to-end workflow implemented, advanced blending and automation in place, client integration documented.
+- **Next steps:**
+  - Add summary diagram/flowchart
+  - Pin dependency versions in scripts
+  - Expand test/validation checklist
+  - Add glossary and contribution guidelines
+
+---
+
+# Glossary
+- **DEM:** Digital Elevation Model
+- **LOD:** Level of Detail
+- **CRS:** Coordinate Reference System
+- **GDAL:** Geospatial Data Abstraction Library
+- **GeoTIFF:** A georeferenced raster image format
+- **PNG:** Portable Network Graphics (raster image format)
+- **Vector tile:** A tile containing vector data (e.g., .mvt, .pbf)
+- **Raster tile:** A tile containing raster image data (e.g., .png, .jpg)
+
+---
+
+# How to Contribute
+- Fork the repository and create a feature branch.
+- Make your changes and ensure all scripts and documentation are updated.
+- Run the validation checklist below before submitting a pull request.
+- For questions or help, open an issue or join the project discussion forum (link TBD).
+
+---
+
+# Validation and Test Checklist
+- [ ] All scripts run without errors on a clean Linux environment.
+- [ ] Tiles are generated and served correctly at all zoom levels.
+- [ ] Coastline blending is visually smooth at land/sea boundaries.
+- [ ] 2D and 3D clients load and render tiles as expected.
+- [ ] Data sources are up to date and attribution is provided.
+- [ ] Docker tile server starts and serves tiles at http://localhost:8080.
+- [ ] Documentation is up to date and clear for new contributors.
+
+---
+
+# Monitoring, Logging, and Production Notes
+- Use Docker logs to monitor the tile server:
+  ```bash
+  docker-compose logs -f tileserver
+  ```
+- For production, consider using a CDN or caching proxy in front of the tile server.
+- Monitor disk usage in the output/tiles directory and set up alerts if needed.
+- Pin versions of Python, GDAL, and other dependencies in your scripts for reproducibility.
+
+---
+
 # Summary Diagram
 
-*Consider adding a diagram or flowchart here to visualize the full data pipeline from download to client rendering.*
+```mermaid
+graph TD
+    A[Download Datasets] --> B[Preprocess & Reproject]
+    B --> C[Rasterize Coastline]
+    C --> D[Advanced Blending & Merging]
+    D --> E[Generate Raster Tiles]
+    E --> F[Serve Tiles via Docker TileServer]
+    F --> G1[2D Client (MapLibre/OpenLayers)]
+    F --> G2[3D Client (Three.js)]
+```
 
 ---
 
