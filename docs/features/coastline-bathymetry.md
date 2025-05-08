@@ -7,21 +7,24 @@
 3. [Feature Details](#feature-details)
 4. [Alternative Path: Using External APIs and Public Tile Servers](#alternative-path-using-external-apis-and-public-tile-servers)
 5. [3D Graphics and Heightmaps Integration](#3d-graphics-and-heightmaps-integration)
-6. [Data Source Comparison: Pros and Cons](#data-source-comparison-pros-and-cons)
-7. [Merging Data Sources: Step-by-Step Workflow](#merging-data-sources-step-by-step-workflow)
-8. [Automated DEM Merging and Tiling Workflow](#automated-dem-merging-and-tiling-workflow)
-9. [Advanced Blending Script (Python)](#advanced-blending-script-python)
-10. [Automated Data Download and Update Script (Bash)](#automated-data-download-and-update-script-bash)
-11. [Running a Tile Server in Docker](#running-a-tile-server-in-docker)
-12. [Client Integration: 2D and 3D (Detailed)](#client-integration-2d-and-3d-detailed)
-13. [FAQ, Troubleshooting, and Best Practices](#faq-troubleshooting-and-best-practices)
-14. [Quickstart](#quickstart)
-15. [Status and Milestones](#status-and-milestones)
-16. [Glossary](#glossary)
-17. [How to Contribute](#how-to-contribute)
-18. [Validation and Test Checklist](#validation-and-test-checklist)
-19. [Monitoring, Logging, and Production Notes](#monitoring-logging-and-production-notes)
-20. [Summary Diagram](#summary-diagram)
+6. [Supporting a 3D Globe: Step-by-Step Plan](#supporting-a-3d-globe-step-by-step-plan)
+7. [CesiumJS vs Custom Three.js Globe: Comparison](#cesiumjs-vs-custom-threejs-globe-comparison)
+8. [3D Wave Rendering: CesiumJS vs Custom Three.js Globe](#3d-wave-rendering-cesiumjs-vs-custom-threejs-globe)
+9. [Data Source Comparison: Pros and Cons](#data-source-comparison-pros-and-cons)
+10. [Merging Data Sources: Step-by-Step Workflow](#merging-data-sources-step-by-step-workflow)
+11. [Automated DEM Merging and Tiling Workflow](#automated-dem-merging-and-tiling-workflow)
+12. [Advanced Blending Script (Python)](#advanced-blending-script-python)
+13. [Automated Data Download and Update Script (Bash)](#automated-data-download-and-update-script-bash)
+14. [Running a Tile Server in Docker](#running-a-tile-server-in-docker)
+15. [Client Integration: 2D and 3D (Detailed)](#client-integration-2d-and-3d-detailed)
+16. [FAQ, Troubleshooting, and Best Practices](#faq-troubleshooting-and-best-practices)
+17. [Quickstart](#quickstart)
+18. [Status and Milestones](#status-and-milestones)
+19. [Glossary](#glossary)
+20. [How to Contribute](#how-to-contribute)
+21. [Validation and Test Checklist](#validation-and-test-checklist)
+22. [Monitoring, Logging, and Production Notes](#monitoring-logging-and-production-notes)
+23. [Summary Diagram](#summary-diagram)
 
 ---
 
@@ -163,6 +166,91 @@ Enable the use of bathymetric and elevation data for 3D graphics in the simulato
 6. Document the Pipeline
    - Document the data sources, preprocessing steps, tile server configuration, and 3D integration process.
    - Provide update instructions for new data releases or regions.
+
+---
+
+## Supporting a 3D Globe: Step-by-Step Plan
+
+Simulating a 3D globe (with ships appearing/disappearing over the horizon) requires adapting the current workflow. Here is a step-by-step plan:
+
+1. **Choose Rendering Approach**
+   - Decide between using a dedicated globe engine (e.g., CesiumJS) or extending your current Three.js setup for spherical rendering.
+
+2. **Data Preparation**
+   - Ensure DEM and imagery are in a projection suitable for globes (e.g., equirectangular/geodetic, not Web Mercator).
+   - If using CesiumJS, consider converting DEMs to quantized-mesh terrain tiles (see Cesium terrain tools).
+   - For Three.js, prepare raster tiles or heightmaps that can be sampled and mapped onto a sphere.
+
+3. **Tiling and LOD**
+   - Implement or use a quadtree LOD system for spherical tiles.
+   - For CesiumJS, this is built-in. For Three.js, you may need to adapt or use a library for globe LOD.
+
+4. **Client Integration**
+   - For CesiumJS: Integrate terrain, imagery, and vector data using Cesium’s APIs.
+   - For Three.js: Map (lat, lon) to 3D Cartesian coordinates on a sphere, and displace vertices using heightmaps.
+   - Implement horizon culling and camera controls suitable for a globe.
+
+5. **Performance Optimization**
+   - Use lower LOD for distant terrain, load high-res tiles only near the camera.
+   - Implement tile caching and efficient memory management.
+
+6. **Testing and Validation**
+   - Validate that ships appear/disappear over the horizon as expected.
+   - Check for seams, pole artifacts, and dateline handling.
+
+7. **Documentation and Maintenance**
+   - Document the globe-specific pipeline, data formats, and integration steps.
+   - Update the validation checklist and troubleshooting sections.
+
+---
+
+## CesiumJS vs Custom Three.js Globe: Comparison
+
+| Aspect                | CesiumJS                                      | Custom Three.js Globe                |
+|-----------------------|-----------------------------------------------|--------------------------------------|
+| **Ease of Use**       | High: Globe, terrain, LOD, and culling built-in| Medium/Low: Must implement yourself  |
+| **Performance**       | Highly optimized for large globes             | Depends on your implementation       |
+| **Data Formats**      | Quantized-mesh, terrain tiles, imagery tiles  | Any format you support (e.g., PNG)   |
+| **LOD Management**    | Automatic, quadtree-based                     | Manual or via third-party libs       |
+| **Community/Support** | Large, active, open source, commercial support| Large (Three.js), but globe-specific help is less common |
+| **Customizability**   | High, but within Cesium’s architecture        | Very high, but more work             |
+| **Integration**       | Easy for GIS, terrain, vector overlays        | Flexible, but more boilerplate       |
+| **Learning Curve**    | Moderate (GIS concepts, Cesium API)           | High (math, LOD, projection, etc.)   |
+| **License**           | Apache 2.0 (open source)                      | MIT (Three.js), your code            |
+
+**Summary:**
+
+- Use CesiumJS if you want a robust, production-ready 3D globe with minimal custom engineering.
+- Use custom Three.js if you need full control, want to deeply integrate with your existing codebase, or have unique rendering needs.
+
+---
+
+## 3D Wave Rendering: CesiumJS vs Custom Three.js Globe
+
+When considering realistic 3D wave simulation on a globe, the choice of rendering engine has a significant impact:
+
+### CesiumJS
+
+- Primarily focused on accurate globe, terrain, and imagery rendering.
+- Supports simple animated water surfaces (e.g., WaterMaterial, basic shaders), but not high-fidelity, dynamic 3D waves out of the box.
+- Advanced wave simulation (Gerstner, FFT, or custom shaders) is possible but requires deep WebGL/shader work and custom CesiumJS extensions.
+- Community plugins for water exist, but are less mature and less flexible than in game engines or Three.js.
+- Best for applications prioritizing globe/terrain accuracy and GIS integration over visual realism of water.
+
+### Custom Three.js Globe
+
+- Full control over geometry, shaders, and animation.
+- Supports advanced 3D wave effects (Gerstner, FFT, procedural shaders) and seamless blending with globe terrain.
+- Many open-source examples and resources for realistic ocean rendering.
+- Integrating waves with a globe requires more engineering (mapping waves to a sphere, LOD), but there are no architectural limitations.
+- Best for applications where high-fidelity, dynamic 3D waves are a core requirement.
+
+**Summary:**
+
+- CesiumJS is excellent for globe/terrain, but advanced 3D wave rendering is limited and requires significant custom work.
+- Three.js (or a game engine) is better suited for realistic, dynamic 3D waves, at the cost of more engineering for globe/terrain integration.
+
+If realistic, dynamic 3D waves are essential, a custom Three.js globe or a game engine will provide more flexibility and visual quality. If globe/terrain accuracy and ease of integration are the priority, CesiumJS is a strong choice, but expect extra effort for advanced water effects.
 
 ---
 
@@ -612,7 +700,7 @@ Follow these steps to get up and running quickly:
 ## Summary Diagram
 
 ```mermaid
-graph TD
+flowchart TD
     DownloadDatasets[Download Datasets] --> PreprocessReproject[Preprocess and Reproject]
     PreprocessReproject --> RasterizeCoastline[Rasterize Coastline]
     RasterizeCoastline --> AdvancedBlendingMerging[Advanced Blending and Merging]
