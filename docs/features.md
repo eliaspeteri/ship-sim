@@ -28,10 +28,13 @@ This document tracks the major features of the Ship Simulator project, grouped a
 
 ## 3D Graphics with WebGL and Three.js
 - [x] Vessel Model: Detailed 3D model of the ship
-- [x] Environment: Realistic ocean and weather simulation, ports
-    - [ ] Bathymetric data. Supplied for example from GEBCO, SRTM30_PLUS and ETOPO1
-    - [ ] Land data. Supplied with SRTM. Does not need to cover the entire world, just the area around the water bodies.
+- [ ] Environment: Realistic ocean and weather simulation, ports
+    - [ ] Bathymetric data. Supplied for example from GEBCO, SRTM30_PLUS and ETOPO1. See docs/features/coastline-bathymetry.md for data pipeline and 3D integration steps.
+    - [ ] Land data. Supplied with SRTM. Does not need to cover the entire world, just the area around the water bodies. See docs/features/coastline-bathymetry.md for details on heightmaps and tile serving.
     - [ ] Realtime weather from online.
+    - [ ] Realtime ocean currents from online.
+    - [ ] Realistic waves and foam.
+    - [ ] Realistic sky and sun.
 - [x] Camera Controls: Bridge view, external view, machinery spaces
 
 ## UI
