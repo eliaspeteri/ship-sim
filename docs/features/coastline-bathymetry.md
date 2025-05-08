@@ -25,6 +25,16 @@
 21. [Validation and Test Checklist](#validation-and-test-checklist)
 22. [Monitoring, Logging, and Production Notes](#monitoring-logging-and-production-notes)
 23. [Summary Diagram](#summary-diagram)
+24. [Feature Highlights and User Benefits](#feature-highlights-and-user-benefits)
+25. [Business Value and Stakeholder Impact](#business-value-and-stakeholder-impact)
+26. [Project Risks and Open Questions](#project-risks-and-open-questions)
+27. [Common Pitfalls and Support Issues](#common-pitfalls-and-support-issues)
+28. [Expected Outputs](#expected-outputs)
+29. [Alt Text for Summary Diagram](#alt-text-for-summary-diagram)
+30. [High-Level Architecture Diagram](#high-level-architecture-diagram)
+31. [Statistical Validation of Merged DEM](#statistical-validation-of-merged-dem)
+32. [Data Privacy and Secure API Key Handling](#data-privacy-and-secure-api-key-handling)
+33. [Where to Ask for Help](#where-to-ask-for-help)
 
 ---
 
@@ -712,6 +722,91 @@ flowchart TD
 
 ---
 
-This workflow enables high-performance, multi-resolution 3D terrain rendering in Three.js using your own DEM tiles, with smooth blending at coastlines and easy Docker-based serving.
+## Feature Highlights and User Benefits
+
+- High-performance, multi-resolution 2D/3D terrain and bathymetry for ship simulation.
+- Realistic coastline and underwater visualization, supporting both flat and globe-based rendering.
+- Flexible integration with modern web and 3D engines.
+
+---
+
+## Business Value and Stakeholder Impact
+
+- Enables advanced navigation, training, and visualization scenarios for maritime users.
+- Reduces data transfer and rendering costs through efficient LOD and tiling.
+- Supports extensibility for future features (e.g., weather, currents, global coverage).
+
+---
+
+## Project Risks and Open Questions
+
+- Complexity of globe-based rendering and advanced wave simulation.
+- Data source updates and long-term maintenance.
+- Performance at global scale and on lower-end hardware.
+- Open: Should we migrate to a game engine for ultimate realism?
+
+---
+
+## Common Pitfalls and Support Issues
+
+- Mismatched CRS or tile origins causing misaligned tiles.
+- Missing dependencies or version mismatches in scripts.
+- Docker file permission issues on some Linux systems.
+- Large data downloads may fail on slow or unstable connections.
+
+---
+
+## Expected Outputs
+
+- `output/tiles/` contains PNG tiles for all zoom levels after running the pipeline.
+- Tile server accessible at <http://localhost:8080> and serving correct tiles.
+- 2D/3D clients display seamless, multi-resolution terrain and bathymetry.
+
+---
+
+## Alt Text for Summary Diagram
+
+- The summary diagram shows the data pipeline: Download Datasets → Preprocess & Reproject → Rasterize Coastline → Advanced Blending & Merging → Generate Raster Tiles → Serve Tiles via Docker TileServer → 2D/3D Client Integration.
+
+---
+
+## High-Level Architecture Diagram
+
+```mermaid
+flowchart TD
+    DataSources[DEM, Bathymetry, Coastline Data] --> Preprocessing[Preprocessing & Blending Scripts]
+    Preprocessing --> Tiles[Raster/Vector Tiles]
+    Tiles --> TileServer[Docker Tile Server]
+    TileServer --> WebClient[2D/3D Web Client]
+    TileServer --> GameEngine[Game Engine/Simulator (optional)]
+```
+
+---
+
+## Statistical Validation of Merged DEM
+
+- After merging, use tools like QGIS or numpy to check min/max, histograms, and spot-check values in the merged DEM.
+- Example:
+
+  ```python
+  import rasterio
+  import numpy as np
+  with rasterio.open('output/merged_dem.tif') as src:
+      arr = src.read(1)
+      print('Min:', np.min(arr), 'Max:', np.max(arr), 'Mean:', np.mean(arr))
+  ```
+
+---
+
+## Data Privacy and Secure API Key Handling
+
+- No user data is processed in this pipeline.
+- If using external APIs, store API keys in environment variables or Docker secrets, not in source code.
+
+---
+
+## Where to Ask for Help
+
+- Open an issue in the repository or join the project discussion forum (link TBD).
 
 ---
