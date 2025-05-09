@@ -10,8 +10,22 @@
 - [6. Structural Mechanics](#6-structural-mechanics)
 - [7. Navigation and Positioning](#7-navigation-and-positioning)
 - [8. Environmental Interactions](#8-environmental-interactions)
+  - [8.1 Wind Force on Superstructure](#81-wind-force-on-superstructure)
+  - [8.2 Atmospheric Fundamentals](#82-atmospheric-fundamentals)
+  - [8.3 Thermodynamics](#83-thermodynamics)
+  - [8.4 Moisture and Humidity](#84-moisture-and-humidity)
+  - [8.5 Cloud Formation and Precipitation](#85-cloud-formation-and-precipitation)
+  - [8.6 Radiative Transfer](#86-radiative-transfer)
+  - [8.7 Wind and Turbulence](#87-wind-and-turbulence)
+  - [8.8 Severe Weather Events](#88-severe-weather-events)
+  - [8.9 Wave-Wind Interaction](#89-wave-wind-interaction)
+  - [8.10 Visibility and Atmospheric Optics](#810-visibility-and-atmospheric-optics)
 - [9. Mathematical Tools](#9-mathematical-tools)
-- [10. Additional Areas](#10-additional-areas)
+- [10. Additional Maritime Systems](#10-additional-maritime-systems)
+  - [10.1 Ship Stability](#101-ship-stability)
+  - [10.2 Mooring and Anchor Systems](#102-mooring-and-anchor-systems)
+  - [10.3 Numerical Weather Prediction](#103-numerical-weather-prediction)
+  - [10.4 Statistical Weather Modeling](#104-statistical-weather-modeling)
 
 ## **1. Hydrodynamics**
 
@@ -423,7 +437,7 @@ graph TD
 
 ## **8. Environmental Interactions**
 
-### Wind Force (Aerodynamics on superstructure)
+### 8.1 Wind Force on Superstructure
 
 $$
 F_{wind} = \frac{1}{2}\rho_{air} v_{wind}^2 C_{drag} A
@@ -436,6 +450,197 @@ Where:
 - $v_{wind}$: Wind speed (m/s)
 - $C_{drag}$: Drag coefficient (dimensionless)
 - $A$: Reference area (m²)
+
+### 8.2 Atmospheric Fundamentals
+
+#### Navier-Stokes Equations for Atmospheric Flow
+
+$$
+\rho\frac{D\mathbf{u}}{Dt} = -\nabla p - \rho g \hat{z} + \mu\nabla^2\mathbf{u}
+$$
+
+#### Simplified (Geostrophic wind)
+
+$$
+f\mathbf{k} \times \mathbf{v} = -\frac{1}{\rho}\nabla p
+$$
+
+Where:
+
+- $f$: Coriolis parameter
+- $\mathbf{v}$: horizontal wind velocity
+- $p$: pressure
+- $\rho$: density
+
+### 8.3 Thermodynamics
+
+#### Ideal Gas Law for Atmosphere
+
+$$
+p = \rho R T
+$$
+
+Where:
+
+- $p$: Pressure (Pa)
+- $\rho$: Density (kg/m³)
+- $R$: Specific gas constant for air (≈287 J/kg·K)
+- $T$: Temperature (K)
+
+#### Adiabatic Processes
+
+Dry adiabatic lapse rate ($\Gamma_d$):
+
+$$
+\Gamma_d = \frac{g}{C_p} \approx 9.8\,^\circ C/km
+$$
+
+Moist adiabatic lapse rate ($\Gamma_m$):
+Typically $4-8\,^\circ C/km$, varies with moisture and temperature.
+
+#### Potential Temperature ($\theta$)
+
+$$
+\theta = T\left(\frac{p_0}{p}\right)^{R/C_p}
+$$
+
+### 8.4 Moisture and Humidity
+
+#### Relative Humidity (RH%)
+
+$$
+RH = \frac{e}{e_s} \times 100
+$$
+
+Where:
+
+- $e$: Vapor pressure (Pa)
+- $e_s$: Saturation vapor pressure (Pa)
+
+#### Clausius-Clapeyron Equation (saturation vapor pressure)
+
+$$
+e_s(T) = e_0 \exp\left(\frac{L_v}{R_v}\left(\frac{1}{T_0}-\frac{1}{T}\right)\right)
+$$
+
+Where:
+
+- $L_v$: Latent heat of vaporization (J/kg)
+- $R_v$: Gas constant for water vapor (J/kg·K)
+
+### 8.5 Cloud Formation and Precipitation
+
+#### Lifted Condensation Level (LCL)
+
+Approximate height at which condensation (clouds) forms:
+
+$$
+z_{LCL} \approx \frac{T - T_d}{\Gamma_d - \Gamma_{dew}}
+$$
+
+Where:
+
+- $T_d$: Dew point temperature (°C)
+
+#### Rainfall Rate (Marshall-Palmer distribution)
+
+Drop-size distribution for rainfall intensity $R$:
+
+$$
+N(D) = N_0 e^{-\Lambda D}, \quad \text{with} \quad \Lambda = 4.1\,R^{-0.21}
+$$
+
+### 8.6 Radiative Transfer
+
+#### Solar Radiation (Insolation)
+
+Simplified formula for solar energy input:
+
+$$
+Q = S_0(1 - \alpha)\cos(Z)
+$$
+
+Where:
+
+- $S_0$: Solar constant (≈1361 W/m²)
+- $\alpha$: Albedo (dimensionless)
+- $Z$: Zenith angle of sun (radians)
+
+#### Longwave Radiation (Stefan-Boltzmann Law)
+
+$$
+E = \epsilon\sigma T^4
+$$
+
+Where:
+
+- $\epsilon$: Emissivity (dimensionless)
+- $\sigma$: Stefan-Boltzmann constant (5.67×10⁻⁸ W/m²K⁴)
+
+### 8.7 Wind and Turbulence
+
+#### Wind Shear
+
+$$
+\frac{du}{dz}
+$$
+
+#### Vertical wind profile
+
+Logarithmic profile for near-surface winds:
+
+$$
+u(z) = \frac{u_*}{k}\ln\frac{z}{z_0}
+$$
+
+Where:
+
+- $u_*$: friction velocity (m/s)
+- $z_0$: surface roughness (m)
+- $k$: von Kármán constant (≈0.4)
+
+### 8.8 Severe Weather Events
+
+#### Cyclone Pressure-Wind Relationship (Gradient Wind Approximation)
+
+Balance of pressure gradient, Coriolis, and centripetal forces:
+
+$$
+v_g = -\frac{f r}{2} + \sqrt{\left(\frac{f r}{2}\right)^2 + \frac{r}{\rho}\frac{\partial p}{\partial r}}
+$$
+
+Where:
+
+- $v_g$: Gradient wind speed (m/s)
+- $r$: Radius from cyclone center (m)
+
+### 8.9 Wave-Wind Interaction
+
+#### Wave Generation by Wind (Pierson-Moskowitz Spectrum)
+
+Wave energy spectrum:
+
+$$
+S(\omega) = \frac{\alpha g^2}{\omega^5}\exp\left[-\frac{\beta g^4}{\omega^4 U_{10}^4}\right]
+$$
+
+Where:
+
+- $U_{10}$: Wind speed at 10 m height (m/s)
+
+### 8.10 Visibility and Atmospheric Optics
+
+#### Beer–Lambert law (visibility through fog/haze)
+
+$$
+I = I_0 e^{-\sigma x}
+$$
+
+Where:
+
+- $I_0$: Initial light intensity
+- $\sigma$: Attenuation coefficient
+- $x$: Distance light travels through medium
 
 ---
 
@@ -469,11 +674,11 @@ Where:
 
 ---
 
-## **10. Additional Areas**
+## **10. Additional Maritime Systems**
 
-### Ship Stability
+### 10.1 Ship Stability
 
-### Metacentric Height (GM)
+#### Metacentric Height (GM)
 
 $$
 GM = KB + BM - KG
@@ -501,7 +706,7 @@ graph TD
 
 > **Application Context:** Metacentric height (GM) is a crucial stability parameter. A positive GM indicates initial stability, with larger values making the vessel more stiff (quick to right itself but with uncomfortable motion). A negative GM indicates instability. GM varies with loading conditions and is critical for simulation of cargo operations or damaged stability scenarios. The formula provided is for small angles of heel only; large angle stability requires GZ curve calculations.
 
-### Righting Moment
+#### Righting Moment
 
 $$
 M = \Delta \cdot GZ
@@ -515,11 +720,9 @@ Where:
 
 > **Application Context:** The righting moment represents the ship's ability to return to equilibrium when heeled. For small angles, GZ ≈ GM·sin(θ), but for larger angles, GZ values are typically obtained from hydrostatic tables or calculated from the hull geometry. In simulations, the GZ curve is essential for modeling ship response to wave forces, wind heeling moments, or damage scenarios.
 
----
+### 10.2 Mooring and Anchor Systems
 
-### Mooring and Anchor Systems
-
-### Catenary Curve Equation (for anchor chain)
+#### Catenary Curve Equation (for anchor chain)
 
 $$
 y = \frac{H}{w}\left(\cosh\frac{w x}{H}-1\right)
@@ -542,4 +745,53 @@ graph LR
 
 > **Application Context:** The catenary equation describes the shape of an anchor chain or mooring line under its own weight. This formulation assumes a perfectly flexible, uniform line with no elastic stretch. For simulation purposes, the catenary shape determines the horizontal restoring force as a vessel moves from its anchored position. More sophisticated mooring simulations may incorporate line elasticity, hydrodynamic drag on the lines, and seafloor interaction models.
 
----
+### 10.3 Numerical Weather Prediction
+
+#### Primitive Equations of Atmospheric Motion
+
+Set of coupled equations (momentum, continuity, thermodynamic, moisture):
+
+- Momentum equations (including Coriolis)
+- Thermodynamic equation (energy conservation)  
+- Moisture conservation equation
+- Continuity equation (mass conservation)
+
+General form:
+
+$$
+\frac{\partial X}{\partial t} + \mathbf{u}\cdot\nabla X = S(X)
+$$
+
+Where:
+
+- $X$: State variable (e.g., temperature, wind components)
+- $S(X)$: Source terms
+- $\mathbf{u}$: Wind vector
+
+### 10.4 Statistical Weather Modeling
+
+#### Markov Chain models (weather states transitions)
+
+State-to-state probability:
+
+$$
+P(X_{t+1}=j|X_t=i)
+$$
+
+Where:
+
+- $X_t$: Weather state at time t
+- $i, j$: Different weather states
+
+## Summary of Environmental Simulation Parameters
+
+| Domain | Key Equations/Concepts |
+|--------|------------------------|
+| Atmospheric Dynamics | Navier-Stokes, Geostrophic wind equations |
+| Thermodynamics & Moisture | Ideal gas, Clausius-Clapeyron, RH%, LCL |
+| Clouds & Precipitation | Cloud formation, rain-rate distributions |
+| Radiative Transfer | Stefan-Boltzmann, solar radiation (insolation) |
+| Severe Weather Events | Gradient wind, cyclone modeling |
+| Air-Sea Interactions | Flux equations, drag coefficients |
+| Ship Stability | Metacentric height, righting arms |
+| Mooring Systems | Catenary equations for anchor lines |
