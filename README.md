@@ -32,7 +32,7 @@ The goal is to create a realistic motor vessel simulator that will run on an onl
 ## Stack
 
 - WASM with AssemblyScript 0.27.35
-- WebGL 
+- WebGL
 - Three.js 0.175.0
 - Next.js 15.3.0
 - React
@@ -331,12 +331,14 @@ flowchart TD
 ### Installation
 
 1. **Clone the repository:**
+
    ```sh
    git clone https://github.com/your-username/ship-sim.git
    cd ship-sim
    ```
 
 2. **Install dependencies:**
+
    ```sh
    npm install
    ```
@@ -346,6 +348,7 @@ flowchart TD
 
 4. **Set up the database:**
    - If using Prisma, run:
+
      ```sh
      npx prisma generate
      npx prisma migrate dev --name init
@@ -358,6 +361,7 @@ flowchart TD
 ```sh
 npm run dev
 ```
+
 - Starts the Next.js development server.
 - The app will be available at [http://localhost:3000](http://localhost:3000).
 
@@ -366,6 +370,7 @@ npm run dev
 ```sh
 docker compose up --build
 ```
+
 - This will build and start all services defined in `docker-compose.yml`.
 
 #### Running Tests
@@ -373,6 +378,7 @@ docker compose up --build
 ```sh
 npm test
 ```
+
 - Runs all Jest unit and integration tests.
 
 #### Linting and Formatting
@@ -392,14 +398,17 @@ npm run format    # Run Prettier
 To add AssemblyScript to your project, follow these steps (adapted from the [AssemblyScript Getting Started guide](https://www.assemblyscript.org/getting-started.html#setting-up-a-new-project)):
 
 1. **Install AssemblyScript as a development dependency:**
+
    ```sh
    npm install --save-dev assemblyscript
    ```
 
 2. **Initialize AssemblyScript project structure:**
+
    ```sh
    npx asinit .
    ```
+
    This will create the recommended directory structure and configuration files:
    - `./assembly/` — AssemblyScript source files
    - `./assembly/tsconfig.json` — TypeScript config for AssemblyScript
@@ -409,12 +418,15 @@ To add AssemblyScript to your project, follow these steps (adapted from the [Ass
    - `./tests/index.js` — Starter test for the module
 
 3. **Build the AssemblyScript module:**
+
    ```sh
    npm run asbuild
    ```
+
    This will compile your AssemblyScript code to WebAssembly and output it to the `build/` directory.
 
 4. **Run AssemblyScript tests:**
+
    ```sh
    npm test
    ```
@@ -468,22 +480,17 @@ For more details, see the [documentation](./docs) folder or project wiki.
 ## References
 
 [AssemblyScript Documentation][assemblyScriptDocs]
-
 [Three.js Documentation][threeJsDocs]
-
 [WebGL Documentation][webglDocs]
-
 [WebGL Mozilla Documentation][webglMozillaDocs]
-
 [Machinery Spaces][machinerySpacesLink]
-
 [Mermaid Live][mermaidLiveLink]
-
-[shipResistanceAndPropulsionLink][shipResistanceAndPropulsionWiki]
-
-[skinFrictionDragLink][skinFrictionDragWiki]
-
-[waveMakingResistanceLink][waveMakingResistanceWiki]
+[Ship resistance and propulsion - Wikipedia][shipResistanceAndPropulsionWiki]
+[Skin friction and drag - Wikipedia][skinFrictionDragWiki]
+[Wave-making resistance - Wikipedia][waveMakingResistanceWiki]
+[Marine propulsion - Wikipedia][marinePropulsionWiki]
+[Engine department - Wikipedia][engineDepartmentWiki]
+[The nautical site][nauticalSiteWiki]
 
 [assemblyScriptDocs]: https://www.assemblyscript.org/introduction.html
 [threeJsDocs]: https://threejs.org/docs/
@@ -494,3 +501,6 @@ For more details, see the [documentation](./docs) folder or project wiki.
 [shipResistanceAndPropulsionWiki]: https://en.wikipedia.org/wiki/Ship_resistance_and_propulsion
 [skinFrictionDragWiki]: https://en.wikipedia.org/wiki/Skin_friction_drag
 [waveMakingResistanceWiki]: https://en.wikipedia.org/wiki/Wave-making_resistance
+[marinePropulsionWiki]: https://en.wikipedia.org/wiki/Marine_propulsion
+[engineDepartmentWiki]: https://en.wikipedia.org/wiki/Engine_department
+[nauticalSiteWiki]: http://thenauticalsite.in/Index.html
