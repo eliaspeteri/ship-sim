@@ -40,6 +40,7 @@ For actual implementation details, see the source code with function implementat
   - [10.2 Mooring and Anchor Systems](#102-mooring-and-anchor-systems)
   - [10.3 Numerical Weather Prediction](#103-numerical-weather-prediction)
   - [10.4 Statistical Weather Modeling](#104-statistical-weather-modeling)
+- [11. Water Properties](#11-water-properties)
 
 ## **1. Hydrodynamics**
 
@@ -1362,7 +1363,6 @@ Where:
 - $\frac{\partial X}{\partial t}$: Local rate of change of state variable with time
 - $\mathbf{u}\cdot\nabla X$: Advection term (transport by flow)
 - $S(X)$: Source/sink terms (e.g., diabatic heating, friction)
-- $\mathbf{u}$: Wind vector (m/s)
 - $\nabla$: Del operator (partial derivatives with respect to spatial coordinates)
 
 ### 10.4 Statistical Weather Modeling
@@ -1380,15 +1380,199 @@ Where:
 - $X_t$: Weather state at time t
 - $i, j$: Different weather states
 
-## Summary of Environmental Simulation Parameters
+---
 
-| Domain | Key Equations/Concepts |
-|--------|------------------------|
-| Atmospheric Dynamics | Navier-Stokes, Geostrophic wind equations |
-| Thermodynamics & Moisture | Ideal gas, Clausius-Clapeyron, RH%, LCL |
-| Clouds & Precipitation | Cloud formation, rain-rate distributions |
-| Radiative Transfer | Stefan-Boltzmann, solar radiation (insolation) |
-| Severe Weather Events | Gradient wind, cyclone modeling |
-| Air-Sea Interactions | Flux equations, drag coefficients |
-| Ship Stability | Metacentric height, righting arms |
-| Mooring Systems | Catenary equations for anchor lines |
+## **11. Water Properties**
+
+Water density variations significantly impact maritime operations through changes in buoyancy, stability, and hydrodynamic forces. These variations occur between salt water and fresh water environments, and are affected by temperature and pressure conditions.
+
+### Water Density Calculation
+
+#### UNESCO Equation of State (Simplified)
+
+The full UNESCO equation is complex, but a simplified approximation is:
+
+$$
+\rho_w = \rho_0 + \alpha \cdot S - \beta \cdot T
+$$
+
+Where:
+
+- $\rho_w$: Water density (kg/m³)
+- $\rho_0$: Reference density of fresh water (≈1000 kg/m³)
+- $S$: Salinity (psu, practical salinity units)
+- $T$: Temperature (°C)
+- $\alpha$: Salinity coefficient (≈0.8 kg/m³/psu)
+- $\beta$: Temperature coefficient (≈0.2 kg/m³/°C)
+
+```typescript
+/**
+ * Calculate water density based on temperature and salinity
+ * Simplified approximation valid for typical oceanic conditions
+ * @param temperature Water temperature (°C)
+ * @param salinity Water salinity (psu)
+ * @returns Water density (kg/m³)
+ */
+export function calculateWaterDensity(
+  temperature: f64,
+  salinity: f64
+): f64 {
+  return 1000.0 + 0.8 * salinity - 0.2 * temperature;
+}
+```
+
+#### Fresh Water Density with Temperature
+
+Fresh water has maximum density at approximately 4°C, which is important for ice formation dynamics:
+
+$$
+\rho_{fresh} = 1000 \cdot \left(1 - \frac{|T - 4|^{1.7}}{2120}\right)
+$$
+
+Where:
+
+- $\rho_{fresh}$: Fresh water density (kg/m³)
+- $T$: Temperature (°C)
+
+```typescript
+/**
+ * Calculate fresh water density based on temperature
+ * Approximation accounting for density maximum at 4°C
+ * @param temperature Water temperature (°C)
+ * @returns Fresh water density (kg/m³)
+ */
+export function calculateFreshWaterDensity(
+  temperature: f64
+): f64 {
+  return 1000.0 * (1.0 - Math.pow(Math.abs(temperature - 4.0), 1.7) / 2120.0);
+}
+```
+
+### Lookup Table Approach
+
+For performance-critical applications, a lookup table with interpolation provides computational efficiency:
+
+```typescript
+/**
+ * Water density lookup table
+ * First index: temperature (0-30°C in 5°C steps)
+ * Second index: 0=fresh water, 1=seawater (35 psu)
+ */
+const WATER_DENSITY_TABLE: Array<Array<f64>> = [
+  [999.8, 1028.1], // 0°C
+  [999.9, 1027.7], // 5°C
+  [999.7, 1026.9], // 10°C
+  [999.1, 1025.9], // 15°C
+  [998.2, 1024.7], // 20°C
+  [997.0, 1023.3], // 25°C
+  [995.6, 1021.7]  // 30°C
+];
+
+/**
+ * Get water density from lookup table with linear interpolation
+ * @param temperature Water temperature (°C)
+ * @param isSaltWater Whether to use salt water values (true) or fresh water (false)
+ * @returns Interpolated water density (kg/m³)
+ */
+export function getWaterDensityFromTable(
+  temperature: f64,
+  isSaltWater: bool
+): f64 {
+  // Clamp temperature to table bounds
+  const clampedTemp = Math.max(0.0, Math.min(30.0, temperature));
+  
+  // Calculate indices and interpolation factor
+  const lowerIndex = Math.floor(clampedTemp / 5.0);
+  const upperIndex = Math.min(6, lowerIndex + 1);
+  const factor = (clampedTemp - lowerIndex * 5.0) / 5.0;
+  
+  // Select column based on water type
+  const column: i32 = isSaltWater ? 1 : 0;
+  
+  // Perform linear interpolation between nearest values
+  const lowerValue = WATER_DENSITY_TABLE[lowerIndex][column];
+  const upperValue = WATER_DENSITY_TABLE[upperIndex][column];
+  
+  return lowerValue + factor * (upperValue - lowerValue);
+}
+```
+
+### Effects of Density Variation on Maritime Simulation
+
+The variation in water density affects several key aspects of maritime simulation:
+
+1. **Buoyancy Force** - Objects experience ~2.5% greater buoyancy in salt water than fresh water
+
+2. **Draft Changes** - A vessel will sit slightly higher in salt water than in fresh water:
+
+   $$\text{Draft change} = \text{Current draft} \times \frac{\rho_{current} - \rho_{new}}{\rho_{new}}$$
+
+3. **Stability Parameters** - Metacentric height and righting moments are affected by water density
+
+4. **Propulsion Efficiency** - Propeller performance varies with water density
+
+5. **Ice Formation Dynamics** - Fresh water's maximum density at 4°C creates unique circulation patterns
+
+6. **Sound Propagation** - Water density affects acoustic transmission characteristics
+
+> **Application Context:** In maritime simulations spanning different environments (open ocean, coastal regions, rivers, Arctic waters), accounting for water density variations improves accuracy of vessel behavior. For high-precision simulations involving critical operations like heavy load transport or ice navigation, density variation can substantially affect stability and propulsion requirements.
+
+### Comprehensive Water Density Model
+
+For a comprehensive approach that includes effects of depth (pressure), temperature, and salinity:
+
+```typescript
+/**
+ * Get water density based on temperature, salinity and depth
+ * More comprehensive approach that accounts for ice formation in very cold conditions
+ * @param temperature Water temperature (°C)
+ * @param salinity Water salinity (psu)
+ * @param depth Depth below surface (m)
+ * @returns Water density (kg/m³)
+ */
+export function getComprehensiveWaterDensity(
+  temperature: f64,
+  salinity: f64,
+  depth: f64
+): f64 {
+  // Handle ice formation case (simplified)
+  if (temperature < -0.5 * salinity / 10.0) {
+    return 916.8; // Approximate density of ice
+  }
+  
+  // Basic density calculation
+  let density = 1000.0 + 0.8 * salinity - 0.2 * temperature;
+  
+  // Add pressure effect (very minor for typical ship simulation depths)
+  if (depth > 10.0) {
+    // Approximate 0.005 kg/m³ increase per meter depth below 10m
+    density += 0.005 * (depth - 10.0);
+  }
+  
+  return density;
+}
+```
+
+### Integration with Buoyancy Calculations
+
+To incorporate water density variations into buoyancy calculations:
+
+```typescript
+/**
+ * Calculate buoyant force with variable water density
+ * @param displacedVolume Volume of water displaced by the ship (m³)
+ * @param temperature Water temperature (°C)
+ * @param isSaltWater Whether in salt water (true) or fresh water (false)
+ * @returns Buoyant force (N)
+ */
+export function calculateBuoyantForceWithDensity(
+  displacedVolume: f64,
+  temperature: f64,
+  isSaltWater: bool
+): f64 {
+  const waterDensity = getWaterDensityFromTable(temperature, isSaltWater);
+  return waterDensity * GRAVITY * displacedVolume;
+}
+```
+
+---
