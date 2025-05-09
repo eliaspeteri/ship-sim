@@ -459,6 +459,17 @@ $$
 \rho\frac{D\mathbf{u}}{Dt} = -\nabla p - \rho g \hat{z} + \mu\nabla^2\mathbf{u}
 $$
 
+Where:
+
+- $\rho$: Fluid density (kg/m³)
+- $\mathbf{u}$: Velocity vector field (m/s)
+- $\frac{D}{Dt}$: Material derivative (following fluid motion)
+- $\nabla p$: Pressure gradient (Pa/m)
+- $g$: Acceleration due to gravity (m/s²)
+- $\hat{z}$: Unit vector in vertical direction
+- $\mu$: Dynamic viscosity coefficient (kg/m·s)
+- $\nabla^2$: Laplacian operator
+
 #### Simplified (Geostrophic wind)
 
 $$
@@ -467,10 +478,11 @@ $$
 
 Where:
 
-- $f$: Coriolis parameter
-- $\mathbf{v}$: horizontal wind velocity
-- $p$: pressure
-- $\rho$: density
+- $f$: Coriolis parameter (s⁻¹), given by $f = 2\Omega\sin\phi$ where $\Omega$ is Earth's angular velocity and $\phi$ is latitude
+- $\mathbf{k}$: Unit vector in vertical direction
+- $\mathbf{v}$: Horizontal wind velocity vector (m/s)
+- $\nabla p$: Horizontal pressure gradient (Pa/m)
+- $\rho$: Air density (kg/m³)
 
 ### 8.3 Thermodynamics
 
@@ -495,6 +507,11 @@ $$
 \Gamma_d = \frac{g}{C_p} \approx 9.8\,^\circ C/km
 $$
 
+Where:
+
+- $g$: Acceleration due to gravity (m/s²)
+- $C_p$: Specific heat capacity of dry air at constant pressure (J/kg·K)
+
 Moist adiabatic lapse rate ($\Gamma_m$):
 Typically $4-8\,^\circ C/km$, varies with moisture and temperature.
 
@@ -503,6 +520,15 @@ Typically $4-8\,^\circ C/km$, varies with moisture and temperature.
 $$
 \theta = T\left(\frac{p_0}{p}\right)^{R/C_p}
 $$
+
+Where:
+
+- $\theta$: Potential temperature (K)
+- $T$: Actual temperature (K)
+- $p_0$: Reference pressure, typically 100,000 Pa
+- $p$: Actual pressure (Pa)
+- $R$: Specific gas constant for dry air (J/kg·K)
+- $C_p$: Specific heat capacity at constant pressure (J/kg·K)
 
 ### 8.4 Moisture and Humidity
 
@@ -520,13 +546,17 @@ Where:
 #### Clausius-Clapeyron Equation (saturation vapor pressure)
 
 $$
-e_s(T) = e_0 \exp\left(\frac{L_v}{R_v}\left(\frac{1}{T_0}-\frac{1}{T}\right)\right)
+e_s(T) = e_0 \exp\left[\frac{L_v}{R_v}\left(\frac{1}{T_0}-\frac{1}{T}\right)\right]
 $$
 
 Where:
 
-- $L_v$: Latent heat of vaporization (J/kg)
-- $R_v$: Gas constant for water vapor (J/kg·K)
+- $e_s(T)$: Saturation vapor pressure at temperature T (Pa)
+- $e_0$: Reference saturation vapor pressure at reference temperature $T_0$ (Pa)
+- $L_v$: Latent heat of vaporization of water (J/kg)
+- $R_v$: Specific gas constant for water vapor (≈461.5 J/kg·K)
+- $T_0$: Reference temperature (typically 273.16 K)
+- $T$: Actual temperature (K)
 
 ### 8.5 Cloud Formation and Precipitation
 
@@ -540,7 +570,11 @@ $$
 
 Where:
 
-- $T_d$: Dew point temperature (°C)
+- $z_{LCL}$: Height of lifted condensation level (m)
+- $T$: Surface air temperature (°C or K)
+- $T_d$: Surface dew point temperature (°C or K)
+- $\Gamma_d$: Dry adiabatic lapse rate (°C/m or K/m)
+- $\Gamma_{dew}$: Dew point lapse rate (°C/m or K/m)
 
 #### Rainfall Rate (Marshall-Palmer distribution)
 
@@ -549,6 +583,14 @@ Drop-size distribution for rainfall intensity $R$:
 $$
 N(D) = N_0 e^{-\Lambda D}, \quad \text{with} \quad \Lambda = 4.1\,R^{-0.21}
 $$
+
+Where:
+
+- $N(D)$: Number of drops with diameter $D$ per unit volume per unit diameter interval
+- $N_0$: Distribution parameter (typically 8000 m⁻³·mm⁻¹)
+- $\Lambda$: Distribution slope parameter (mm⁻¹)
+- $R$: Rainfall rate (mm/h)
+- $D$: Raindrop diameter (mm)
 
 ### 8.6 Radiative Transfer
 
@@ -626,6 +668,11 @@ $$
 
 Where:
 
+- $S(\omega)$: Wave energy spectral density (m²·s)
+- $\alpha$: Phillips constant (≈0.0081, dimensionless)
+- $\beta$: Constant (≈0.74, dimensionless)
+- $g$: Acceleration due to gravity (m/s²)
+- $\omega$: Angular frequency (rad/s)
 - $U_{10}$: Wind speed at 10 m height (m/s)
 
 ### 8.10 Visibility and Atmospheric Optics
@@ -638,9 +685,10 @@ $$
 
 Where:
 
+- $I$: Light intensity after passing through medium
 - $I_0$: Initial light intensity
-- $\sigma$: Attenuation coefficient
-- $x$: Distance light travels through medium
+- $\sigma$: Attenuation coefficient (m⁻¹)
+- $x$: Distance light travels through medium (m)
 
 ---
 
@@ -765,8 +813,11 @@ $$
 Where:
 
 - $X$: State variable (e.g., temperature, wind components)
-- $S(X)$: Source terms
-- $\mathbf{u}$: Wind vector
+- $\frac{\partial X}{\partial t}$: Local rate of change of state variable with time
+- $\mathbf{u}\cdot\nabla X$: Advection term (transport by flow)
+- $S(X)$: Source/sink terms (e.g., diabatic heating, friction)
+- $\mathbf{u}$: Wind vector (m/s)
+- $\nabla$: Del operator (partial derivatives with respect to spatial coordinates)
 
 ### 10.4 Statistical Weather Modeling
 
