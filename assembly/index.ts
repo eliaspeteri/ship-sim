@@ -1613,7 +1613,7 @@ export function getVesselCenterOfGravityY(vesselPtr: usize): f64 {
 }
 
 /**
- * Gets the vessel's surge velocity (u).
+ * Gets the vessel's surge velocity (u) in the ship's body frame.
  * @param vesselPtr - Pointer to the vessel instance
  */
 export function getVesselSurgeVelocity(vesselPtr: usize): f64 {
@@ -1621,7 +1621,7 @@ export function getVesselSurgeVelocity(vesselPtr: usize): f64 {
 }
 
 /**
- * Gets the vessel's sway velocity (v).
+ * Gets the vessel's sway velocity (v) in the ship's body frame.
  * @param vesselPtr - Pointer to the vessel instance
  */
 export function getVesselSwayVelocity(vesselPtr: usize): f64 {
