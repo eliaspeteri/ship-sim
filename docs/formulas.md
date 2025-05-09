@@ -1,5 +1,19 @@
 # Scientific formulas required for calculations in the project
 
+## Implementation Status
+
+1. **Computational Complexity**: Some formulas (e.g., Navier-Stokes equations) represent complex physical processes that would require full simulation engines.
+
+2. **Different Abstraction Levels**: Some formulas are foundational while others are derived from them. Implementing all would create redundancy.
+
+3. **Implementation Cost vs. Benefit**: Specialized formulas with limited application in ship simulation have lower priority.
+
+4. **AssemblyScript Limitations**: AssemblyScript has performance constraints with complex mathematical operations and limited standard library support.
+
+5. **Memory Constraints**: Implementing all formulas would increase the code footprint significantly.
+
+For actual implementation details, see the source code with function implementations.
+
 ## Table of Contents
 
 - [1. Hydrodynamics](#1-hydrodynamics)
@@ -42,6 +56,20 @@ Where:
 - $g$: Acceleration due to gravity (m/s²)
 - $V_{displaced}$: Volume of water displaced by the ship (m³)
 
+```typescript
+const GRAVITY: f64 = 9.81;
+const WATER_DENSITY: f64 = 1025.0; // kg/m³ (seawater)
+
+/**
+ * Calculate buoyant force using Archimedes' principle
+ * @param displacedVolume Volume of water displaced by the ship (m³)
+ * @returns Buoyant force (N)
+ */
+function calculateBuoyantForce(displacedVolume: f64): f64 {
+  return WATER_DENSITY * GRAVITY * displacedVolume;
+}
+```
+
 ### Hydrostatic Pressure
 
 $$
@@ -56,6 +84,24 @@ Where:
 - $g$: Acceleration due to gravity (m/s²)
 - $h$: Depth below the water surface (m)
 
+```typescript
+const WATER_DENSITY: f64 = 1025.0; // kg/m³ (seawater)
+const GRAVITY: f64 = 9.81; // m/s²
+
+/**
+ * Calculate hydrostatic pressure at a given depth
+ * @param depth Depth below water surface (m)
+ * @param atmosphericPressure Atmospheric pressure at surface (Pa)
+ * @returns Pressure at depth (Pa)
+ */
+export function calculateHydrostaticPressure(
+  depth: f64,
+  atmosphericPressure: f64,
+): f64 {
+  return atmosphericPressure + WATER_DENSITY * GRAVITY * depth;
+}
+```
+
 ### Drag Force (Fluid resistance)
 
 $$
@@ -69,6 +115,29 @@ Where:
 - $v$: Velocity of the ship relative to water (m/s)
 - $C_d$: Drag coefficient (dimensionless)
 - $A$: Reference area (m²)
+
+```typescript
+const WATER_DENSITY: f64 = 1025.0; // kg/m³ (seawater)
+
+/**
+ * Calculate fluid drag force
+ * @param velocity Relative velocity between object and fluid (m/s)
+ * @param dragCoefficient Drag coefficient (dimensionless)
+ * @param referenceArea Reference area (m²)
+ * @param fluidDensity Density of the fluid (kg/m³)
+ * @returns Drag force (N)
+ */
+export function calculateDragForce(
+  velocity: f64,
+  dragCoefficient: f64,
+  referenceArea: f64,
+  fluidDensity: f64 = WATER_DENSITY,
+): f64 {
+  return (
+    0.5 * fluidDensity * velocity * velocity * dragCoefficient * referenceArea
+  );
+}
+```
 
 ### Added Mass Effect
 
@@ -178,6 +247,27 @@ Where:
 - $x$: Position (m)
 - $t$: Time (s)
 
+```typescript
+/**
+ * Calculate wave surface elevation at position x and time t (Airy wave theory)
+ * @param amplitude Wave amplitude (m)
+ * @param waveNumber Wave number (rad/m)
+ * @param angularFrequency Angular frequency (rad/s)
+ * @param position Position x (m)
+ * @param time Time t (s)
+ * @returns Surface elevation (m)
+ */
+export function calculateWaveSurfaceElevation(
+  amplitude: f64,
+  waveNumber: f64,
+  angularFrequency: f64,
+  position: f64,
+  time: f64,
+): f64 {
+  return amplitude * Math.cos(waveNumber * position - angularFrequency * time);
+}
+```
+
 Dispersion relation:
 
 $$
@@ -186,10 +276,27 @@ $$
 
 Where:
 
+- $\omega$: Angular frequency (rad/s)
 - $g$: Acceleration due to gravity (m/s²)
 - $h$: Water depth (m)
-- $\omega$: Angular frequency (rad/s)
 - $k$: Wave number (rad/m)
+
+```typescript
+const GRAVITY: f64 = 9.81; // m/s²
+
+/**
+ * Calculate angular frequency from wave number and water depth (dispersion relation)
+ * @param waveNumber Wave number (rad/m)
+ * @param waterDepth Water depth (m)
+ * @returns Angular frequency (rad/s)
+ */
+function calculateAngularFrequency(
+  waveNumber: f64,
+  waterDepth: f64,
+): f64 {
+  return Math.sqrt(GRAVITY * waveNumber * Math.tanh(waveNumber * waterDepth));
+}
+```
 
 Wave number $k$:
 
@@ -201,6 +308,17 @@ Where:
 
 - $\lambda$: Wavelength (m)
 - $k$: Wave number (rad/m)
+
+```typescript
+/**
+ * Calculate wave number from wavelength
+ * @param wavelength Wavelength (m)
+ * @returns Wave number (rad/m)
+ */
+export function calculateWaveNumber(wavelength: f64): f64 {
+  return (2.0 * Math.PI) / wavelength;
+}
+```
 
 ### Wave Force on Structures (Morison's Equation)
 
@@ -219,6 +337,44 @@ Where:
 - $\frac{du}{dt}$: Fluid acceleration relative to structure (m/s²)
 - $|u|$: Absolute value of velocity (m/s)
 - $t$: Time (s)
+
+```typescript
+const WATER_DENSITY: f64 = 1025.0; // kg/m³ (seawater)
+
+/**
+ * Calculate wave force on a slender structure using Morison's equation
+ * @param dragCoefficient Drag coefficient
+ * @param inertiaCoefficient Inertia coefficient
+ * @param diameter Structure diameter (m)
+ * @param fluidVelocity Fluid velocity (m/s)
+ * @param fluidAcceleration Fluid acceleration (m/s²)
+ * @returns Wave force per unit length (N/m)
+ */
+function calculateMorisonWaveForce(
+  dragCoefficient: f64,
+  inertiaCoefficient: f64,
+  diameter: f64,
+  fluidVelocity: f64,
+  fluidAcceleration: f64,
+): f64 {
+  const dragTerm =
+    dragCoefficient *
+    0.5 *
+    WATER_DENSITY *
+    diameter *
+    fluidVelocity *
+    Math.abs(fluidVelocity);
+  const inertiaTerm =
+    inertiaCoefficient *
+    WATER_DENSITY *
+    Math.PI *
+    diameter *
+    diameter *
+    0.25 *
+    fluidAcceleration;
+  return dragTerm + inertiaTerm;
+}
+```
 
 > **Application Context:** Morison's equation is primarily used for calculating wave forces on slender structures where the diameter is small compared to the wavelength (D < 0.2λ). The first term represents drag force (dominant in high Keulegan-Carpenter number flows), while the second term represents inertial force (dominant in low KC number flows). For large structures where diffraction effects become important, alternative methods like potential flow theory or CFD should be considered.
 
@@ -240,6 +396,31 @@ Where:
 - $n$: Propeller rotation speed (rev/min)
 - $D$: Propeller diameter (m)
 
+```typescript
+const WATER_DENSITY: f64 = 1025.0; // kg/m³ (seawater)
+
+/**
+ * Calculate thrust produced by a propeller
+ * @param propellerRotationSpeed Propeller rotation speed (rev/min)
+ * @param propellerDiameter Propeller diameter (m)
+ * @param thrustCoefficient Thrust coefficient (dimensionless)
+ * @returns Thrust (N)
+ */
+function calculatePropellerThrust(
+  propellerRotationSpeed: f64,
+  propellerDiameter: f64,
+  thrustCoefficient: f64,
+): f64 {
+  return (
+    WATER_DENSITY *
+    propellerRotationSpeed *
+    propellerRotationSpeed *
+    Math.pow(propellerDiameter, 4) *
+    thrustCoefficient
+  );
+}
+```
+
 ### Power and Efficiency
 
 $$
@@ -251,6 +432,21 @@ Where:
 - $P$: Power (W)
 - $Q$: Torque (Nm)
 - $n$: Propeller rotation speed (r/m)
+
+```typescript
+/**
+ * Calculate power produced by a propeller
+ * @param propellerRotationSpeed Propeller rotation speed (rev/min)
+ * @param torque Torque (Nm)
+ * @returns Power (W)
+ */
+function calculatePropellerPower(
+  propellerRotationSpeed: f64,
+  torque: f64,
+): f64 {
+  return 2.0 * Math.PI * (propellerRotationSpeed / 60.0) * torque;
+}
+```
 
 ---
 
@@ -271,6 +467,32 @@ Where:
 - $A_r$: Area of the rudder (m²)
 - $v$: Velocity of water relative to the rudder (m/s)
 - $\rho_{water}$: Density of water (kg/m³)
+
+```typescript
+const WATER_DENSITY: f64 = 1025.0; // kg/m³ (seawater)
+
+/**
+ * Calculate rudder lift force
+ * @param waterVelocity Velocity of water relative to the rudder (m/s)
+ * @param rudderArea Area of the rudder (m²)
+ * @param liftCoefficient Lift coefficient (dimensionless)
+ * @returns Lift force (N)
+ */
+export function calculateRudderLift(
+  waterVelocity: f64,
+  rudderArea: f64,
+  liftCoefficient: f64,
+): f64 {
+  return (
+    0.5 *
+    WATER_DENSITY *
+    waterVelocity *
+    waterVelocity *
+    rudderArea *
+    liftCoefficient
+  );
+}
+```
 
 ```mermaid
 graph LR
@@ -300,6 +522,28 @@ Where:
 - $\tan(\delta)$: Tangent of the rudder angle (dimensionless)
 - $\delta$: Rudder angle (radians)
 - $C_r$: Turning coefficient (dimensionless)
+
+```typescript
+const GRAVITY: f64 = 9.81; // m/s²
+
+/**
+ * Calculate steady-state turning radius
+ * @param shipSpeed Ship speed (m/s)
+ * @param rudderAngle Rudder angle (radians)
+ * @param turningCoefficient Ship-specific turning coefficient
+ * @returns Turning radius (m)
+ */
+export function calculateTurningRadius(
+  shipSpeed: f64,
+  rudderAngle: f64,
+  turningCoefficient: f64,
+): f64 {
+  return (
+    (shipSpeed * shipSpeed) /
+    (GRAVITY * Math.tan(rudderAngle) * turningCoefficient)
+  );
+}
+```
 
 > **Application Context:** This formula provides a simplified estimation for the steady-state turning radius. It assumes constant speed and rudder angle after the initial transient response has settled. The turning coefficient $C_r$ is ship-specific and must be determined empirically. For more accurate dynamic maneuvering simulations, consider using Nomoto's model or a full 3-DOF horizontal plane model that accounts for transient behavior.
 
@@ -336,6 +580,18 @@ Where:
 - $F$: Force (N)
 - $A$: Cross-sectional area (m²)
 
+```typescript
+/**
+ * Calculate stress based on force and area
+ * @param force Force (N)
+ * @param area Cross-sectional area (m²)
+ * @returns Stress (Pa)
+ */
+export function calculateStress(force: f64, area: f64): f64 {
+  return force / area;
+}
+```
+
 Strain ($\epsilon$):
 
 $$
@@ -348,6 +604,18 @@ Where:
 - $\Delta L$: Change in length (m)
 - $L$: Original length (m)
 
+```typescript
+/**
+ * Calculate strain based on change in length
+ * @param originalLength Original length (m)
+ * @param changeInLength Change in length (m)
+ * @returns Strain (dimensionless)
+ */
+export function calculateStrain(originalLength: f64, changeInLength: f64): f64 {
+  return changeInLength / originalLength;
+}
+```
+
 Hooke’s Law:
 
 $$
@@ -358,6 +626,18 @@ Where:
 
 - $E$: Young's modulus (Pa)
 - $\epsilon$: Strain (dimensionless)
+
+```typescript
+/**
+ * Calculate stress using Hooke's law
+ * @param strain Strain (dimensionless)
+ * @param youngsModulus Young's modulus (Pa)
+ * @returns Stress (Pa)
+ */
+export function calculateHookesLaw(strain: f64, youngsModulus: f64): f64 {
+  return youngsModulus * strain;
+}
+```
 
 ### Beam Theory (Bending Moments in Hull)
 
@@ -373,6 +653,23 @@ Where:
 - $M$: Bending moment (N·m)
 - $y$: Distance from neutral axis (m)
 - $I$: Second moment of inertia (m⁴)
+
+```typescript
+/**
+ * Calculate bending stress
+ * @param bendingMoment Bending moment (N·m)
+ * @param distanceFromNeutralAxis Distance from neutral axis (m)
+ * @param secondMomentOfArea Second moment of area (m⁴)
+ * @returns Bending stress (Pa)
+ */
+export function calculateBendingStress(
+  bendingMoment: f64,
+  distanceFromNeutralAxis: f64,
+  secondMomentOfArea: f64,
+): f64 {
+  return (bendingMoment * distanceFromNeutralAxis) / secondMomentOfArea;
+}
+```
 
 ---
 
@@ -406,6 +703,28 @@ Where:
 - $\Delta t$: Time step (s)
 - $\theta$: Heading angle (radians)
 
+```typescript
+/**
+ * Updates ship position using dead reckoning
+ * @param position Current position [x, y]
+ * @param speed Ship speed (m/s)
+ * @param heading Ship heading in radians
+ * @param deltaTime Time step (s)
+ * @returns Updated position [x, y]
+ */
+function updatePositionDeadReckoning(
+  position: Float64Array,
+  speed: f64,
+  heading: f64,
+  deltaTime: f64,
+): Float64Array {
+  const newPosition = new Float64Array(2);
+  newPosition[0] = position[0] + speed * deltaTime * Math.cos(heading);
+  newPosition[1] = position[1] + speed * deltaTime * Math.sin(heading);
+  return newPosition;
+}
+```
+
 ### Great Circle Navigation
 
 Distance:
@@ -422,6 +741,39 @@ Where:
 - $\Delta \lambda$: Difference in longitudes (radians)
 - $\sin, \cos$: Sine and cosine functions
 - $\arccos$: Inverse cosine function
+
+```typescript
+const EARTH_RADIUS: f64 = 6371000.0; // m
+
+/**
+ * Calculate great circle distance between two points on Earth
+ * @param lat1 Latitude of first point (radians)
+ * @param lon1 Longitude of first point (radians)
+ * @param lat2 Latitude of second point (radians)
+ * @param lon2 Longitude of second point (radians)
+ * @returns Distance (meters)
+ */
+export function calculateGreatCircleDistance(
+  lat1: f64,
+  lon1: f64,
+  lat2: f64,
+  lon2: f64,
+): f64 {
+  const deltaLon = lon2 - lon1;
+  const cosLat1 = Math.cos(lat1);
+  const cosLat2 = Math.cos(lat2);
+  const sinLat1 = Math.sin(lat1);
+  const sinLat2 = Math.sin(lat2);
+
+  const term1 = sinLat1 * sinLat2;
+  const term2 = cosLat1 * cosLat2 * Math.cos(deltaLon);
+
+  // Use haversine formula for better numerical stability
+  const centralAngle = Math.acos(Math.max(Math.min(term1 + term2, 1.0), -1.0));
+  return EARTH_RADIUS * centralAngle;
+}
+
+```
 
 ```mermaid
 graph TD
@@ -450,6 +802,27 @@ Where:
 - $v_{wind}$: Wind speed (m/s)
 - $C_{drag}$: Drag coefficient (dimensionless)
 - $A$: Reference area (m²)
+
+```typescript
+const AIR_DENSITY: f64 = 1.225; // kg/m³ (standard air density)
+
+/**
+ * Calculate wind force on ship superstructure
+ * @param windSpeed Wind speed (m/s)
+ * @param dragCoefficient Drag coefficient (dimensionless)
+ * @param referenceArea Reference area (m²)
+ * @returns Wind force (N)
+ */
+export function calculateWindForce(
+  windSpeed: f64,
+  dragCoefficient: f64,
+  referenceArea: f64,
+): f64 {
+  return (
+    0.5 * AIR_DENSITY * windSpeed * windSpeed * dragCoefficient * referenceArea
+  );
+}
+```
 
 ### 8.2 Atmospheric Fundamentals
 
@@ -543,6 +916,21 @@ Where:
 - $e$: Vapor pressure (Pa)
 - $e_s$: Saturation vapor pressure (Pa)
 
+```typescript
+/**
+ * Calculate relative humidity
+ * @param vaporPressure Actual vapor pressure (Pa)
+ * @param saturationVaporPressure Saturation vapor pressure (Pa)
+ * @returns Relative humidity (%)
+ */
+export function calculateRelativeHumidity(
+  vaporPressure: f64,
+  saturationVaporPressure: f64,
+): f64 {
+  return (vaporPressure / saturationVaporPressure) * 100.0;
+}
+```
+
 #### Clausius-Clapeyron Equation (saturation vapor pressure)
 
 $$
@@ -608,6 +996,20 @@ Where:
 - $\alpha$: Albedo (dimensionless)
 - $Z$: Zenith angle of sun (radians)
 
+```typescript
+const SOLAR_CONSTANT: f64 = 1361.0; // W/m²
+
+/**
+ * Calculate solar radiation on horizontal surface
+ * @param albedo Surface reflectivity (dimensionless)
+ * @param zenithAngle Sun's zenith angle (radians)
+ * @returns Solar radiation flux (W/m²)
+ */
+export function calculateSolarRadiation(albedo: f64, zenithAngle: f64): f64 {
+  return SOLAR_CONSTANT * (1.0 - albedo) * Math.cos(zenithAngle);
+}
+```
+
 #### Longwave Radiation (Stefan-Boltzmann Law)
 
 $$
@@ -618,6 +1020,24 @@ Where:
 
 - $\epsilon$: Emissivity (dimensionless)
 - $\sigma$: Stefan-Boltzmann constant (5.67×10⁻⁸ W/m²K⁴)
+- $T$: Temperature (K)
+
+```typescript
+const STEFAN_BOLTZMANN: f64 = 5.67e-8; // W/m²K⁴
+
+/**
+ * Calculate longwave radiation using Stefan-Boltzmann Law
+ * @param emissivity Surface emissivity (dimensionless)
+ * @param temperature Surface temperature (K)
+ * @returns Radiated energy flux (W/m²)
+ */
+export function calculateLongwaveRadiation(
+  emissivity: f64,
+  temperature: f64,
+): f64 {
+  return emissivity * STEFAN_BOLTZMANN * Math.pow(temperature, 4);
+}
+```
 
 ### 8.7 Wind and Turbulence
 
@@ -690,6 +1110,23 @@ Where:
 - $\sigma$: Attenuation coefficient (m⁻¹)
 - $x$: Distance light travels through medium (m)
 
+```typescript
+/**
+ * Calculate visibility using Beer-Lambert law
+ * @param initialIntensity Initial light intensity
+ * @param attenuationCoefficient Attenuation coefficient (m⁻¹)
+ * @param distance Distance (m)
+ * @returns Light intensity after attenuation
+ */
+export function calculateVisibility(
+  initialIntensity: f64,
+  attenuationCoefficient: f64,
+  distance: f64,
+): f64 {
+  return initialIntensity * Math.exp(-attenuationCoefficient * distance);
+}
+```
+
 ---
 
 ## **9. Mathematical Tools**
@@ -739,6 +1176,19 @@ Where:
 - $BM$: Distance from center of buoyancy to metacenter (m)
 - $KG$: Height of center of gravity above keel (m)
 
+```typescript
+/**
+ * Calculate metacentric height
+ * @param kb Height of center of buoyancy above keel (m)
+ * @param bm Distance from center of buoyancy to metacenter (m)
+ * @param kg Height of center of gravity above keel (m)
+ * @returns Metacentric height (m)
+ */
+export function calculateMetacentricHeight(kb: f64, bm: f64, kg: f64): f64 {
+  return kb + bm - kg;
+}
+```
+
 ```mermaid
 graph TD
     subgraph "Ship Stability Parameters"
@@ -766,7 +1216,49 @@ Where:
 - $\Delta$: Displacement (N)
 - $GZ$: Righting arm (m)
 
-> **Application Context:** The righting moment represents the ship's ability to return to equilibrium when heeled. For small angles, GZ ≈ GM·sin(θ), but for larger angles, GZ values are typically obtained from hydrostatic tables or calculated from the hull geometry. In simulations, the GZ curve is essential for modeling ship response to wave forces, wind heeling moments, or damage scenarios.
+```typescript
+/**
+ * Calculate righting moment
+ * @param displacement Ship displacement (N)
+ * @param rightingArm Righting arm GZ (m)
+ * @returns Righting moment (N·m)
+ */
+export function calculateRightingMoment(
+  displacement: f64,
+  rightingArm: f64,
+): f64 {
+  return displacement * rightingArm;
+}
+```
+
+#### Righting Arm for Small Angles
+
+$$
+GZ = GM \cdot \sin(\theta)
+$$
+
+Where:
+
+- $GZ$: Righting arm (m)
+- $GM$: Metacentric height (m)
+- $\theta$: Heel angle (radians)
+
+```typescript
+/**
+ * Calculate righting arm for small angles
+ * @param metacentricHeight Metacentric height GM (m)
+ * @param heelAngle Heel angle (radians)
+ * @returns Righting arm GZ (m)
+ */
+export function calculateSmallAngleRightingArm(
+  metacentricHeight: f64,
+  heelAngle: f64,
+): f64 {
+  return metacentricHeight * Math.sin(heelAngle);
+}
+```
+
+> **Application Context:** For small heel angles, the righting arm GZ can be approximated as GM·sin(θ). This simplification breaks down at larger angles where the full GZ curve must be calculated from the hull geometry. This function provides a quick estimate useful for initial stability calculations or for vessels with small angles of heel.
 
 ### 10.2 Mooring and Anchor Systems
 
@@ -783,6 +1275,27 @@ Where:
 - $H$: Horizontal tension (N)
 - $w$: Weight per unit length (N/m)
 
+```typescript
+/**
+ * Calculate catenary curve y-coordinate for mooring/anchor chains
+ * @param horizontalTension Horizontal tension (N)
+ * @param weightPerLength Weight per unit length (N/m)
+ * @param horizontalPosition x-coordinate (m)
+ * @returns Vertical coordinate y (m)
+ */
+export function calculateCatenaryY(
+  horizontalTension: f64,
+  weightPerLength: f64,
+  horizontalPosition: f64,
+): f64 {
+  const ratio = weightPerLength / horizontalTension;
+  return (
+    (horizontalTension / weightPerLength) *
+    (Math.cosh(ratio * horizontalPosition) - 1.0)
+  );
+}
+```
+
 ```mermaid
 graph LR
     subgraph "Anchor Chain Catenary"
@@ -792,6 +1305,39 @@ graph LR
 ```
 
 > **Application Context:** The catenary equation describes the shape of an anchor chain or mooring line under its own weight. This formulation assumes a perfectly flexible, uniform line with no elastic stretch. For simulation purposes, the catenary shape determines the horizontal restoring force as a vessel moves from its anchored position. More sophisticated mooring simulations may incorporate line elasticity, hydrodynamic drag on the lines, and seafloor interaction models.
+
+#### Mooring Line Restoring Force
+
+For a catenary mooring line, the horizontal restoring force can be approximated based on the scope, horizontal distance, and weight per unit length:
+
+```typescript
+/**
+ * Calculate horizontal restoring force for a catenary mooring line
+ * @param scope Total length of mooring line (m)
+ * @param horizontalDistance Horizontal distance from anchor to vessel (m)
+ * @param weightPerLength Weight per unit length (N/m)
+ * @returns Horizontal restoring force (N)
+ */
+export function calculateMooringRestoringForce(
+  scope: f64,
+  horizontalDistance: f64,
+  weightPerLength: f64,
+): f64 {
+  // This is a simplification - full solution requires solving transcendental equation
+  if (horizontalDistance >= scope) {
+    return f64.POSITIVE_INFINITY; // Line is taut
+  }
+
+  const verticalDistance = Math.sqrt(
+    scope * scope - horizontalDistance * horizontalDistance,
+  );
+  return (
+    (weightPerLength * horizontalDistance) / ((2.0 * verticalDistance) / scope)
+  );
+}
+```
+
+> **Application Context:** This function provides a simplified model for calculating the restoring force of a mooring line as a vessel moves away from its anchored position. When the horizontal distance equals the total line length (scope), the line becomes completely taut with effectively infinite tension. For more accurate modeling, the full catenary equations would need to be solved iteratively.
 
 ### 10.3 Numerical Weather Prediction
 
