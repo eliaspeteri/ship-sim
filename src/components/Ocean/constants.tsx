@@ -17,8 +17,8 @@ export const MAX_SPEED = 0.5; // Doubled to allow for higher sea states
 
 // Persistence
 export const BASE_PERSISTENCE = 0.1;
-export const PERSISTENCE_PER_SEASTATE = 1;
-export const MAX_PERSISTENCE = 0.25; // Slightly increased
+export const PERSISTENCE_PER_SEASTATE = 0.025;
+export const MAX_PERSISTENCE = 0.4; // Slightly increased
 
 // Lacunarity
 export const BASE_LACUNARITY = 1.18;
