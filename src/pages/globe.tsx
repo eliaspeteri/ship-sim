@@ -2,6 +2,9 @@ import React from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, useTexture } from '@react-three/drei';
 
+const EARTH_RADIUS = 1024;
+const SEGMENTS = 16;
+
 function Marker({ lat, lon }: { lat: number; lon: number }) {
   const [x, y, z] = latLonToXYZ(lat, lon, EARTH_RADIUS); // Adjust radius for marker position
   const segments = 32;
@@ -14,9 +17,6 @@ function Marker({ lat, lon }: { lat: number; lon: number }) {
     </mesh>
   );
 }
-
-const EARTH_RADIUS = 128;
-const SEGMENTS = 16;
 
 function latLonToXYZ(lat: number, lon: number, radius = EARTH_RADIUS) {
   const phi = (90 - lat) * (Math.PI / 180);
