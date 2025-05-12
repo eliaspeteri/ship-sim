@@ -3,6 +3,7 @@
 This document tracks the major features of the Ship Simulator project, grouped as in the README. Features that are implemented or have clear code evidence are checked. Others are left unchecked. This list is based on code, bug reports, and project structure as of May 2025. If a feature's status is unclear, please confirm or update as needed.
 
 ## Physics Simulation Core
+
 - [x] Hydrodynamics
   - [x] Hull resistance
   - [x] Wave interaction
@@ -27,17 +28,19 @@ This document tracks the major features of the Ship Simulator project, grouped a
   - [x] Real-time data visualization
 
 ## 3D Graphics with WebGL and Three.js
+
 - [x] Vessel Model: Detailed 3D model of the ship
 - [ ] Environment: Realistic ocean and weather simulation, ports
-    - [ ] Bathymetric data. Supplied for example from GEBCO, SRTM30_PLUS and ETOPO1. See docs/features/coastline-bathymetry.md for data pipeline and 3D integration steps.
-    - [ ] Land data. Supplied with SRTM. Does not need to cover the entire world, just the area around the water bodies. See docs/features/coastline-bathymetry.md for details on heightmaps and tile serving.
-    - [ ] Realtime weather from online.
-    - [ ] Realtime ocean currents from online.
-    - [ ] Realistic waves and foam.
-    - [ ] Realistic sky and sun.
+  - [ ] Bathymetric data. Supplied for example from GEBCO, SRTM30_PLUS and ETOPO1. See docs/features/coastline-bathymetry.md for data pipeline and 3D integration steps.
+  - [ ] Land data. Supplied with SRTM. Does not need to cover the entire world, just the area around the water bodies. See docs/features/coastline-bathymetry.md for details on heightmaps and tile serving.
+  - [ ] Realtime weather from online.
+  - [ ] Realtime ocean currents from online.
+  - [ ] Realistic waves and foam.
+  - [ ] Realistic sky and sun.
 - [x] Camera Controls: Bridge view, external view, machinery spaces
 
 ## UI
+
 - [x] Control panels: Telegraph, bridge controls, system monitors
   - [x] Rudder control lever
   - [x] Telegraph lever
@@ -66,6 +69,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
 - [x] Logs & Reports: Event logs, fuel consumption, voyage data
 
 ## IMO Mandatory Bridge Systems
+
 - [ ] Navigation Systems
   - [ ] Radar Systems
     - [x] X-band/S-band radar display
@@ -108,13 +112,14 @@ This document tracks the major features of the Ship Simulator project, grouped a
     - [ ] Visibility monitoring
     - [ ] Day/night indicator
 - [ ] Alert systems (BNWAS)
-    - [ ] Bridge Navigational Watch Alarm System (BNWAS)
-        - [ ] Alert system for watchkeeping officers
-        - [ ] Monitoring of officer presence
-        - [ ] Alarm reset and acknowledgment
-        - [ ] Integration with other systems (e.g., radar, ECDIS)
+  - [ ] Bridge Navigational Watch Alarm System (BNWAS)
+    - [ ] Alert system for watchkeeping officers
+    - [ ] Monitoring of officer presence
+    - [ ] Alarm reset and acknowledgment
+    - [ ] Integration with other systems (e.g., radar, ECDIS)
 
 ## Simulation Scenarios
+
 - [x] Normal Operations
   - [x] Start/stop engine
   - [x] Maneuvering
@@ -126,6 +131,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
   - [x] Blackouts
 
 ## Data & Extensibility
+
 - [x] Configurable vessel data: Different ship types, engine models, cargo
 - [x] Save/Load State
 - [ ] Modding
@@ -133,6 +139,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
 ---
 
 **Legend:**
+
 - [x] Implemented or present in code/UI
 - [ ] Not yet implemented or unclear
 
