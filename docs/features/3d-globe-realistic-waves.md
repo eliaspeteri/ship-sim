@@ -391,7 +391,7 @@ function Globe() {
 
 ### Convert (lat, lon) to 3D Globe Coordinates
 
-- [ ] Write a function:
+- [x] Write a function:
 
   ```js
   function latLonToXYZ(lat, lon, radius) {
@@ -404,13 +404,13 @@ function Globe() {
   }
   ```
 
-- [ ] Test the function with (0, 0) and check the result
+- [x] Test the function with (0, 0) and check the result
 
 ### Add a Marker at a Specific Location
 
-- [ ] Use `latLonToXYZ` to get coordinates for a city (e.g., Helsinki)
-- [ ] Create a small sphere or cube at that position
-- [ ] Add the marker mesh to the scene
+- [x] Use `latLonToXYZ` to get coordinates for a city (e.g., Helsinki)
+- [x] Create a small sphere or cube at that position
+- [x] Add the marker mesh to the scene
 
 ### Load a Raster Tile as a Texture
 
