@@ -25,6 +25,12 @@
 21. [Where to Ask for Help](#where-to-ask-for-help)
 22. [Step-by-Step Technical Plan for 3D Globe Implementation](#step-by-step-technical-plan-for-3d-globe-implementation)
 23. [Technical Notes: LOD, Tile Management, and Blending](#technical-notes-lod-tile-management-and-blending)
+24. [Data Formats and Tile Schema](#data-formats-and-tile-schema)
+25. [Dependencies and Environment](#dependencies-and-environment)
+26. [Acceptance Criteria](#acceptance-criteria)
+27. [Reference Projects and Visuals](#reference-projects-and-visuals)
+28. [Example One-Liner Tasks (Atomic Tasks)](#example-one-liner-tasks-atomic-tasks)
+29. [Knowledge Areas for 3D Globe Development](#knowledge-areas-for-3d-globe-development)
 
 ---
 
@@ -267,6 +273,67 @@ flowchart TD
 - **Performance:**
   - Profile rendering and network usage.
   - Optimize mesh resolution, LOD switching, and tile caching.
+
+---
+
+## Data Formats and Tile Schema
+
+- Raster tiles: PNG, 256x256, equirectangular projection, EPSG:4326
+- Vector tiles: MVT (Mapbox Vector Tile), WGS84 coordinates
+- Heightmaps: 8-bit or 16-bit grayscale PNG, 256x256
+- All coordinates and projections should be clearly documented in the data pipeline
+
+## Dependencies and Environment
+
+- Node.js >= 18.x
+- npm packages: three, @react-three/fiber, @react-three/drei, (add others as needed)
+- System: Linux (tested), GDAL for preprocessing, Python 3.x for scripts
+- Tile server: TileServer GL (Docker)
+
+## Acceptance Criteria
+
+- [ ] Globe renders with no visible seams at all LODs
+- [ ] Water animation runs at 60 FPS on target hardware
+- [ ] Landmass vector tiles are projected and visible at all zoom levels
+- [ ] Bathymetric data is blended and visible under water
+- [ ] Overlays (routes, ports) are interactive and accurate
+- [ ] All scripts and documentation are up to date
+
+## Reference Projects and Visuals
+
+- [three.js globe example](https://threejs.org/examples/?q=globe#webgl_geometry_earth)
+- [three.js ocean shader example](https://threejs.org/examples/?q=ocean#webgl_shaders_ocean)
+- [OpenMapTiles vector tile schema](https://openmaptiles.org/schema/)
+
+## Example One-Liner Tasks (Atomic Tasks)
+
+- Install three.js via npm
+- Create a Three.js scene
+- Add a sphere mesh to the scene
+- Load a PNG tile from the tile server
+- Convert (lat, lon) to 3D Cartesian coordinates
+- Project a vector polygon onto the sphere
+- Write a GLSL shader for Gerstner waves
+- Blend two heightmaps at the coastline
+- Implement camera orbit controls
+- Fetch a vector tile from the server
+- Parse MVT data in JavaScript
+- Render a route overlay as a line
+- Profile FPS in the browser
+- Write a test for tile loading
+- Document the tile schema in README
+
+## Knowledge Areas for 3D Globe Development
+
+- Three.js basics (scene, camera, mesh, material)
+- JavaScript/TypeScript fundamentals
+- WebGL and GLSL shader programming (for custom water/waves)
+- Geographic coordinate systems and projections (WGS84, equirectangular)
+- Tile server concepts (raster/vector tiles, LOD)
+- Data preprocessing (GDAL, Python scripting)
+- Performance profiling (FPS, memory, network)
+- Debugging browser graphics and shader errors
+- (Optional) React and @react-three/fiber if using React for UI
 
 ---
 
