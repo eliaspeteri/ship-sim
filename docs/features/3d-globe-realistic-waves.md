@@ -31,6 +31,7 @@
 27. [Reference Projects and Visuals](#reference-projects-and-visuals)
 28. [Example One-Liner Tasks (Atomic Tasks)](#example-one-liner-tasks-atomic-tasks)
 29. [Knowledge Areas for 3D Globe Development](#knowledge-areas-for-3d-globe-development)
+30. [Atomic TODO Checklist for 3D Globe with Three.js](#atomic-todo-checklist-for-3d-globe-with-threejs)
 
 ---
 
@@ -337,4 +338,146 @@ flowchart TD
 
 ---
 
+## Atomic TODO Checklist for 3D Globe with Three.js
+
+### Setup & Environment
+
+- [x] Install Node.js (if not already installed)
+- [x] Run `npm init -y` in your project folder
+- [x] Create a new Next.js page for the globe demo
+
+### Three.js Scene Basics
+
+- [x] Import Canvas: `import { Canvas } from 'react-three-fiber';`
+- [x] Import OrbitControls: `import { OrbitControls } from '@react-three/drei';`
+- [x] Set up lighting (ambient, directional)
+
+### Add a Globe
+
+- [x] Create sphere geometry
+- [ ] Set radius to 6371 km (Earth radius)
+- [x] Add a material (MeshBasicMaterial or MeshStandardMaterial)
+- [x] Create a mesh with the geometry and material
+- [x] Add the mesh to the scene
+
+### Animation Loop
+
+- [ ] Write a render loop with `useFrame` or `requestAnimationFrame`
+- [ ] Rotate the globe mesh for a spinning effect
+
+### Add a Texture to the Globe (React Three Fiber & drei)
+
+- [x] Download a world map texture (equirectangular projection, PNG/JPG) and place it in `public/textures/` (done)
+- [x] Import `useTexture` from `@react-three/drei`
+- [x] In your Globe component, use `const texture = useTexture('/textures/Equirectangular-projection.jpg')`
+- [x] Replace `<meshStandardMaterial color={0x2266cc} />` with `<meshStandardMaterial map={texture} />`
+- [x] Save and reload the page to see the textured globe
+
+#### Example Globe Component (with texture)
+
+```tsx
+import { useTexture } from '@react-three/drei';
+
+function Globe() {
+  const texture = useTexture('/textures/Equirectangular-projection.jpg');
+  return (
+    <mesh>
+      <sphereGeometry args={[1, 64, 64]} />
+      <meshStandardMaterial map={texture} />
+    </mesh>
+  );
+}
+```
+
+### Convert (lat, lon) to 3D Globe Coordinates
+
+- [ ] Write a function:
+
+  ```js
+  function latLonToXYZ(lat, lon, radius) {
+    const phi = (90 - lat) * (Math.PI / 180);
+    const theta = (lon + 180) * (Math.PI / 180);
+    const x = -radius * Math.sin(phi) * Math.cos(theta);
+    const y = radius * Math.cos(phi);
+    const z = radius * Math.sin(phi) * Math.sin(theta);
+    return { x, y, z };
+  }
+  ```
+
+- [ ] Test the function with (0, 0) and check the result
+
+### Add a Marker at a Specific Location
+
+- [ ] Use `latLonToXYZ` to get coordinates for a city (e.g., Helsinki)
+- [ ] Create a small sphere or cube at that position
+- [ ] Add the marker mesh to the scene
+
+### Load a Raster Tile as a Texture
+
+- [ ] Download a PNG tile (256x256) from your tile server
+- [ ] Load the tile as a texture using `THREE.TextureLoader`
+- [ ] Apply the tile as a material to a small patch of the globe (e.g., a PlaneGeometry positioned on the sphere)
+
+### Load a Vector Tile and Project a Polygon
+
+- [ ] Fetch a vector tile (MVT) using `fetch()`
+- [ ] Parse the MVT (use a library like `@mapbox/vector-tile`)
+- [ ] Extract polygon coordinates (lat, lon)
+- [ ] Convert each (lat, lon) to 3D using `latLonToXYZ`
+- [ ] Create a `THREE.Shape` or `THREE.Line` from the points
+- [ ] Add the shape/line to the scene
+
+### Add a Simple Water Shader
+
+- [ ] Create a new file `waterShader.glsl`
+- [ ] Write a fragment shader that colors the ocean blue
+- [ ] In your JS, create a `THREE.ShaderMaterial` using the shader
+- [ ] Apply the shader material to the globe mesh
+
+### Animate the Water
+
+- [ ] Add a `uTime` uniform to your shader
+- [ ] In the render loop, update `uTime` with the current time
+- [ ] In the shader, use `sin(uTime + position.x)` to animate color or height
+
+### Implement Gerstner Waves (Break Down)
+
+- [ ] Read about Gerstner waves (find a simple formula)
+- [ ] Write a GLSL function for a single Gerstner wave
+- [ ] Add multiple waves together in the shader
+- [ ] Use the sum to displace the globe’s surface in the vertex shader
+- [ ] Tweak parameters (amplitude, frequency, direction) and see the effect
+
+### Add Bathymetric Heightmap
+
+- [ ] Download a grayscale bathymetry PNG
+- [ ] Load the heightmap as a texture
+- [ ] In the vertex shader, sample the heightmap and displace the globe’s surface
+- [ ] Blend the color between land and water based on height
+
+### LOD and Tile Management
+
+- [ ] Write a function to determine which tiles are visible based on camera position
+- [ ] Load higher-res tiles as you zoom in
+- [ ] Unload tiles that are out of view
+
+### Overlay a Route
+
+- [ ] Define a route as an array of (lat, lon) points
+- [ ] Convert each point to 3D with `latLonToXYZ`
+- [ ] Create a `THREE.Line` from the points
+- [ ] Add the line to the scene
+
+### Profile Performance
+
+- [ ] Open browser dev tools
+- [ ] Check FPS in the performance tab
+- [ ] Log memory usage
+
+### Write Documentation
+
+- [ ] Write a README section explaining how to run the globe demo
+- [ ] Document the tile schema and coordinate conversion
+
+---
 *Use this file to guide the implementation of a 3D globe with realistic waves and vector tile projection in Three.js. Update as the project evolves.*
