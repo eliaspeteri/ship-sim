@@ -71,6 +71,18 @@ services:
       timeout: 5s
       retries: 5
 
+  tileserver:
+    image: maptiler/tileserver-gl
+    ports:
+      - "8080:80"
+    volumes:
+      - ./output/tiles:/data
+    environment:
+      - TILESERVER_CONFIG=/data/config.json
+    networks:
+      - ship-sim-network
+    restart: unless-stopped
+
 networks:
   ship-sim-network:
     driver: bridge
