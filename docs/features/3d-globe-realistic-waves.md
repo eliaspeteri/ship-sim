@@ -479,5 +479,9 @@ function Globe() {
 - [ ] Write a README section explaining how to run the globe demo
 - [ ] Document the tile schema and coordinate conversion
 
+## Current Issues
+
+- [ ] Camera is clipping when globe radius is over 1000 and camera zoom is further than 1000.
+
 ---
 *Use this file to guide the implementation of a 3D globe with realistic waves and vector tile projection in Three.js. Update as the project evolves.*
