@@ -472,7 +472,7 @@ function Globe() {
 
 ## Current Issues
 
-- [ ] Camera is clipping when globe radius is over 1000 and camera zoom is further than 1000.
+- [x] Camera is clipping when globe radius is over 1000 and camera zoom is further than 1000. -> Solution was to update the camera far plane.
 
 ---
 *Use this file to guide the implementation of a 3D globe with realistic waves and vector tile projection in Three.js. Update as the project evolves.*
