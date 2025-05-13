@@ -412,48 +412,39 @@ function Globe() {
 - [x] Create a small sphere or cube at that position
 - [x] Add the marker mesh to the scene
 
-### Load a Raster Tile as a Texture
-
-- [ ] Download a PNG tile (256x256) from your tile server
-- [ ] Load the tile as a texture using `THREE.TextureLoader`
-- [ ] Apply the tile as a material to a small patch of the globe (e.g., a PlaneGeometry positioned on the sphere)
-
-### Load a Vector Tile and Project a Polygon
-
-- [ ] Fetch a vector tile (MVT) using `fetch()`
-- [ ] Parse the MVT (use a library like `@mapbox/vector-tile`)
-- [ ] Extract polygon coordinates (lat, lon)
-- [ ] Convert each (lat, lon) to 3D using `latLonToXYZ`
-- [ ] Create a `THREE.Shape` or `THREE.Line` from the points
-- [ ] Add the shape/line to the scene
-
-### Add a Simple Water Shader
-
-- [ ] Create a new file `waterShader.glsl`
-- [ ] Write a fragment shader that colors the ocean blue
-- [ ] In your JS, create a `THREE.ShaderMaterial` using the shader
-- [ ] Apply the shader material to the globe mesh
-
-### Animate the Water
-
-- [ ] Add a `uTime` uniform to your shader
-- [ ] In the render loop, update `uTime` with the current time
-- [ ] In the shader, use `sin(uTime + position.x)` to animate color or height
-
-### Implement Gerstner Waves (Break Down)
-
-- [ ] Read about Gerstner waves (find a simple formula)
-- [ ] Write a GLSL function for a single Gerstner wave
-- [ ] Add multiple waves together in the shader
-- [ ] Use the sum to displace the globe’s surface in the vertex shader
-- [ ] Tweak parameters (amplitude, frequency, direction) and see the effect
-
 ### Add Bathymetric Heightmap
 
-- [ ] Download a grayscale bathymetry PNG
-- [ ] Load the heightmap as a texture
-- [ ] In the vertex shader, sample the heightmap and displace the globe’s surface
-- [ ] Blend the color between land and water based on height
+- [ ] **Find and Download a Grayscale Bathymetry Heightmap**
+  - [ ] Use [GEBCO](https://www.gebco.net/) or [SRTM30 Plus](https://topex.ucsd.edu/WWW_html/srtm30_plus.html) for global bathymetry.
+  - [ ] Download as GeoTIFF or PNG (preferably equirectangular projection, 8-bit or 16-bit grayscale).
+
+- [ ] **Preprocess Heightmap for Web Use**
+  - [ ] Use GDAL to reproject and resize to 4096x2048 or 2048x1024 (equirectangular, EPSG:4326).
+  - [ ] Normalize values: ocean depths as negative, land as positive or zero.
+  - [ ] Export as PNG for easy loading in Three.js.
+
+- [ ] **Serve Heightmap via TileServer**
+  - [ ] Place the PNG in the tileserver’s data directory (see docker-compose.yml).
+  - [ ] Optionally, tile the heightmap for LOD (using gdal2tiles or similar).
+
+- [ ] **Load Heightmap Texture in Three.js**
+  - [ ] Use useTexture or THREE.TextureLoader to load the PNG in your Globe component.
+
+- [ ] **Displace Globe Mesh in Vertex Shader**
+  - [ ] Pass the heightmap as a uniform to a custom ShaderMaterial.
+  - [ ] In the vertex shader, sample the heightmap using UV coordinates.
+  - [ ] Displace the sphere’s vertices outward/inward based on sampled value.
+
+- [ ] **Blend Color Between Land and Water**
+  - [ ] In the fragment shader, use the sampled height to blend between water and land colors.
+  - [ ] Optionally, use a colormap for more realistic bathymetry.
+
+- [ ] **Test and Validate**
+  - [ ] Check for visible seams or artifacts.
+  - [ ] Validate that underwater terrain and landmasses are visually correct.
+
+- [ ] **Document Data Source and Processing**
+  - [ ] Note the source, projection, and processing steps in the docs for reproducibility.
 
 ### LOD and Tile Management
 
