@@ -1,0 +1,29 @@
+{
+  "version": 8,
+  "name": "Maritime Basic",
+  "sources": {
+    "coastlines": {
+      "type": "vector",
+      "url": "mbtiles://coastlines.mbtiles"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#a4c3e8"
+      }
+    },
+    {
+      "id": "coastlines",
+      "type": "line",
+      "source": "coastlines",
+      "source-layer": "ne_10m_coastline",
+      "paint": {
+        "line-color": "#000000",
+        "line-width": 1
+      }
+    }
+  ]
+}

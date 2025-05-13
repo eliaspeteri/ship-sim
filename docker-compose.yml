@@ -74,11 +74,13 @@ services:
   tileserver:
     image: maptiler/tileserver-gl
     ports:
-      - "8080:80"
+      - '8888:8080'
     volumes:
       - ./output/tiles:/data
+      - ./styles:/styles
     environment:
       - TILESERVER_CONFIG=/data/config.json
+      - CORS=*
     networks:
       - ship-sim-network
     restart: unless-stopped
