@@ -5,7 +5,7 @@ import Pbf from 'pbf';
 import { VectorTile } from '@mapbox/vector-tile';
 import * as THREE from 'three';
 
-const EARTH_RADIUS = 512;
+const EARTH_RADIUS = 6371;
 const SEGMENTS = 64;
 
 const majorCities = [
