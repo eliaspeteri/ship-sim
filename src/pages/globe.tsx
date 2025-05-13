@@ -154,6 +154,31 @@ const majorCities = [
     lat: 33.5731,
     lon: -7.5898,
   },
+  {
+    name: 'Honolulu',
+    lat: 21.3069,
+    lon: -157.8583,
+  },
+  {
+    name: 'Wellington',
+    lat: -41.2865,
+    lon: 174.7762,
+  },
+  {
+    name: 'Oslo',
+    lat: 59.9139,
+    lon: 10.7522,
+  },
+  {
+    name: 'Stockholm',
+    lat: 59.3293,
+    lon: 18.0686,
+  },
+  {
+    name: 'Alert',
+    lat: 82.5018,
+    lon: -62.3481,
+  },
 ];
 
 function Marker({ lat, lon }: { lat: number; lon: number }) {
