@@ -1,6 +1,6 @@
 import React from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, useTexture } from '@react-three/drei';
+import { OrbitControls /*useTexture*/ } from '@react-three/drei';
 import Pbf from 'pbf';
 import { VectorTile } from '@mapbox/vector-tile';
 import * as THREE from 'three';
@@ -34,12 +34,12 @@ function latLonToXYZ(lat: number, lon: number, radius = EARTH_RADIUS) {
 }
 
 function Globe() {
-  const texture = useTexture('/textures/Equirectangular-projection.jpg'); // Replace with your texture path
+  //const texture = useTexture('/textures/Equirectangular-projection.jpg'); // Replace with your texture path
 
   return (
     <mesh>
       <sphereGeometry args={[EARTH_RADIUS, SEGMENTS, SEGMENTS]} />
-      <meshStandardMaterial map={texture} />
+      <meshStandardMaterial color="#ffffff" />
     </mesh>
   );
 }
@@ -66,7 +66,7 @@ function Coastlines() {
           const feature = layer.feature(i);
           if (feature.type !== 2) continue; // Only LineString
           const geom = feature.loadGeometry();
-          
+
           // MVT coordinates are tile-local (0..4096), need to convert to lat/lon
           // For z=0, x=0, y=0, the tile covers the whole world
           for (const line of geom) {
@@ -76,11 +76,15 @@ function Coastlines() {
               // Web Mercator is the projection used by most web maps and vector tiles
               const x = (pt.x / 4096) * 2 - 1; // normalize to [-1, 1]
               const y = 1 - (pt.y / 4096) * 2; // normalize to [1, -1] and flip y
-                // Convert Web Mercator to lat/lon
+              // Convert Web Mercator to lat/lon
               const lon = x * 180;
               const lat = Math.atan(Math.sinh(y * Math.PI)) * (180 / Math.PI);
-              
-              const [posX, posY, posZ] = latLonToXYZ(lat, lon, EARTH_RADIUS + 1); // Slightly above surface
+
+              const [posX, posY, posZ] = latLonToXYZ(
+                lat,
+                lon,
+                EARTH_RADIUS + 1,
+              ); // Slightly above surface
               points.push(new THREE.Vector3(posX, posY, posZ));
             }
             const geometry = new THREE.BufferGeometry().setFromPoints(points);
