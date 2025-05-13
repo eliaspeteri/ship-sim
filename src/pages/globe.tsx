@@ -158,7 +158,7 @@ const majorCities = [
 
 function Marker({ lat, lon }: { lat: number; lon: number }) {
   const [x, y, z] = latLonToXYZ(lat, lon, EARTH_RADIUS); // Adjust radius for marker position
-  const segments = 32;
+  const segments = 8;
   const radius = EARTH_RADIUS * 0.007; // Adjust the radius of the marker sphere
 
   return (
