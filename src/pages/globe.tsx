@@ -8,6 +8,154 @@ import * as THREE from 'three';
 const EARTH_RADIUS = 512;
 const SEGMENTS = 64;
 
+const majorCities = [
+  {
+    name: 'Helsinki',
+    lat: 60.1695,
+    lon: 24.9354,
+  },
+  {
+    name: 'New York',
+    lat: 40.7128,
+    lon: -74.006,
+  },
+  {
+    name: 'Tokyo',
+    lat: 35.6895,
+    lon: 139.6917,
+  },
+  {
+    name: 'London',
+    lat: 51.5074,
+    lon: -0.1278,
+  },
+  {
+    name: 'Paris',
+    lat: 48.8566,
+    lon: 2.3522,
+  },
+  {
+    name: 'Berlin',
+    lat: 52.52,
+    lon: 13.405,
+  },
+  {
+    name: 'Sydney',
+    lat: -33.8688,
+    lon: 151.2093,
+  },
+  {
+    name: 'Cairo',
+    lat: 30.0444,
+    lon: 31.2357,
+  },
+  {
+    name: 'Moscow',
+    lat: 55.7558,
+    lon: 37.6173,
+  },
+  {
+    name: 'Rio de Janeiro',
+    lat: -22.9068,
+    lon: -43.1729,
+  },
+  {
+    name: 'Cape Town',
+    lat: -33.9249,
+    lon: 18.4241,
+  },
+  {
+    name: 'Mexico City',
+    lat: 19.4326,
+    lon: -99.1332,
+  },
+  {
+    name: 'Bangkok',
+    lat: 13.7563,
+    lon: 100.5018,
+  },
+  {
+    name: 'Istanbul',
+    lat: 41.0082,
+    lon: 28.9784,
+  },
+  {
+    name: 'Buenos Aires',
+    lat: -34.6037,
+    lon: -58.3816,
+  },
+  {
+    name: 'Lagos',
+    lat: 6.5244,
+    lon: 3.3792,
+  },
+  {
+    name: 'Seoul',
+    lat: 37.5665,
+    lon: 126.978,
+  },
+  {
+    name: 'Madrid',
+    lat: 40.4168,
+    lon: -3.7038,
+  },
+  {
+    name: 'Rome',
+    lat: 41.9028,
+    lon: 12.4964,
+  },
+  {
+    name: 'Toronto',
+    lat: 43.6511,
+    lon: -79.347015,
+  },
+  {
+    name: 'Lima',
+    lat: -12.0464,
+    lon: -77.0428,
+  },
+  {
+    name: 'Kuala Lumpur',
+    lat: 3.139,
+    lon: 101.6869,
+  },
+  {
+    name: 'Santiago',
+    lat: -33.4489,
+    lon: -70.6693,
+  },
+  {
+    name: 'Athens',
+    lat: 37.9838,
+    lon: 23.7275,
+  },
+  {
+    name: 'Hanoi',
+    lat: 21.0285,
+    lon: 105.8542,
+  },
+  {
+    name: 'Colombo',
+    lat: 6.9271,
+    lon: 79.9585,
+  },
+  {
+    name: 'Nairobi',
+    lat: -1.2864,
+    lon: 36.8172,
+  },
+  {
+    name: 'Addis Ababa',
+    lat: 9.03,
+    lon: 38.74,
+  },
+  {
+    name: 'Casablanca',
+    lat: 33.5731,
+    lon: -7.5898,
+  },
+];
+
 function Marker({ lat, lon }: { lat: number; lon: number }) {
   const [x, y, z] = latLonToXYZ(lat, lon, EARTH_RADIUS); // Adjust radius for marker position
   const segments = 32;
@@ -105,19 +253,41 @@ function Coastlines() {
   return <group ref={groupRef} />;
 }
 
+/**
+ * SpinningGlobeGroup wraps the globe, coastlines, and markers in a group and rotates the group.
+ * This ensures all globe elements spin together.
+ * @param spinSpeed - Rotation speed in radians per second (default: 0.05)
+ */
+function SpinningGlobeGroup({ spinSpeed = 0.0005 }: { spinSpeed?: number }) {
+  const groupRef = useRef<THREE.Group>(null);
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += spinSpeed * delta * 60;
+    }
+  });
+  return (
+    <group ref={groupRef}>
+      <Globe />
+      <Coastlines />
+      {majorCities.map((city, index) => (
+        <Marker key={index} lat={city.lat} lon={city.lon} />
+      ))}
+    </group>
+  );
+}
+
 const GlobePage = () => {
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
       <Canvas camera={{ position: [0, 0, EARTH_RADIUS * 1.8] }} shadows>
         <ambientLight intensity={0.5} />
         <directionalLight position={[5, 5, 5]} intensity={1} />
-        <Globe />
-        <Coastlines />
-        <Marker lat={60.1999} lon={24.9354} />
-        <Marker lat={40.7128} lon={-74.006} />
-        <Marker lat={35.6895} lon={139.6917} />
-        <Marker lat={51.5074} lon={-0.1278} />
-        <OrbitControls enablePan={false} />
+        <SpinningGlobeGroup />
+        <OrbitControls
+          enablePan={false}
+          minDistance={EARTH_RADIUS * 1.1}
+          maxDistance={EARTH_RADIUS * 2}
+        />
       </Canvas>
     </div>
   );
