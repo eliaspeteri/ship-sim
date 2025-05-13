@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls /*useTexture*/ } from '@react-three/drei';
+import { OrbitControls /*useTexture*/, useTexture } from '@react-three/drei';
 import Pbf from 'pbf';
 import { VectorTile } from '@mapbox/vector-tile';
 import * as THREE from 'three';
@@ -206,12 +206,12 @@ function latLonToXYZ(lat: number, lon: number, radius = EARTH_RADIUS) {
 }
 
 function Globe() {
-  //const texture = useTexture('/textures/Equirectangular-projection.jpg'); // Replace with your texture path
+  const texture = useTexture('/textures/Equirectangular-projection.jpg'); // Replace with your texture path
 
   return (
     <mesh>
       <sphereGeometry args={[EARTH_RADIUS, SEGMENTS, SEGMENTS]} />
-      <meshStandardMaterial color="#ffffff" />
+      <meshStandardMaterial map={texture} />
     </mesh>
   );
 }
@@ -260,7 +260,7 @@ function Coastlines() {
               points.push(new THREE.Vector3(posX, posY, posZ));
             }
             const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            const material = new THREE.LineBasicMaterial({ color: 0x222222 });
+            const material = new THREE.LineBasicMaterial({ color: 0xffffff });
             const lineObj = new THREE.Line(geometry, material);
             lines.push(lineObj);
           }
