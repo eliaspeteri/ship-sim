@@ -1,10 +1,9 @@
-import React from 'react';
-import { Canvas } from '@react-three/fiber';
+import React, { useEffect, useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls /*useTexture*/ } from '@react-three/drei';
 import Pbf from 'pbf';
 import { VectorTile } from '@mapbox/vector-tile';
 import * as THREE from 'three';
-import { useEffect, useRef } from 'react';
 
 const EARTH_RADIUS = 512;
 const SEGMENTS = 64;
