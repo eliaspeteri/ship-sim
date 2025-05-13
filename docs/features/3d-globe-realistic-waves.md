@@ -362,8 +362,8 @@ flowchart TD
 
 ### Animation Loop
 
-- [ ] Write a render loop with `useFrame` or `requestAnimationFrame`
-- [ ] Rotate the globe mesh for a spinning effect
+- [x] Write a render loop with `useFrame` or `requestAnimationFrame`
+- [x] Rotate the globe mesh for a spinning effect
 
 ### Add a Texture to the Globe (React Three Fiber & drei)
 
