@@ -230,7 +230,7 @@ function Coastlines() {
               const [posX, posY, posZ] = latLonToXYZ(
                 lat,
                 lon,
-                EARTH_RADIUS + 1,
+                EARTH_RADIUS + 20,
               ); // Slightly above surface
               points.push(new THREE.Vector3(posX, posY, posZ));
             }
