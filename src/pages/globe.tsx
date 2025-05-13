@@ -283,7 +283,7 @@ function Coastlines() {
  * This ensures all globe elements spin together.
  * @param spinSpeed - Rotation speed in radians per second (default: 0.05)
  */
-function SpinningGlobeGroup({ spinSpeed = 0.0005 }: { spinSpeed?: number }) {
+function SpinningGlobeGroup({ spinSpeed = 0.00005 }: { spinSpeed?: number }) {
   const groupRef = useRef<THREE.Group>(null);
   useFrame((_, delta) => {
     if (groupRef.current) {
