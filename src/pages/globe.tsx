@@ -303,10 +303,11 @@ function SpinningGlobeGroup({ spinSpeed = 0.0005 }: { spinSpeed?: number }) {
 
 const GlobePage = () => {
   return (
-    <div style={{ width: '100vw', height: '100vh' }}>
+    <div style={{ width: '100vw', height: '100vh', background: 'black' }}>
       <Canvas
         camera={{ position: [0, 0, EARTH_RADIUS * 1.8], far: 30000 }}
         shadows
+        style={{ background: 'black' }}
       >
         <ambientLight intensity={0.5} />
         <directionalLight position={[5, 5, 5]} intensity={1} />
