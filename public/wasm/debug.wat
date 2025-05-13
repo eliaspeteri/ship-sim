@@ -8654,18 +8654,12 @@
   return
  )
  (func $assembly/index/getVesselSurgeVelocity (param $vesselPtr i32) (result f64)
-  (local $vessel i32)
   local.get $vesselPtr
-  local.set $vessel
-  local.get $vessel
   call $assembly/index/VesselState#get:u
   return
  )
  (func $assembly/index/getVesselSwayVelocity (param $vesselPtr i32) (result f64)
-  (local $vessel i32)
   local.get $vesselPtr
-  local.set $vessel
-  local.get $vessel
   call $assembly/index/VesselState#get:v
   return
  )
