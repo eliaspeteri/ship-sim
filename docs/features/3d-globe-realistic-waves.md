@@ -430,10 +430,10 @@ function Globe() {
 - [x] **Load Heightmap Texture in Three.js**
   - [x] Use useTexture or THREE.TextureLoader to load the PNG in your Globe component.
 
-- [ ] **Displace Globe Mesh in Vertex Shader**
-  - [ ] Pass the heightmap as a uniform to a custom ShaderMaterial.
-  - [ ] In the vertex shader, sample the heightmap using UV coordinates.
-  - [ ] Displace the sphere’s vertices outward/inward based on sampled value.
+- [x] **Displace Globe Mesh in Vertex Shader**
+  - [x] Pass the heightmap as a uniform to a custom ShaderMaterial.
+  - [x] In the vertex shader, sample the heightmap using UV coordinates.
+  - [x] Displace the sphere’s vertices outward/inward based on sampled value.
 
 - [ ] **Blend Color Between Land and Water**
   - [ ] In the fragment shader, use the sampled height to blend between water and land colors.
