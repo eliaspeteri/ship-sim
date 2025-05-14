@@ -414,21 +414,21 @@ function Globe() {
 
 ### Add Bathymetric Heightmap
 
-- [ ] **Find and Download a Grayscale Bathymetry Heightmap**
-  - [ ] Use [GEBCO](https://www.gebco.net/) or [SRTM30 Plus](https://topex.ucsd.edu/WWW_html/srtm30_plus.html) for global bathymetry.
-  - [ ] Download as GeoTIFF or PNG (preferably equirectangular projection, 8-bit or 16-bit grayscale).
+- [x] **Find and Download a Grayscale Bathymetry Heightmap**
+  - [x] Use [GEBCO](https://www.gebco.net/) or [SRTM30 Plus](https://topex.ucsd.edu/WWW_html/srtm30_plus.html) for global bathymetry.
+  - [x] Download as GeoTIFF or PNG (preferably equirectangular projection, 8-bit or 16-bit grayscale).
 
-- [ ] **Preprocess Heightmap for Web Use**
-  - [ ] Use GDAL to reproject and resize to 4096x2048 or 2048x1024 (equirectangular, EPSG:4326).
-  - [ ] Normalize values: ocean depths as negative, land as positive or zero.
-  - [ ] Export as PNG for easy loading in Three.js.
+- [x] **Preprocess Heightmap for Web Use**
+  - [x] Use GDAL to reproject and resize to 4096x2048 or 2048x1024 (equirectangular, EPSG:4326).
+  - [x] Normalize values: ocean depths as negative, land as positive or zero.
+  - [x] Export as PNG for easy loading in Three.js.
 
-- [ ] **Serve Heightmap via TileServer**
-  - [ ] Place the PNG in the tileserver’s data directory (see docker-compose.yml).
-  - [ ] Optionally, tile the heightmap for LOD (using gdal2tiles or similar).
+- [x] **Serve Heightmap via TileServer**
+  - [x] Place the PNG in the tileserver’s data directory (see docker-compose.yml).
+  - [x] Optionally, tile the heightmap for LOD (using gdal2tiles or similar).
 
-- [ ] **Load Heightmap Texture in Three.js**
-  - [ ] Use useTexture or THREE.TextureLoader to load the PNG in your Globe component.
+- [x] **Load Heightmap Texture in Three.js**
+  - [x] Use useTexture or THREE.TextureLoader to load the PNG in your Globe component.
 
 - [ ] **Displace Globe Mesh in Vertex Shader**
   - [ ] Pass the heightmap as a uniform to a custom ShaderMaterial.
