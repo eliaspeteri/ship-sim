@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { majorCities } from '../lib/majorCities.ts';
 
 const EARTH_RADIUS = 6371;
-const SEGMENTS = 64;
+const SEGMENTS = 1024;
 
 function Marker({ lat, lon }: { lat: number; lon: number }) {
   const [x, y, z] = latLonToXYZ(lat, lon, EARTH_RADIUS); // Adjust radius for marker position
@@ -33,13 +33,94 @@ function latLonToXYZ(lat: number, lon: number, radius = EARTH_RADIUS) {
   return [x, y, z];
 }
 
-function _Globe() {
-  const texture = useTexture('/textures/Equirectangular-projection.jpg'); // Replace with your texture path
+/**
+ * DisplacedGlobe renders a sphere with vertex displacement based on a heightmap.
+ * The heightmap is sampled in the vertex shader and used to displace vertices radially.
+ * The fragment shader blends between land and water colors based on the sampled height.
+ */
+function DisplacedGlobe() {
+  // State for the loaded heightmap texture
+  const [heightmapTexture, setHeightmapTexture] =
+    useState<THREE.Texture | null>(null);
+  const colorTexture = useTexture('/textures/Equirectangular-projection.jpg');
+
+  useEffect(() => {
+    const loader = new THREE.TextureLoader();
+    loader.load(
+      'http://localhost:8888/data/bathymetry-raster/0/0/0.png',
+      texture => {
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.mapping = THREE.UVMapping;
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.flipY = true;
+        texture.repeat.set(1, 1);
+        texture.offset.set(0, 0);
+        texture.rotation = 0;
+        setHeightmapTexture(texture);
+      },
+      undefined,
+      err => console.error('Error loading heightmap texture', err),
+    );
+  }, []);
+
+  const vertexShader = `
+    varying vec2 vUv;
+    varying float vHeight;
+    uniform sampler2D uHeightmap;
+    uniform float uHeightScale;
+    uniform float uBaseRadius;
+    void main() {
+      vUv = uv;
+      float heightValue = texture2D(uHeightmap, uv).r;
+      vHeight = heightValue;
+      // Apply displacement based on heightmap and height scale
+      vec3 displacedPosition = normalize(position) * (uBaseRadius + heightValue * uHeightScale);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
+    }
+  `;
+  const fragmentShader = `
+    varying vec2 vUv;
+    varying float vHeight;
+    uniform sampler2D uColorMap;
+    void main() {
+      vec3 color = texture2D(uColorMap, vUv).rgb;
+      float water = step(0.5, vHeight);
+      color = mix(color * 0.6, color * 1.2, water);
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `;
+
+  // Always call useMemo, even if texture is not loaded yet
+  const material = React.useMemo(() => {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uColorMap: { value: colorTexture },
+        uHeightmap: { value: heightmapTexture },
+        uHeightScale: { value: 1000.0 },
+        uBaseRadius: { value: EARTH_RADIUS },
+      },
+      vertexShader,
+      fragmentShader,
+      side: THREE.FrontSide,
+    });
+  }, [colorTexture, heightmapTexture]);
+
+  React.useEffect(() => {
+    if (material) {
+      material.uniforms.uColorMap.value = colorTexture;
+      material.uniforms.uHeightmap.value = heightmapTexture;
+    }
+  }, [colorTexture, heightmapTexture, material]);
+
+  // Only return mesh if heightmap is loaded
+  if (!heightmapTexture) return null;
 
   return (
     <mesh>
       <sphereGeometry args={[EARTH_RADIUS, SEGMENTS, SEGMENTS]} />
-      <meshStandardMaterial map={texture} />
+      <primitive object={material} attach="material" />
     </mesh>
   );
 }
@@ -48,7 +129,7 @@ function _Globe() {
  * BathymetryLayer displays ocean depth data as a semi-transparent layer on the globe.
  * It uses the raster bathymetry tiles from the tile server.
  */
-function BathymetryLayer() {
+function _BathymetryLayer() {
   const [bathyTexture, setBathyTexture] = useState<THREE.Texture | null>(null);
 
   useEffect(() => {
@@ -189,8 +270,8 @@ function SpinningGlobeGroup({ spinSpeed = 0.00005 }: { spinSpeed?: number }) {
   });
   return (
     <group ref={groupRef}>
-      {/*       <Globe /> */}
-      <BathymetryLayer />
+      <DisplacedGlobe />
+      {/*       <BathymetryLayer /> */}
       <Coastlines />
       {majorCities.map((city, index) => (
         <Marker key={index} lat={city.lat} lon={city.lon} />
