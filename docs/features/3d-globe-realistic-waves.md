@@ -435,9 +435,9 @@ function Globe() {
   - [x] In the vertex shader, sample the heightmap using UV coordinates.
   - [x] Displace the sphere’s vertices outward/inward based on sampled value.
 
-- [ ] **Blend Color Between Land and Water**
-  - [ ] In the fragment shader, use the sampled height to blend between water and land colors.
-  - [ ] Optionally, use a colormap for more realistic bathymetry.
+- [x] **Blend Color Between Land and Water**
+  - [x] In the fragment shader, use the sampled height to blend between water and land colors.
+  - [x] Optionally, use a colormap for more realistic bathymetry.
 
 - [ ] **Test and Validate**
   - [ ] Check for visible seams or artifacts.

@@ -84,11 +84,18 @@ function DisplacedGlobe() {
     varying vec2 vUv;
     varying float vHeight;
     uniform sampler2D uColorMap;
+
     void main() {
-      vec3 color = texture2D(uColorMap, vUv).rgb;
-      float water = step(0.5, vHeight);
-      color = mix(color * 0.6, color * 1.2, water);
-      gl_FragColor = vec4(color, 1.0);
+      // Deep blue for water, earthy brown for land
+      vec3 waterColor = vec3(0.07, 0.23, 0.45);
+      vec3 landColor = vec3(0.36, 0.29, 0.18);
+      vec3 baseColor = texture2D(uColorMap, vUv).rgb;
+      // Smooth transition at coastline
+      float coast = smoothstep(0.48, 0.52, vHeight);
+      vec3 blended = mix(waterColor, landColor, coast);
+      // Modulate with base color for detail
+      blended *= mix(vec3(1.0), baseColor, 0.5);
+      gl_FragColor = vec4(blended, 1.0);
     }
   `;
 
