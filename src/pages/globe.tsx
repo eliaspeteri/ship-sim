@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls /*useTexture*/, useTexture } from '@react-three/drei';
+import { OrbitControls, useTexture } from '@react-three/drei';
 import Pbf from 'pbf';
 import { VectorTile } from '@mapbox/vector-tile';
 import * as THREE from 'three';
@@ -205,13 +205,74 @@ function latLonToXYZ(lat: number, lon: number, radius = EARTH_RADIUS) {
   return [x, y, z];
 }
 
-function Globe() {
+function _Globe() {
   const texture = useTexture('/textures/Equirectangular-projection.jpg'); // Replace with your texture path
 
   return (
     <mesh>
       <sphereGeometry args={[EARTH_RADIUS, SEGMENTS, SEGMENTS]} />
       <meshStandardMaterial map={texture} />
+    </mesh>
+  );
+}
+
+/**
+ * BathymetryLayer displays ocean depth data as a semi-transparent layer on the globe.
+ * It uses the raster bathymetry tiles from the tile server.
+ */
+function BathymetryLayer() {
+  const [bathyTexture, setBathyTexture] = useState<THREE.Texture | null>(null);
+
+  useEffect(() => {
+    // Load the bathymetry texture from the tile server
+    const loader = new THREE.TextureLoader();
+    loader.load(
+      // URL to the bathymetry tile at zoom level 0 (whole earth)
+      'http://localhost:8888/data/bathymetry-raster/0/0/0.png',
+      texture => {
+        // When loaded successfully, set the texture
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+
+        // Use the default UV mapping for direct texture mapping on a sphere
+        texture.mapping = THREE.UVMapping;
+
+        // Ensure the texture wraps correctly around the globe
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+
+        // Flip the texture vertically to match the bathymetry data orientation
+        texture.flipY = true;
+
+        // Prevent seams at the edges
+        texture.repeat.set(1, 1);
+
+        setBathyTexture(texture);
+      },
+      undefined,
+      err => console.error('Error loading bathymetry texture', err),
+    );
+  }, []);
+
+  // Don't render anything until the texture is loaded
+  if (!bathyTexture) return null;
+  return (
+    <mesh>
+      {/* Use phi and theta segments to match texture mapping better */}
+      <sphereGeometry
+        args={[
+          EARTH_RADIUS * 0.999, // Slightly smaller radius to appear under coastlines
+          SEGMENTS, // phi segments (vertical)
+          SEGMENTS * 2, // theta segments (horizontal) - doubled for better equirectangular mapping
+        ]}
+      />
+      {/* Use a MeshBasicMaterial to display the texture without lighting */}
+      <meshBasicMaterial
+        map={bathyTexture}
+        transparent
+        opacity={1} // Adjust opacity as needed
+        depthWrite={false} // Disable depth writing to allow transparency
+      />
     </mesh>
   );
 }
@@ -292,7 +353,8 @@ function SpinningGlobeGroup({ spinSpeed = 0.00005 }: { spinSpeed?: number }) {
   });
   return (
     <group ref={groupRef}>
-      <Globe />
+      {/*       <Globe /> */}
+      <BathymetryLayer />
       <Coastlines />
       {majorCities.map((city, index) => (
         <Marker key={index} lat={city.lat} lon={city.lon} />
