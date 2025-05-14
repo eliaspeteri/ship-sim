@@ -81,16 +81,60 @@ else
   # Calculate resolution based on target size
   # 360° / 4096px ≈ 0.087890625° per pixel for longitude
   # 180° / 2048px ≈ 0.087890625° per pixel for latitude (same resolution)
-  gdalwarp -t_srs EPSG:4326 \
-    -te -180 -90 180 90 \
-    -tr 0.087890625 0.087890625 \
-    -tap \
-    -r bilinear \
-    -wo SOURCE_EXTRA=1000 \
-    -wo SAMPLE_GRID=YES \
-    -multi \
-    "$INPUT_TIF" "$TEMP_TIF"
+  # Check if the input file is already in EPSG:4326/WGS84 (equirectangular projection)
+  # Use multiple detection methods for better reliability
+  
+  # Method 1: Check with gdalinfo for standard AUTHORITY tag
+  EPSG_CODE=$(gdalinfo "$INPUT_TIF" | grep -i "AUTHORITY" | grep -o "EPSG\",[0-9]*" | grep -o "[0-9]*" | head -1)
+  
+  # Method 1b: Check for newer GDAL format with ID["EPSG",xxxx]
+  if [ -z "$EPSG_CODE" ]; then
+    EPSG_CODE=$(gdalinfo "$INPUT_TIF" | grep -o 'ID\["EPSG",[0-9]*\]' | grep -o '[0-9]*' | head -1)
+  fi
+  
+  # Method 2: Try with proj4 string (if available)
+  CURRENT_SRS=$(gdalinfo -proj4 "$INPUT_TIF" 2>/dev/null | grep -i proj4 | grep -o "+proj=[^ ]*" | head -1)
+  
+  # Method 3: Look for WGS84 mention
+  WGS84_CHECK=$(gdalinfo "$INPUT_TIF" | grep -i "WGS[ _]84" | wc -l)
+  
+  # Method 4: Check for Geographic coordinate system indication
+  GEO_CHECK=$(gdalinfo "$INPUT_TIF" | grep -i "GEOGCRS\|Geographic" | wc -l)
+  
+  echo "Checking projection of $INPUT_TIF:"
+  echo "- EPSG code: $EPSG_CODE"
+  echo "- PROJ format: $CURRENT_SRS"
+  echo "- WGS84 references: $WGS84_CHECK"
+  echo "- Geographic CRS: $GEO_CHECK"
+  
+  # Determine if it's already in equirectangular projection (EPSG:4326/WGS84)
+  if [[ "$EPSG_CODE" == "4326" || "$CURRENT_SRS" == "+proj=longlat" || "$CURRENT_SRS" == "+proj=latlong" || "$WGS84_CHECK" -gt 0 || "$GEO_CHECK" -gt 0 ]]; then
+    echo "Input file is already in equirectangular projection (WGS84). Copying without reprojection..."
+    # Copy the file without reprojection, but ensure correct georeferencing
+    # Add explicit extent parameters to ensure proper alignment
+    gdal_translate \
+      -a_srs EPSG:4326 \
+      -a_ullr -180 90 180 -90 \
+      -co "TILED=YES" \
+      "$INPUT_TIF" "$TEMP_TIF"
+  else
+    echo "Reprojecting $INPUT_TIF to equirectangular projection (EPSG:4326)..."
+    # Only reproject if the file isn't already in equirectangular projection
+    gdalwarp -t_srs EPSG:4326 \
+      -te -180 -90 180 90 \
+      -tr 0.087890625 0.087890625 \
+      -tap \
+      -r bilinear \
+      -wo SOURCE_EXTRA=1000 \
+      -wo SAMPLE_GRID=YES \
+      -multi \
+      "$INPUT_TIF" "$TEMP_TIF"
+  fi
   echo "$INPUT_TIF" > "$LAST_INPUT_FILE"
+  
+  # Add debug info to help diagnose projection issues
+  echo "Verification of output file projection and extent:"
+  gdalinfo "$TEMP_TIF" | grep -E 'Size|Coordinate|PROJ|AUTHORITY|Corner|Upper|Lower'
 fi
 
 # 2. Convert the resampled GeoTIFF (TEMP_TIF) to MBTiles using gdal_translate
@@ -158,7 +202,9 @@ else
   gdal_translate -of MBTILES \
     -co TILE_FORMAT=PNG \
     -co RESAMPLING=bilinear \
-    -co ZOOM_LEVEL_STRATEGY=AUTO \
+    -co ZOOM_LEVEL_STRATEGY=LOWER \
+    -co MINZOOM=0 \
+    -co MAXZOOM=8 \
     -co METADATA="{\"name\":\"bathymetry\",\"description\":\"Bathymetry data\",\"format\":\"png\",\"version\":\"1.1\"}" \
     "$GEOREF_TIF" "$MBTILES_FILE"
     
@@ -170,7 +216,7 @@ fi
 # Only run if MBTiles was just created or updated
 if [ ! -f "$MBTILES_FILE.ovr" ] || ! is_newer "$MBTILES_FILE.ovr" "$MBTILES_FILE"; then
   echo "Building overviews for $MBTILES_FILE ..."
-  gdaladdo -r average "$MBTILES_FILE" 2 4 8 16
+  gdaladdo -r average "$MBTILES_FILE" 2 4 8 16 32 64 128 256 512
 fi
 
 echo "MBTiles ready: $MBTILES_FILE"
