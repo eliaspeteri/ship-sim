@@ -59,6 +59,7 @@ function BathymetryLayer() {
       'http://localhost:8888/data/bathymetry-raster/0/0/0.png',
       texture => {
         // When loaded successfully, set the texture
+        // Use same settings as the main globe's texture
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
 
@@ -69,11 +70,18 @@ function BathymetryLayer() {
         texture.wrapS = THREE.ClampToEdgeWrapping;
         texture.wrapT = THREE.ClampToEdgeWrapping;
 
-        // Flip the texture vertically to match the bathymetry data orientation
+        // Since GEBCO data is already in equirectangular projection,
+        // we should make sure the texture is oriented correctly.
+        // This matches how the main globe texture is oriented.
         texture.flipY = true;
-
-        // Prevent seams at the edges
         texture.repeat.set(1, 1);
+
+        // Center the texture properly
+        texture.offset.set(0, 0);
+
+        // Apply rotation if needed to align with the main globe texture
+        // If you still see misalignment, you may need to adjust this value
+        texture.rotation = 0;
 
         setBathyTexture(texture);
       },
@@ -86,15 +94,15 @@ function BathymetryLayer() {
   if (!bathyTexture) return null;
   return (
     <mesh>
-      {/* Use phi and theta segments to match texture mapping better */}
+      {/* Use phi and theta segments to match texture mapping better */}{' '}
       <sphereGeometry
         args={[
           EARTH_RADIUS * 0.999, // Slightly smaller radius to appear under coastlines
           SEGMENTS, // phi segments (vertical)
-          SEGMENTS * 2, // theta segments (horizontal) - doubled for better equirectangular mapping
+          SEGMENTS, // theta segments (horizontal) - match main globe geometry
         ]}
       />
-      {/* Use a MeshBasicMaterial to display the texture without lighting */}
+      {/* Use a MeshBasicMaterial to display the texture without lighting */}{' '}
       <meshBasicMaterial
         map={bathyTexture}
         transparent
