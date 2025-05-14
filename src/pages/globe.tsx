@@ -10,9 +10,9 @@ const EARTH_RADIUS = 6371;
 const SEGMENTS = 1024;
 
 function Marker({ lat, lon }: { lat: number; lon: number }) {
-  const [x, y, z] = latLonToXYZ(lat, lon, EARTH_RADIUS); // Adjust radius for marker position
+  const [x, y, z] = latLonToXYZ(lat, lon, EARTH_RADIUS * 1.01); // Adjust radius for marker position
   const segments = 8;
-  const radius = EARTH_RADIUS * 0.007; // Adjust the radius of the marker sphere
+  const radius = EARTH_RADIUS * 0.005; // Adjust the radius of the marker sphere
 
   return (
     <mesh position={[x, y, z]}>
@@ -94,11 +94,15 @@ function DisplacedGlobe() {
 
   // Always call useMemo, even if texture is not loaded yet
   const material = React.useMemo(() => {
+    const lowestPoint = 10_000; // Minimum height value in the heightmap
+    const highestPoint = 8_800; // Maximum height value in the heightmap
+    const heightScale = (highestPoint - lowestPoint) / 255; // Scale to match heightmap values
+
     return new THREE.ShaderMaterial({
       uniforms: {
         uColorMap: { value: colorTexture },
         uHeightmap: { value: heightmapTexture },
-        uHeightScale: { value: 1000.0 },
+        uHeightScale: { value: heightScale }, // Should be around 73.33
         uBaseRadius: { value: EARTH_RADIUS },
       },
       vertexShader,
@@ -233,7 +237,7 @@ function Coastlines() {
               const [posX, posY, posZ] = latLonToXYZ(
                 lat,
                 lon,
-                EARTH_RADIUS + 20,
+                EARTH_RADIUS * 1.0105,
               ); // Slightly above surface
               points.push(new THREE.Vector3(posX, posY, posZ));
             }
