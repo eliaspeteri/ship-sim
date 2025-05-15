@@ -3,23 +3,37 @@
 #
 # Preprocess GEBCO bathymetry GeoTIFF for web/Three.js use and package as MBTiles for tileserver-gl
 # Requires: gdalwarp, gdal_translate, gdaladdo, gdalbuildvrt, gdal_calc.py, unzip
-# Usage: bash scripts/preprocess-gebco-bathymetry.sh <input_zip_or_geotiff> <output_png>
+# Usage: bash scripts/preprocess-gebco-bathymetry.sh <input_zip_or_geotiff> <output_png> [--debug]
 #
 # This script is idempotent: it skips steps if outputs are up-to-date with the source.
 set -e
 
 if [ $# -lt 2 ]; then
-  echo "Usage: $0 <input_zip_or_geotiff> <output_png>"
+  echo "Usage: $0 <input_zip_or_geotiff> <output_png> [--debug]"
   exit 1
 fi
 
 INPUT_FILE="$1"
 OUTPUT_PNG="$2"
 
+# Parse arguments and debug flag
+DEBUG_MODE=0
+if [[ "$3" == "--debug" ]]; then
+  DEBUG_MODE=1
+fi
+
 # Output directories and files
 OUTPUT_MBTILES_DIR="output/tiles"
 MBTILES_FILE="$OUTPUT_MBTILES_DIR/bathymetry-raster.mbtiles"
 ZOOM_LEVELS="0-7"  # Adjust as needed
+
+# Debug directory for intermediates
+if [ "$DEBUG_MODE" -eq 1 ]; then
+  DEBUG_DIR="output/debug"
+  mkdir -p "$DEBUG_DIR"
+else
+  DEBUG_DIR=""
+fi
 
 # Helper: check if file A is newer than file B
 is_newer() {
@@ -56,7 +70,11 @@ else
   INPUT_TIF="$INPUT_FILE"
 fi
 
-TEMP_TIF="${OUTPUT_PNG%.png}_resampled.tif"
+if [ "$DEBUG_MODE" -eq 1 ]; then
+  TEMP_TIF="$DEBUG_DIR/step1_resampled.tif"
+else
+  TEMP_TIF="${OUTPUT_PNG%.png}_resampled.tif"
+fi
 LAST_INPUT_FILE="${TEMP_TIF}.last_input"
 
 # Early exit if MBTiles is up-to-date with input
@@ -149,16 +167,20 @@ else
   # This provides better detail for underwater topography while preserving land features
   
   # First, create a properly georeferenced GeoTIFF
-  GEOREF_TIF="${TEMP_TIF%.tif}_geo.tif"
+  if [ "$DEBUG_MODE" -eq 1 ]; then
+    GEOREF_TIF="$DEBUG_DIR/step4_merged_geo.tif"
+    OCEAN_TIF="$DEBUG_DIR/step2_ocean.tif"
+    LAND_TIF="$DEBUG_DIR/step3_land.tif"
+  else
+    GEOREF_TIF="${TEMP_TIF%.tif}_geo.tif"
+    OCEAN_TIF="${TEMP_TIF%.tif}_ocean.tif"
+    LAND_TIF="${TEMP_TIF%.tif}_land.tif"
+  fi
+  
   echo "Creating georeferenced GeoTIFF..."
   # Create two temporary files for ocean depths and land elevations
-  OCEAN_TIF="${TEMP_TIF%.tif}_ocean.tif"
-  LAND_TIF="${TEMP_TIF%.tif}_land.tif"
-  
   echo "Processing ocean depths..."
   # Extract and scale ocean depths (-10000m to 0m) to grayscale values (0-192)
-  # Using -a_ullr with correct coordinates for equirectangular projection
-  # Ensuring correct extent: Left (lon) -180, Top (lat) 90, Right (lon) 180, Bottom (lat) -90
   gdal_translate \
     -a_srs EPSG:4326 \
     -a_ullr -180 90 180 -90 \
@@ -168,8 +190,6 @@ else
   
   echo "Processing land elevations..."
   # Extract and scale land elevations (0m to 8000m) to brighter values (192-255)
-  # Using -a_ullr with correct coordinates for equirectangular projection
-  # Ensuring correct extent: Left (lon) -180, Top (lat) 90, Right (lon) 180, Bottom (lat) -90
   gdal_translate \
     -a_srs EPSG:4326 \
     -a_ullr -180 90 180 -90 \
@@ -179,7 +199,6 @@ else
     
   echo "Merging ocean and land into single heightmap..."
   # Create a merged result by using a mask
-  # Using the condition to blend ocean and land based on elevation value
   gdal_calc.py \
     --overwrite \
     -A "$OCEAN_TIF" \
@@ -195,7 +214,9 @@ else
   gdal_edit.py -a_srs EPSG:4326 -a_ullr -180 90 180 -90 "$GEOREF_TIF"
     
   # Clean up intermediate files
-  rm -f "$OCEAN_TIF" "$LAND_TIF"
+  if [ "$DEBUG_MODE" -eq 0 ]; then
+    rm -f "$OCEAN_TIF" "$LAND_TIF"
+  fi
     
   # Then convert to MBTiles with proper coordinate system
   echo "Converting to MBTiles..."
@@ -209,7 +230,9 @@ else
     "$GEOREF_TIF" "$MBTILES_FILE"
     
   # Clean up intermediate file
-  rm -f "$GEOREF_TIF"
+  if [ "$DEBUG_MODE" -eq 0 ]; then
+    rm -f "$GEOREF_TIF"
+  fi
 fi
 
 # 3. Build overviews (lower zoom levels) with gdaladdo
@@ -222,13 +245,17 @@ fi
 echo "MBTiles ready: $MBTILES_FILE"
 
 # Clean up large intermediate files
-if [[ -f "$TEMP_TIF" ]]; then
-  echo "Cleaning up $TEMP_TIF ..."
-  rm -f "$TEMP_TIF"
-fi
-if [[ -f "$UNPACK_DIR/merged_gebco.tif" ]]; then
-  echo "Cleaning up $UNPACK_DIR/merged_gebco.tif ..."
-  rm -f "$UNPACK_DIR/merged_gebco.tif"
+if [ "$DEBUG_MODE" -eq 0 ]; then
+  if [[ -f "$TEMP_TIF" ]]; then
+    echo "Cleaning up $TEMP_TIF ..."
+    rm -f "$TEMP_TIF"
+  fi
+  if [[ -f "$UNPACK_DIR/merged_gebco.tif" ]]; then
+    echo "Cleaning up $UNPACK_DIR/merged_gebco.tif ..."
+    rm -f "$UNPACK_DIR/merged_gebco.tif"
+  fi
+else
+  echo "Debug mode enabled. Intermediate files are in $DEBUG_DIR"
 fi
 
 echo "Done. MBTiles: $MBTILES_FILE"
