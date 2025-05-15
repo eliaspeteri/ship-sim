@@ -71,19 +71,37 @@ services:
       timeout: 5s
       retries: 5
 
-  tileserver:
-    image: maptiler/tileserver-gl
+  geoserver:
+    image: docker.osgeo.org/geoserver:2.28.x
     ports:
-      - '8888:8080'
+      - '8888:8080' # GeoServer runs on 8080, mapped to host 8888
     volumes:
-      - ./output/tiles:/data
-      - ./styles:/styles
+      - ./geoserver_data_dir:/opt/geoserver/data_dir # GeoServer persistent data
+      - ./output/tiles:/mnt/mbtiles # Mount your MBTiles location
     environment:
-      - TILESERVER_CONFIG=/data/config.json
-      - CORS=*
+      - INSTALL_EXTENSIONS=true
+      - COMMUNITY_EXTENSIONS=mbtiles-store # Installs MBTiles store plugin
+      - GEOSERVER_ADMIN_USER=admin # Default GeoServer admin user
+      - GEOSERVER_ADMIN_PASSWORD=geoserver # Default GeoServer admin password
+      - CORS_ENABLED=true # Enable CORS
+      # - JETTY_MAX_FORM_CONTENT_SIZE=10000000 # Optional: Increase if uploading large forms/files
     networks:
       - ship-sim-network
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G # Adjust as needed
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget -q --spider --proxy=off http://localhost:8080/geoserver/web/ || exit 1',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s # Give GeoServer time to initialize
 
 networks:
   ship-sim-network:
