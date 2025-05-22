@@ -67,6 +67,7 @@ This document tracks the major features of the Ship Simulator project, grouped a
 - [x] Interactive Diagrams: System schematics, flow diagrams
 - [ ] Radar & Navigation: Basic radar display, AIS integration
 - [x] Logs & Reports: Event logs, fuel consumption, voyage data
+- [ ] Autopilot
 
 ## IMO Mandatory Bridge Systems
 
