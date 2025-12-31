@@ -26,7 +26,7 @@ class SocketManager {
 
   // Connect to Socket.IO server
   connect(url: string = 'http://localhost:3001'): void {
-    if (this.socket?.connected || this.socket?.connecting) {
+    if (this.socket?.connected) {
       return; // Already connected or in progress
     }
 
@@ -42,6 +42,9 @@ class SocketManager {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 10000,
+      // Note: withCredentials is not typed on ManagerOptions, but is respected by engine.io in browsers.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      withCredentials: true as any,
       auth: {
         userId: this.userId,
         username: this.username,

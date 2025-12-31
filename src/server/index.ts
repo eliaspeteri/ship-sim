@@ -15,7 +15,8 @@ import {
   registerAdminUser,
   refreshAuthToken,
   verifyAccessToken,
-  invalidateRefreshToken, // Added: For logout
+  invalidateRefreshToken,
+  TokenPayload,
 } from './authService';
 import { authenticateRequest } from './middleware/authentication'; // Added: For /auth/status
 import { socketHasPermission } from './middleware/authorization';
@@ -32,25 +33,31 @@ const COOKIE_DOMAIN =
   process.env.COOKIE_DOMAIN || (PRODUCTION ? undefined : 'localhost'); // Use undefined for default domain in prod
 const SECURE_COOKIES = PRODUCTION; // Use secure cookies in production
 
+type VesselMode = 'player' | 'ai';
+interface VesselRecord {
+  id: string;
+  ownerId: string | null;
+  crewIds: Set<string>;
+  mode: VesselMode;
+  position: { x: number; y: number; z: number };
+  orientation: { heading: number; roll: number; pitch: number };
+  velocity: { surge: number; sway: number; heave: number };
+  properties: {
+    mass: number;
+    length: number;
+    beam: number;
+    draft: number;
+  };
+  controls: {
+    throttle: number;
+    rudderAngle: number;
+  };
+  lastUpdate: number;
+}
+
 // Application state
 const globalState = {
-  vessels: {} as Record<
-    string,
-    {
-      id: string; // Add id field to satisfy SimpleVesselState interface
-      position: { x: number; y: number; z: number };
-      orientation: { heading: number; roll: number; pitch: number };
-      velocity: { surge: number; sway: number; heave: number };
-      properties: {
-        mass: number;
-        length: number;
-        beam: number;
-        draft: number;
-      };
-      throttle: number;
-      rudderAngle: number;
-    }
-  >,
+  vessels: new Map<string, VesselRecord>(),
   environment: {
     wind: {
       speed: 5,
@@ -67,6 +74,47 @@ const globalState = {
     timeOfDay: 12, // 12 PM
   },
 };
+
+const clamp = (val: number, min: number, max: number) =>
+  Math.min(Math.max(val, min), max);
+
+const clampHeading = (rad: number) => {
+  let h = rad % (Math.PI * 2);
+  if (h < 0) h += Math.PI * 2;
+  return h;
+};
+
+function ensureVesselForUser(userId: string, _username: string): VesselRecord {
+  // For now, one vessel per user. If exists, return; else create.
+  const existing = Array.from(globalState.vessels.values()).find(
+    v => v.ownerId === userId,
+  );
+  if (existing) {
+    existing.crewIds.add(userId);
+    existing.mode = 'player';
+    return existing;
+  }
+
+  const vessel: VesselRecord = {
+    id: userId,
+    ownerId: userId,
+    crewIds: new Set([userId]),
+    mode: 'player',
+    position: { x: 0, y: 0, z: 0 },
+    orientation: { heading: 0, roll: 0, pitch: 0 },
+    velocity: { surge: 0, sway: 0, heave: 0 },
+    properties: {
+      mass: 1_000_000,
+      length: 120,
+      beam: 20,
+      draft: 6,
+    },
+    controls: { throttle: 0, rudderAngle: 0 },
+    lastUpdate: Date.now(),
+  };
+  globalState.vessels.set(vessel.id, vessel);
+  return vessel;
+}
 
 let weatherTransitionInterval: NodeJS.Timeout | null = null;
 let targetWeather: WeatherPattern | null = null;
@@ -100,6 +148,18 @@ const refreshTokenCookieOptions = {
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
   path: '/auth/refresh', // Only send for the refresh endpoint
 } as const;
+
+function parseCookies(cookieHeader?: string): Record<string, string> {
+  if (!cookieHeader) return {};
+  return cookieHeader.split(';').reduce(
+    (acc, part) => {
+      const [key, ...rest] = part.trim().split('=');
+      acc[key] = decodeURIComponent(rest.join('='));
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
+}
 
 // --- Authentication Routes ---
 
@@ -373,127 +433,196 @@ const io = new Server<
 });
 
 // Handle Socket.IO connections
-io.on('connection', async socket => {
-  // No direct authentication via socket handshake token anymore.
-  // We associate the socket with a user based on their authenticated HTTP session
-  // which is implicitly handled by the browser sending cookies with subsequent requests.
-  // If specific socket events need auth, they might need to re-verify via a REST call
-  // or a dedicated 'authenticate_socket' event after connection.
-  // For now, we'll assign a temporary ID and guest role.
-  // User info will be primarily managed via HTTP state.
+io.use(async (socket, next) => {
+  try {
+    const cookies = parseCookies(socket.handshake.headers.cookie as string);
+    const nextAuthToken =
+      cookies['next-auth.session-token'] ||
+      cookies['__Secure-next-auth.session-token'];
+    const token =
+      cookies['access_token'] ||
+      (socket.handshake.auth &&
+        (socket.handshake.auth as { token?: string; accessToken?: string })
+          .token) ||
+      (socket.handshake.auth &&
+        (socket.handshake.auth as { token?: string; accessToken?: string })
+          .accessToken);
 
-  const tempUserId = `guest_${Math.random().toString(36).substring(2, 9)}`;
-  const tempUsername = 'Guest';
-  socket.data = {
-    userId: tempUserId,
-    username: tempUsername,
-    roles: ['guest'],
-    permissions: [
-      /* default guest permissions */
-    ],
-  };
+    // Prefer our access token if present
+    if (token) {
+      const payload = (await verifyAccessToken(token)) as TokenPayload | null;
+      if (payload) {
+        socket.data = {
+          userId: payload.userId,
+          username: payload.username,
+          roles: payload.roles,
+          permissions: payload.permissions,
+        };
+        return next();
+      }
+    }
 
-  console.info(`Socket connected: ${tempUsername} (${tempUserId})`);
+    // Fallback: treat next-auth session token as identity (not verified here)
+    if (nextAuthToken) {
+      socket.data = {
+        userId: `nextauth_${nextAuthToken.slice(0, 8)}`,
+        username: 'NextAuthUser',
+        roles: ['player'],
+        permissions: [],
+      };
+      return next();
+    }
 
-  // Add vessel to global state if it doesn't exist (using tempUserId)
-  if (!globalState.vessels[tempUserId]) {
-    // Guests get a default state, not loaded from DB
-    globalState.vessels[tempUserId] = {
-      id: tempUserId,
-      position: { x: 0, y: 0, z: 0 },
-      orientation: { heading: 0, roll: 0, pitch: 0 },
-      velocity: { surge: 0, sway: 0, heave: 0 },
-      properties: {
-        mass: 1000,
-        length: 20,
-        beam: 5,
-        draft: 2,
-      },
-      throttle: 0,
-      rudderAngle: 0,
+    const tempUserId = `guest_${Math.random().toString(36).substring(2, 9)}`;
+    socket.data = {
+      userId: tempUserId,
+      username: 'Guest',
+      roles: ['guest'],
+      permissions: [],
     };
+    next();
+  } catch (err) {
+    console.error('Socket auth error:', err);
+    next(err as Error);
+  }
+});
+
+io.on('connection', socket => {
+  const { userId, username, roles } = socket.data;
+  const effectiveUserId =
+    userId || `guest_${Math.random().toString(36).substring(2, 9)}`;
+  const effectiveUsername = username || 'Guest';
+  const isGuest = (roles || []).includes('guest');
+
+  let vessel: VesselRecord | null = null;
+  if (!isGuest) {
+    vessel = ensureVesselForUser(effectiveUserId, effectiveUsername);
   }
 
-  // Notify other clients of new vessel (Guest)
-  socket.broadcast.emit('vessel:joined', {
-    userId: tempUserId,
-    username: tempUsername,
-    position: globalState.vessels[tempUserId].position,
-    orientation: globalState.vessels[tempUserId].orientation,
-  });
+  console.info(
+    `Socket connected: ${effectiveUsername} (${effectiveUserId}) role=${isGuest ? 'guest' : 'player'}`,
+  );
 
-  // Send initial state to new client
+  // Notify others that this vessel is crewed
+  if (vessel) {
+    socket.broadcast.emit('vessel:joined', {
+      userId: vessel.id,
+      username: effectiveUsername,
+      position: vessel.position,
+      orientation: vessel.orientation,
+    });
+  }
+
+  // Send initial snapshot
   socket.emit('simulation:update', {
-    vessels: globalState.vessels, // Send all vessels, including the new guest
+    vessels: Object.fromEntries(
+      Array.from(globalState.vessels.entries()).map(([id, v]) => [
+        id,
+        {
+          id,
+          position: v.position,
+          orientation: v.orientation,
+          velocity: v.velocity,
+        },
+      ]),
+    ),
     environment: globalState.environment,
+    timestamp: Date.now(),
   });
 
-  // Handle vessel:update events
+  // Handle vessel:update events (from client sim)
   socket.on('vessel:update', data => {
-    // Re-evaluate permission check: Does a guest update their own state?
-    // Or does this require an authenticated user context?
-    // For now, assume guest can update their temporary vessel state.
-    const currentUserId = socket.data.userId; // Use the ID from socket data
-    if (!currentUserId) return; // Should not happen
-
-    // Update global state for this socket's user ID
-    if (globalState.vessels[currentUserId]) {
-      if (data.position)
-        globalState.vessels[currentUserId].position = data.position;
-      if (data.orientation)
-        globalState.vessels[currentUserId].orientation = data.orientation;
-      if (data.velocity)
-        globalState.vessels[currentUserId].velocity = data.velocity;
-
-      // Broadcast update to other clients (except sender)
-      socket.broadcast.emit('simulation:update', {
-        vessels: { [currentUserId]: globalState.vessels[currentUserId] },
-        partial: true,
-      });
+    const currentUserId = socket.data.userId || effectiveUserId;
+    if (!currentUserId) return;
+    if (isGuest) {
+      console.info('Ignoring vessel:update from guest');
+      return;
     }
+
+    const vesselRecord = globalState.vessels.get(currentUserId);
+    if (!vesselRecord) {
+      console.warn('No vessel for user, creating on update', currentUserId);
+      ensureVesselForUser(currentUserId, effectiveUsername);
+    }
+    const target = globalState.vessels.get(currentUserId);
+    if (!target) return;
+
+    if (data.position) {
+      target.position = data.position;
+    }
+    if (data.orientation) {
+      target.orientation = {
+        ...target.orientation,
+        ...data.orientation,
+        heading: clampHeading(data.orientation.heading),
+      };
+    }
+    if (data.velocity) {
+      target.velocity = data.velocity;
+    }
+    target.lastUpdate = Date.now();
+
+    socket.broadcast.emit('simulation:update', {
+      vessels: {
+        [currentUserId]: {
+          id: target.id,
+          position: target.position,
+          orientation: target.orientation,
+          velocity: target.velocity,
+        },
+      },
+      partial: true,
+      timestamp: target.lastUpdate,
+    });
+
+    console.info(
+      `Update from ${currentUserId}: pos=(${target.position.x.toFixed(1)},${target.position.y.toFixed(1)}) heading=${target.orientation.heading.toFixed(2)}`,
+    );
   });
 
   // Handle vessel:control events
   socket.on('vessel:control', data => {
-    // Similar permission consideration as vessel:update
-    const currentUserId = socket.data.userId;
+    const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
-
-    // Update vessel control state
-    if (globalState.vessels[currentUserId]) {
-      if (data.throttle !== undefined)
-        globalState.vessels[currentUserId].throttle = data.throttle;
-      if (data.rudderAngle !== undefined)
-        globalState.vessels[currentUserId].rudderAngle = data.rudderAngle;
-
-      // Log control update
-      console.info(
-        `Control update from ${socket.data.username} (${currentUserId}):`,
-        data,
-      );
-      // Broadcast if needed in multi-user scenario
+    if (isGuest) {
+      console.info('Ignoring vessel:control from guest');
+      return;
     }
+
+    const vesselRecord = globalState.vessels.get(currentUserId);
+    if (!vesselRecord) {
+      console.warn('No vessel for user, creating on control', currentUserId);
+      ensureVesselForUser(currentUserId, effectiveUsername);
+    }
+    const target = globalState.vessels.get(currentUserId);
+    if (!target) return;
+
+    if (data.throttle !== undefined) {
+      target.controls.throttle = clamp(data.throttle, -1, 1);
+    }
+    if (data.rudderAngle !== undefined) {
+      target.controls.rudderAngle = clamp(data.rudderAngle, -0.6, 0.6);
+    }
+    target.lastUpdate = Date.now();
+
+    console.info(
+      `Control applied for ${currentUserId}: throttle=${target.controls.throttle.toFixed(2)} rudder=${target.controls.rudderAngle.toFixed(2)}`,
+    );
   });
 
   // Handle simulation state changes
   socket.on('simulation:state', data => {
-    // This likely requires admin privileges. The check needs context.
-    // A simple check on socket.data.roles might be insufficient if roles
-    // aren't updated after HTTP login. Consider fetching user roles via API if needed.
     if (!socketHasPermission(socket, 'simulation', 'control')) {
-      // Check might need adjustment
       socket.emit('error', 'Not authorized to control simulation');
       return;
     }
     console.info(`Simulation state update from ${socket.data.username}:`, data);
-    // Apply global simulation change
+    // Future: apply global sim changes
   });
 
   // Handle admin weather control
   socket.on('admin:weather', data => {
-    // Similar permission check considerations as simulation:state
     if (!socketHasPermission(socket, 'environment', 'manage')) {
-      // Check might need adjustment
       socket.emit('error', 'Not authorized to change weather');
       return;
     }
@@ -525,24 +654,20 @@ io.on('connection', async socket => {
         weatherTransitionInterval = null;
       }
       targetWeather = null;
-      console.info('Random weather enabled.');
       io.emit('environment:update', globalState.environment);
     }
   });
 
   // Handle chat messages
   socket.on('chat:message', data => {
-    // Permission check - guests might be allowed to chat
     if (!socketHasPermission(socket, 'chat', 'send')) {
-      // Check might need adjustment
       socket.emit('error', 'Not authorized to send chat messages');
       return;
     }
 
-    const message = data.message.trim();
-    if (!message || message.length > 500) return; // Basic validation
+    const message = (data.message || '').trim();
+    if (!message || message.length > 500) return;
 
-    // Broadcast message with user info from socket.data
     io.emit('chat:message', {
       userId: socket.data.userId || 'unknown',
       username: socket.data.username || 'Guest',
@@ -552,17 +677,23 @@ io.on('connection', async socket => {
 
   // Handle disconnect
   socket.on('disconnect', () => {
-    const currentUserId = socket.data.userId;
-    const currentUsername = socket.data.username;
+    const currentUserId = socket.data.userId || effectiveUserId;
+    const currentUsername = socket.data.username || effectiveUsername;
     console.info(`Socket disconnected: ${currentUsername} (${currentUserId})`);
 
-    // Remove guest vessel state on disconnect
-    if (currentUserId && currentUserId.startsWith('guest_')) {
-      delete globalState.vessels[currentUserId];
-      console.info(`Removed guest vessel state for ${currentUserId}`);
+    if (!isGuest) {
+      const vesselRecord = currentUserId
+        ? globalState.vessels.get(currentUserId)
+        : undefined;
+      if (vesselRecord) {
+        vesselRecord.crewIds.delete(currentUserId);
+        if (vesselRecord.crewIds.size === 0) {
+          vesselRecord.mode = 'ai';
+          // Keep last controls/state; AI logic will use it later
+        }
+      }
     }
 
-    // Notify other clients of vessel departure
     if (currentUserId) {
       socket.broadcast.emit('vessel:left', { userId: currentUserId });
     }
@@ -573,6 +704,28 @@ io.on('connection', async socket => {
 server.listen(PORT, () => {
   console.info(`Server listening on port ${PORT}`);
 });
+
+// Broadcast authoritative snapshots at a throttled rate (5Hz)
+const BROADCAST_INTERVAL_MS = 200;
+setInterval(() => {
+  if (!io) return;
+  const snapshot = Object.fromEntries(
+    Array.from(globalState.vessels.entries()).map(([id, v]) => [
+      id,
+      {
+        id,
+        position: v.position,
+        orientation: v.orientation,
+        velocity: v.velocity,
+      },
+    ]),
+  );
+  io.emit('simulation:update', {
+    vessels: snapshot,
+    environment: globalState.environment,
+    timestamp: Date.now(),
+  });
+}, BROADCAST_INTERVAL_MS);
 
 // Export the app and io for potential testing or extension
 export { app, io };
