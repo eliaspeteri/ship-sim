@@ -3,6 +3,7 @@ import { loadWasm } from '../lib/wasmLoader';
 import { WasmBridge } from '../lib/wasmBridge';
 import { VesselState } from '../types/vessel.types';
 import { safe } from '../lib/safe';
+import socketManager from '../networking/socket';
 
 // Singleton for simulation instance
 let simulationInstance: SimulationLoop | null = null;
@@ -17,6 +18,8 @@ export class SimulationLoop {
   private lastStateUpdateTime = 0;
   private stabilityUpdateCounter = 0;
   private wavePropertiesUpdateCounter = 0;
+  private lastBroadcastTime = 0;
+  private readonly broadcastInterval = 0.2; // seconds (5 Hz)
 
   constructor() {
     if (simulationInstance) {
@@ -364,6 +367,12 @@ export class SimulationLoop {
         });
       }
 
+      // Throttled broadcast of local vessel state to server
+      const nowSeconds = performance.now() / 1000;
+      if (nowSeconds - this.lastBroadcastTime >= this.broadcastInterval) {
+        socketManager.sendVesselUpdate();
+        this.lastBroadcastTime = nowSeconds;
+      }
     } catch (error: unknown) {
       console.error('Error in updateUIFromPhysics:', error);
 

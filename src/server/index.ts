@@ -85,6 +85,13 @@ const clampHeading = (rad: number) => {
   return h;
 };
 
+const hasAdminRole = (socket: import('socket.io').Socket) =>
+  (socket.data.roles || []).includes('admin') ||
+  (socket.data.permissions || []).some(
+    (p: { resource: string; action: string }) =>
+      p.resource === '*' || p.action === '*',
+  );
+
 function ensureVesselForUser(userId: string, _username: string): VesselRecord {
   // Prefer last vessel if still present
   const lastId = globalState.userLastVessel.get(userId);
@@ -450,19 +457,16 @@ const io = new Server<
 io.use(async (socket, next) => {
   try {
     const cookies = parseCookies(socket.handshake.headers.cookie as string);
-    const nextAuthToken =
-      cookies['next-auth.session-token'] ||
-      cookies['__Secure-next-auth.session-token'];
-    const token =
-      cookies['access_token'] ||
-      (socket.handshake.auth &&
-        (socket.handshake.auth as { token?: string; accessToken?: string })
-          .token) ||
+  const token =
+    cookies['access_token'] ||
+    (socket.handshake.auth &&
+      (socket.handshake.auth as { token?: string; accessToken?: string })
+        .token) ||
       (socket.handshake.auth &&
         (socket.handshake.auth as { token?: string; accessToken?: string })
           .accessToken);
 
-    // Prefer our access token if present
+    // Require verified access token to elevate beyond guest
     if (token) {
       const payload = (await verifyAccessToken(token)) as TokenPayload | null;
       if (payload) {
@@ -474,17 +478,7 @@ io.use(async (socket, next) => {
         };
         return next();
       }
-    }
-
-    // Fallback: treat next-auth session token as identity (not verified here)
-    if (nextAuthToken) {
-      socket.data = {
-        userId: `nextauth_${nextAuthToken.slice(0, 8)}`,
-        username: 'NextAuthUser',
-        roles: ['player'],
-        permissions: [],
-      };
-      return next();
+      console.warn('Socket auth failed token verification; falling back to guest');
     }
 
     const tempUserId = `guest_${Math.random().toString(36).substring(2, 9)}`;
@@ -626,7 +620,7 @@ io.on('connection', socket => {
 
   // Handle simulation state changes
   socket.on('simulation:state', data => {
-    if (!socketHasPermission(socket, 'simulation', 'control')) {
+    if (!hasAdminRole(socket)) {
       socket.emit('error', 'Not authorized to control simulation');
       return;
     }
@@ -636,7 +630,7 @@ io.on('connection', socket => {
 
   // Handle admin weather control
   socket.on('admin:weather', data => {
-    if (!socketHasPermission(socket, 'environment', 'manage')) {
+    if (!hasAdminRole(socket)) {
       socket.emit('error', 'Not authorized to change weather');
       return;
     }
