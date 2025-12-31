@@ -58,6 +58,7 @@ interface VesselRecord {
 // Application state
 const globalState = {
   vessels: new Map<string, VesselRecord>(),
+  userLastVessel: new Map<string, string>(),
   environment: {
     wind: {
       speed: 5,
@@ -85,13 +86,25 @@ const clampHeading = (rad: number) => {
 };
 
 function ensureVesselForUser(userId: string, _username: string): VesselRecord {
-  // For now, one vessel per user. If exists, return; else create.
-  const existing = Array.from(globalState.vessels.values()).find(
-    v => v.ownerId === userId,
+  // Prefer last vessel if still present
+  const lastId = globalState.userLastVessel.get(userId);
+  if (lastId) {
+    const lastVessel = globalState.vessels.get(lastId);
+    if (lastVessel) {
+      lastVessel.crewIds.add(userId);
+      lastVessel.mode = 'player';
+      return lastVessel;
+    }
+  }
+
+  // Otherwise find any vessel where user is crew
+  const existing = Array.from(globalState.vessels.values()).find(v =>
+    v.crewIds.has(userId),
   );
   if (existing) {
     existing.crewIds.add(userId);
     existing.mode = 'player';
+    globalState.userLastVessel.set(userId, existing.id);
     return existing;
   }
 
@@ -113,6 +126,7 @@ function ensureVesselForUser(userId: string, _username: string): VesselRecord {
     lastUpdate: Date.now(),
   };
   globalState.vessels.set(vessel.id, vessel);
+  globalState.userLastVessel.set(userId, vessel.id);
   return vessel;
 }
 

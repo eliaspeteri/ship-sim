@@ -32,6 +32,7 @@ const SimPage: React.FC = () => {
     if (hasStartedRef.current) return;
 
     hasStartedRef.current = true;
+    // Optionally set auth token for socket if available from session (e.g., via custom API)
     socketManager.connect();
     initializeSimulation();
     startSimulation();
@@ -110,6 +111,7 @@ const SimPage: React.FC = () => {
           rudderAngle: rudder,
           ballast: controls.ballast,
         });
+        socketManager.sendControlUpdate(throttle, rudder);
       } catch (error) {
         console.error('Error applying keyboard controls:', error);
       }

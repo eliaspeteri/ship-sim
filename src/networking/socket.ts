@@ -216,6 +216,19 @@ class SocketManager {
     return 'user_' + Math.random().toString(36).substring(2, 9);
   }
 
+  // Allow setting an external auth token for the socket (e.g., NextAuth JWT)
+  setAuthToken(token: string, userId?: string, username?: string): void {
+    this.userId = userId || this.userId;
+    this.username = username || this.username;
+    if (this.socket) {
+      this.socket.auth = {
+        token,
+        userId: this.userId,
+        username: this.username,
+      };
+    }
+  }
+
   // Check if we're connected to the server
   isConnected(): boolean {
     return this.socket?.connected || false;
