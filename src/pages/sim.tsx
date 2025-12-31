@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Scene from '../components/Scene';
@@ -7,6 +7,7 @@ import EnvironmentControls from '../components/EnvironmentControls';
 import useStore from '../store';
 import socketManager from '../networking/socket';
 import { initializeSimulation, startSimulation } from '../simulation';
+import { getSimulationLoop } from '../simulation';
 
 /**
  * Simulation page for Ship Simulator.
@@ -18,6 +19,7 @@ const SimPage: React.FC = () => {
   const vessel = useStore(state => state.vessel);
   const [showSettings, setShowSettings] = React.useState(false);
   const [showUserPanel, setShowUserPanel] = React.useState(false);
+  const hasStartedRef = useRef(false);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -25,16 +27,100 @@ const SimPage: React.FC = () => {
       router.replace('/login');
       return;
     }
-    // Connect to websocket server when entering sim page
+  }, [session, status, router]);
+
+  // Start simulation and socket once per mount (avoid reconnects on tab focus)
+  useEffect(() => {
+    if (status !== 'authenticated' || !session) return;
+    if (hasStartedRef.current) return;
+
+    hasStartedRef.current = true;
     socketManager.connect();
-    // Initialize simulation (WASM, vessel, physics) on first load
     initializeSimulation();
     startSimulation();
-    return () => {
-      // Disconnect when leaving sim page
-      socketManager.disconnect();
+  }, [session, status]);
+
+  // Clean up only on unmount
+  useEffect(
+    () => () => {
+      if (hasStartedRef.current) {
+        socketManager.disconnect();
+        hasStartedRef.current = false;
+      }
+    },
+    [],
+  );
+
+  // Keyboard controls (W/S throttle, A/D rudder, arrows also)
+  useEffect(() => {
+    const clamp = (val: number, min: number, max: number) =>
+      Math.min(Math.max(val, min), max);
+
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      const state = useStore.getState();
+      const controls = state.vessel.controls;
+      if (!controls) return;
+
+      let throttle = controls.throttle ?? 0;
+      let rudder = controls.rudderAngle ?? 0;
+      const throttleStep = 0.05;
+      const rudderStep = 0.05;
+      let changed = false;
+
+      switch (event.key) {
+        case 'w':
+        case 'W':
+        case 'ArrowUp':
+          throttle = clamp(throttle + throttleStep, -1, 1);
+          changed = true;
+          break;
+        case 's':
+        case 'S':
+        case 'ArrowDown':
+          throttle = clamp(throttle - throttleStep, -1, 1);
+          changed = true;
+          break;
+        case 'a':
+        case 'A':
+        case 'ArrowLeft':
+          rudder = clamp(rudder - rudderStep, -0.6, 0.6);
+          changed = true;
+          break;
+        case 'd':
+        case 'D':
+        case 'ArrowRight':
+          rudder = clamp(rudder + rudderStep, -0.6, 0.6);
+          changed = true;
+          break;
+        default:
+          break;
+      }
+
+      if (!changed) return;
+
+      state.updateVessel({
+        controls: {
+          ...controls,
+          throttle,
+          rudderAngle: rudder,
+        },
+      });
+
+      try {
+        const simulationLoop = getSimulationLoop();
+        simulationLoop.applyControls({
+          throttle,
+          rudderAngle: rudder,
+          ballast: controls.ballast,
+        });
+      } catch (error) {
+        console.error('Error applying keyboard controls:', error);
+      }
     };
-  }, [session, status, router]);
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   if (status === 'loading' || !session) {
     return (

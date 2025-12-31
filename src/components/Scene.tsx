@@ -1,52 +1,13 @@
-// src/components/Scene.tsx
+// Scene with orbit camera, Environment lighting, and a Water plane that follows the vessel.
 'use client';
 
-import { Canvas, useThree } from '@react-three/fiber';
-import {
-  OrbitControls,
-  Sky,
-  AdaptiveDpr,
-  AdaptiveEvents,
-} from '@react-three/drei';
-import dynamic from 'next/dynamic';
-import React, {
-  Suspense,
-  useRef,
-  useEffect,
-  useState,
-  useCallback,
-  useMemo,
-} from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Environment, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-import Ship from './Ship';
+import { Water } from 'three/examples/jsm/objects/Water.js';
 import useStore from '../store';
-import MemoryMonitor from './MemoryMonitor';
-import Precipitation from './Precipitation';
-
-// Define interfaces for Ocean component props
-interface OceanProps {
-  size: number;
-  resolution: number;
-  position: [number, number, number];
-}
-
-const NewOcean = dynamic(() => import('./Ocean/NewOcean'), { ssr: false });
-
-// Create low detail version for when simulation is in background or performance is low
-const LowDetailNewOcean = dynamic(
-  () =>
-    import('./Ocean/NewOcean').then(mod => ({
-      default: (props: Partial<OceanProps>) => (
-        <mod.default
-          size={5000}
-          resolution={64}
-          position={[0, -0.5, 0]}
-          {...props}
-        />
-      ),
-    })),
-  { ssr: false },
-);
+import Ship from './Ship';
 
 interface SceneProps {
   vesselPosition: {
@@ -56,292 +17,163 @@ interface SceneProps {
   };
 }
 
-// Component that handles WebGL context loss events
-function ContextLossHandler({ onContextLost }: { onContextLost: () => void }) {
-  const { gl } = useThree();
+function createNormalMap(size = 256): THREE.DataTexture {
+  const data = new Uint8Array(size * size * 3);
+  for (let i = 0; i < size * size; i++) {
+    const stride = i * 3;
+    // Subtle perturbation around a neutral normal
+    data[stride] = 128 + (Math.random() * 40 - 20);
+    data[stride + 1] = 128 + (Math.random() * 40 - 20);
+    data[stride + 2] = 255;
+  }
 
-  useEffect(() => {
-    // Get the canvas element from the renderer
-    const canvas = gl.domElement;
-
-    const handleContextLost = (event: globalThis.Event) => {
-      event.preventDefault?.();
-      console.warn('WebGL context lost - forcing cleanup');
-      onContextLost();
-    };
-
-    // Add event listener directly to the canvas
-    canvas.addEventListener('webglcontextlost', handleContextLost);
-
-    return () => {
-      canvas.removeEventListener('webglcontextlost', handleContextLost);
-    };
-  }, [gl, onContextLost]);
-
-  return null;
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBFormat);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(8, 8);
+  texture.needsUpdate = true;
+  texture.anisotropy = 4;
+  return texture;
 }
 
-// Performance monitoring component
-/**
- * Monitors rendering performance using requestAnimationFrame for accurate FPS measurement.
- * Calls onPerformanceDrop(true) if average FPS drops below 30, and onPerformanceDrop(false) if above 40.
- * Uses a rolling window of the last 60 frames for smoothing.
- */
-function PerformanceMonitor({
-  onPerformanceDrop,
+function WaterPlane({
+  center,
+  sunDirection,
 }: {
-  onPerformanceDrop: (isLow: boolean) => void;
+  center: { x: number; y: number };
+  sunDirection: THREE.Vector3;
 }) {
-  const frameTimes = useRef<number[]>([]);
-  const lastFrame = useRef<number>(performance.now());
-  const rafId = useRef<number | null>(null);
-  const lastLow = useRef<boolean | null>(null);
+  const waterRef = useRef<Water | null>(null);
+  const geometry = useMemo(
+    () => new THREE.PlaneGeometry(40000, 40000, 32, 32),
+    [],
+  );
+  const waterNormals = useMemo(() => createNormalMap(), []);
+
+  const water = useMemo(
+    () =>
+      new Water(geometry, {
+        textureWidth: 512,
+        textureHeight: 512,
+        waterNormals,
+        sunDirection: sunDirection.clone(),
+        sunColor: 0xffffff,
+        waterColor: 0x14324a,
+        distortionScale: 3.5,
+        fog: false,
+      }),
+    [geometry, sunDirection, waterNormals],
+  );
 
   useEffect(() => {
-    let mounted = true;
-    function loop() {
-      if (!mounted) return;
-      const now = performance.now();
-      const delta = now - lastFrame.current;
-      lastFrame.current = now;
-      const fps = Math.min(1000 / delta, 60);
-      frameTimes.current.push(fps);
-      if (frameTimes.current.length > 60) frameTimes.current.shift();
-      const avgFps =
-        frameTimes.current.reduce((sum, f) => sum + f, 0) /
-        frameTimes.current.length;
-      // Only call onPerformanceDrop if state changes
-      if (avgFps < 30 && lastLow.current !== true) {
-        onPerformanceDrop(true);
-        lastLow.current = true;
-      } else if (avgFps > 40 && lastLow.current !== false) {
-        onPerformanceDrop(false);
-        lastLow.current = false;
-      }
-      rafId.current = requestAnimationFrame(loop);
+    const current = waterRef.current;
+    if (current) {
+      current.material.uniforms.sunDirection.value.copy(sunDirection);
+      current.material.uniforms.size.value = 8.0;
+      current.material.uniforms.distortionScale.value = 3.5;
+      current.material.uniforms.alpha.value = 0.95;
     }
-    rafId.current = requestAnimationFrame(loop);
-    return () => {
-      mounted = false;
-      if (rafId.current !== null) cancelAnimationFrame(rafId.current);
-    };
-  }, [onPerformanceDrop]);
-  return null;
+  }, [sunDirection]);
+
+  useEffect(
+    () => () => {
+      water.geometry.dispose();
+      (water.material as THREE.Material).dispose();
+    },
+    [water],
+  );
+
+  useFrame((_, delta) => {
+    if (!waterRef.current) return;
+    waterRef.current.material.uniforms.time.value += delta;
+    waterRef.current.position.set(center.x, 0, center.y);
+  });
+
+  return (
+    <primitive
+      ref={waterRef}
+      object={water}
+      position={[center.x, 0, center.y]}
+      rotation={[-Math.PI / 2, 0, 0]}
+    />
+  );
 }
 
 export default function Scene({ vesselPosition }: SceneProps) {
-  // Get vessel properties and environment from store
   const vesselProperties = useStore(state => state.vessel.properties);
-  const environment = useStore(state => state.environment);
+  const envTime = useStore(state => state.environment.timeOfDay);
+  const directionalLightRef = useRef<THREE.DirectionalLight>(null);
 
-  // Performance state
-  const [lowPerformanceMode, setLowPerformanceMode] = useState(false);
-  const [isTabVisible, setIsTabVisible] = useState(true);
+  // Simple sun direction derived from time of day (0-24). Kept adaptable for future lat/season logic.
+  const sunDirection = useMemo(() => {
+    const t = envTime ?? 12;
+    const normalized = ((t % 24) + 24) / 24; // 0..1
+    const azimuth = normalized * Math.PI * 2;
+    const elevation = Math.max(0.1, Math.sin(normalized * Math.PI)); // keep sun above horizon for now
+    const dir = new THREE.Vector3(
+      Math.cos(azimuth) * Math.cos(elevation),
+      elevation,
+      Math.sin(azimuth) * Math.cos(elevation),
+    );
+    dir.normalize();
+    return dir;
+  }, [envTime]);
 
-  // Create ref for orbit controls - using typeof to refer to the component value
-  const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null);
-
-  // Memory management for disposable objects
-  const disposables = useRef<THREE.Object3D[]>([]);
-
-  // Handle visibility change to reduce performance when tab is not visible
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      setIsTabVisible(!document.hidden);
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      console.info('Cleaning up visibility change listener...');
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  // Clean up function to dispose of Three.js objects and prevent memory leaks
-  const cleanupScene = useCallback(() => {
-    console.info('Cleaning up scene...');
-    disposables.current.forEach(obj => {
-      const objWithGeometry = obj as unknown as {
-        geometry?: { dispose: () => void };
-      };
-      const objWithMaterial = obj as unknown as {
-        material?: THREE.Material | THREE.Material[];
-      };
-
-      if (objWithGeometry.geometry) {
-        objWithGeometry.geometry.dispose();
-      }
-
-      if (objWithMaterial.material) {
-        const materials = Array.isArray(objWithMaterial.material)
-          ? objWithMaterial.material
-          : [objWithMaterial.material];
-
-        materials.forEach((material: THREE.Material) => {
-          Object.keys(material).forEach(prop => {
-            const value = material[prop as keyof THREE.Material];
-            if (
-              value &&
-              typeof (value as unknown as { dispose?: () => void }).dispose ===
-                'function'
-            ) {
-              (value as unknown as { dispose: () => void }).dispose();
-            }
-          });
-          material.dispose();
-        });
-      }
-    });
-
-    // Clear array and help GC
-    disposables.current = [];
-
-    // Attempt to force garbage collection when available
-    const windowWithGC = window as unknown as { gc?: () => void };
-    if (typeof window !== 'undefined' && windowWithGC.gc) {
-      windowWithGC.gc();
-    }
-  }, []);
-
-  // Cleanup on component unmount
-  useEffect(() => {
-    return () => {
-      cleanupScene();
-    };
-  }, [cleanupScene]);
-
-  // Update the orbit controls target when the ship position changes
-  useEffect(() => {
-    if (controlsRef.current) {
-      // OrbitControls has a target property of type Vector3
-      (controlsRef.current as unknown as { target: THREE.Vector3 }).target.set(
-        vesselPosition.x,
-        0,
-        vesselPosition.y,
-      );
-    }
-  }, [vesselPosition.x, vesselPosition.y]);
-
-  // Calculate sun position based on time of day from environment
-  const sunPosition = useMemo(() => {
-    // Convert environment time (0-24) to radians (0-2π)
-    const timeRad = (environment.timeOfDay / 24) * Math.PI * 2;
-
-    // Position sun in the sky based on time
-    return [Math.cos(timeRad) * 100, Math.sin(timeRad) * 100, 0] as [
-      number,
-      number,
-      number,
-    ];
-  }, [environment.timeOfDay]);
-
-  // Handle performance drops
-  const handlePerformanceDrop = useCallback((isLow: boolean) => {
-    setLowPerformanceMode(isLow);
-  }, []);
-
-  // Default ocean props with higher resolution for better wave definition
-  const oceanProps: OceanProps = {
-    size: 10000,
-    resolution: lowPerformanceMode ? 128 : 1024, // Higher resolution for more detailed waves
-    position: [vesselPosition.x, -0.5, vesselPosition.y],
-  };
-
-  // Determine which ocean component to use based on performance
-  const OceanComponent =
-    isTabVisible && !lowPerformanceMode ? NewOcean : LowDetailNewOcean;
+    if (!directionalLightRef.current) return;
+    const light = directionalLightRef.current;
+    const scaled = sunDirection.clone().multiplyScalar(400);
+    light.position.copy(scaled);
+    light.target.position.set(vesselPosition.x, 0, vesselPosition.y);
+    light.target.updateMatrixWorld();
+  }, [sunDirection, vesselPosition.x, vesselPosition.y]);
 
   return (
-    <div style={{ width: '100%', height: '100vh' }}>
+    <div
+      style={{
+        width: '100%',
+        height: '100vh',
+        position: 'fixed',
+        inset: 0,
+        zIndex: 0,
+      }}
+    >
       <Canvas
-        shadows={isTabVisible}
-        dpr={[1, isTabVisible ? 2 : 1]} // Lower resolution when tab not visible
         camera={{
-          position: [vesselPosition.x - 30, 20, vesselPosition.y - 30],
+          position: [vesselPosition.x - 50, 30, vesselPosition.y - 50],
           fov: 60,
+          near: 1,
+          far: 50000,
         }}
-        frameloop={isTabVisible ? 'always' : 'demand'}
-        gl={{
-          powerPreference: 'high-performance',
-          antialias: isTabVisible && !lowPerformanceMode,
-          logarithmicDepthBuffer: false,
-        }}
-        performance={{ min: 0.5 }}
       >
-        {/* Context loss handling moved to a separate component */}
-        <ContextLossHandler onContextLost={cleanupScene} />
-        <PerformanceMonitor onPerformanceDrop={handlePerformanceDrop} />
-        <AdaptiveDpr pixelated />
-        <AdaptiveEvents />
-
-        {/* Sky and lighting */}
-        <Sky sunPosition={sunPosition as [number, number, number]} />
-        <ambientLight
-          intensity={0.8}
-          position={[vesselPosition.x, vesselPosition.y, 5]}
+        <color attach="background" args={['#0c1a2b']} />
+        <Environment preset="sunset" />
+        <ambientLight intensity={0.4} />
+        <directionalLight ref={directionalLightRef} intensity={0.9} />
+        <WaterPlane
+          center={{ x: vesselPosition.x, y: vesselPosition.y }}
+          sunDirection={sunDirection}
         />
-        <directionalLight
-          position={[vesselPosition.x, vesselPosition.y, 5]}
-          intensity={1}
-          castShadow={isTabVisible}
-          shadow-mapSize={lowPerformanceMode ? [1024, 1024] : [2048, 2048]}
-        />
-
-        {/* Precipitation */}
-        {environment.precipitation !== 'none' &&
-          environment.precipitationIntensity &&
-          environment.precipitationIntensity > 0 && (
-            <Precipitation
-              type={environment.precipitation ?? 'none'}
-              intensity={environment.precipitationIntensity}
-              position={[vesselPosition.x, 0, vesselPosition.y]}
-              area={2000}
-              speed={
-                environment.precipitation === 'rain'
-                  ? 80 *
-                    environment.precipitationIntensity *
-                    (1 + environment.wind.speed * 0.1)
-                  : undefined
-              }
-            />
-          )}
-
-        {/* Ship at the specified position and heading */}
         <Ship
           position={{
             x: vesselPosition.x,
-            y: vesselProperties.draft - 15, // At water level
-            z: vesselPosition.y, // Note: Z is used for Y in the 3D world
+            y: 0,
+            z: vesselPosition.y,
           }}
-          heading={vesselPosition.heading}
+          heading={-vesselPosition.heading}
           shipType={vesselProperties.type}
         />
-
-        {/* Ocean */}
-        <Suspense fallback={null}>
-          <OceanComponent
-            {...oceanProps}
-            position={[vesselPosition.x, -0.5, vesselPosition.y]}
-          />
-        </Suspense>
-
-        {/* Camera Controls */}
         <OrbitControls
-          ref={controlsRef}
           target={[vesselPosition.x, 0, vesselPosition.y]}
-          enableDamping={isTabVisible}
           enablePan={false}
-          dampingFactor={0.1}
-          minDistance={vesselProperties.length}
+          minDistance={vesselProperties.length * 0.8}
           maxDistance={vesselProperties.length * 5}
-          // Prevent camera from going below water level
           minPolarAngle={Math.PI * 0.05}
           maxPolarAngle={Math.PI * 0.5}
+          enableDamping
+          dampingFactor={0.1}
         />
       </Canvas>
-
-      {/* Add memory monitor component */}
-      <MemoryMonitor />
     </div>
   );
 }

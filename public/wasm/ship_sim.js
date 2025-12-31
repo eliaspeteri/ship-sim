@@ -17,13 +17,13 @@ async function instantiate(module, imports = {}) {
   const { exports } = await WebAssembly.instantiate(module, adaptedImports);
   const memory = exports.memory || imports.env.memory;
   const adaptedExports = Object.setPrototypeOf({
+    createVessel(x, y, z, psi, _phi, _theta, u, v, w, r, _p, _q, throttle, rudderAngle, mass, length, beam, draft) {
+      // assembly/index/createVessel(f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64) => usize
+      return exports.createVessel(x, y, z, psi, _phi, _theta, u, v, w, r, _p, _q, throttle, rudderAngle, mass, length, beam, draft) >>> 0;
+    },
     updateVesselState(vesselPtr, dt, windSpeed, windDirection, currentSpeed, currentDirection) {
       // assembly/index/updateVesselState(usize, f64, f64, f64, f64, f64) => usize
       return exports.updateVesselState(vesselPtr, dt, windSpeed, windDirection, currentSpeed, currentDirection) >>> 0;
-    },
-    createVessel(x, y, z, psi, phi, theta, u, v, w, r, p, q, throttle, rudderAngle, mass, length, beam, draft) {
-      // assembly/index/createVessel(f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64) => usize
-      return exports.createVessel(x, y, z, psi, phi, theta, u, v, w, r, p, q, throttle, rudderAngle, mass, length, beam, draft) >>> 0;
     },
   }, exports);
   function __liftString(pointer) {
@@ -42,35 +42,33 @@ async function instantiate(module, imports = {}) {
 export const {
   memory,
   table,
-  calculateWaveFrequency,
-  getWaveHeightForSeaState,
-  calculateBeaufortScale,
-  calculateWaveLength,
-  calculateWaveHeightAtPosition,
-  updateVesselState,
   createVessel,
+  updateVesselState,
   setThrottle,
-  setWaveData,
   setRudderAngle,
   setBallast,
-  getVesselRollAngle,
-  getVesselPitchAngle,
   getVesselX,
   getVesselY,
   getVesselZ,
   getVesselHeading,
   getVesselSpeed,
+  getVesselSurgeVelocity,
+  getVesselSwayVelocity,
+  getVesselHeaveVelocity,
+  getVesselRollAngle,
+  getVesselPitchAngle,
+  getVesselRudderAngle,
   getVesselEngineRPM,
   getVesselFuelLevel,
   getVesselFuelConsumption,
   getVesselGM,
   getVesselCenterOfGravityY,
-  getVesselSurgeVelocity,
-  getVesselSwayVelocity,
-  getVesselHeaveVelocity,
-  getVesselRudderAngle,
   getVesselBallastLevel,
-  setVesselVelocity,
+  getVesselRollRate,
+  getVesselPitchRate,
+  getVesselYawRate,
+  calculateSeaState,
+  getWaveHeightForSeaState,
   resetGlobalVessel,
 } = await (async url => instantiate(
   await (async () => {

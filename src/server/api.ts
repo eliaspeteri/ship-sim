@@ -1,5 +1,4 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
 import { authenticateRequest, requireAuth } from './middleware/authentication';
 import { requirePermission, requireRole } from './middleware/authorization';
 import { VesselState, ShipType } from '../types/vessel.types';
@@ -111,9 +110,21 @@ interface UserSettings {
   updatedAt: Date;
 }
 
-// Create a router instance
+interface InMemoryEnvironmentState extends EnvironmentState {
+  id: number;
+}
+
 const router = express.Router();
-const prisma = new PrismaClient();
+
+const vesselStates: Record<string, DBVesselState> = {};
+const userSettingsStore: Record<string, UserSettings> = {};
+let environmentState: InMemoryEnvironmentState = {
+  id: 1,
+  wind: { speed: 5, direction: 0, gusting: false, gustFactor: 1 },
+  current: { speed: 0.5, direction: Math.PI / 4, variability: 0 },
+  seaState: 3,
+  timeOfDay: 12,
+};
 
 // Apply authentication middleware to all routes
 router.use(authenticateRequest);
@@ -124,13 +135,7 @@ router.get(
   requireAuth,
   requirePermission('vessel', 'list'),
   async (req, res) => {
-    try {
-      const vesselStates = await prisma.vesselState.findMany();
-      res.json(vesselStates);
-    } catch (error: unknown) {
-      console.error('Error fetching vessel states:', error);
-      res.status(500).json({ error: 'Failed to fetch vessel states' });
-    }
+    res.json(Object.values(vesselStates));
   },
 );
 
@@ -138,23 +143,13 @@ router.get(
 router.get('/vessels/:userId', requireAuth, function (req, res) {
   const { userId } = req.params;
 
-  prisma.vesselState
-    .findUnique({
-      where: { userId },
-    })
-    .then(dbVesselState => {
-      if (!dbVesselState) {
-        res.status(404).json({ error: 'Vessel state not found' });
-        return;
-      }
-      // Convert DB vessel state to unified vessel state
-      const vesselState = dbVesselStateToUnified(dbVesselState);
-      res.json(vesselState);
-    })
-    .catch((error: unknown) => {
-      console.error(`Error fetching vessel state for ${userId}:`, error);
-      res.status(500).json({ error: 'Failed to fetch vessel state' });
-    });
+  const dbVesselState = vesselStates[userId];
+  if (!dbVesselState) {
+    res.status(404).json({ error: 'Vessel state not found' });
+    return;
+  }
+  const vesselState = dbVesselStateToUnified(dbVesselState);
+  res.json(vesselState);
 });
 
 // POST /api/vessels/:userId
@@ -166,49 +161,30 @@ router.post(
     const { userId } = req.params;
     const { position, orientation, velocity, properties } = req.body;
 
-    prisma.vesselState
-      .upsert({
-        where: { userId },
-        update: {
-          positionX: position?.x,
-          positionY: position?.y,
-          positionZ: position?.z,
-          heading: orientation?.heading,
-          roll: orientation?.roll,
-          pitch: orientation?.pitch,
-          velocityX: velocity?.surge,
-          velocityY: velocity?.sway,
-          velocityZ: velocity?.heave,
-          mass: properties?.mass,
-          length: properties?.length,
-          beam: properties?.beam,
-          draft: properties?.draft,
-          updatedAt: new Date(),
-        },
-        create: {
-          userId,
-          positionX: position?.x || 0,
-          positionY: position?.y || 0,
-          positionZ: position?.z || 0,
-          heading: orientation?.heading || 0,
-          roll: orientation?.roll || 0,
-          pitch: orientation?.pitch || 0,
-          velocityX: velocity?.surge || 0,
-          velocityY: velocity?.sway || 0,
-          velocityZ: velocity?.heave || 0,
-          mass: properties?.mass || 50000,
-          length: properties?.length || 50,
-          beam: properties?.beam || 10,
-          draft: properties?.draft || 3,
-        },
-      })
-      .then((vesselState: DBVesselState) => {
-        res.json(vesselState);
-      })
-      .catch((error: unknown) => {
-        console.error(`Error saving vessel state for ${userId}:`, error);
-        res.status(500).json({ error: 'Failed to save vessel state' });
-      });
+    const nextState: DBVesselState = {
+      id: vesselStates[userId]?.id ?? Date.now(),
+      userId,
+      vesselId: null,
+      positionX: position?.x ?? 0,
+      positionY: position?.y ?? 0,
+      positionZ: position?.z ?? 0,
+      heading: orientation?.heading ?? 0,
+      roll: orientation?.roll ?? 0,
+      pitch: orientation?.pitch ?? 0,
+      velocityX: velocity?.surge ?? 0,
+      velocityY: velocity?.sway ?? 0,
+      velocityZ: velocity?.heave ?? 0,
+      mass: properties?.mass ?? 50000,
+      length: properties?.length ?? 50,
+      beam: properties?.beam ?? 10,
+      draft: properties?.draft ?? 3,
+      throttle: vesselStates[userId]?.throttle ?? 0,
+      rudderAngle: vesselStates[userId]?.rudderAngle ?? 0,
+      createdAt: vesselStates[userId]?.createdAt ?? new Date(),
+      updatedAt: new Date(),
+    };
+    vesselStates[userId] = nextState;
+    res.json(nextState);
   },
 );
 
@@ -220,17 +196,12 @@ router.delete(
   function (req, res) {
     const { userId } = req.params;
 
-    prisma.vesselState
-      .delete({
-        where: { userId },
-      })
-      .then(() => {
-        res.json({ message: 'Vessel state deleted successfully' });
-      })
-      .catch((error: unknown) => {
-        console.error(`Error deleting vessel state for ${userId}:`, error);
-        res.status(500).json({ error: 'Failed to delete vessel state' });
-      });
+    if (!vesselStates[userId]) {
+      res.status(404).json({ error: 'Vessel state not found' });
+      return;
+    }
+    delete vesselStates[userId];
+    res.json({ message: 'Vessel state deleted successfully' });
   },
 );
 
@@ -239,52 +210,7 @@ router.delete(
  * Returns the current environment state in API format.
  */
 router.get('/environment', function (req, res) {
-  prisma.environmentState
-    .findUnique({
-      where: { id: 1 },
-    })
-    .then(
-      (
-        dbEnvironmentState: {
-          id: number;
-          createdAt: Date;
-          updatedAt: Date;
-          windSpeed: number;
-          windDirection: number;
-          currentSpeed: number;
-          currentDirection: number;
-          seaState: number;
-        } | null,
-      ) => {
-        if (!dbEnvironmentState) {
-          res.status(404).json({ error: 'Environment state not found' });
-          return;
-        }
-
-        // Map DB fields to API EnvironmentState
-        const apiEnvironmentState: EnvironmentState = {
-          wind: {
-            speed: dbEnvironmentState.windSpeed,
-            direction: dbEnvironmentState.windDirection,
-            gusting: false,
-            gustFactor: 1,
-          },
-          current: {
-            speed: dbEnvironmentState.currentSpeed,
-            direction: dbEnvironmentState.currentDirection,
-            variability: 0,
-          },
-          seaState: dbEnvironmentState.seaState,
-          timeOfDay: 12,
-        };
-
-        res.json(apiEnvironmentState);
-      },
-    )
-    .catch((error: unknown) => {
-      console.error('Error fetching environment state:', error);
-      res.status(500).json({ error: 'Failed to fetch environment state' });
-    });
+  res.json(environmentState);
 });
 
 // POST /api/environment
@@ -295,53 +221,22 @@ router.post(
   function (req, res) {
     const { wind, current, seaState } = req.body;
 
-    prisma.environmentState
-      .upsert({
-        where: { id: 1 },
-        update: {
-          windSpeed: wind?.speed,
-          windDirection: wind?.direction,
-          currentSpeed: current?.speed,
-          currentDirection: current?.direction,
-          seaState,
-          updatedAt: new Date(),
-        },
-        create: {
-          id: 1,
-          windSpeed: wind?.speed || 5,
-          windDirection: wind?.direction || 0,
-          currentSpeed: current?.speed || 0.5,
-          currentDirection: current?.direction || Math.PI / 4,
-          seaState: seaState || 3,
-        },
-      })
-      .then(environmentState => {
-        if (!environmentState) {
-          res.status(404).json({ error: 'Environment state not found' });
-          return;
-        }
-        // Map DB fields to API EnvironmentState
-        const apiEnvironmentState: EnvironmentState = {
-          wind: {
-            speed: environmentState.windSpeed,
-            direction: environmentState.windDirection,
-            gusting: false,
-            gustFactor: 1,
-          },
-          current: {
-            speed: environmentState.currentSpeed,
-            direction: environmentState.currentDirection,
-            variability: 0,
-          },
-          seaState: environmentState.seaState,
-          timeOfDay: 12,
-        };
-        res.json(apiEnvironmentState);
-      })
-      .catch((error: unknown) => {
-        console.error('Error updating environment state:', error);
-        res.status(500).json({ error: 'Failed to update environment state' });
-      });
+    environmentState = {
+      ...environmentState,
+      wind: {
+        speed: wind?.speed ?? environmentState.wind.speed,
+        direction: wind?.direction ?? environmentState.wind.direction,
+        gusting: false,
+        gustFactor: 1,
+      },
+      current: {
+        speed: current?.speed ?? environmentState.current.speed,
+        direction: current?.direction ?? environmentState.current.direction,
+        variability: 0,
+      },
+      seaState: seaState ?? environmentState.seaState,
+    };
+    res.json(environmentState);
   },
 );
 
@@ -349,21 +244,12 @@ router.post(
 router.get('/settings/:userId', requireAuth, function (req, res) {
   const { userId } = req.params;
 
-  prisma.userSettings
-    .findUnique({
-      where: { userId },
-    })
-    .then((settings: UserSettings | null) => {
-      if (!settings) {
-        res.status(404).json({ error: 'Settings not found' });
-        return;
-      }
-      res.json(settings);
-    })
-    .catch((error: unknown) => {
-      console.error(`Error fetching settings for ${userId}:`, error);
-      res.status(500).json({ error: 'Failed to fetch settings' });
-    });
+  const settings = userSettingsStore[userId];
+  if (!settings) {
+    res.status(404).json({ error: 'Settings not found' });
+    return;
+  }
+  res.json(settings);
 });
 
 // POST /api/settings/:userId
@@ -371,31 +257,18 @@ router.post('/settings/:userId', requireAuth, function (req, res) {
   const { userId } = req.params;
   const { cameraMode, soundEnabled, showHUD, timeScale } = req.body;
 
-  prisma.userSettings
-    .upsert({
-      where: { userId },
-      update: {
-        cameraMode,
-        soundEnabled,
-        showHUD,
-        timeScale,
-        updatedAt: new Date(),
-      },
-      create: {
-        userId,
-        cameraMode: cameraMode || 'thirdPerson',
-        soundEnabled: soundEnabled !== undefined ? soundEnabled : true,
-        showHUD: showHUD !== undefined ? showHUD : true,
-        timeScale: timeScale || 1.0,
-      },
-    })
-    .then((settings: UserSettings) => {
-      res.json(settings);
-    })
-    .catch((error: unknown) => {
-      console.error(`Error saving settings for ${userId}:`, error);
-      res.status(500).json({ error: 'Failed to save settings' });
-    });
+  const settings: UserSettings = {
+    id: userSettingsStore[userId]?.id ?? Date.now(),
+    userId,
+    cameraMode: cameraMode || 'thirdPerson',
+    soundEnabled: soundEnabled !== undefined ? soundEnabled : true,
+    showHUD: showHUD !== undefined ? showHUD : true,
+    timeScale: timeScale || 1.0,
+    createdAt: userSettingsStore[userId]?.createdAt ?? new Date(),
+    updatedAt: new Date(),
+  };
+  userSettingsStore[userId] = settings;
+  res.json(settings);
 });
 
 // GET /api/stats
@@ -404,185 +277,17 @@ router.get(
   requireAuth,
   requireRole(['admin', 'instructor']),
   function (req, res) {
-    Promise.all([
-      prisma.vesselState.count(),
-      prisma.vesselState.findFirst({
-        orderBy: { updatedAt: 'desc' },
-      }),
-    ])
-      .then(([vesselCount, latestVessel]: [number, DBVesselState | null]) => {
-        res.json({
-          vesselCount,
-          lastUpdate: latestVessel?.updatedAt || null,
-        });
-      })
-      .catch((error: unknown) => {
-        console.error('Error fetching system stats:', error);
-        res.status(500).json({ error: 'Failed to fetch system stats' });
-      });
-  },
-);
-
-// Role management routes - admin only
-// GET /api/roles
-router.get(
-  '/roles',
-  requireAuth,
-  requirePermission('role', 'list'),
-  async (req, res) => {
-    try {
-      const roles = await prisma.role.findMany({
-        include: {
-          permissions: {
-            include: {
-              permission: true,
-            },
-          },
-        },
-      });
-
-      res.json(roles);
-    } catch (error) {
-      console.error('Error fetching roles:', error);
-      res.status(500).json({ error: 'Failed to fetch roles' });
-    }
-  },
-);
-
-// POST /api/roles
-router.post(
-  '/roles',
-  requireAuth,
-  requirePermission('role', 'create'),
-  async (req, res) => {
-    const { name, description, permissions } = req.body;
-
-    try {
-      const role = await prisma.role.create({
-        data: {
-          name,
-          description,
-        },
-      });
-
-      // Add permissions if provided
-      if (permissions && Array.isArray(permissions)) {
-        for (const perm of permissions) {
-          // Find or create the permission
-          let permission = await prisma.permission.findFirst({
-            where: {
-              resource: perm.resource,
-              action: perm.action,
-            },
-          });
-
-          if (!permission) {
-            permission = await prisma.permission.create({
-              data: {
-                name: `${perm.resource}:${perm.action}`,
-                resource: perm.resource,
-                action: perm.action,
-                description:
-                  perm.description ||
-                  `Permission to ${perm.action} ${perm.resource}`,
-              },
-            });
-          }
-
-          // Link permission to role
-          await prisma.rolePermission.create({
-            data: {
-              roleId: role.id,
-              permissionId: permission.id,
-            },
-          });
-        }
-      }
-
-      // Return the created role with permissions
-      const completeRole = await prisma.role.findUnique({
-        where: { id: role.id },
-        include: {
-          permissions: {
-            include: {
-              permission: true,
-            },
-          },
-        },
-      });
-
-      res.status(201).json(completeRole);
-    } catch (error) {
-      console.error('Error creating role:', error);
-      res.status(500).json({ error: 'Failed to create role' });
-    }
-  },
-);
-
-// User role management - admin only
-// POST /api/users/:userId/roles
-router.post(
-  '/users/:userId/roles',
-  requireAuth,
-  requirePermission('user', 'manage'),
-  async (req, res, _next) => {
-    const { userId } = req.params;
-    const { roleId } = req.body;
-
-    if (!roleId) {
-      res.status(400).json({ error: 'Role ID is required' });
-      return;
-    }
-
-    try {
-      // Check if user exists
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-      });
-
-      if (!user) {
-        res.status(404).json({ error: 'User not found' });
-        return;
-      }
-
-      // Check if role exists
-      const role = await prisma.role.findUnique({
-        where: { id: roleId },
-      });
-
-      if (!role) {
-        res.status(404).json({ error: 'Role not found' });
-        return;
-      }
-
-      // Check if user already has this role
-      const existingUserRole = await prisma.userRole.findUnique({
-        where: {
-          userId_roleId: {
-            userId,
-            roleId,
-          },
-        },
-      });
-
-      if (existingUserRole) {
-        res.status(409).json({ error: 'User already has this role' });
-        return;
-      }
-
-      // Assign role to user
-      await prisma.userRole.create({
-        data: {
-          userId,
-          roleId,
-        },
-      });
-
-      res.status(201).json({ message: 'Role assigned successfully' });
-    } catch (error) {
-      console.error(`Error assigning role to user ${userId}:`, error);
-      res.status(500).json({ error: 'Failed to assign role to user' });
-    }
+    const latest = Object.values(vesselStates).reduce<DBVesselState | null>(
+      (current, next) => {
+        if (!current) return next;
+        return next.updatedAt > current.updatedAt ? next : current;
+      },
+      null,
+    );
+    res.json({
+      vesselCount: Object.keys(vesselStates).length,
+      lastUpdate: latest?.updatedAt || null,
+    });
   },
 );
 

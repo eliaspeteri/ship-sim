@@ -1,22 +1,37 @@
-import { PrismaClient, User } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 
-const prisma = new PrismaClient();
 const AUTH_SECRET = process.env.AUTH_SECRET || 'default-secret-key';
 const ACCESS_TOKEN_EXPIRY = '15m'; // Short expiry for access tokens
 const REFRESH_TOKEN_EXPIRY_SECONDS = 7 * 24 * 60 * 60; // 7 days in seconds
+
+type Permission = { resource: string; action: string };
+
+interface StoredUser {
+  id: string;
+  username: string;
+  passwordHash: string;
+  roles: string[];
+  permissions: Permission[];
+}
+
+interface StoredRefreshToken {
+  id: string;
+  token: string;
+  userId: string;
+  expiresAt: number;
+}
+
+const users: StoredUser[] = [];
+const refreshTokens: Map<string, StoredRefreshToken> = new Map();
 
 // Define the structure of the JWT payload
 export interface TokenPayload {
   userId: string;
   username: string;
   roles: string[];
-  permissions: {
-    resource: string;
-    action: string;
-  }[];
+  permissions: Permission[];
   tokenId?: string; // Optional: For refresh token invalidation
 }
 
@@ -27,38 +42,32 @@ export interface UserAuth extends TokenPayload {
   expiresIn?: number; // Access Token expiry in seconds
 }
 
+const defaultAdminPermissions: Permission[] = [{ resource: '*', action: '*' }];
+
 /**
  * Generates JWT access and refresh tokens for a user.
- * @param user The user object from the database.
- * @param roles Array of role names.
- * @param permissions Array of permission strings.
- * @returns Object containing access token, refresh token, and expiry.
  */
-async function generateTokens(
-  user: User,
-  roles: string[],
-  permissions: {
-    resource: string;
-    action: string;
-  }[],
-): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
+function generateTokens(user: StoredUser): {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+} {
   const accessTokenPayload: TokenPayload = {
     userId: user.id,
     username: user.username,
-    roles,
-    permissions,
+    roles: user.roles,
+    permissions: user.permissions,
   };
 
   const accessToken = jwt.sign(accessTokenPayload, AUTH_SECRET, {
     expiresIn: ACCESS_TOKEN_EXPIRY,
   });
 
-  // Generate a unique ID for the refresh token for potential invalidation
   const refreshTokenId = uuidv4();
   const refreshTokenPayload: TokenPayload = {
     userId: user.id,
-    username: user.username, // Include username for easier identification if needed
-    roles: [], // Refresh token shouldn't grant permissions directly
+    username: user.username,
+    roles: [],
     permissions: [],
     tokenId: refreshTokenId,
   };
@@ -67,14 +76,11 @@ async function generateTokens(
     expiresIn: REFRESH_TOKEN_EXPIRY_SECONDS,
   });
 
-  // Store the refresh token details in the database
-  await prisma.refreshToken.create({
-    data: {
-      id: refreshTokenId,
-      token: refreshToken, // Store the signed token itself
-      userId: user.id,
-      expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRY_SECONDS * 1000),
-    },
+  refreshTokens.set(refreshTokenId, {
+    id: refreshTokenId,
+    token: refreshToken,
+    userId: user.id,
+    expiresAt: Date.now() + REFRESH_TOKEN_EXPIRY_SECONDS * 1000,
   });
 
   const decodedAccess = jwt.decode(accessToken) as jwt.JwtPayload;
@@ -91,94 +97,42 @@ async function generateTokens(
 
 /**
  * Fetches user roles and permissions.
- * @param userId The ID of the user.
- * @returns Object containing arrays of role names and permission strings.
  */
-async function getUserRolesAndPermissions(userId: string): Promise<{
+function getUserRolesAndPermissions(user: StoredUser): {
   roles: string[];
-  permissions: {
-    resource: string;
-    action: string;
-  }[];
-}> {
-  const userRoles = await prisma.userRole.findMany({
-    where: { userId },
-    include: {
-      role: {
-        include: {
-          permissions: {
-            include: {
-              permission: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  const roles = userRoles.map(ur => ur.role.name);
-  const permissionsSet = new Set<{
-    resource: string;
-    action: string;
-  }>();
-  userRoles.forEach(ur => {
-    ur.role.permissions.forEach(rp => {
-      permissionsSet.add({
-        resource: rp.permission.resource,
-        action: rp.permission.action,
-      });
-    });
-  });
-
-  return { roles, permissions: Array.from(permissionsSet) };
+  permissions: Permission[];
+} {
+  return { roles: user.roles, permissions: user.permissions };
 }
 
 /**
  * Authenticates a user based on username and password.
- * @param username The username.
- * @param password The password.
- * @returns UserAuth object containing user details and tokens, or null if authentication fails.
  */
 export async function authenticateUser(
   username: string,
   password: string,
 ): Promise<UserAuth | null> {
-  const user = await prisma.user.findUnique({
-    where: { username },
-  });
+  const user = users.find(u => u.username === username);
 
   if (!user) {
     console.warn(`User ${username} not found during authentication.`);
-
-    return null; // User not found
+    return null;
   }
 
-  // Check password using bcrypt
-  const passwordMatch = bcrypt.compareSync(password, user?.passwordHash);
+  const passwordMatch = bcrypt.compareSync(password, user.passwordHash);
   if (!passwordMatch) {
     console.error(
       `Authentication failed. ${JSON.stringify(
-        {
-          username,
-          userId: user?.id,
-          passwordMatches: user
-            ? bcrypt.compareSync(password, user.passwordHash)
-            : false,
-        },
+        { username, userId: user.id, passwordMatches: false },
         null,
         2,
       )}`,
     );
-
-    return null; // Invalid credentials
+    return null;
   }
 
-  const { roles, permissions } = await getUserRolesAndPermissions(user.id);
-  const { accessToken, refreshToken, expiresIn } = await generateTokens(
-    user,
-    roles,
-    permissions,
-  );
+  const { roles, permissions } = getUserRolesAndPermissions(user);
+  const { accessToken, refreshToken, expiresIn } = generateTokens(user);
 
   return {
     userId: user.id,
@@ -193,82 +147,40 @@ export async function authenticateUser(
 
 /**
  * Registers a new admin user.
- * @param username The username.
- * @param password The password.
- * @returns UserAuth object containing user details and tokens, or null if registration fails.
  */
 export async function registerAdminUser(
   username: string,
   password: string,
 ): Promise<UserAuth | null> {
-  try {
-    const hashedPassword = bcrypt.hashSync(password, 10);
-
-    // Find or create the 'admin' role
-    let adminRole = await prisma.role.findUnique({
-      where: { name: 'admin' },
-    });
-
-    if (!adminRole) {
-      adminRole = await prisma.role.create({
-        data: {
-          name: 'admin',
-          description: 'Administrator with full access',
-        },
-      });
-      // Optionally add default admin permissions here
-    }
-
-    // Create the user
-    const user = await prisma.user.create({
-      data: {
-        username,
-        passwordHash: hashedPassword,
-        email: `${username}@shipsim.local`, // Placeholder email
-        roles: {
-          create: {
-            roleId: adminRole.id,
-          },
-        },
-      },
-    });
-
-    // Get roles/permissions (should include admin now)
-    const { roles, permissions } = await getUserRolesAndPermissions(user.id);
-    const { accessToken, refreshToken, expiresIn } = await generateTokens(
-      user,
-      roles,
-      permissions,
-    );
-
-    return {
-      userId: user.id,
-      username: user.username,
-      roles,
-      permissions,
-      token: accessToken,
-      refreshToken,
-      expiresIn,
-    };
-  } catch (error: unknown) {
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      (error as { code?: string; meta?: { target?: string[] } }).code ===
-        'P2002' &&
-      (error as { meta?: { target?: string[] } }).meta?.target?.includes(
-        'username',
-      )
-    ) {
-      console.warn(
-        `Registration failed: Username '${username}' already exists.`,
-      );
-      return null;
-    }
-    console.error('Error during admin user registration:', error);
+  const existing = users.find(u => u.username === username);
+  if (existing) {
+    console.warn(`Registration failed: Username '${username}' already exists.`);
     return null;
   }
+
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  const newUser: StoredUser = {
+    id: uuidv4(),
+    username,
+    passwordHash: hashedPassword,
+    roles: ['admin'],
+    permissions: defaultAdminPermissions,
+  };
+
+  users.push(newUser);
+
+  const { roles, permissions } = getUserRolesAndPermissions(newUser);
+  const { accessToken, refreshToken, expiresIn } = generateTokens(newUser);
+
+  return {
+    userId: newUser.id,
+    username: newUser.username,
+    roles,
+    permissions,
+    token: accessToken,
+    refreshToken,
+    expiresIn,
+  };
 }
 
 /**
@@ -313,30 +225,17 @@ export async function verifyRefreshToken(
       return null;
     }
 
-    // Check if the refresh token exists and hasn't expired in the database
-    const storedToken = await prisma.refreshToken.findUnique({
-      where: { id: decoded.tokenId },
-    });
-
+    const storedToken = refreshTokens.get(decoded.tokenId);
     if (!storedToken) {
-      console.warn(`Refresh token ID ${decoded.tokenId} not found in DB.`);
+      console.warn(`Refresh token ID ${decoded.tokenId} not found.`);
       return null;
     }
 
-    if (storedToken.expiresAt < new Date()) {
+    if (storedToken.expiresAt < Date.now()) {
       console.warn(`Refresh token ID ${decoded.tokenId} has expired.`);
-      // Optionally clean up expired tokens
-      await prisma.refreshToken.delete({ where: { id: decoded.tokenId } });
+      refreshTokens.delete(decoded.tokenId);
       return null;
     }
-
-    // Optional: Check if the stored token string matches the provided one
-    // This adds a layer against certain replay attacks if the DB is compromised
-    // but might be overkill depending on threat model.
-    // if (storedToken.token !== token) {
-    //   console.warn(`Provided refresh token does not match stored token for ID ${decoded.tokenId}`);
-    //   return null;
-    // }
 
     return decoded; // Token is valid and exists in DB
   } catch (error: unknown) {
@@ -367,24 +266,10 @@ export async function invalidateRefreshToken(token: string): Promise<boolean> {
       return true; // Treat as success if token is invalid anyway
     }
 
-    // Attempt to delete the token from the database
-    await prisma.refreshToken.delete({
-      where: { id: decoded.tokenId },
-    });
-
-    console.info(`Refresh token ${decoded.tokenId} invalidated.`);
+    refreshTokens.delete(decoded.tokenId);
+    console.info(`Refresh token ${decoded.tokenId} invalidated (in-memory).`);
     return true;
   } catch (error: unknown) {
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      (error as { code?: string }).code === 'P2025'
-    ) {
-      // Prisma error code for record not found
-      console.info('Refresh token already invalidated or not found.');
-      return true;
-    }
     console.error('Error invalidating refresh token:', error);
     return false;
   }
@@ -419,9 +304,7 @@ export async function refreshAuthToken(oldRefreshToken: string): Promise<{
   }
 
   // 3. Fetch the user associated with the token
-  const user = await prisma.user.findUnique({
-    where: { id: decodedPayload.userId },
-  });
+  const user = users.find(u => u.id === decodedPayload.userId);
 
   if (!user) {
     console.error(
@@ -431,12 +314,7 @@ export async function refreshAuthToken(oldRefreshToken: string): Promise<{
   }
 
   // 4. Generate new access and refresh tokens
-  const { roles, permissions } = await getUserRolesAndPermissions(user.id);
-  const { accessToken, refreshToken, expiresIn } = await generateTokens(
-    user,
-    roles,
-    permissions,
-  );
+  const { accessToken, refreshToken, expiresIn } = generateTokens(user);
 
   return {
     accessToken,
@@ -444,3 +322,10 @@ export async function refreshAuthToken(oldRefreshToken: string): Promise<{
     expiresIn,
   };
 }
+
+// Seed a default admin for convenience
+const defaultAdminUsername = process.env.ADMIN_USERNAME || 'admin';
+const defaultAdminPassword = process.env.ADMIN_PASSWORD || 'admin';
+registerAdminUser(defaultAdminUsername, defaultAdminPassword).catch(error =>
+  console.error('Failed to seed default admin user:', error),
+);

@@ -27,10 +27,6 @@ const RELEASE_WASM_PATH = path.join(
 
 // Define expected functions that should be exported
 const EXPECTED_EXPORTS: string[] = [
-  'calculateBeaufortScale',
-  'calculateWaveFrequency',
-  'calculateWaveHeightAtPosition',
-  'calculateWaveLength',
   'createVessel',
 
   // getters
@@ -51,6 +47,10 @@ const EXPECTED_EXPORTS: string[] = [
   'getVesselX',
   'getVesselY',
   'getVesselZ',
+  'getVesselRollRate',
+  'getVesselPitchRate',
+  'getVesselYawRate',
+  'calculateSeaState',
   'getWaveHeightForSeaState',
 
   'resetGlobalVessel',
@@ -59,8 +59,6 @@ const EXPECTED_EXPORTS: string[] = [
   'setBallast',
   'setRudderAngle',
   'setThrottle',
-  'setVesselVelocity',
-  'setWaveData',
   'updateVesselState',
 ];
 

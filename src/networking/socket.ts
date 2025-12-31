@@ -26,8 +26,12 @@ class SocketManager {
 
   // Connect to Socket.IO server
   connect(url: string = 'http://localhost:3001'): void {
+    if (this.socket?.connected || this.socket?.connecting) {
+      return; // Already connected or in progress
+    }
+
     if (this.socket) {
-      console.warn('Socket connection already exists. Disconnecting first.');
+      // Clean up any old instance before reconnecting
       this.disconnect();
     }
 

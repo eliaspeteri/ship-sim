@@ -102,73 +102,12 @@ export class SimulationLoop {
         const surge = this.wasmBridge.getVesselSurgeVelocity(vesselPtr);
         const sway = this.wasmBridge.getVesselSwayVelocity(vesselPtr);
         const heave = this.wasmBridge.getVesselHeaveVelocity(vesselPtr);
-        const metacentricHeight = this.wasmBridge.getVesselGM(vesselPtr);
-        const centerOfGravityY =
-          this.wasmBridge.getVesselCenterOfGravityY(vesselPtr);
-
-        // Check for orientation related variables for NaN values
-        if (isNaN(roll) || isNaN(pitch)) {
-          console.error('WASM vessel orientation contains NaN values:', {
-            roll,
-            pitch,
-          });
-        } else {
-          // Valid orientation values - update store
-          state.updateVessel({
-            orientation: {
-              roll,
-              pitch,
-              heading: 0, // Default heading
-            },
-          });
-        }
-
-        // Check for velocity related variables for NaN values
-        if (isNaN(sway) || isNaN(heave)) {
-          console.error('WASM vessel velocity contains NaN values:', {
-            sway,
-            heave,
-          });
-        } else {
-          // Valid velocity values - update store
-          state.updateVessel({
-            velocity: { sway, heave, surge },
-          });
-        }
-
-        // Check for stability related variables for NaN values
-        if (isNaN(metacentricHeight) || isNaN(centerOfGravityY)) {
-          console.error('WASM vessel stability contains NaN values:', {
-            metacentricHeight,
-            centerOfGravityY,
-          });
-        } else {
-          // Valid stability values - update store
-          state.updateVessel({
-            stability: {
-              metacentricHeight,
-              centerOfGravity: {
-                x: 0,
-                y: centerOfGravityY,
-                z: 6.0,
-              },
-              trim: 0,
-              list: 0,
-            },
-          });
-        }
-
-        // Check for NaN values which indicate a problem with the WASM vessel state
-        if (isNaN(x) || isNaN(y) || isNaN(z)) {
-          console.error('WASM vessel position contains NaN values:', {
-            x,
-            y,
-            z,
-          });
-        } else {
-          // Valid position values - update store
-          state.updateVessel({ position: { x, y, z } });
-        }
+        // Update store with initial state (no advanced stability checks)
+        state.updateVessel({
+          orientation: { roll, pitch, heading: 0 },
+          velocity: { sway, heave, surge },
+          position: { x, y, z },
+        });
       }
 
       console.info(
@@ -214,12 +153,6 @@ export class SimulationLoop {
     // Update UI state from physics state
     this.updateUIFromPhysics();
 
-    // Update wave properties for the ocean renderer
-    this.updateWaveProperties();
-
-    // Process any failures or events
-    this.processEvents(deltaTime);
-
     // Continue the loop using arrow function
     this.animationFrameId = requestAnimationFrame(time => this.loop(time));
   }
@@ -236,11 +169,7 @@ export class SimulationLoop {
 
     // Calculate the actual sea state based on wind speed
     const calculatedSeaState = this.wasmBridge.calculateSeaState(wind.speed);
-
-    // Update the state with the calculated sea state
-    if (state.environment.seaState !== calculatedSeaState) {
-      state.environment.seaState = calculatedSeaState;
-    }
+    state.updateEnvironment({ seaState: calculatedSeaState });
 
     try {
       // Update vessel state in WASM - store the updated pointer in case it changes
@@ -294,17 +223,6 @@ export class SimulationLoop {
         state.setWasmVesselPtr(updatedVesselPtr);
       }
 
-      // Handle machinery failures by adjusting physics behavior
-      const { failures } = state.machinerySystems;
-      if (failures.engineFailure && this.wasmBridge) {
-        // If engine failure, force throttle to 0
-        this.wasmBridge.setThrottle(state.wasmVesselPtr, 0);
-      }
-      if (failures.rudderFailure && this.wasmBridge) {
-        // If rudder failure, add random drift to rudder
-        const randomDrift = (Math.random() - 0.5) * 0.2;
-        this.wasmBridge.setRudderAngle(state.wasmVesselPtr, randomDrift);
-      }
     } catch (error) {
       console.error('Error in updatePhysics:', error);
       // Don't update vessel state on error - maintain last known good state
@@ -357,45 +275,6 @@ export class SimulationLoop {
    * Update wave properties in the store based on physics calculations
    * Exports the wave data needed for the ocean renderer
    */
-  private updateWaveProperties(): void {
-    if (!this.wasmBridge) return;
-
-    // Only update wave properties every few frames to avoid performance issues
-    this.wavePropertiesUpdateCounter++;
-    if (this.wavePropertiesUpdateCounter < 5) return; // Update every 5 frames
-    this.wavePropertiesUpdateCounter = 0;
-
-    const state = useStore.getState();
-    const vesselPtr = state.wasmVesselPtr;
-
-    if (vesselPtr === null) return;
-
-    try {
-      // Get environment parameters
-      const { wind } = state.environment;
-
-      // Get wave height from physics engine
-      const seaState = this.wasmBridge.calculateSeaState(wind.speed);
-      const waveHeight = this.wasmBridge.getWaveHeightForSeaState(seaState);
-      state.updateEnvironment({ waveHeight });
-
-      state.updateEnvironment({
-        waveHeight,
-        waveDirection: wind.direction,
-        seaState,
-      });
-
-      // Update vessel wave data in store
-      state.updateVessel({
-        position: {
-          ...state.vessel.position,
-        },
-      });
-    } catch (error) {
-      console.error('Error updating wave properties:', error);
-    }
-  }
-
   /**
    * Update the UI state from physics engine results
    */
@@ -436,15 +315,9 @@ export class SimulationLoop {
 
       // Add angular velocity (roll, pitch, yaw)
       vesselUpdate.angularVelocity = {
-        roll: this.wasmBridge.getVesselRollRate
-          ? this.wasmBridge.getVesselRollRate(vesselPtr)
-          : 0,
-        pitch: this.wasmBridge.getVesselPitchRate
-          ? this.wasmBridge.getVesselPitchRate(vesselPtr)
-          : 0,
-        yaw: this.wasmBridge.getVesselYawRate
-          ? this.wasmBridge.getVesselYawRate(vesselPtr)
-          : 0,
+        roll: this.wasmBridge.getVesselRollRate(vesselPtr),
+        pitch: this.wasmBridge.getVesselPitchRate(vesselPtr),
+        yaw: this.wasmBridge.getVesselYawRate(vesselPtr),
       };
 
       // Update engine state from WASM after each step
@@ -459,39 +332,7 @@ export class SimulationLoop {
         hours: state.vessel.engineState.hours || 0,
       };
 
-      // Calculate load based on throttle and RPM
-      if (engineUpdate.rpm > 0) {
-        const maxRpm = 1200; // Maximum RPM
-        const normalizedRPM = Math.min(engineUpdate.rpm / maxRpm, 1);
-
-        // Calculate engine load based on RPM and current throttle setting
-        const throttleValue = state.vessel.controls?.throttle || 0;
-        engineUpdate.load = normalizedRPM * (0.5 + throttleValue * 0.5);
-
-        // Adjust temperature based on load
-        engineUpdate.temperature = 25 + 65 * engineUpdate.load;
-
-        // Adjust oil pressure based on RPM
-        engineUpdate.oilPressure = 2.0 + 3.0 * normalizedRPM;
-      }
-
       vesselUpdate.engineState = engineUpdate;
-
-      // Only update stability properties every 10 frames
-      this.stabilityUpdateCounter++;
-      if (this.stabilityUpdateCounter >= 10) {
-        this.stabilityUpdateCounter = 0;
-        vesselUpdate.stability = {
-          metacentricHeight: this.wasmBridge.getVesselGM(vesselPtr),
-          centerOfGravity: {
-            x: 0,
-            y: this.wasmBridge.getVesselCenterOfGravityY(vesselPtr),
-            z: 6.0,
-          },
-          trim: 0,
-          list: 0,
-        };
-      }
 
       // Only update the store if we have something to update
       if (Object.keys(vesselUpdate).length > 0) {
@@ -523,29 +364,6 @@ export class SimulationLoop {
         });
       }
 
-      // Check stability - with null safety - only when we have stability data
-      const stability = vesselUpdate.stability;
-      if (
-        stability &&
-        stability.metacentricHeight !== undefined &&
-        stability.metacentricHeight < 0.5 &&
-        !state.vessel?.alarms?.stabilityWarning
-      ) {
-        state.updateVessel({
-          alarms: {
-            ...(state.vessel?.alarms || {}),
-            stabilityWarning: true,
-          },
-        });
-
-        // Add event to log
-        state.addEvent({
-          category: 'alarm',
-          type: 'stability_warning',
-          message: 'Vessel stability compromised: Low GM value',
-          severity: 'critical',
-        });
-      }
     } catch (error: unknown) {
       console.error('Error in updateUIFromPhysics:', error);
 
@@ -568,97 +386,6 @@ export class SimulationLoop {
     }
   }
 
-  /**
-   * Process simulation events like machinery failures
-   */
-  private processEvents(deltaTime: number): void {
-    const state = useStore.getState();
-
-    // Increment engine hours if running
-    if (state.vessel.engineState.running) {
-      const hourIncrement = deltaTime / 3600; // convert seconds to hours
-      state.updateVessel({
-        engineState: {
-          ...state.vessel.engineState,
-          hours: state.vessel.engineState.hours + hourIncrement,
-        },
-      });
-
-      // Increase generator output when engine is running
-      // Add null-safety check for state.vessel.controls
-      if (state.vessel.controls) {
-        state.updateVessel({
-          electricalSystem: {
-            ...state.vessel.electricalSystem,
-            generatorOutput: 200 * (state.vessel.controls.throttle || 0),
-          },
-        });
-      }
-    }
-
-    // Random failures based on engine hours or other conditions
-    // This is a simplified model - real implementation would be more complex
-    const engineHours = state.vessel.engineState.hours;
-    const machinerySystems = state.machinerySystems;
-
-    // Engine failure probability increases with engine hours
-    if (engineHours > 100 && !machinerySystems.failures.engineFailure) {
-      const failureChance = (engineHours - 100) / 10000; // Very small chance per update
-      if (Math.random() < failureChance * deltaTime) {
-        state.triggerFailure('engineFailure', true);
-      }
-    }
-
-    // Process weather events
-    this.updateWeather(deltaTime);
-  }
-
-  /**
-   * Update weather conditions dynamically
-   */
-  private updateWeather(deltaTime: number): void {
-    const state = useStore.getState();
-
-    // Gradually change wind direction and speed
-    const windVariation = (Math.random() - 0.5) * 0.1 * deltaTime;
-    const windSpeedChange = (Math.random() - 0.5) * 0.2 * deltaTime;
-
-    state.updateEnvironment({
-      wind: {
-        ...state.environment.wind,
-        direction:
-          (state.environment.wind.direction + windVariation) % (2 * Math.PI),
-        speed: Math.max(0, state.environment.wind.speed + windSpeedChange),
-      },
-    });
-
-    // Occasionally generate wind gusts
-    if (Math.random() < 0.01 * deltaTime) {
-      const gustDuration = 5 + Math.random() * 10; // 5-15 seconds
-      const gustStrength =
-        state.environment.wind.speed * (state.environment.wind.gustFactor - 1);
-
-      state.updateEnvironment({
-        wind: {
-          ...state.environment.wind,
-          gusting: true,
-          speed: state.environment.wind.speed + gustStrength,
-        },
-      });
-
-      // Schedule the end of the gust
-      setTimeout(() => {
-        const currentState = useStore.getState();
-        currentState.updateEnvironment({
-          wind: {
-            ...currentState.environment.wind,
-            gusting: false,
-            speed: currentState.environment.wind.speed - gustStrength,
-          },
-        });
-      }, gustDuration * 1000);
-    }
-  }
 }
 
 // Singleton export
