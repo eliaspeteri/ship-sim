@@ -5,8 +5,8 @@ import { AlarmIndicator } from './alarms/AlarmIndicator';
 import { CompassRose } from './CompassRose';
 import { TelegraphLever } from './TelegraphLever';
 import { CircularGauge } from './CircularGauge';
-import { RudderLever } from './RudderLever';
 import RudderAngleIndicator from './RudderAngleIndicator';
+import { HelmControl } from './HelmControl';
 
 interface DashboardProps {
   className?: string;
@@ -98,9 +98,8 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
 
   return (
     <div className={`${className} pointer-events-none text-white`}>
-      <div className="fixed top-4 left-4 z-30 w-96 space-y-4 rounded-xl border border-gray-700 bg-gray-900/85 p-4 backdrop-blur pointer-events-auto shadow-lg max-h-[92vh] overflow-y-auto">
+      <div className="fixed top-4 left-4 z-30 w-96 space-y-4 rounded-xl bg-gray-900/85 p-4 backdrop-blur pointer-events-auto shadow-lg max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">Navigation</h2>
           <div className="flex items-center space-x-2">
             {alarms &&
               Object.entries(alarms).map(
@@ -219,7 +218,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
         </div>
       </div>
 
-      <div className="fixed bottom-4 left-1/2 z-30 -translate-x-1/2 flex items-start gap-6 rounded-2xl border border-gray-700 bg-gray-900/90 p-4 backdrop-blur pointer-events-auto shadow-2xl">
+      <div className="fixed bottom-4 left-1/2 z-30 -translate-x-1/2 flex items-start gap-6 rounded-2xl bg-gray-900/90 p-4 backdrop-blur pointer-events-auto shadow-2xl">
         <TelegraphLever
           label="Throttle"
           value={throttleLocal}
@@ -237,20 +236,12 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           ]}
         />
 
-        <div className="flex flex-col items-center">
-          <RudderLever
-            label="Rudder"
-            value={(rudderAngleLocal * 180) / Math.PI}
-            min={-35}
-            max={35}
-            onChange={deg => setRudderAngleLocal((deg * Math.PI) / 180)}
-            scale={[
-              { label: '35? Port', value: -35, major: true },
-              { label: '0?', value: 0, major: true },
-              { label: '35? Stbd', value: 35, major: true },
-            ]}
-          />
-        </div>
+        <HelmControl
+          value={(rudderAngleLocal * 180) / Math.PI}
+          minAngle={-35}
+          maxAngle={35}
+          onChange={deg => setRudderAngleLocal((deg * Math.PI) / 180)}
+        />
 
         <RudderAngleIndicator
           angle={(rudderAngleLocal * 180) / Math.PI}

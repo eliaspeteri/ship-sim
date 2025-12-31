@@ -3,7 +3,6 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Scene from '../components/Scene';
 import Dashboard from '../components/Dashboard';
-import EnvironmentControls from '../components/EnvironmentControls';
 import useStore from '../store';
 import socketManager from '../networking/socket';
 import { initializeSimulation, startSimulation } from '../simulation';
@@ -17,8 +16,6 @@ const SimPage: React.FC = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
   const vessel = useStore(state => state.vessel);
-  const [showSettings, setShowSettings] = React.useState(false);
-  const [showUserPanel, setShowUserPanel] = React.useState(false);
   const hasStartedRef = useRef(false);
 
   useEffect(() => {
@@ -145,23 +142,7 @@ const SimPage: React.FC = () => {
   return (
     <div className="h-screen w-full">
       <Dashboard className="fixed left-0 top-0 z-30 h-screen w-96 overflow-y-auto bg-gray-900/80 backdrop-blur border-r border-gray-700 shadow-xl p-4" />
-      {showSettings && (
-        <EnvironmentControls className="fixed top-16 right-4 z-10 w-96" />
-      )}
       <Scene vesselPosition={vesselPosition} />
-      <button
-        onClick={() => setShowUserPanel(!showUserPanel)}
-        className="fixed top-4 right-24 z-10 rounded bg-gray-800 bg-opacity-70 px-4 py-2 text-white hover:bg-gray-700 transition-colors"
-      >
-        {session.user?.name || 'User'}
-      </button>
-      {/* User panel could go here if needed */}
-      <button
-        onClick={() => setShowSettings(!showSettings)}
-        className="fixed top-4 right-4 z-10 rounded bg-gray-800 bg-opacity-70 px-4 py-2 text-white hover:bg-gray-700 transition-colors"
-      >
-        {showSettings ? 'Close Settings' : 'Settings'}
-      </button>
     </div>
   );
 };
