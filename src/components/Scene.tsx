@@ -189,7 +189,7 @@ export default function Scene({ vesselPosition }: SceneProps) {
             y: 0,
             z: vesselPosition.y,
           }}
-          heading={-vesselPosition.heading}
+          heading={vesselPosition.heading}
           shipType={vesselProperties.type}
         />
         <OrbitControls

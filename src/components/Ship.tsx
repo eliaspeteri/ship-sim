@@ -73,9 +73,11 @@ const Ship: React.FC<ShipProps> = ({
 
       const roll = orientation?.roll ?? 0;
       const pitch = orientation?.pitch ?? 0;
+      // Render heading: ship models face +Z; physics heading is radians CCW, so invert for Three's Y rotation
+      const renderHeading = -heading;
 
       // Apply heading, roll, and pitch (roll/pitch from physics; heading from store)
-      obj.rotation.set(pitch, heading, roll);
+      obj.rotation.set(pitch, renderHeading, roll);
     }
   });
 
