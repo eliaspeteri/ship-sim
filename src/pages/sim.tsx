@@ -144,7 +144,7 @@ const SimPage: React.FC = () => {
 
   return (
     <div className="h-screen w-full">
-      <Dashboard className="fixed bottom-4 left-0 right-0 z-30" />
+      <Dashboard className="fixed left-0 top-0 z-30 h-screen w-96 overflow-y-auto bg-gray-900/80 backdrop-blur border-r border-gray-700 shadow-xl p-4" />
       {showSettings && (
         <EnvironmentControls className="fixed top-16 right-4 z-10 w-96" />
       )}
