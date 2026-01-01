@@ -4,6 +4,8 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import apiRoutes from './api';
+import jwt from 'jsonwebtoken';
+import { decode as nextAuthDecode } from 'next-auth/jwt';
 import {
   getWeatherPattern,
   transitionWeather,
@@ -32,6 +34,12 @@ const PRODUCTION = process.env.NODE_ENV === 'production';
 const COOKIE_DOMAIN =
   process.env.COOKIE_DOMAIN || (PRODUCTION ? undefined : 'localhost'); // Use undefined for default domain in prod
 const SECURE_COOKIES = PRODUCTION; // Use secure cookies in production
+const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || '';
+const ADMIN_USERS = (process.env.ADMIN_USERS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+const FORCE_ADMIN = process.env.FORCE_ADMIN === 'true';
 
 type VesselMode = 'player' | 'ai';
 interface VesselRecord {
@@ -455,30 +463,161 @@ const io = new Server<
 
 // Handle Socket.IO connections
 io.use(async (socket, next) => {
+  // Temporary dev override: force admin if enabled
+  console.debug(
+    `Socket auth attempt. Headers: ${JSON.stringify(socket.handshake.headers, null, 2)}`,
+  );
+  console.debug(
+    `Socket auth attempt. Auth: ${JSON.stringify(socket.handshake.auth, null, 2)}`,
+  );
+  console.debug(`Force admin: ${FORCE_ADMIN}`);
+  if (FORCE_ADMIN) {
+    console.log(
+      'FORCE_ADMIN is enabled; granting admin role to all socket connections.',
+    );
+    socket.data = {
+      userId: 'dev_admin',
+      username: 'DevAdmin',
+      roles: ['admin', 'player'],
+      permissions: [{ resource: '*', action: '*' }],
+    };
+    return next();
+  }
+
   try {
     const cookies = parseCookies(socket.handshake.headers.cookie as string);
-  const token =
-    cookies['access_token'] ||
-    (socket.handshake.auth &&
-      (socket.handshake.auth as { token?: string; accessToken?: string })
-        .token) ||
+    const nextAuthToken =
+      cookies['next-auth.session-token'] ||
+      cookies['__Secure-next-auth.session-token'];
+    const token =
+      cookies['access_token'] ||
+      (socket.handshake.auth &&
+        (socket.handshake.auth as { token?: string; accessToken?: string })
+          .token) ||
       (socket.handshake.auth &&
         (socket.handshake.auth as { token?: string; accessToken?: string })
           .accessToken);
 
     // Require verified access token to elevate beyond guest
     if (token) {
+      // Prefer verifying with NEXTAUTH_SECRET because the client sends session.socketToken
+      if (NEXTAUTH_SECRET) {
+        try {
+          const naPayload = jwt.verify(token, NEXTAUTH_SECRET) as {
+            sub?: string;
+            email?: string;
+            name?: string;
+            roles?: string[];
+          };
+          const uid = naPayload.sub || naPayload.email || `na_${Math.random()}`;
+          const uname = naPayload.name || naPayload.email || 'NextAuthUser';
+          let roles = naPayload.roles || ['player'];
+          if (
+            ADMIN_USERS.includes(uid) ||
+            ADMIN_USERS.includes(uname) ||
+            (naPayload.email && ADMIN_USERS.includes(naPayload.email))
+          ) {
+            roles = Array.from(new Set([...roles, 'admin']));
+          }
+          socket.data = {
+            userId: uid,
+            username: uname,
+            roles,
+            permissions: [],
+          };
+          return next();
+        } catch {
+          // try to decode NextAuth encrypted tokens if any
+          try {
+            const decoded = await nextAuthDecode({
+              token,
+              secret: NEXTAUTH_SECRET,
+            });
+            if (decoded) {
+              const uid =
+                (decoded as any).sub ||
+                (decoded as any).email ||
+                `na_${Math.random()}`;
+              const uname =
+                (decoded as any).name ||
+                (decoded as any).email ||
+                'NextAuthUser';
+              let roles = ((decoded as any).roles as string[]) || ['player'];
+              if (
+                ADMIN_USERS.includes(uid) ||
+                ADMIN_USERS.includes(uname) ||
+                ((decoded as any).email &&
+                  ADMIN_USERS.includes((decoded as any).email))
+              ) {
+                roles = Array.from(new Set([...roles, 'admin']));
+              }
+              socket.data = {
+                userId: uid,
+                username: uname,
+                roles,
+                permissions: [],
+              };
+              return next();
+            }
+          } catch {
+            // fall through
+          }
+        }
+      }
+
+      // Fallback: try AUTH_SECRET token (from our own authService)
       const payload = (await verifyAccessToken(token)) as TokenPayload | null;
       if (payload) {
+        let roles = payload.roles || [];
+        const permissions = payload.permissions || [];
+        if (
+          ADMIN_USERS.includes(payload.username) ||
+          ADMIN_USERS.includes(payload.userId)
+        ) {
+          roles = Array.from(new Set([...roles, 'admin']));
+        }
         socket.data = {
           userId: payload.userId,
           username: payload.username,
-          roles: payload.roles,
-          permissions: payload.permissions,
+          roles,
+          permissions,
         };
         return next();
       }
-      console.warn('Socket auth failed token verification; falling back to guest');
+
+      console.warn(
+        'Socket auth failed token verification; falling back to guest',
+      );
+    }
+
+    // Try NextAuth session token if present and secret available
+    if (nextAuthToken && NEXTAUTH_SECRET) {
+      try {
+        const payload = jwt.verify(nextAuthToken, NEXTAUTH_SECRET) as {
+          sub?: string;
+          email?: string;
+          name?: string;
+        };
+        const userId = payload.sub || payload.email || `na_${Math.random()}`;
+        const username = payload.name || payload.email || 'NextAuthUser';
+        let roles = ['player'];
+        if (
+          ADMIN_USERS.includes(userId) ||
+          ADMIN_USERS.includes(username) ||
+          (payload.email && ADMIN_USERS.includes(payload.email))
+        ) {
+          roles = [...roles, 'admin'];
+        }
+        socket.data = {
+          userId,
+          username,
+          roles,
+          permissions: [],
+        };
+        return next();
+      } catch (err) {
+        console.warn('Failed to verify NextAuth session token', err);
+      }
     }
 
     const tempUserId = `guest_${Math.random().toString(36).substring(2, 9)}`;

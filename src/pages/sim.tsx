@@ -32,7 +32,17 @@ const SimPage: React.FC = () => {
     if (hasStartedRef.current) return;
 
     hasStartedRef.current = true;
-    // Optionally set auth token for socket if available from session (e.g., via custom API)
+    // Attach auth token for socket if available from session callback
+    const socketToken = (session as unknown as { socketToken?: string })
+      ?.socketToken;
+    const userId =
+      (session?.user as { id?: string })?.id ||
+      session?.user?.name ||
+      undefined;
+    const username = session?.user?.name || undefined;
+    if (socketToken) {
+      socketManager.setAuthToken(socketToken, userId, username);
+    }
     socketManager.connect();
     initializeSimulation();
     startSimulation();

@@ -19,6 +19,7 @@ class SocketManager {
   private reconnectTimer: NodeJS.Timeout | null = null;
   private connectionAttempts = 0;
   private maxReconnectAttempts = 5;
+  private authToken: string | null = null;
 
   constructor() {
     this.userId = this.generateUserId();
@@ -42,12 +43,11 @@ class SocketManager {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 10000,
-      // Note: withCredentials is not typed on ManagerOptions, but is respected by engine.io in browsers.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      withCredentials: true as any,
+      withCredentials: true as unknown as boolean,
       auth: {
         userId: this.userId,
         username: this.username,
+        token: this.authToken || undefined,
       },
     });
 
@@ -218,11 +218,12 @@ class SocketManager {
 
   // Allow setting an external auth token for the socket (e.g., NextAuth JWT)
   setAuthToken(token: string, userId?: string, username?: string): void {
+    this.authToken = token;
     this.userId = userId || this.userId;
     this.username = username || this.username;
     if (this.socket) {
       this.socket.auth = {
-        token,
+        token: this.authToken,
         userId: this.userId,
         username: this.username,
       };

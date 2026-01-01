@@ -1,6 +1,7 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import type { User } from 'next-auth';
+import jwt from 'jsonwebtoken';
 
 /**
  * NextAuth.js configuration for Ship Simulator
@@ -43,6 +44,10 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
   },
+  jwt: {
+    secret: process.env.NEXTAUTH_SECRET,
+    encryption: false,
+  },
   pages: {
     signIn: '/login',
   },
@@ -50,12 +55,23 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.roles = (user as ShipSimUser).roles;
+        token.sub = (user as ShipSimUser).id || user.id || token.sub;
+        token.name = user.name || token.name;
       }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
         (session.user as ShipSimUser).roles = (token as ShipSimJWT).roles || [];
+        (session.user as ShipSimUser).id =
+          (token as ShipSimJWT).sub || session.user?.id || '';
+      }
+      // Expose a signed token for sockets (non-HTTP-only)
+      if (process.env.NEXTAUTH_SECRET) {
+        (session as unknown as ShipSimSession).socketToken = jwt.sign(
+          token,
+          process.env.NEXTAUTH_SECRET,
+        );
       }
       return session;
     },
@@ -66,9 +82,15 @@ export default NextAuth(authOptions);
 
 interface ShipSimUser extends User {
   roles: string[];
+  id: string;
 }
 
 interface ShipSimJWT {
   roles?: string[];
+  sub?: string;
   [key: string]: unknown;
+}
+
+interface ShipSimSession extends Record<string, unknown> {
+  socketToken?: string;
 }
