@@ -573,15 +573,10 @@ const useStore = create<SimulationState>()(
     }),
     {
       name: 'ship-sim-storage', // Name for localStorage/sessionStorage
-      partialize: state => ({
-        vessel: state.vessel,
-        eventLog: state.eventLog,
-        machinerySystems: state.machinerySystems,
-        wasmVesselPtr: state.wasmVesselPtr,
-        wasmExports: state.wasmExports,
-        navigation: state.navigation,
-        environment: state.environment,
-      }),
+      // Persist nothing for now; the server/DB is the source of truth for vessel/env state.
+      partialize: _state => ({}),
+      version: 2,
+      migrate: _persistedState => ({}), // clear any old persisted vessel state
     },
   ),
 );

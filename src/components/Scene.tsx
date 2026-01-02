@@ -138,19 +138,20 @@ function SpectatorController({
   const keys = useRef<Record<string, boolean>>({});
   const positionRef = useRef(
     new THREE.Vector3(
-      entryTargetRef.current.x - 120,
-      80,
-      entryTargetRef.current.y - 120,
+      entryTargetRef.current.x - 200,
+      220,
+      entryTargetRef.current.y - 200,
     ),
   );
   const forwardRef = useRef(new THREE.Vector3(0, 0, -1).normalize());
   const tmpVec = useRef(new THREE.Vector3());
+  const distanceVec = useRef(new THREE.Vector3());
 
   // Reset spectator pose when switching into spectator mode
   useEffect(() => {
     if (mode !== 'spectator') return;
     const start = entryTargetRef.current;
-    positionRef.current.set(start.x - 150, 80, start.y - 150);
+    positionRef.current.set(start.x - 200, 220, start.y - 200);
     forwardRef.current.set(0, 0, -1);
     focusRef.current = { x: positionRef.current.x, y: positionRef.current.z };
     camera.position.copy(positionRef.current);
@@ -185,7 +186,13 @@ function SpectatorController({
 
   useFrame((_, delta) => {
     if (mode !== 'spectator') return;
-    const moveSpeed = (keys.current['shift'] ? 180 : 120) * delta;
+    // Scale speed based on zoom (camera distance to focus)
+    distanceVec.current.set(focusRef.current.x, 0, focusRef.current.y);
+    const distance = camera.position.distanceTo(distanceVec.current);
+    const speedScale = THREE.MathUtils.clamp(distance / 200, 0.3, 6);
+    const moveSpeed = (keys.current['shift'] ? 180 : 120) * delta * speedScale;
+    const verticalSpeed =
+      (keys.current['shift'] ? 140 : 100) * delta * speedScale;
 
     // Derive forward from camera orientation so mouse orbit still works
     camera.getWorldDirection(forwardRef.current).setY(0);
@@ -207,10 +214,10 @@ function SpectatorController({
       movement.sub(forwardRef.current);
     }
     if (keys.current['a']) {
-      movement.sub(right);
+      movement.add(right);
     }
     if (keys.current['d']) {
-      movement.add(right);
+      movement.sub(right);
     }
 
     if (movement.lengthSq() > 0) {
@@ -313,7 +320,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
       <Canvas
         camera={{
           position: isSpectator
-            ? [focusRef.current.x - 120, 80, focusRef.current.y - 120]
+            ? [focusRef.current.x - 200, 220, focusRef.current.y - 200]
             : [vesselPosition.x - 50, 30, vesselPosition.y - 50],
           fov: isSpectator ? 70 : 60,
           near: 1,
@@ -372,8 +379,9 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           maxDistance={
             isSpectator ? 5000 : Math.max(vesselProperties.length * 5, 500)
           }
-          minPolarAngle={Math.PI * 0.05}
-          maxPolarAngle={isSpectator ? Math.PI * 0.49 : Math.PI * 0.5}
+          // Fix tilt at ~45deg in spectator; allow full orbit in player mode
+          minPolarAngle={isSpectator ? Math.PI / 4 : Math.PI * 0.05}
+          maxPolarAngle={isSpectator ? Math.PI / 4 : Math.PI * 0.5}
           enableDamping
           dampingFactor={0.1}
         />
