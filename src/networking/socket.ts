@@ -39,6 +39,10 @@ class SocketManager {
 
     console.info(`Connecting to Socket.IO server at ${url}`);
 
+    // Reset hydration marker on new connection
+    this.hasHydratedSelf = false;
+    useStore.getState().setCurrentVesselId(null);
+
     this.socket = io(url, {
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: 1000,
@@ -128,10 +132,14 @@ class SocketManager {
     const others: Record<string, SimpleVesselState> = {};
 
     Object.entries(data.vessels).forEach(([id, vesselData]) => {
-      const isSelf = id === this.userId;
+      const isSelf =
+        id === this.userId ||
+        id === store.currentVesselId ||
+        vesselData.ownerId === this.userId;
       if (isSelf) {
         if (!this.hasHydratedSelf) {
           this.hasHydratedSelf = true;
+          store.setCurrentVesselId(id);
           store.updateVessel({
             position: vesselData.position,
             orientation: vesselData.orientation,
@@ -153,7 +161,6 @@ class SocketManager {
         }
         return;
       }
-
       others[id] = vesselData;
     });
 

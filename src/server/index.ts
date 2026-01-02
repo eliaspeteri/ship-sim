@@ -502,6 +502,7 @@ io.on('connection', socket => {
         id,
         {
           id,
+          ownerId: v.ownerId,
           position: withLatLon(v.position),
           orientation: v.orientation,
           velocity: v.velocity,
@@ -562,6 +563,7 @@ io.on('connection', socket => {
       vessels: {
         [currentUserId]: {
           id: target.id,
+          ownerId: target.ownerId,
           position: withLatLon(target.position),
           orientation: target.orientation,
           velocity: target.velocity,

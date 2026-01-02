@@ -44,11 +44,13 @@ interface SimulationState {
 
   // Vessel state
   vessel: VesselState;
+  currentVesselId: string | null;
   otherVessels: Record<string, SimpleVesselState>;
   resetVessel: () => void;
   updateVessel: (vessel: Partial<VesselState>) => void;
   setVesselName: (name: string) => void;
   setVesselType: (type: ShipType) => void;
+  setCurrentVesselId: (id: string | null) => void;
   setOtherVessels: (vessels: Record<string, SimpleVesselState>) => void;
 
   // Environment state
@@ -207,8 +209,10 @@ const useStore = create<SimulationState>()((set, get) => ({
 
   // Vessel state
   vessel: defaultVesselState,
+  currentVesselId: null,
   otherVessels: {},
   resetVessel: () => set({ vessel: defaultVesselState }),
+  setCurrentVesselId: id => set({ currentVesselId: id }),
   setOtherVessels: vessels => set({ otherVessels: vessels }),
   updateVessel: vesselUpdate =>
     set(state => {
