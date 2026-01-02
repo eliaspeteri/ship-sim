@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { getSimulationLoop } from '../simulation/simulationLoop';
-import { VesselState, ShipType } from '../types/vessel.types';
+import { VesselState, ShipType, SimpleVesselState } from '../types/vessel.types';
 import { WasmModule } from '../types/wasm';
 import { EventLogEntry } from '../types/events.types';
 import { EnvironmentState } from '../types/environment.types';
@@ -44,10 +44,12 @@ interface SimulationState {
 
   // Vessel state
   vessel: VesselState;
+  otherVessels: Record<string, SimpleVesselState>;
   resetVessel: () => void;
   updateVessel: (vessel: Partial<VesselState>) => void;
   setVesselName: (name: string) => void;
   setVesselType: (type: ShipType) => void;
+  setOtherVessels: (vessels: Record<string, SimpleVesselState>) => void;
 
   // Environment state
   environment: EnvironmentState;
@@ -205,7 +207,9 @@ const useStore = create<SimulationState>()((set, get) => ({
 
   // Vessel state
   vessel: defaultVesselState,
+  otherVessels: {},
   resetVessel: () => set({ vessel: defaultVesselState }),
+  setOtherVessels: vessels => set({ otherVessels: vessels }),
   updateVessel: vesselUpdate =>
     set(state => {
       try {

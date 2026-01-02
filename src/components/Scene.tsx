@@ -266,6 +266,7 @@ function LightTracker({
 export default function Scene({ vesselPosition, mode }: SceneProps) {
   const isSpectator = mode === 'spectator';
   const vesselProperties = useStore(state => state.vessel.properties);
+  const otherVessels = useStore(state => state.otherVessels);
   const envTime = useStore(state => state.environment.timeOfDay);
   const directionalLightRef = useRef<THREE.DirectionalLight>(null);
   const focusRef = useRef<{ x: number; y: number }>({
@@ -356,15 +357,23 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           sunDirection={sunDirection}
           size={isSpectator ? 80000 : 40000}
         />
-        <Ship
-          position={{
-            x: vesselPosition.x,
-            y: 0,
-            z: vesselPosition.y,
-          }}
-          heading={vesselPosition.heading}
-          shipType={vesselProperties.type}
-        />
+      <Ship
+        position={{
+          x: vesselPosition.x,
+          y: 0,
+          z: vesselPosition.y,
+        }}
+        heading={vesselPosition.heading}
+        shipType={vesselProperties.type}
+      />
+        {Object.entries(otherVessels || {}).map(([id, v]) => (
+          <Ship
+            key={id}
+            position={{ x: v.position.x, y: 0, z: v.position.y }}
+            heading={v.orientation.heading}
+            shipType={vesselProperties.type}
+          />
+        ))}
         <OrbitControls
           ref={orbitRef}
           target={

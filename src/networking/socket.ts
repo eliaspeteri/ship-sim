@@ -125,32 +125,40 @@ class SocketManager {
   private handleSimulationUpdate(data: SimulationUpdateData): void {
     const store = useStore.getState();
 
+    const others: Record<string, SimpleVesselState> = {};
+
     Object.entries(data.vessels).forEach(([id, vesselData]) => {
       const isSelf = id === this.userId;
-      if (isSelf && !this.hasHydratedSelf) {
-        this.hasHydratedSelf = true;
-        store.updateVessel({
-          position: vesselData.position,
-          orientation: vesselData.orientation,
-          velocity: vesselData.velocity,
-          controls: vesselData.controls
-            ? {
-                ...store.vessel.controls,
-                throttle:
-                  vesselData.controls.throttle ??
-                  store.vessel.controls?.throttle ??
-                  0,
-                rudderAngle:
-                  vesselData.controls.rudderAngle ??
-                  store.vessel.controls?.rudderAngle ??
-                  0,
-              }
-            : store.vessel.controls,
-        });
-      } else {
-        // TODO: hydrate/render other vessels when multi-user is added
+      if (isSelf) {
+        if (!this.hasHydratedSelf) {
+          this.hasHydratedSelf = true;
+          store.updateVessel({
+            position: vesselData.position,
+            orientation: vesselData.orientation,
+            velocity: vesselData.velocity,
+            controls: vesselData.controls
+              ? {
+                  ...store.vessel.controls,
+                  throttle:
+                    vesselData.controls.throttle ??
+                    store.vessel.controls?.throttle ??
+                    0,
+                  rudderAngle:
+                    vesselData.controls.rudderAngle ??
+                    store.vessel.controls?.rudderAngle ??
+                    0,
+                }
+              : store.vessel.controls,
+          });
+        }
+        return;
       }
+
+      others[id] = vesselData;
     });
+
+    // Replace other vessels snapshot
+    store.setOtherVessels(others);
   }
 
   // Handle environment updates from server
