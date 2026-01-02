@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { getSimulationLoop } from '../simulation/simulationLoop';
 import { VesselState, ShipType } from '../types/vessel.types';
 import { WasmModule } from '../types/wasm';
@@ -98,7 +97,7 @@ const defaultVesselState: VesselState = {
   velocity: { surge: 0, sway: 0, heave: 0 },
   angularVelocity: { yaw: 0, roll: 0, pitch: 0 },
   controls: {
-    throttle: 0.5,
+    throttle: 0,
     rudderAngle: 0,
     ballast: 0.5,
     bowThruster: 0,
@@ -200,385 +199,374 @@ const defaultNavigationData: NavigationData = {
 };
 
 // Create the Zustand store with persistence
-const useStore = create<SimulationState>()(
-  persist(
-    (set, get) => ({
-      mode: 'player',
-      setMode: mode => set({ mode }),
+const useStore = create<SimulationState>()((set, get) => ({
+  mode: 'player',
+  setMode: mode => set({ mode }),
 
-      // Vessel state
-      vessel: defaultVesselState,
-      resetVessel: () => set({ vessel: defaultVesselState }),
-      updateVessel: vesselUpdate =>
-        set(state => {
-          try {
-            // Create a shallow copy of the current vessel state
-            const updatedVessel = { ...state.vessel };
+  // Vessel state
+  vessel: defaultVesselState,
+  resetVessel: () => set({ vessel: defaultVesselState }),
+  updateVessel: vesselUpdate =>
+    set(state => {
+      try {
+        // Create a shallow copy of the current vessel state
+        const updatedVessel = { ...state.vessel };
 
-            // Handle top-level properties first
-            if (vesselUpdate.position) {
-              updatedVessel.position = {
-                ...updatedVessel.position,
-                ...vesselUpdate.position,
-              };
-            }
+        // Handle top-level properties first
+        if (vesselUpdate.position) {
+          updatedVessel.position = {
+            ...updatedVessel.position,
+            ...vesselUpdate.position,
+          };
+        }
 
-            if (vesselUpdate.orientation) {
-              updatedVessel.orientation = {
-                ...updatedVessel.orientation,
-                ...vesselUpdate.orientation,
-              };
-            }
+        if (vesselUpdate.orientation) {
+          updatedVessel.orientation = {
+            ...updatedVessel.orientation,
+            ...vesselUpdate.orientation,
+          };
+        }
 
-            if (vesselUpdate.velocity) {
-              updatedVessel.velocity = {
-                ...updatedVessel.velocity,
-                ...vesselUpdate.velocity,
-              };
-            }
+        if (vesselUpdate.velocity) {
+          updatedVessel.velocity = {
+            ...updatedVessel.velocity,
+            ...vesselUpdate.velocity,
+          };
+        }
 
-            if (vesselUpdate.angularVelocity) {
-              updatedVessel.angularVelocity = {
-                ...updatedVessel.angularVelocity,
-                ...vesselUpdate.angularVelocity,
-              };
-            }
+        if (vesselUpdate.angularVelocity) {
+          updatedVessel.angularVelocity = {
+            ...updatedVessel.angularVelocity,
+            ...vesselUpdate.angularVelocity,
+          };
+        }
 
-            if (vesselUpdate.controls) {
-              updatedVessel.controls = {
-                ...updatedVessel.controls,
-                ...vesselUpdate.controls,
-              };
-            }
+        if (vesselUpdate.controls) {
+          updatedVessel.controls = {
+            ...updatedVessel.controls,
+            ...vesselUpdate.controls,
+          };
+        }
 
-            if (vesselUpdate.properties) {
-              updatedVessel.properties = {
-                ...updatedVessel.properties,
-                ...vesselUpdate.properties,
-              };
-            }
+        if (vesselUpdate.properties) {
+          updatedVessel.properties = {
+            ...updatedVessel.properties,
+            ...vesselUpdate.properties,
+          };
+        }
 
-            if (vesselUpdate.engineState) {
-              updatedVessel.engineState = {
-                ...updatedVessel.engineState,
-                ...vesselUpdate.engineState,
-              };
-            }
+        if (vesselUpdate.engineState) {
+          updatedVessel.engineState = {
+            ...updatedVessel.engineState,
+            ...vesselUpdate.engineState,
+          };
+        }
 
-            if (vesselUpdate.electricalSystem) {
-              updatedVessel.electricalSystem = {
-                ...updatedVessel.electricalSystem,
-                ...vesselUpdate.electricalSystem,
-              };
-            }
+        if (vesselUpdate.electricalSystem) {
+          updatedVessel.electricalSystem = {
+            ...updatedVessel.electricalSystem,
+            ...vesselUpdate.electricalSystem,
+          };
+        }
 
-            // Handle stability property safely
-            if (vesselUpdate.stability) {
-              // Ensure stability exists in both source and target
-              if (!updatedVessel.stability) {
-                updatedVessel.stability = {
-                  metacentricHeight: 2.0,
-                  centerOfGravity: { x: 0, y: 0, z: 6.0 },
-                  trim: 0,
-                  list: 0,
-                };
-              }
-
-              // Create updated stability object
-              const updatedStability = {
-                ...updatedVessel.stability,
-                ...vesselUpdate.stability,
-              };
-
-              // Handle centerOfGravity property separately
-              if (vesselUpdate.stability.centerOfGravity) {
-                if (!updatedStability.centerOfGravity) {
-                  updatedStability.centerOfGravity = { x: 0, y: 0, z: 6.0 };
-                }
-
-                updatedStability.centerOfGravity = {
-                  ...updatedStability.centerOfGravity,
-                  ...vesselUpdate.stability.centerOfGravity,
-                };
-              }
-
-              updatedVessel.stability = updatedStability;
-            }
-
-            if (vesselUpdate.alarms) {
-              updatedVessel.alarms = {
-                ...updatedVessel.alarms,
-                ...vesselUpdate.alarms,
-              };
-
-              if (vesselUpdate.alarms.otherAlarms) {
-                updatedVessel.alarms.otherAlarms = {
-                  ...updatedVessel.alarms.otherAlarms,
-                  ...vesselUpdate.alarms.otherAlarms,
-                };
-              }
-            }
-
-            return { vessel: updatedVessel };
-          } catch (error) {
-            console.error('Error in updateVessel:', error);
-            // Return unchanged state if there was an error
-            return {};
+        // Handle stability property safely
+        if (vesselUpdate.stability) {
+          // Ensure stability exists in both source and target
+          if (!updatedVessel.stability) {
+            updatedVessel.stability = {
+              metacentricHeight: 2.0,
+              centerOfGravity: { x: 0, y: 0, z: 6.0 },
+              trim: 0,
+              list: 0,
+            };
           }
-        }),
 
-      setVesselName: name =>
-        set(state => ({
-          vessel: {
-            ...state.vessel,
-            properties: {
-              ...state.vessel.properties,
-              name,
-            },
-          },
-        })),
+          // Create updated stability object
+          const updatedStability = {
+            ...updatedVessel.stability,
+            ...vesselUpdate.stability,
+          };
 
-      setVesselType: type =>
-        set(state => ({
-          vessel: {
-            ...state.vessel,
-            properties: {
-              ...state.vessel.properties,
-              type,
-            },
-          },
-        })),
+          // Handle centerOfGravity property separately
+          if (vesselUpdate.stability.centerOfGravity) {
+            if (!updatedStability.centerOfGravity) {
+              updatedStability.centerOfGravity = { x: 0, y: 0, z: 6.0 };
+            }
 
-      // Environment state
-      environment: defaultEnvironmentState,
-      updateEnvironment: environmentUpdate =>
+            updatedStability.centerOfGravity = {
+              ...updatedStability.centerOfGravity,
+              ...vesselUpdate.stability.centerOfGravity,
+            };
+          }
+
+          updatedVessel.stability = updatedStability;
+        }
+
+        if (vesselUpdate.alarms) {
+          updatedVessel.alarms = {
+            ...updatedVessel.alarms,
+            ...vesselUpdate.alarms,
+          };
+
+          if (vesselUpdate.alarms.otherAlarms) {
+            updatedVessel.alarms.otherAlarms = {
+              ...updatedVessel.alarms.otherAlarms,
+              ...vesselUpdate.alarms.otherAlarms,
+            };
+          }
+        }
+
+        return { vessel: updatedVessel };
+      } catch (error) {
+        console.error('Error in updateVessel:', error);
+        // Return unchanged state if there was an error
+        return {};
+      }
+    }),
+
+  setVesselName: name =>
+    set(state => ({
+      vessel: {
+        ...state.vessel,
+        properties: {
+          ...state.vessel.properties,
+          name,
+        },
+      },
+    })),
+
+  setVesselType: type =>
+    set(state => ({
+      vessel: {
+        ...state.vessel,
+        properties: {
+          ...state.vessel.properties,
+          type,
+        },
+      },
+    })),
+
+  // Environment state
+  environment: defaultEnvironmentState,
+  updateEnvironment: environmentUpdate =>
+    set(state => ({
+      environment: {
+        ...state.environment,
+        ...environmentUpdate,
+        wind: {
+          ...state.environment.wind,
+          ...(environmentUpdate.wind || {}),
+        },
+        current: {
+          ...state.environment.current,
+          ...(environmentUpdate.current || {}),
+        },
+        seaState: environmentUpdate.seaState || state.environment.seaState,
+      },
+    })),
+
+  setDayNightCycle: enabled => {
+    // Implement day/night cycle logic
+    if (enabled) {
+      // Set up time progression
+      const _intervalId = setInterval(() => {
         set(state => ({
           environment: {
             ...state.environment,
-            ...environmentUpdate,
-            wind: {
-              ...state.environment.wind,
-              ...(environmentUpdate.wind || {}),
-            },
-            current: {
-              ...state.environment.current,
-              ...(environmentUpdate.current || {}),
-            },
-            seaState: environmentUpdate.seaState || state.environment.seaState,
+            timeOfDay: (state.environment.timeOfDay + 0.1) % 24,
           },
-        })),
+        }));
+      }, 10000); // Update every 10 seconds
 
-      setDayNightCycle: enabled => {
-        // Implement day/night cycle logic
-        if (enabled) {
-          // Set up time progression
-          const _intervalId = setInterval(() => {
-            set(state => ({
-              environment: {
-                ...state.environment,
-                timeOfDay: (state.environment.timeOfDay + 0.1) % 24,
-              },
-            }));
-          }, 10000); // Update every 10 seconds
+      // Store intervalId somewhere to clear it when disabled
+      // This is simplified - you'd need a way to store and clear this interval
+    }
+  },
 
-          // Store intervalId somewhere to clear it when disabled
-          // This is simplified - you'd need a way to store and clear this interval
-        }
-      },
+  // Event system
+  eventLog: [],
+  addEvent: event =>
+    set(state => {
+      // Get the simulation time in seconds
+      const simTimeSeconds = Date.now() / 1000; // Replace with actual simulation time
 
-      // Event system
-      eventLog: [],
-      addEvent: event =>
-        set(state => {
-          // Get the simulation time in seconds
-          const simTimeSeconds = Date.now() / 1000; // Replace with actual simulation time
+      // Convert simulation seconds to hours, minutes, seconds
+      const hours = Math.floor(simTimeSeconds / 3600);
+      const minutes = Math.floor((simTimeSeconds % 3600) / 60);
+      const seconds = Math.floor(simTimeSeconds % 60);
 
-          // Convert simulation seconds to hours, minutes, seconds
-          const hours = Math.floor(simTimeSeconds / 3600);
-          const minutes = Math.floor((simTimeSeconds % 3600) / 60);
-          const seconds = Math.floor(simTimeSeconds % 60);
+      // Format time as HH:MM:SS
+      const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-          // Format time as HH:MM:SS
-          const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      // Create the new event with simulation time
+      const newEvent = {
+        ...event,
+        id: Date.now().toString(), // Use current timestamp as unique ID
+        time: timeString,
+        timestamp: Date.now(), // Keep this for sorting
+      };
 
-          // Create the new event with simulation time
-          const newEvent = {
-            ...event,
-            id: Date.now().toString(), // Use current timestamp as unique ID
-            time: timeString,
-            timestamp: Date.now(), // Keep this for sorting
-          };
-
-          return {
-            eventLog: [...state.eventLog, newEvent],
-          };
-        }),
-
-      clearEventLog: () => set({ eventLog: [] }),
-
-      // Machinery systems
-      machinerySystems: defaultMachinerySystemStatus,
-      updateMachineryStatus: statusUpdate =>
-        set(state => ({
-          machinerySystems: {
-            ...state.machinerySystems,
-            ...statusUpdate,
-            failures: {
-              ...state.machinerySystems.failures,
-              ...(statusUpdate.failures || {}),
-            },
-          },
-        })),
-
-      triggerFailure: (failureType, active) =>
-        set(state => {
-          const newMachinerySystems = {
-            ...state.machinerySystems,
-            failures: {
-              ...state.machinerySystems.failures,
-              [failureType]: active,
-            },
-          };
-
-          // Update related systems based on failure
-          if (failureType === 'engineFailure') {
-            newMachinerySystems.engineHealth = active ? 0.2 : 1.0;
-          } else if (failureType === 'propellerDamage') {
-            newMachinerySystems.propulsionEfficiency = active ? 0.6 : 1.0;
-          } else if (failureType === 'rudderFailure') {
-            newMachinerySystems.steeringSystemHealth = active ? 0.3 : 1.0;
-          } else if (failureType === 'electricalFailure') {
-            newMachinerySystems.electricalSystemHealth = active ? 0.4 : 1.0;
-          }
-
-          // Log the failure event
-          if (active) {
-            get().addEvent({
-              category: 'alarm',
-              type: failureType,
-              message: `${failureType} has occurred!`,
-              severity: 'critical',
-            });
-          }
-
-          return { machinerySystems: newMachinerySystems };
-        }),
-
-      // Navigation
-      navigation: defaultNavigationData,
-      updateNavigation: navUpdate =>
-        set(state => ({
-          navigation: {
-            ...state.navigation,
-            ...navUpdate,
-            route: navUpdate.route
-              ? {
-                  ...state.navigation.route,
-                  ...navUpdate.route,
-                }
-              : state.navigation.route,
-            charts: navUpdate.charts
-              ? {
-                  ...state.navigation.charts,
-                  ...navUpdate.charts,
-                }
-              : state.navigation.charts,
-          },
-        })),
-
-      addWaypoint: (x, y, name) =>
-        set(state => ({
-          navigation: {
-            ...state.navigation,
-            route: {
-              ...state.navigation.route,
-              waypoints: [...state.navigation.route.waypoints, { x, y, name }],
-              currentWaypoint:
-                state.navigation.route.currentWaypoint === -1
-                  ? 0
-                  : state.navigation.route.currentWaypoint,
-            },
-          },
-        })),
-
-      removeWaypoint: index =>
-        set(state => {
-          const newWaypoints = [...state.navigation.route.waypoints];
-          newWaypoints.splice(index, 1);
-
-          let newCurrentWaypoint = state.navigation.route.currentWaypoint;
-          if (newWaypoints.length === 0) {
-            newCurrentWaypoint = -1;
-          } else if (index <= state.navigation.route.currentWaypoint) {
-            newCurrentWaypoint = Math.max(
-              0,
-              state.navigation.route.currentWaypoint - 1,
-            );
-          }
-
-          return {
-            navigation: {
-              ...state.navigation,
-              route: {
-                waypoints: newWaypoints,
-                currentWaypoint: newCurrentWaypoint,
-              },
-            },
-          };
-        }),
-
-      // WASM vessel pointer
-      wasmVesselPtr: null,
-      setWasmVesselPtr: ptr => set({ wasmVesselPtr: ptr }),
-
-      // WASM exports
-      wasmExports: undefined,
-      setWasmExports: exports => set({ wasmExports: exports }),
-
-      // Apply vessel controls
-      applyVesselControls: controls => {
-        try {
-          const simulationLoop = getSimulationLoop();
-          simulationLoop.applyControls(controls);
-        } catch (error) {
-          console.error('Error applying vessel controls to simulation:', error);
-        }
-      },
-
-      // Update water status
-      updateWaterStatus:
-        (_set: (state: SimulationState) => void, _get: () => SimulationState) =>
-        (_state: SimulationState) => {
-          // Empty implementation
-        },
-
-      // Update vessel properties
-      updateVesselProperties:
-        (
-          set: (
-            updater: (state: SimulationState) => Partial<SimulationState>,
-          ) => void,
-        ) =>
-        (newProperties: Partial<VesselState['properties']>) => {
-          set((state: SimulationState) => ({
-            vessel: {
-              ...state.vessel,
-              properties: {
-                ...state.vessel.properties,
-                ...newProperties,
-              },
-            },
-          }));
-        },
+      return {
+        eventLog: [...state.eventLog, newEvent],
+      };
     }),
-    {
-      name: 'ship-sim-storage', // Name for localStorage/sessionStorage
-      // Persist nothing for now; the server/DB is the source of truth for vessel/env state.
-      partialize: _state => ({}),
-      version: 2,
-      migrate: _persistedState => ({}), // clear any old persisted vessel state
+
+  clearEventLog: () => set({ eventLog: [] }),
+
+  // Machinery systems
+  machinerySystems: defaultMachinerySystemStatus,
+  updateMachineryStatus: statusUpdate =>
+    set(state => ({
+      machinerySystems: {
+        ...state.machinerySystems,
+        ...statusUpdate,
+        failures: {
+          ...state.machinerySystems.failures,
+          ...(statusUpdate.failures || {}),
+        },
+      },
+    })),
+
+  triggerFailure: (failureType, active) =>
+    set(state => {
+      const newMachinerySystems = {
+        ...state.machinerySystems,
+        failures: {
+          ...state.machinerySystems.failures,
+          [failureType]: active,
+        },
+      };
+
+      // Update related systems based on failure
+      if (failureType === 'engineFailure') {
+        newMachinerySystems.engineHealth = active ? 0.2 : 1.0;
+      } else if (failureType === 'propellerDamage') {
+        newMachinerySystems.propulsionEfficiency = active ? 0.6 : 1.0;
+      } else if (failureType === 'rudderFailure') {
+        newMachinerySystems.steeringSystemHealth = active ? 0.3 : 1.0;
+      } else if (failureType === 'electricalFailure') {
+        newMachinerySystems.electricalSystemHealth = active ? 0.4 : 1.0;
+      }
+
+      // Log the failure event
+      if (active) {
+        get().addEvent({
+          category: 'alarm',
+          type: failureType,
+          message: `${failureType} has occurred!`,
+          severity: 'critical',
+        });
+      }
+
+      return { machinerySystems: newMachinerySystems };
+    }),
+
+  // Navigation
+  navigation: defaultNavigationData,
+  updateNavigation: navUpdate =>
+    set(state => ({
+      navigation: {
+        ...state.navigation,
+        ...navUpdate,
+        route: navUpdate.route
+          ? {
+              ...state.navigation.route,
+              ...navUpdate.route,
+            }
+          : state.navigation.route,
+        charts: navUpdate.charts
+          ? {
+              ...state.navigation.charts,
+              ...navUpdate.charts,
+            }
+          : state.navigation.charts,
+      },
+    })),
+
+  addWaypoint: (x, y, name) =>
+    set(state => ({
+      navigation: {
+        ...state.navigation,
+        route: {
+          ...state.navigation.route,
+          waypoints: [...state.navigation.route.waypoints, { x, y, name }],
+          currentWaypoint:
+            state.navigation.route.currentWaypoint === -1
+              ? 0
+              : state.navigation.route.currentWaypoint,
+        },
+      },
+    })),
+
+  removeWaypoint: index =>
+    set(state => {
+      const newWaypoints = [...state.navigation.route.waypoints];
+      newWaypoints.splice(index, 1);
+
+      let newCurrentWaypoint = state.navigation.route.currentWaypoint;
+      if (newWaypoints.length === 0) {
+        newCurrentWaypoint = -1;
+      } else if (index <= state.navigation.route.currentWaypoint) {
+        newCurrentWaypoint = Math.max(
+          0,
+          state.navigation.route.currentWaypoint - 1,
+        );
+      }
+
+      return {
+        navigation: {
+          ...state.navigation,
+          route: {
+            waypoints: newWaypoints,
+            currentWaypoint: newCurrentWaypoint,
+          },
+        },
+      };
+    }),
+
+  // WASM vessel pointer
+  wasmVesselPtr: null,
+  setWasmVesselPtr: ptr => set({ wasmVesselPtr: ptr }),
+
+  // WASM exports
+  wasmExports: undefined,
+  setWasmExports: exports => set({ wasmExports: exports }),
+
+  // Apply vessel controls
+  applyVesselControls: controls => {
+    try {
+      const simulationLoop = getSimulationLoop();
+      simulationLoop.applyControls(controls);
+    } catch (error) {
+      console.error('Error applying vessel controls to simulation:', error);
+    }
+  },
+
+  // Update water status
+  updateWaterStatus:
+    (_set: (state: SimulationState) => void, _get: () => SimulationState) =>
+    (_state: SimulationState) => {
+      // Empty implementation
     },
-  ),
-);
+
+  // Update vessel properties
+  updateVesselProperties:
+    (
+      set: (
+        updater: (state: SimulationState) => Partial<SimulationState>,
+      ) => void,
+    ) =>
+    (newProperties: Partial<VesselState['properties']>) => {
+      set((state: SimulationState) => ({
+        vessel: {
+          ...state.vessel,
+          properties: {
+            ...state.vessel.properties,
+            ...newProperties,
+          },
+        },
+      }));
+    },
+}));
 
 export default useStore;

@@ -7,6 +7,7 @@ import { TelegraphLever } from './TelegraphLever';
 import { CircularGauge } from './CircularGauge';
 import RudderAngleIndicator from './RudderAngleIndicator';
 import { HelmControl } from './HelmControl';
+import socketManager from '../networking/socket';
 
 interface DashboardProps {
   className?: string;
@@ -73,6 +74,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           rudderAngle: rudderAngleLocal,
           ballast: controls.ballast || 0.5,
         });
+        socketManager.sendControlUpdate(throttleLocal, rudderAngleLocal);
       } catch (error) {
         console.error('Error applying controls directly:', error);
       }
@@ -157,17 +159,13 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           <div className="bg-gray-800/70 p-2 rounded">
             <div className="text-gray-400 text-xs">Lat</div>
             <div className="font-mono">
-              {position?.lat !== undefined
-                ? position.lat.toFixed(6)
-                : '—'}&deg;
+              {position?.lat !== undefined ? position.lat.toFixed(6) : '—'}&deg;
             </div>
           </div>
           <div className="bg-gray-800/70 p-2 rounded">
             <div className="text-gray-400 text-xs">Lon</div>
             <div className="font-mono">
-              {position?.lon !== undefined
-                ? position.lon.toFixed(6)
-                : '—'}&deg;
+              {position?.lon !== undefined ? position.lon.toFixed(6) : '—'}&deg;
             </div>
           </div>
           <div className="bg-gray-800/70 p-2 rounded">
