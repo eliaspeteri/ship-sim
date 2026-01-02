@@ -191,7 +191,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         </button>
       </div>
 
-      <Dashboard />
+      {mode !== 'spectator' ? <Dashboard /> : null}
       <Scene vesselPosition={vesselPosition} mode={mode} />
     </div>
   );
