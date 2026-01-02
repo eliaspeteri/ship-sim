@@ -170,10 +170,10 @@ function SpectatorController({
   // Key handling
   useEffect(() => {
     if (mode !== 'spectator') return;
-    const handleDown = (e: KeyboardEvent) => {
+    const handleDown = (e: globalThis.KeyboardEvent) => {
       keys.current[e.key.toLowerCase()] = true;
     };
-    const handleUp = (e: KeyboardEvent) => {
+    const handleUp = (e: globalThis.KeyboardEvent) => {
       keys.current[e.key.toLowerCase()] = false;
     };
     window.addEventListener('keydown', handleDown);
@@ -191,8 +191,6 @@ function SpectatorController({
     const distance = camera.position.distanceTo(distanceVec.current);
     const speedScale = THREE.MathUtils.clamp(distance / 200, 0.3, 6);
     const moveSpeed = (keys.current['shift'] ? 180 : 120) * delta * speedScale;
-    const verticalSpeed =
-      (keys.current['shift'] ? 140 : 100) * delta * speedScale;
 
     // Derive forward from camera orientation so mouse orbit still works
     camera.getWorldDirection(forwardRef.current).setY(0);

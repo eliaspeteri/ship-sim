@@ -94,4 +94,5 @@ export type SimpleVesselState = Pick<
   'position' | 'orientation' | 'velocity'
 > & {
   id: string;
+  controls?: Partial<VesselState['controls']>;
 };

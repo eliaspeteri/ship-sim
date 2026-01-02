@@ -23,6 +23,7 @@ export interface VesselUpdateData {
   position: { x: number; y: number; z: number; lat?: number; lon?: number };
   orientation: { heading: number; roll: number; pitch: number };
   velocity: { surge: number; sway: number; heave: number };
+  controls?: { throttle?: number; rudderAngle?: number };
 }
 export interface VesselControlData {
   userId: string;

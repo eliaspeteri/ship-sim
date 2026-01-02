@@ -20,6 +20,7 @@ class SocketManager {
   private connectionAttempts = 0;
   private maxReconnectAttempts = 5;
   private authToken: string | null = null;
+  private hasHydratedSelf = false;
 
   constructor() {
     this.userId = this.generateUserId();
@@ -122,12 +123,32 @@ class SocketManager {
 
   // Handle simulation updates from server
   private handleSimulationUpdate(data: SimulationUpdateData): void {
-    // Update our store with data from other vessels
-    Object.entries(data.vessels).forEach(([id, _vesselData]) => {
-      // Skip updating our own vessel as that's handled by our local physics
-      if (id !== this.userId) {
-        // Here we would update the store for other vessels
-        // This will be implemented when we add multi-user support
+    const store = useStore.getState();
+
+    Object.entries(data.vessels).forEach(([id, vesselData]) => {
+      const isSelf = id === this.userId;
+      if (isSelf && !this.hasHydratedSelf) {
+        this.hasHydratedSelf = true;
+        store.updateVessel({
+          position: vesselData.position,
+          orientation: vesselData.orientation,
+          velocity: vesselData.velocity,
+          controls: vesselData.controls
+            ? {
+                ...store.vessel.controls,
+                throttle:
+                  vesselData.controls.throttle ??
+                  store.vessel.controls?.throttle ??
+                  0,
+                rudderAngle:
+                  vesselData.controls.rudderAngle ??
+                  store.vessel.controls?.rudderAngle ??
+                  0,
+              }
+            : store.vessel.controls,
+        });
+      } else {
+        // TODO: hydrate/render other vessels when multi-user is added
       }
     });
   }
