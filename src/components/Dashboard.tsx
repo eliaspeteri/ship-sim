@@ -16,6 +16,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   const vessel = useStore(state => state.vessel);
   const environment = useStore(state => state.environment);
+  const mode = useStore(state => state.mode);
 
   // Destructure vessel state for easier access
   const {
@@ -49,6 +50,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
 
   // Apply controls whenever throttle or rudder changes, but use a debounce pattern
   useEffect(() => {
+    if (mode === 'spectator') return;
     // Skip the effect if controls don't exist
     if (!controls) return;
 
@@ -75,7 +77,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
         console.error('Error applying controls directly:', error);
       }
     }
-  }, [throttleLocal, rudderAngleLocal, controls]);
+  }, [throttleLocal, rudderAngleLocal, controls, mode]);
 
   // Reset controls only when dashboard unmounts
   useEffect(
@@ -96,9 +98,15 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
     [],
   );
 
+  const navOffset = 'calc(var(--nav-height, 0px) + 1rem)';
+  const panelMaxHeight = 'calc(92vh - var(--nav-height, 0px))';
+
   return (
     <div className={`${className} pointer-events-none text-white`}>
-      <div className="fixed top-4 left-4 z-30 w-96 space-y-4 rounded-xl bg-gray-900/85 p-4 backdrop-blur pointer-events-auto shadow-lg max-h-[92vh] overflow-y-auto">
+      <div
+        className="fixed left-4 z-30 w-96 space-y-4 rounded-xl bg-gray-900/85 p-4 backdrop-blur pointer-events-auto shadow-lg overflow-y-auto"
+        style={{ top: navOffset, maxHeight: panelMaxHeight }}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             {alarms &&
@@ -144,6 +152,22 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
             <div className="text-gray-400 text-xs">Position Y</div>
             <div className="font-mono">
               {position?.y?.toFixed(1) || '0.0'} m
+            </div>
+          </div>
+          <div className="bg-gray-800/70 p-2 rounded">
+            <div className="text-gray-400 text-xs">Lat</div>
+            <div className="font-mono">
+              {position?.lat !== undefined
+                ? position.lat.toFixed(6)
+                : '—'}&deg;
+            </div>
+          </div>
+          <div className="bg-gray-800/70 p-2 rounded">
+            <div className="text-gray-400 text-xs">Lon</div>
+            <div className="font-mono">
+              {position?.lon !== undefined
+                ? position.lon.toFixed(6)
+                : '—'}&deg;
             </div>
           </div>
           <div className="bg-gray-800/70 p-2 rounded">

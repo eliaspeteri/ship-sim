@@ -24,7 +24,26 @@ export declare const table: WebAssembly.Table;
  * @param draft `f64`
  * @returns `usize`
  */
-export declare function createVessel(x: number, y: number, z: number, psi: number, _phi: number, _theta: number, u: number, v: number, w: number, r: number, _p: number, _q: number, throttle: number, rudderAngle: number, mass: number, length: number, beam: number, draft: number): number;
+export declare function createVessel(
+  x: number,
+  y: number,
+  z: number,
+  psi: number,
+  _phi: number,
+  _theta: number,
+  u: number,
+  v: number,
+  w: number,
+  r: number,
+  _p: number,
+  _q: number,
+  throttle: number,
+  rudderAngle: number,
+  mass: number,
+  length: number,
+  beam: number,
+  draft: number,
+): number;
 /**
  * assembly/index/updateVesselState
  * @param vesselPtr `usize`
@@ -35,7 +54,14 @@ export declare function createVessel(x: number, y: number, z: number, psi: numbe
  * @param currentDirection `f64`
  * @returns `usize`
  */
-export declare function updateVesselState(vesselPtr: number, dt: number, windSpeed: number, windDirection: number, currentSpeed: number, currentDirection: number): number;
+export declare function updateVesselState(
+  vesselPtr: number,
+  dt: number,
+  windSpeed: number,
+  windDirection: number,
+  currentSpeed: number,
+  currentDirection: number,
+): number;
 /**
  * assembly/index/setThrottle
  * @param vesselPtr `usize`

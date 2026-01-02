@@ -150,23 +150,28 @@ export function updateVesselState(
   const safeDt = dt < 0.0 ? 0.0 : dt > 0.25 ? 0.25 : dt;
 
   // Engine thrust and drag
-  const throttle = clampSigned(vessel.throttle, 1.0) * (vessel.fuelLevel > 0.0 ? 1.0 : 0.0);
+  const throttle =
+    clampSigned(vessel.throttle, 1.0) * (vessel.fuelLevel > 0.0 ? 1.0 : 0.0);
   const thrust = MAX_THRUST * throttle;
   const dragSurge = DRAG_COEFFICIENT * vessel.u * Math.abs(vessel.u);
   const dragSway = DRAG_COEFFICIENT * vessel.v * Math.abs(vessel.v);
 
   // Simple current force resolved into body frame
   const relCurrentDir = currentDirection - vessel.psi;
-  const currentSurge = currentSpeed * Math.cos(relCurrentDir) * vessel.mass * 0.01;
-  const currentSway = currentSpeed * Math.sin(relCurrentDir) * vessel.mass * 0.01;
+  const currentSurge =
+    currentSpeed * Math.cos(relCurrentDir) * vessel.mass * 0.01;
+  const currentSway =
+    currentSpeed * Math.sin(relCurrentDir) * vessel.mass * 0.01;
 
   // Rudder force proportional to speed^2 and angle
   const speedMag = Math.sqrt(vessel.u * vessel.u + vessel.v * vessel.v);
-  const rudderForce = RUDDER_FORCE_COEFFICIENT * vessel.rudderAngle * speedMag * speedMag;
+  const rudderForce =
+    RUDDER_FORCE_COEFFICIENT * vessel.rudderAngle * speedMag * speedMag;
   const rudderMoment = rudderForce * vessel.length * 0.4;
 
   // Very simple wind yaw damping
-  const windYaw = windSpeed * windSpeed * 0.01 * Math.sin(windDirection - vessel.psi);
+  const windYaw =
+    windSpeed * windSpeed * 0.01 * Math.sin(windDirection - vessel.psi);
 
   // Inertia approximations
   const mass = vessel.mass;

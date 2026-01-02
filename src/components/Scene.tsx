@@ -2,8 +2,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Environment, OrbitControls, Sky } from '@react-three/drei';
+import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import useStore from '../store';
@@ -15,6 +16,7 @@ interface SceneProps {
     y: number;
     heading: number;
   };
+  mode: 'player' | 'spectator';
 }
 
 // Generate a seamless tiled normal map using summed sine waves (tileable)
@@ -57,16 +59,18 @@ function createTiledNormalMap(size = 256): THREE.DataTexture {
 }
 
 function WaterPlane({
-  center,
+  centerRef,
   sunDirection,
+  size,
 }: {
-  center: { x: number; y: number };
+  centerRef: React.MutableRefObject<{ x: number; y: number }>;
   sunDirection: THREE.Vector3;
+  size: number;
 }) {
   const waterRef = useRef<Water | null>(null);
   const geometry = useMemo(
-    () => new THREE.PlaneGeometry(40000, 40000, 32, 32),
-    [],
+    () => new THREE.PlaneGeometry(size, size, 32, 32),
+    [size],
   );
   const waterNormals = useMemo(() => createTiledNormalMap(), []);
 
@@ -106,23 +110,168 @@ function WaterPlane({
   useFrame((_, delta) => {
     if (!waterRef.current) return;
     waterRef.current.material.uniforms.time.value += delta;
-    waterRef.current.position.set(center.x, 0, center.y);
+    waterRef.current.position.set(centerRef.current.x, 0, centerRef.current.y);
   });
 
   return (
     <primitive
       ref={waterRef}
       object={water}
-      position={[center.x, 0, center.y]}
+      position={[centerRef.current.x, 0, centerRef.current.y]}
       rotation={[-Math.PI / 2, 0, 0]}
     />
   );
 }
 
-export default function Scene({ vesselPosition }: SceneProps) {
+function SpectatorController({
+  mode,
+  focusRef,
+  entryTargetRef,
+  controlsRef,
+}: {
+  mode: 'player' | 'spectator';
+  focusRef: React.MutableRefObject<{ x: number; y: number }>;
+  entryTargetRef: React.MutableRefObject<{ x: number; y: number }>;
+  controlsRef: React.RefObject<OrbitControlsImpl>;
+}) {
+  const { camera } = useThree();
+  const keys = useRef<Record<string, boolean>>({});
+  const positionRef = useRef(
+    new THREE.Vector3(
+      entryTargetRef.current.x - 120,
+      80,
+      entryTargetRef.current.y - 120,
+    ),
+  );
+  const forwardRef = useRef(new THREE.Vector3(0, 0, -1).normalize());
+  const tmpVec = useRef(new THREE.Vector3());
+
+  // Reset spectator pose when switching into spectator mode
+  useEffect(() => {
+    if (mode !== 'spectator') return;
+    const start = entryTargetRef.current;
+    positionRef.current.set(start.x - 150, 80, start.y - 150);
+    forwardRef.current.set(0, 0, -1);
+    focusRef.current = { x: positionRef.current.x, y: positionRef.current.z };
+    camera.position.copy(positionRef.current);
+    if (controlsRef.current) {
+      controlsRef.current.target.set(focusRef.current.x, 0, focusRef.current.y);
+      controlsRef.current.update();
+    } else {
+      camera.lookAt(
+        tmpVec.current
+          .copy(positionRef.current)
+          .add(forwardRef.current.clone().multiplyScalar(50)),
+      );
+    }
+  }, [mode, camera, focusRef, controlsRef, entryTargetRef]);
+
+  // Key handling
+  useEffect(() => {
+    if (mode !== 'spectator') return;
+    const handleDown = (e: KeyboardEvent) => {
+      keys.current[e.key.toLowerCase()] = true;
+    };
+    const handleUp = (e: KeyboardEvent) => {
+      keys.current[e.key.toLowerCase()] = false;
+    };
+    window.addEventListener('keydown', handleDown);
+    window.addEventListener('keyup', handleUp);
+    return () => {
+      window.removeEventListener('keydown', handleDown);
+      window.removeEventListener('keyup', handleUp);
+    };
+  }, [mode]);
+
+  useFrame((_, delta) => {
+    if (mode !== 'spectator') return;
+    const moveSpeed = (keys.current['shift'] ? 180 : 120) * delta;
+
+    // Derive forward from camera orientation so mouse orbit still works
+    camera.getWorldDirection(forwardRef.current).setY(0);
+    if (forwardRef.current.lengthSq() === 0) {
+      forwardRef.current.set(0, 0, -1);
+    }
+    forwardRef.current.normalize();
+
+    const right = tmpVec.current
+      .set(0, 1, 0)
+      .cross(forwardRef.current)
+      .normalize();
+    const movement = new THREE.Vector3();
+
+    if (keys.current['w'] || keys.current['arrowup']) {
+      movement.add(forwardRef.current);
+    }
+    if (keys.current['s'] || keys.current['arrowdown']) {
+      movement.sub(forwardRef.current);
+    }
+    if (keys.current['a']) {
+      movement.sub(right);
+    }
+    if (keys.current['d']) {
+      movement.add(right);
+    }
+
+    if (movement.lengthSq() > 0) {
+      movement.normalize().multiplyScalar(moveSpeed);
+      positionRef.current.add(movement);
+      camera.position.add(movement);
+    }
+
+    focusRef.current = {
+      x: positionRef.current.x,
+      y: positionRef.current.z,
+    };
+
+    if (controlsRef.current) {
+      controlsRef.current.target.set(focusRef.current.x, 0, focusRef.current.y);
+      controlsRef.current.update();
+    } else {
+      const lookAt = tmpVec.current
+        .copy(positionRef.current)
+        .add(forwardRef.current.clone().multiplyScalar(200));
+      camera.lookAt(lookAt);
+    }
+  });
+
+  return null;
+}
+
+function LightTracker({
+  lightRef,
+  targetRef,
+  sunDirection,
+}: {
+  lightRef: React.RefObject<THREE.DirectionalLight>;
+  targetRef: React.MutableRefObject<{ x: number; y: number }>;
+  sunDirection: THREE.Vector3;
+}) {
+  useFrame(() => {
+    if (!lightRef.current) return;
+    const light = lightRef.current;
+    const scaled = sunDirection.clone().multiplyScalar(400);
+    light.position.copy(scaled);
+    light.target.position.set(targetRef.current.x, 0, targetRef.current.y);
+    light.target.updateMatrixWorld();
+  });
+  return null;
+}
+
+export default function Scene({ vesselPosition, mode }: SceneProps) {
+  const isSpectator = mode === 'spectator';
   const vesselProperties = useStore(state => state.vessel.properties);
   const envTime = useStore(state => state.environment.timeOfDay);
   const directionalLightRef = useRef<THREE.DirectionalLight>(null);
+  const focusRef = useRef<{ x: number; y: number }>({
+    x: vesselPosition.x,
+    y: vesselPosition.y,
+  });
+  const orbitRef = useRef<OrbitControlsImpl>(null);
+  const spectatorStartRef = useRef<{ x: number; y: number }>({
+    x: vesselPosition.x,
+    y: vesselPosition.y,
+  });
 
   // Simple sun direction derived from time of day (0-24). Kept adaptable for future lat/season logic.
   const sunDirection = useMemo(() => {
@@ -140,13 +289,16 @@ export default function Scene({ vesselPosition }: SceneProps) {
   }, [envTime]);
 
   useEffect(() => {
-    if (!directionalLightRef.current) return;
-    const light = directionalLightRef.current;
-    const scaled = sunDirection.clone().multiplyScalar(400);
-    light.position.copy(scaled);
-    light.target.position.set(vesselPosition.x, 0, vesselPosition.y);
-    light.target.updateMatrixWorld();
-  }, [sunDirection, vesselPosition.x, vesselPosition.y]);
+    if (!isSpectator) {
+      focusRef.current = { x: vesselPosition.x, y: vesselPosition.y };
+    }
+  }, [isSpectator, vesselPosition.x, vesselPosition.y]);
+
+  useEffect(() => {
+    if (mode === 'spectator') {
+      spectatorStartRef.current = { ...focusRef.current };
+    }
+  }, [mode]);
 
   return (
     <div
@@ -160,8 +312,10 @@ export default function Scene({ vesselPosition }: SceneProps) {
     >
       <Canvas
         camera={{
-          position: [vesselPosition.x - 50, 30, vesselPosition.y - 50],
-          fov: 60,
+          position: isSpectator
+            ? [focusRef.current.x - 120, 80, focusRef.current.y - 120]
+            : [vesselPosition.x - 50, 30, vesselPosition.y - 50],
+          fov: isSpectator ? 70 : 60,
           near: 1,
           far: 50000,
         }}
@@ -169,7 +323,11 @@ export default function Scene({ vesselPosition }: SceneProps) {
         <color attach="background" args={['#091623']} />
         <Sky
           distance={45000}
-          sunPosition={[sunDirection.x * 3000, sunDirection.y * 3000, sunDirection.z * 3000]}
+          sunPosition={[
+            sunDirection.x * 3000,
+            sunDirection.y * 3000,
+            sunDirection.z * 3000,
+          ]}
           turbidity={6}
           rayleigh={2}
           mieCoefficient={0.005}
@@ -178,10 +336,20 @@ export default function Scene({ vesselPosition }: SceneProps) {
         <Environment preset="sunset" />
         <ambientLight intensity={0.45} />
         <hemisphereLight args={['#6fa6ff', '#0b1e2d', 0.25]} />
-        <directionalLight ref={directionalLightRef} intensity={1.0} color={0xfff0dd} />
-        <WaterPlane
-          center={{ x: vesselPosition.x, y: vesselPosition.y }}
+        <directionalLight
+          ref={directionalLightRef}
+          intensity={1.0}
+          color={0xfff0dd}
+        />
+        <LightTracker
+          lightRef={directionalLightRef}
+          targetRef={focusRef}
           sunDirection={sunDirection}
+        />
+        <WaterPlane
+          centerRef={focusRef}
+          sunDirection={sunDirection}
+          size={isSpectator ? 80000 : 40000}
         />
         <Ship
           position={{
@@ -193,15 +361,30 @@ export default function Scene({ vesselPosition }: SceneProps) {
           shipType={vesselProperties.type}
         />
         <OrbitControls
-          target={[vesselPosition.x, 0, vesselPosition.y]}
+          ref={orbitRef}
+          target={
+            isSpectator
+              ? [focusRef.current.x, 0, focusRef.current.y]
+              : [vesselPosition.x, 0, vesselPosition.y]
+          }
           enablePan={false}
-          minDistance={vesselProperties.length * 0.8}
-          maxDistance={vesselProperties.length * 5}
+          minDistance={isSpectator ? 50 : vesselProperties.length * 0.8}
+          maxDistance={
+            isSpectator ? 5000 : Math.max(vesselProperties.length * 5, 500)
+          }
           minPolarAngle={Math.PI * 0.05}
-          maxPolarAngle={Math.PI * 0.5}
+          maxPolarAngle={isSpectator ? Math.PI * 0.49 : Math.PI * 0.5}
           enableDamping
           dampingFactor={0.1}
         />
+        {isSpectator ? (
+          <SpectatorController
+            mode={mode}
+            focusRef={focusRef}
+            entryTargetRef={spectatorStartRef}
+            controlsRef={orbitRef}
+          />
+        ) : null}
       </Canvas>
     </div>
   );

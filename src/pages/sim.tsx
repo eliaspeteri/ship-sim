@@ -12,11 +12,14 @@ import { getSimulationLoop } from '../simulation';
  * Simulation page for Ship Simulator.
  * Requires authentication. Shows the simulation UI if authenticated.
  */
-const SimPage: React.FC = () => {
+const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
   const vessel = useStore(state => state.vessel);
+  const mode = useStore(state => state.mode);
+  const setMode = useStore(state => state.setMode);
   const hasStartedRef = useRef(false);
+  const navHeightVar = 'var(--nav-height, 0px)';
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -66,6 +69,7 @@ const SimPage: React.FC = () => {
 
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       const state = useStore.getState();
+      if (state.mode === 'spectator') return;
       const controls = state.vessel.controls;
       if (!controls) return;
 
@@ -152,11 +156,47 @@ const SimPage: React.FC = () => {
   };
 
   return (
-    <div className="h-screen w-full">
-      <Dashboard className="fixed left-0 top-0 z-30 h-screen w-96 overflow-y-auto bg-gray-900/80 backdrop-blur border-r border-gray-700 shadow-xl p-4" />
-      <Scene vesselPosition={vesselPosition} />
+    <div
+      className="w-full"
+      style={{
+        minHeight: `calc(100vh - ${navHeightVar})`,
+        height: `calc(100vh - ${navHeightVar})`,
+      }}
+    >
+      <div className="fixed right-4 top-[calc(var(--nav-height,0px)+8px)] z-40 flex items-center gap-2 rounded-lg bg-gray-900/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur">
+        <span className="text-xs uppercase tracking-wide text-gray-300">
+          Mode
+        </span>
+        <button
+          type="button"
+          onClick={() => setMode('player')}
+          className={`rounded px-3 py-1 text-xs font-semibold transition-colors ${
+            mode === 'player'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+          }`}
+        >
+          Player
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('spectator')}
+          className={`rounded px-3 py-1 text-xs font-semibold transition-colors ${
+            mode === 'spectator'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+          }`}
+        >
+          Spectator
+        </button>
+      </div>
+
+      <Dashboard />
+      <Scene vesselPosition={vesselPosition} mode={mode} />
     </div>
   );
 };
+
+SimPage.fullBleedLayout = true;
 
 export default SimPage;

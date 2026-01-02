@@ -20,6 +20,7 @@ export class SimulationLoop {
   private wavePropertiesUpdateCounter = 0;
   private lastBroadcastTime = 0;
   private readonly broadcastInterval = 0.2; // seconds (5 Hz)
+  private stopped = false;
 
   constructor() {
     if (simulationInstance) {
@@ -44,7 +45,6 @@ export class SimulationLoop {
       const bridge = await loadWasm();
       this.wasmBridge = bridge;
       const state = useStore.getState();
-      console.info(`State. ${JSON.stringify(state, null, 2)}`);
       const { vessel } = state;
       const {
         position,
@@ -130,6 +130,7 @@ export class SimulationLoop {
       return; // Already running
     }
 
+    this.stopped = false;
     this.lastFrameTime = performance.now();
 
     // Using an arrow function instead of bind(this)
@@ -157,7 +158,20 @@ export class SimulationLoop {
     this.updateUIFromPhysics();
 
     // Continue the loop using arrow function
-    this.animationFrameId = requestAnimationFrame(time => this.loop(time));
+    if (!this.stopped) {
+      this.animationFrameId = requestAnimationFrame(time => this.loop(time));
+    }
+  }
+
+  /**
+   * Stop the simulation loop (used for spectator mode or teardown)
+   */
+  public stop(): void {
+    this.stopped = true;
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
   }
 
   /**
@@ -225,7 +239,6 @@ export class SimulationLoop {
       if (updatedVesselPtr !== state.wasmVesselPtr) {
         state.setWasmVesselPtr(updatedVesselPtr);
       }
-
     } catch (error) {
       console.error('Error in updatePhysics:', error);
       // Don't update vessel state on error - maintain last known good state
@@ -248,6 +261,8 @@ export class SimulationLoop {
     if (!this.wasmBridge) return;
 
     const state = useStore.getState();
+    if (state.mode === 'spectator') return;
+
     const vesselPtr = state.wasmVesselPtr;
 
     if (vesselPtr === null) return;
@@ -369,7 +384,10 @@ export class SimulationLoop {
 
       // Throttled broadcast of local vessel state to server
       const nowSeconds = performance.now() / 1000;
-      if (nowSeconds - this.lastBroadcastTime >= this.broadcastInterval) {
+      if (
+        nowSeconds - this.lastBroadcastTime >= this.broadcastInterval &&
+        state.mode !== 'spectator'
+      ) {
         socketManager.sendVesselUpdate();
         this.lastBroadcastTime = nowSeconds;
       }
@@ -394,7 +412,6 @@ export class SimulationLoop {
       }
     }
   }
-
 }
 
 // Singleton export

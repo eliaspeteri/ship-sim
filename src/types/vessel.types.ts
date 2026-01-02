@@ -18,6 +18,8 @@ export interface VesselState {
     x: number;
     y: number;
     z: number;
+    lat?: number; // decimal degrees
+    lon?: number; // decimal degrees
   };
   orientation: { heading: number; roll: number; pitch: number };
   velocity: { surge: number; sway: number; heave: number };

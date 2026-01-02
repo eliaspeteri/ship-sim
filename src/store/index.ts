@@ -40,6 +40,9 @@ interface NavigationData {
 
 // Complete simulation state with new system
 interface SimulationState {
+  mode: 'player' | 'spectator';
+  setMode: (mode: 'player' | 'spectator') => void;
+
   // Vessel state
   vessel: VesselState;
   resetVessel: () => void;
@@ -200,6 +203,9 @@ const defaultNavigationData: NavigationData = {
 const useStore = create<SimulationState>()(
   persist(
     (set, get) => ({
+      mode: 'player',
+      setMode: mode => set({ mode }),
+
       // Vessel state
       vessel: defaultVesselState,
       resetVessel: () => set({ vessel: defaultVesselState }),

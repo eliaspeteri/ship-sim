@@ -65,16 +65,29 @@ export async function loadWasmModule(): Promise<WasmModule> {
       beam: number,
       draft: number,
     ) => number,
-    setThrottle: exports.setThrottle as (vesselPtr: number, throttle: number) => void,
-    setRudderAngle: exports.setRudderAngle as (vesselPtr: number, angle: number) => void,
-    setBallast: exports.setBallast as (vesselPtr: number, level: number) => void,
+    setThrottle: exports.setThrottle as (
+      vesselPtr: number,
+      throttle: number,
+    ) => void,
+    setRudderAngle: exports.setRudderAngle as (
+      vesselPtr: number,
+      angle: number,
+    ) => void,
+    setBallast: exports.setBallast as (
+      vesselPtr: number,
+      level: number,
+    ) => void,
     getVesselX: exports.getVesselX as (vesselPtr: number) => number,
     getVesselY: exports.getVesselY as (vesselPtr: number) => number,
     getVesselZ: exports.getVesselZ as (vesselPtr: number) => number,
     getVesselHeading: exports.getVesselHeading as (vesselPtr: number) => number,
     getVesselSpeed: exports.getVesselSpeed as (vesselPtr: number) => number,
-    getVesselEngineRPM: exports.getVesselEngineRPM as (vesselPtr: number) => number,
-    getVesselFuelLevel: exports.getVesselFuelLevel as (vesselPtr: number) => number,
+    getVesselEngineRPM: exports.getVesselEngineRPM as (
+      vesselPtr: number,
+    ) => number,
+    getVesselFuelLevel: exports.getVesselFuelLevel as (
+      vesselPtr: number,
+    ) => number,
     getVesselFuelConsumption: exports.getVesselFuelConsumption as (
       vesselPtr: number,
     ) => number,
@@ -82,20 +95,40 @@ export async function loadWasmModule(): Promise<WasmModule> {
     getVesselCenterOfGravityY: exports.getVesselCenterOfGravityY as (
       vesselPtr: number,
     ) => number,
-    getVesselRollAngle: exports.getVesselRollAngle as (vesselPtr: number) => number,
-    getVesselPitchAngle: exports.getVesselPitchAngle as (vesselPtr: number) => number,
-    getVesselRudderAngle: exports.getVesselRudderAngle as (vesselPtr: number) => number,
+    getVesselRollAngle: exports.getVesselRollAngle as (
+      vesselPtr: number,
+    ) => number,
+    getVesselPitchAngle: exports.getVesselPitchAngle as (
+      vesselPtr: number,
+    ) => number,
+    getVesselRudderAngle: exports.getVesselRudderAngle as (
+      vesselPtr: number,
+    ) => number,
     getVesselBallastLevel: exports.getVesselBallastLevel as (
       vesselPtr: number,
     ) => number,
-    getVesselSurgeVelocity: exports.getVesselSurgeVelocity as (vesselPtr: number) => number,
-    getVesselSwayVelocity: exports.getVesselSwayVelocity as (vesselPtr: number) => number,
-    getVesselHeaveVelocity: exports.getVesselHeaveVelocity as (vesselPtr: number) => number,
-    getVesselRollRate: exports.getVesselRollRate as (vesselPtr: number) => number,
-    getVesselPitchRate: exports.getVesselPitchRate as (vesselPtr: number) => number,
+    getVesselSurgeVelocity: exports.getVesselSurgeVelocity as (
+      vesselPtr: number,
+    ) => number,
+    getVesselSwayVelocity: exports.getVesselSwayVelocity as (
+      vesselPtr: number,
+    ) => number,
+    getVesselHeaveVelocity: exports.getVesselHeaveVelocity as (
+      vesselPtr: number,
+    ) => number,
+    getVesselRollRate: exports.getVesselRollRate as (
+      vesselPtr: number,
+    ) => number,
+    getVesselPitchRate: exports.getVesselPitchRate as (
+      vesselPtr: number,
+    ) => number,
     getVesselYawRate: exports.getVesselYawRate as (vesselPtr: number) => number,
-    calculateSeaState: exports.calculateSeaState as (windSpeed: number) => number,
-    getWaveHeightForSeaState: exports.getWaveHeightForSeaState as (seaState: number) => number,
+    calculateSeaState: exports.calculateSeaState as (
+      windSpeed: number,
+    ) => number,
+    getWaveHeightForSeaState: exports.getWaveHeightForSeaState as (
+      seaState: number,
+    ) => number,
     resetGlobalVessel: exports.resetGlobalVessel as () => void,
   };
 
