@@ -145,6 +145,9 @@ async function loadVesselsFromDb() {
       lastUpdate: row.lastUpdate.getTime(),
     };
     globalState.vessels.set(vessel.id, vessel);
+    if (row.ownerId) {
+      globalState.userLastVessel.set(row.ownerId, vessel.id);
+    }
   });
   console.info(`Loaded ${rows.length} vessel(s) from database`);
 }
@@ -216,8 +219,8 @@ function takeOverAvailableAIVessel(
     v => v.mode === 'ai' && v.crewIds.size === 0,
   );
   if (!aiVessel) return null;
-  console.debug(
-    `Assigning user ${userId} to available AI vessel ${aiVessel.id}`,
+  console.info(
+    `Assigning user ${username} to available AI vessel ${aiVessel.id}`,
   );
   aiVessel.crewIds.add(userId);
   aiVessel.mode = 'player';
@@ -231,14 +234,14 @@ function takeOverAvailableAIVessel(
   return aiVessel;
 }
 
-function ensureVesselForUser(userId: string, _username: string): VesselRecord {
+function ensureVesselForUser(userId: string, username: string): VesselRecord {
   // Prefer last vessel if still present
   const lastId = globalState.userLastVessel.get(userId);
   if (lastId) {
     const lastVessel = globalState.vessels.get(lastId);
     if (lastVessel) {
-      console.debug(
-        `Reassigning user ${userId} to their last vessel ${lastId}`,
+      console.info(
+        `Reassigning user ${username} to their last vessel ${lastId}`,
       );
       lastVessel.crewIds.add(userId);
       lastVessel.mode = 'player';
@@ -246,8 +249,8 @@ function ensureVesselForUser(userId: string, _username: string): VesselRecord {
     }
   }
 
-  console.debug(
-    `No last vessel for user ${userId}, searching for crew assignments.`,
+  console.info(
+    `No last vessel for user ${username}, searching for crew assignments.`,
   );
 
   // Otherwise find any vessel where user is crew
@@ -255,8 +258,8 @@ function ensureVesselForUser(userId: string, _username: string): VesselRecord {
     v.crewIds.has(userId),
   );
   if (existing) {
-    console.debug(
-      `Reassigning user ${userId} to existing crewed vessel ${existing.id}`,
+    console.info(
+      `Reassigning user ${username} to existing crewed vessel ${existing.id}`,
     );
     existing.crewIds.add(userId);
     existing.mode = 'player';
@@ -264,10 +267,24 @@ function ensureVesselForUser(userId: string, _username: string): VesselRecord {
     return existing;
   }
 
-  const aiTaken = takeOverAvailableAIVessel(userId, _username);
+  // Try to reuse a vessel owned by this user (persisted)
+  const owned = Array.from(globalState.vessels.values()).find(
+    v => v.ownerId === userId,
+  );
+  if (owned) {
+    console.info(
+      `Reassigning user ${username} to owned vessel ${owned.id} from persistence`,
+    );
+    owned.crewIds.add(userId);
+    owned.mode = 'player';
+    globalState.userLastVessel.set(userId, owned.id);
+    return owned;
+  }
+
+  const aiTaken = takeOverAvailableAIVessel(userId, username);
   if (aiTaken) return aiTaken;
 
-  console.debug(`Creating new vessel for user ${userId}.`);
+  console.info(`Creating new vessel for user ${username}.`);
   const vessel: VesselRecord = {
     id: userId,
     ownerId: userId,
@@ -380,13 +397,6 @@ const io = new Server<
 
 // Handle Socket.IO connections
 io.use((socket, next) => {
-  console.debug(
-    `Socket auth attempt. Headers: ${JSON.stringify(socket.handshake.headers, null, 2)}`,
-  );
-  console.debug(
-    `Socket auth attempt. Auth: ${JSON.stringify(socket.handshake.auth, null, 2)}`,
-  );
-
   const cookies = parseCookies(socket.handshake.headers.cookie as string);
   const cookieToken =
     cookies['next-auth.session-token'] ||
@@ -559,9 +569,9 @@ io.on('connection', socket => {
       timestamp: target.lastUpdate,
     });
 
-    console.info(
+    /*     console.info(
       `Update from ${currentUserId}: pos=(${target.position.x.toFixed(1)},${target.position.y.toFixed(1)}) heading=${target.orientation.heading.toFixed(2)}`,
-    );
+    ); */
   });
 
   // Handle vessel:control events
