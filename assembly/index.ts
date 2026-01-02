@@ -5,6 +5,7 @@ const WATER_DENSITY: f64 = 1025.0;
 const DRAG_COEFFICIENT: f64 = 0.8;
 // Tuned for visible yaw response without blowing up.
 const RUDDER_FORCE_COEFFICIENT: f64 = 200000.0;
+const RUDDER_STALL_ANGLE: f64 = 0.5; // rad (~28 deg)
 const RUDDER_MAX_ANGLE: f64 = 0.6; // radians (~34 deg)
 const MAX_THRUST: f64 = 8.0e5;
 const DEFAULT_MASS: f64 = 5.0e6;
@@ -12,8 +13,11 @@ const DEFAULT_LENGTH: f64 = 120.0;
 const DEFAULT_BEAM: f64 = 20.0;
 const DEFAULT_DRAFT: f64 = 6.0;
 const YAW_DAMPING: f64 = 0.5;
+const YAW_DAMPING_QUAD: f64 = 1.2;
+const SWAY_DAMPING: f64 = 0.6;
 const MAX_YAW_RATE: f64 = 0.8; // rad/s cap
 const MAX_SPEED: f64 = 15.0; // m/s cap (≈29 kts)
+const PIVOT_AFT_RATIO: f64 = 0.25; // fraction of length aft of midship for yaw pivot
 
 class VesselState {
   x: f64;
@@ -165,9 +169,19 @@ export function updateVesselState(
 
   // Rudder force proportional to speed^2 and angle
   const speedMag = Math.sqrt(vessel.u * vessel.u + vessel.v * vessel.v);
+  // Rudder force with simple stall curve and lever arm toward stern
+  const stallFactor = 1.0 - Math.min(
+    1.0,
+    Math.abs(vessel.rudderAngle) / RUDDER_STALL_ANGLE,
+  ) ** 2;
   const rudderForce =
-    RUDDER_FORCE_COEFFICIENT * vessel.rudderAngle * speedMag * speedMag;
-  const rudderMoment = rudderForce * vessel.length * 0.4;
+    RUDDER_FORCE_COEFFICIENT *
+    vessel.rudderAngle *
+    speedMag *
+    speedMag *
+    Math.max(0.0, stallFactor);
+  const leverArm = vessel.length * (0.5 + PIVOT_AFT_RATIO); // distance from pivot toward stern
+  const rudderMoment = rudderForce * leverArm;
 
   // Very simple wind yaw damping
   const windYaw =
@@ -179,8 +193,12 @@ export function updateVesselState(
 
   // Accelerations
   const uDot = (thrust - dragSurge + currentSurge) / mass;
-  const vDot = (-dragSway + currentSway + rudderForce) / mass;
-  const rDot = (rudderMoment - windYaw - YAW_DAMPING * vessel.r) / Izz;
+  const vDot =
+    (-dragSway - SWAY_DAMPING * vessel.v + currentSway + rudderForce) / mass;
+  const rDot =
+    (rudderMoment - windYaw - YAW_DAMPING * vessel.r -
+      YAW_DAMPING_QUAD * vessel.r * Math.abs(vessel.r)) /
+    Izz;
 
   // Integrate velocities
   vessel.u += uDot * safeDt;

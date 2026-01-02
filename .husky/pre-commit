@@ -2,4 +2,5 @@
 . "$(dirname "$0")/_/husky.sh"
 
 # Run eslint with ESM flat config support
-NODE_OPTIONS=--experimental-vm-modules npx eslint . --fix
+export NODE_OPTIONS=--experimental-vm-modules
+node node_modules/eslint/bin/eslint.js . --fix
