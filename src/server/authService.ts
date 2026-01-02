@@ -1,18 +1,23 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  DEFAULT_REGISTRATION_ROLE,
+  Permission,
+  Role,
+  expandRoles,
+  permissionsForRoles,
+} from './roles';
 
 const AUTH_SECRET = process.env.AUTH_SECRET || 'default-secret-key';
 const ACCESS_TOKEN_EXPIRY = '15m'; // Short expiry for access tokens
 const REFRESH_TOKEN_EXPIRY_SECONDS = 7 * 24 * 60 * 60; // 7 days in seconds
 
-type Permission = { resource: string; action: string };
-
 interface StoredUser {
   id: string;
   username: string;
   passwordHash: string;
-  roles: string[];
+  roles: Role[];
   permissions: Permission[];
 }
 
@@ -30,7 +35,7 @@ const refreshTokens: Map<string, StoredRefreshToken> = new Map();
 export interface TokenPayload {
   userId: string;
   username: string;
-  roles: string[];
+  roles: Role[];
   permissions: Permission[];
   tokenId?: string; // Optional: For refresh token invalidation
 }
@@ -42,7 +47,14 @@ export interface UserAuth extends TokenPayload {
   expiresIn?: number; // Access Token expiry in seconds
 }
 
-const defaultAdminPermissions: Permission[] = [{ resource: '*', action: '*' }];
+function normalizeUserAuth(user: StoredUser): {
+  roles: Role[];
+  permissions: Permission[];
+} {
+  const roles = expandRoles(user.roles);
+  const permissions = permissionsForRoles(roles);
+  return { roles, permissions };
+}
 
 /**
  * Generates JWT access and refresh tokens for a user.
@@ -52,11 +64,12 @@ function generateTokens(user: StoredUser): {
   refreshToken: string;
   expiresIn: number;
 } {
+  const { roles, permissions } = normalizeUserAuth(user);
   const accessTokenPayload: TokenPayload = {
     userId: user.id,
     username: user.username,
-    roles: user.roles,
-    permissions: user.permissions,
+    roles,
+    permissions,
   };
 
   const accessToken = jwt.sign(accessTokenPayload, AUTH_SECRET, {
@@ -96,16 +109,6 @@ function generateTokens(user: StoredUser): {
 }
 
 /**
- * Fetches user roles and permissions.
- */
-function getUserRolesAndPermissions(user: StoredUser): {
-  roles: string[];
-  permissions: Permission[];
-} {
-  return { roles: user.roles, permissions: user.permissions };
-}
-
-/**
  * Authenticates a user based on username and password.
  */
 export async function authenticateUser(
@@ -131,7 +134,9 @@ export async function authenticateUser(
     return null;
   }
 
-  const { roles, permissions } = getUserRolesAndPermissions(user);
+  const { roles, permissions } = normalizeUserAuth(user);
+  user.roles = roles;
+  user.permissions = permissions;
   const { accessToken, refreshToken, expiresIn } = generateTokens(user);
 
   return {
@@ -159,17 +164,59 @@ export async function registerAdminUser(
   }
 
   const hashedPassword = bcrypt.hashSync(password, 10);
+  const roles = expandRoles(['admin']);
+  const permissions = permissionsForRoles(roles);
   const newUser: StoredUser = {
     id: uuidv4(),
     username,
     passwordHash: hashedPassword,
-    roles: ['admin'],
-    permissions: defaultAdminPermissions,
+    roles,
+    permissions,
   };
 
   users.push(newUser);
 
-  const { roles, permissions } = getUserRolesAndPermissions(newUser);
+  const { accessToken, refreshToken, expiresIn } = generateTokens(newUser);
+
+  return {
+    userId: newUser.id,
+    username: newUser.username,
+    roles,
+    permissions,
+    token: accessToken,
+    refreshToken,
+    expiresIn,
+  };
+}
+
+/**
+ * Registers a new player-level user (default role from roadmap).
+ */
+export async function registerUser(
+  username: string,
+  password: string,
+): Promise<UserAuth | null> {
+  const existing = users.find(u => u.username === username);
+  if (existing) {
+    console.warn(`Registration failed: Username '${username}' already exists.`);
+    return null;
+  }
+
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  const baseRoles: Role[] = [DEFAULT_REGISTRATION_ROLE];
+  const roles = expandRoles(baseRoles);
+  const permissions = permissionsForRoles(roles);
+
+  const newUser: StoredUser = {
+    id: uuidv4(),
+    username,
+    passwordHash: hashedPassword,
+    roles,
+    permissions,
+  };
+
+  users.push(newUser);
+
   const { accessToken, refreshToken, expiresIn } = generateTokens(newUser);
 
   return {

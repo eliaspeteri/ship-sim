@@ -1,14 +1,12 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import type { User } from 'next-auth';
+import { PrismaAdapter } from '@next-auth/prisma-adapter';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../../../lib/prisma';
 
-/**
- * NextAuth.js configuration for Ship Simulator
- * Uses Credentials provider to delegate authentication to the backend server.
- * Sessions are managed with JWT strategy for statelessness.
- */
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -18,26 +16,22 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) return null;
-        // Authenticate against backend
-        const res = await fetch('http://localhost:3001/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: credentials.username,
-            password: credentials.password,
-          }),
-          credentials: 'include',
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { name: credentials.username },
+              { email: credentials.username },
+            ],
+          },
         });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          // Map backend user data to NextAuth user object
-          return {
-            id: data.username,
-            name: data.username,
-            roles: data.roles,
-          } as User & { roles: string[] };
-        }
-        return null;
+        if (!user || !user.passwordHash) return null;
+        const ok = bcrypt.compareSync(credentials.password, user.passwordHash);
+        if (!ok) return null;
+        return {
+          id: user.id,
+          name: user.name || user.email || user.id,
+          role: user.role || 'player',
+        };
       },
     }),
   ],
@@ -46,7 +40,6 @@ export const authOptions: NextAuthOptions = {
   },
   jwt: {
     secret: process.env.NEXTAUTH_SECRET,
-    encryption: false,
   },
   pages: {
     signIn: '/login',
@@ -54,17 +47,19 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.roles = (user as ShipSimUser).roles;
-        token.sub = (user as ShipSimUser).id || user.id || token.sub;
+        token.sub = user.id || token.sub;
         token.name = user.name || token.name;
+        (token as ShipSimJWT).role =
+          (user as { role?: string }).role || (token as ShipSimJWT).role;
       }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
-        (session.user as ShipSimUser).roles = (token as ShipSimJWT).roles || [];
         (session.user as ShipSimUser).id =
           (token as ShipSimJWT).sub || session.user?.id || '';
+        (session.user as ShipSimUser).role =
+          (token as ShipSimJWT).role || 'player';
       }
       // Expose a signed token for sockets (non-HTTP-only)
       if (process.env.NEXTAUTH_SECRET) {
@@ -80,13 +75,16 @@ export const authOptions: NextAuthOptions = {
 
 export default NextAuth(authOptions);
 
-interface ShipSimUser extends User {
-  roles: string[];
+interface ShipSimUser {
   id: string;
+  role: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
 }
 
 interface ShipSimJWT {
-  roles?: string[];
+  role?: string;
   sub?: string;
   [key: string]: unknown;
 }

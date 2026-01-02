@@ -1,4 +1,8 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+:root {
+  --nav-height: 64px;
+}
 
 /* Basic layout reset and background to keep HUD readable over the canvas */
 html,
@@ -9,8 +13,13 @@ body,
 
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   background-color: #0c1a2b;
   color: #e5e7eb;
 }

@@ -1,45 +1,34 @@
-import express, { Request, Response } from 'express';
+import 'dotenv/config';
+import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import apiRoutes from './api';
 import jwt from 'jsonwebtoken';
-import { decode as nextAuthDecode } from 'next-auth/jwt';
 import {
   getWeatherPattern,
   transitionWeather,
   getWeatherByCoordinates,
   WeatherPattern,
 } from './weatherSystem';
-import {
-  authenticateUser,
-  registerAdminUser,
-  refreshAuthToken,
-  verifyAccessToken,
-  invalidateRefreshToken,
-  TokenPayload,
-} from './authService';
-import { authenticateRequest } from './middleware/authentication'; // Added: For /auth/status
 import { socketHasPermission } from './middleware/authorization';
+import { Role, expandRoles, permissionsForRoles } from './roles';
 import {
   ClientToServerEvents,
   InterServerEvents,
   ServerToClientEvents,
   SocketData,
 } from '../types/socket.types';
+import { latLonToXY, xyToLatLon } from '../lib/geo';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
-const COOKIE_DOMAIN =
-  process.env.COOKIE_DOMAIN || (PRODUCTION ? undefined : 'localhost'); // Use undefined for default domain in prod
-const SECURE_COOKIES = PRODUCTION; // Use secure cookies in production
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || '';
 const ADMIN_USERS = (process.env.ADMIN_USERS || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
-const FORCE_ADMIN = process.env.FORCE_ADMIN === 'true';
 
 type VesselMode = 'player' | 'ai';
 interface VesselRecord {
@@ -47,7 +36,7 @@ interface VesselRecord {
   ownerId: string | null;
   crewIds: Set<string>;
   mode: VesselMode;
-  position: { x: number; y: number; z: number };
+  position: { x: number; y: number; z: number; lat?: number; lon?: number };
   orientation: { heading: number; roll: number; pitch: number };
   velocity: { surge: number; sway: number; heave: number };
   properties: {
@@ -61,6 +50,28 @@ interface VesselRecord {
     rudderAngle: number;
   };
   lastUpdate: number;
+}
+
+function createDefaultAIVessel(id: string, position = { x: 0, y: 0, z: 0 }) {
+  const latLon = xyToLatLon({ x: position.x, y: position.y });
+  const vessel: VesselRecord = {
+    id,
+    ownerId: null,
+    crewIds: new Set<string>(),
+    mode: 'ai',
+    position: { ...position, lat: latLon.lat, lon: latLon.lon },
+    orientation: { heading: 0, roll: 0, pitch: 0 },
+    velocity: { surge: 0, sway: 0, heave: 0 },
+    properties: {
+      mass: 1_200_000,
+      length: 150,
+      beam: 24,
+      draft: 7,
+    },
+    controls: { throttle: 0, rudderAngle: 0 },
+    lastUpdate: Date.now(),
+  };
+  return vessel;
 }
 
 // Application state
@@ -84,6 +95,19 @@ const globalState = {
   },
 };
 
+function seedDefaultVessels() {
+  if (globalState.vessels.size > 0) return;
+  const aiVessel = createDefaultAIVessel('ai_default_1', {
+    x: 0,
+    y: 0,
+    z: 0,
+  });
+  globalState.vessels.set(aiVessel.id, aiVessel);
+  console.info(
+    `Seeded default AI vessel ${aiVessel.id} at (${aiVessel.position.x}, ${aiVessel.position.y})`,
+  );
+}
+
 const clamp = (val: number, min: number, max: number) =>
   Math.min(Math.max(val, min), max);
 
@@ -100,29 +124,65 @@ const hasAdminRole = (socket: import('socket.io').Socket) =>
       p.resource === '*' || p.action === '*',
   );
 
+function takeOverAvailableAIVessel(
+  userId: string,
+  username: string,
+): VesselRecord | null {
+  const aiVessel = Array.from(globalState.vessels.values()).find(
+    v => v.mode === 'ai' && v.crewIds.size === 0,
+  );
+  if (!aiVessel) return null;
+  console.debug(
+    `Assigning user ${userId} to available AI vessel ${aiVessel.id}`,
+  );
+  aiVessel.crewIds.add(userId);
+  aiVessel.mode = 'player';
+  aiVessel.ownerId = aiVessel.ownerId ?? userId;
+  aiVessel.lastUpdate = Date.now();
+  globalState.userLastVessel.set(userId, aiVessel.id);
+  console.info(
+    `Assigned ${username} (${userId}) to AI vessel ${aiVessel.id} (takeover)`,
+  );
+  return aiVessel;
+}
+
 function ensureVesselForUser(userId: string, _username: string): VesselRecord {
   // Prefer last vessel if still present
   const lastId = globalState.userLastVessel.get(userId);
   if (lastId) {
     const lastVessel = globalState.vessels.get(lastId);
     if (lastVessel) {
+      console.debug(
+        `Reassigning user ${userId} to their last vessel ${lastId}`,
+      );
       lastVessel.crewIds.add(userId);
       lastVessel.mode = 'player';
       return lastVessel;
     }
   }
 
+  console.debug(
+    `No last vessel for user ${userId}, searching for crew assignments.`,
+  );
+
   // Otherwise find any vessel where user is crew
   const existing = Array.from(globalState.vessels.values()).find(v =>
     v.crewIds.has(userId),
   );
   if (existing) {
+    console.debug(
+      `Reassigning user ${userId} to existing crewed vessel ${existing.id}`,
+    );
     existing.crewIds.add(userId);
     existing.mode = 'player';
     globalState.userLastVessel.set(userId, existing.id);
     return existing;
   }
 
+  const aiTaken = takeOverAvailableAIVessel(userId, _username);
+  if (aiTaken) return aiTaken;
+
+  console.debug(`Creating new vessel for user ${userId}.`);
   const vessel: VesselRecord = {
     id: userId,
     ownerId: userId,
@@ -148,6 +208,22 @@ function ensureVesselForUser(userId: string, _username: string): VesselRecord {
 let weatherTransitionInterval: NodeJS.Timeout | null = null;
 let targetWeather: WeatherPattern | null = null;
 
+const getVesselIdForUser = (userId: string): string | undefined => {
+  return globalState.userLastVessel.get(userId) || userId;
+};
+
+const withLatLon = (pos: {
+  x: number;
+  y: number;
+  z: number;
+  lat?: number;
+  lon?: number;
+}) => {
+  if (pos.lat !== undefined && pos.lon !== undefined) return pos;
+  const ll = xyToLatLon({ x: pos.x, y: pos.y });
+  return { ...pos, lat: ll.lat, lon: ll.lon };
+};
+
 // Create Express app
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -162,22 +238,6 @@ app.use(
 app.use(express.json());
 app.use(cookieParser()); // Crucial for reading cookies
 
-// Auth cookie options
-const accessTokenCookieOptions = {
-  httpOnly: true, // Prevent client-side JS access
-  secure: SECURE_COOKIES, // Send only over HTTPS in production
-  sameSite: PRODUCTION ? 'strict' : 'lax', // CSRF protection
-  domain: COOKIE_DOMAIN, // Set domain appropriately
-  maxAge: 15 * 60 * 1000, // 15 minutes in milliseconds
-  path: '/', // Accessible for all API routes
-} as const;
-
-const refreshTokenCookieOptions = {
-  ...accessTokenCookieOptions,
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-  path: '/auth/refresh', // Only send for the refresh endpoint
-} as const;
-
 function parseCookies(cookieHeader?: string): Record<string, string> {
   if (!cookieHeader) return {};
   return cookieHeader.split(';').reduce(
@@ -190,254 +250,25 @@ function parseCookies(cookieHeader?: string): Record<string, string> {
   );
 }
 
-// --- Authentication Routes ---
+// --- Authentication Routes --- (legacy custom auth removed; use NextAuth)
 
-// GET /auth/status - Check authentication status via access token cookie
-app.get('/auth/status', authenticateRequest, (req: Request, res: Response) => {
-  // authenticateRequest middleware attaches user data if token is valid
-  if (req.user) {
-    res.json({
-      success: true,
-      username: req.user.username,
-      roles: req.user.roles,
-      // Optionally send expiry if needed by client for UI hints
-      // expiresIn: req.user.exp * 1000 // Convert seconds to milliseconds
-    });
-  } else {
-    res.json({ success: false });
-  }
-});
-
-// POST /auth/refresh - Refresh access token using refresh token cookie
-app.post('/auth/refresh', (req, res, next) => {
-  (async () => {
-    const currentRefreshToken = req.cookies['refresh_token'];
-
-    if (!currentRefreshToken) {
-      console.warn('Refresh attempt without refresh token cookie.');
-      return res
-        .status(401)
-        .json({ success: false, error: 'No refresh token provided' });
-    }
-
-    try {
-      // Verify the refresh token AND get new tokens
-      const newTokens = await refreshAuthToken(currentRefreshToken);
-
-      if (!newTokens) {
-        console.warn('Refresh attempt with invalid/expired refresh token.');
-        // Clear potentially invalid cookies if refresh fails
-        res.clearCookie('access_token', {
-          ...accessTokenCookieOptions,
-          path: '/',
-        });
-        res.clearCookie('refresh_token', {
-          ...refreshTokenCookieOptions,
-          path: '/auth/refresh',
-        });
-        return res
-          .status(403)
-          .json({ success: false, error: 'Invalid or expired refresh token' });
-      }
-
-      // Verify the *new* access token to get user data (needed for response)
-      const tokenPayload = await verifyAccessToken(newTokens.accessToken);
-      if (!tokenPayload) {
-        // This case should ideally not happen if refreshAuthToken is correct
-        console.error(
-          'Failed to verify newly issued access token during refresh.',
-        );
-        res.clearCookie('access_token', {
-          ...accessTokenCookieOptions,
-          path: '/',
-        });
-        res.clearCookie('refresh_token', {
-          ...refreshTokenCookieOptions,
-          path: '/auth/refresh',
-        });
-        return res.status(500).json({
-          success: false,
-          error: 'Token verification failed after refresh',
-        });
-      }
-
-      // Set the new tokens as HttpOnly cookies
-      res.cookie(
-        'access_token',
-        newTokens.accessToken,
-        accessTokenCookieOptions,
-      );
-      // Note: Refresh token might be rotated, so we set it again
-      res.cookie(
-        'refresh_token',
-        newTokens.refreshToken,
-        refreshTokenCookieOptions,
-      );
-
-      console.info(`Token refreshed for user: ${tokenPayload.username}`);
-      // Return success and user info (NO TOKENS in body)
-      return res.json({
-        success: true,
-        username: tokenPayload.username,
-        roles: tokenPayload.roles,
-        // Optionally send new expiry
-        // expiresIn: tokenPayload.exp * 1000
-      });
-    } catch (error) {
-      console.error('Error during token refresh:', error);
-      // Clear potentially invalid cookies on error
-      res.clearCookie('access_token', {
-        ...accessTokenCookieOptions,
-        path: '/',
-      });
-      res.clearCookie('refresh_token', {
-        ...refreshTokenCookieOptions,
-        path: '/auth/refresh',
-      });
-      return res.status(500).json({
-        success: false,
-        error: 'Internal server error during token refresh',
-      });
-    }
-  })().catch(next);
-});
-
-// POST /auth/login - Authenticate user and set cookies
-app.post('/auth/login', (req: Request, res: Response, next) => {
-  (async () => {
-    console.info(
-      `Login attempt. ${JSON.stringify(
-        {
-          body: req.body,
-          cookies: req.cookies,
-          headers: req.headers,
-          method: req.method,
-          url: req.url,
-        },
-        null,
-        2,
-      )}`,
-    );
-    try {
-      const { username, password } = req.body;
-
-      if (!username || !password) {
-        return res.status(400).json({
-          success: false,
-          error: 'Username and password are required',
-        });
-      }
-
-      // Authenticate user (gets user data and tokens)
-      const authResult = await authenticateUser(username, password);
-
-      if (!authResult || !authResult.token || !authResult.refreshToken) {
-        return res
-          .status(401)
-          .json({ success: false, error: 'Invalid credentials' });
-      }
-
-      // Set HttpOnly cookies
-      res.cookie('access_token', authResult.token, accessTokenCookieOptions);
-      res.cookie(
-        'refresh_token',
-        authResult.refreshToken,
-        refreshTokenCookieOptions,
-      );
-
-      console.info(`User logged in: ${authResult.username}`);
-      // Return success and user info (NO TOKENS in body)
-      return res.json({
-        success: true,
-        username: authResult.username,
-        roles: authResult.roles,
-        // Optionally send expiry
-        // expiresIn: authResult.expiresIn // Assuming authService provides this
-      });
-    } catch (error) {
-      console.error('Login error:', error);
-      return res.status(500).json({ success: false, error: 'Login failed' });
-    }
-  })().catch(next);
-});
-
-// POST /auth/register - Register user and set cookies
-app.post('/auth/register', (req: Request, res: Response, next) => {
-  (async () => {
-    try {
-      const { username, password } = req.body;
-
-      if (!username || !password) {
-        return res.status(400).json({
-          success: false,
-          error: 'Username and password are required',
-        });
-      }
-
-      // Register new user (gets user data and tokens)
-      const authResult = await registerAdminUser(username, password);
-
-      if (!authResult || !authResult.token || !authResult.refreshToken) {
-        return res.status(400).json({
-          success: false,
-          error: 'Registration failed (username might be taken)',
-        });
-      }
-
-      // Set HttpOnly cookies
-      res.cookie('access_token', authResult.token, accessTokenCookieOptions);
-      res.cookie(
-        'refresh_token',
-        authResult.refreshToken,
-        refreshTokenCookieOptions,
-      );
-
-      console.info(`User registered: ${authResult.username}`);
-      // Return success and user info (NO TOKENS in body)
-      return res.json({
-        success: true,
-        username: authResult.username,
-        roles: authResult.roles,
-        // Optionally send expiry
-        // expiresIn: authResult.expiresIn
-      });
-    } catch (error) {
-      console.error('Registration error:', error);
-      return res
-        .status(500)
-        .json({ success: false, error: 'Registration failed' });
-    }
-  })().catch(next);
-});
-
-// POST /auth/logout - Clear cookies and invalidate refresh token
-app.post('/auth/logout', async (req: Request, res: Response) => {
-  const currentRefreshToken = req.cookies['refresh_token'];
-
-  // Attempt to invalidate the refresh token on the server-side
-  if (currentRefreshToken) {
-    try {
-      await invalidateRefreshToken(currentRefreshToken);
-      console.info('Refresh token invalidated on logout.');
-    } catch (error) {
-      console.error('Error invalidating refresh token during logout:', error);
-      // Proceed with clearing cookies even if invalidation fails
-    }
-  }
-
-  // Clear auth cookies - ensure options match how they were set
-  res.clearCookie('access_token', { ...accessTokenCookieOptions, path: '/' });
-  res.clearCookie('refresh_token', {
-    ...refreshTokenCookieOptions,
-    path: '/auth/refresh',
-  });
-
-  console.info('User logged out.');
-  res.json({ success: true, message: 'Logged out successfully' });
+// --- Vessels API (global state) ---
+app.get('/vessels', (_req, res) => {
+  const vessels = Array.from(globalState.vessels.values()).map(v => ({
+    id: v.id,
+    ownerId: v.ownerId,
+    mode: v.mode,
+    position: v.position,
+    orientation: v.orientation,
+    velocity: v.velocity,
+    crewCount: v.crewIds.size,
+    lastUpdate: v.lastUpdate,
+  }));
+  res.json({ vessels });
 });
 
 // --- API Routes ---
-app.use('/api', apiRoutes); // These routes should use authenticateRequest middleware internally or apply it
+app.use('/api', apiRoutes);
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -462,176 +293,78 @@ const io = new Server<
 });
 
 // Handle Socket.IO connections
-io.use(async (socket, next) => {
-  // Temporary dev override: force admin if enabled
+io.use((socket, next) => {
   console.debug(
     `Socket auth attempt. Headers: ${JSON.stringify(socket.handshake.headers, null, 2)}`,
   );
   console.debug(
     `Socket auth attempt. Auth: ${JSON.stringify(socket.handshake.auth, null, 2)}`,
   );
-  console.debug(`Force admin: ${FORCE_ADMIN}`);
-  if (FORCE_ADMIN) {
-    console.log(
-      'FORCE_ADMIN is enabled; granting admin role to all socket connections.',
-    );
-    socket.data = {
-      userId: 'dev_admin',
-      username: 'DevAdmin',
-      roles: ['admin', 'player'],
-      permissions: [{ resource: '*', action: '*' }],
-    };
-    return next();
+
+  const cookies = parseCookies(socket.handshake.headers.cookie as string);
+  const cookieToken =
+    cookies['next-auth.session-token'] ||
+    cookies['__Secure-next-auth.session-token'];
+  const authPayload = socket.handshake.auth as
+    | { token?: string; socketToken?: string; accessToken?: string }
+    | undefined;
+  const rawToken =
+    authPayload?.socketToken ||
+    authPayload?.token ||
+    authPayload?.accessToken ||
+    cookieToken;
+
+  if (!NEXTAUTH_SECRET) {
+    console.warn('NEXTAUTH_SECRET is missing; treating socket as guest');
   }
 
-  try {
-    const cookies = parseCookies(socket.handshake.headers.cookie as string);
-    const nextAuthToken =
-      cookies['next-auth.session-token'] ||
-      cookies['__Secure-next-auth.session-token'];
-    const token =
-      cookies['access_token'] ||
-      (socket.handshake.auth &&
-        (socket.handshake.auth as { token?: string; accessToken?: string })
-          .token) ||
-      (socket.handshake.auth &&
-        (socket.handshake.auth as { token?: string; accessToken?: string })
-          .accessToken);
-
-    // Require verified access token to elevate beyond guest
-    if (token) {
-      // Prefer verifying with NEXTAUTH_SECRET because the client sends session.socketToken
-      if (NEXTAUTH_SECRET) {
-        try {
-          const naPayload = jwt.verify(token, NEXTAUTH_SECRET) as {
-            sub?: string;
-            email?: string;
-            name?: string;
-            roles?: string[];
-          };
-          const uid = naPayload.sub || naPayload.email || `na_${Math.random()}`;
-          const uname = naPayload.name || naPayload.email || 'NextAuthUser';
-          let roles = naPayload.roles || ['player'];
-          if (
-            ADMIN_USERS.includes(uid) ||
-            ADMIN_USERS.includes(uname) ||
-            (naPayload.email && ADMIN_USERS.includes(naPayload.email))
-          ) {
-            roles = Array.from(new Set([...roles, 'admin']));
-          }
-          socket.data = {
-            userId: uid,
-            username: uname,
-            roles,
-            permissions: [],
-          };
-          return next();
-        } catch {
-          // try to decode NextAuth encrypted tokens if any
-          try {
-            const decoded = await nextAuthDecode({
-              token,
-              secret: NEXTAUTH_SECRET,
-            });
-            if (decoded) {
-              const uid =
-                (decoded as any).sub ||
-                (decoded as any).email ||
-                `na_${Math.random()}`;
-              const uname =
-                (decoded as any).name ||
-                (decoded as any).email ||
-                'NextAuthUser';
-              let roles = ((decoded as any).roles as string[]) || ['player'];
-              if (
-                ADMIN_USERS.includes(uid) ||
-                ADMIN_USERS.includes(uname) ||
-                ((decoded as any).email &&
-                  ADMIN_USERS.includes((decoded as any).email))
-              ) {
-                roles = Array.from(new Set([...roles, 'admin']));
-              }
-              socket.data = {
-                userId: uid,
-                username: uname,
-                roles,
-                permissions: [],
-              };
-              return next();
-            }
-          } catch {
-            // fall through
-          }
-        }
-      }
-
-      // Fallback: try AUTH_SECRET token (from our own authService)
-      const payload = (await verifyAccessToken(token)) as TokenPayload | null;
-      if (payload) {
-        let roles = payload.roles || [];
-        const permissions = payload.permissions || [];
-        if (
-          ADMIN_USERS.includes(payload.username) ||
-          ADMIN_USERS.includes(payload.userId)
-        ) {
-          roles = Array.from(new Set([...roles, 'admin']));
-        }
-        socket.data = {
-          userId: payload.userId,
-          username: payload.username,
-          roles,
-          permissions,
-        };
-        return next();
-      }
-
+  if (rawToken && NEXTAUTH_SECRET) {
+    try {
+      const decoded = jwt.verify(rawToken, NEXTAUTH_SECRET) as {
+        sub?: string;
+        name?: string;
+        email?: string;
+        role?: string;
+      };
+      const userId =
+        decoded.sub ||
+        decoded.email ||
+        `na_${Math.random().toString(36).slice(2, 8)}`;
+      const username = decoded.name || decoded.email || 'NextAuthUser';
+      const baseRole: Role = (decoded.role as Role) || 'player';
+      const roles = expandRoles(
+        Array.from(
+          new Set([
+            baseRole,
+            ...(ADMIN_USERS.includes(userId) ||
+            ADMIN_USERS.includes(username) ||
+            (decoded.email && ADMIN_USERS.includes(decoded.email))
+              ? (['admin'] as Role[])
+              : []),
+          ]),
+        ) as Role[],
+      );
+      const permissions = permissionsForRoles(roles);
+      socket.data = { userId, username, roles, permissions };
+      return next();
+    } catch (err) {
       console.warn(
-        'Socket auth failed token verification; falling back to guest',
+        'Socket token verification failed; falling back to guest',
+        err,
       );
     }
-
-    // Try NextAuth session token if present and secret available
-    if (nextAuthToken && NEXTAUTH_SECRET) {
-      try {
-        const payload = jwt.verify(nextAuthToken, NEXTAUTH_SECRET) as {
-          sub?: string;
-          email?: string;
-          name?: string;
-        };
-        const userId = payload.sub || payload.email || `na_${Math.random()}`;
-        const username = payload.name || payload.email || 'NextAuthUser';
-        let roles = ['player'];
-        if (
-          ADMIN_USERS.includes(userId) ||
-          ADMIN_USERS.includes(username) ||
-          (payload.email && ADMIN_USERS.includes(payload.email))
-        ) {
-          roles = [...roles, 'admin'];
-        }
-        socket.data = {
-          userId,
-          username,
-          roles,
-          permissions: [],
-        };
-        return next();
-      } catch (err) {
-        console.warn('Failed to verify NextAuth session token', err);
-      }
-    }
-
-    const tempUserId = `guest_${Math.random().toString(36).substring(2, 9)}`;
-    socket.data = {
-      userId: tempUserId,
-      username: 'Guest',
-      roles: ['guest'],
-      permissions: [],
-    };
-    next();
-  } catch (err) {
-    console.error('Socket auth error:', err);
-    next(err as Error);
   }
+
+  const tempUserId = `guest_${Math.random().toString(36).substring(2, 9)}`;
+  const guestRoles = expandRoles(['guest']);
+  const guestPermissions = permissionsForRoles(guestRoles);
+  socket.data = {
+    userId: tempUserId,
+    username: 'Guest',
+    roles: guestRoles,
+    permissions: guestPermissions,
+  };
+  next();
 });
 
 io.on('connection', socket => {
@@ -639,15 +372,18 @@ io.on('connection', socket => {
   const effectiveUserId =
     userId || `guest_${Math.random().toString(36).substring(2, 9)}`;
   const effectiveUsername = username || 'Guest';
-  const isGuest = (roles || []).includes('guest');
+  const roleSet = new Set(roles || []);
+  const isPlayerOrHigher = roleSet.has('player') || roleSet.has('admin');
+  const isSpectatorOnly = roleSet.has('spectator') && !isPlayerOrHigher;
+  const isGuest = !isPlayerOrHigher && !roleSet.has('spectator');
 
   let vessel: VesselRecord | null = null;
-  if (!isGuest) {
+  if (isPlayerOrHigher) {
     vessel = ensureVesselForUser(effectiveUserId, effectiveUsername);
   }
 
   console.info(
-    `Socket connected: ${effectiveUsername} (${effectiveUserId}) role=${isGuest ? 'guest' : 'player'}`,
+    `Socket connected: ${effectiveUsername} (${effectiveUserId}) role=${isPlayerOrHigher ? 'player' : isSpectatorOnly ? 'spectator' : 'guest'}`,
   );
 
   // Notify others that this vessel is crewed
@@ -655,7 +391,7 @@ io.on('connection', socket => {
     socket.broadcast.emit('vessel:joined', {
       userId: vessel.id,
       username: effectiveUsername,
-      position: vessel.position,
+      position: withLatLon(vessel.position),
       orientation: vessel.orientation,
     });
   }
@@ -667,7 +403,7 @@ io.on('connection', socket => {
         id,
         {
           id,
-          position: v.position,
+          position: withLatLon(v.position),
           orientation: v.orientation,
           velocity: v.velocity,
         },
@@ -681,21 +417,33 @@ io.on('connection', socket => {
   socket.on('vessel:update', data => {
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
-    if (isGuest) {
-      console.info('Ignoring vessel:update from guest');
+    if (!isPlayerOrHigher) {
+      console.info('Ignoring vessel:update from non-player');
       return;
     }
 
-    const vesselRecord = globalState.vessels.get(currentUserId);
+    const vesselKey = getVesselIdForUser(currentUserId) || currentUserId;
+    const vesselRecord = globalState.vessels.get(vesselKey);
     if (!vesselRecord) {
       console.warn('No vessel for user, creating on update', currentUserId);
       ensureVesselForUser(currentUserId, effectiveUsername);
     }
-    const target = globalState.vessels.get(currentUserId);
+    const target = globalState.vessels.get(
+      getVesselIdForUser(currentUserId) || currentUserId,
+    );
     if (!target) return;
 
     if (data.position) {
-      target.position = data.position;
+      // If lat/lon provided, backfill x/y; otherwise preserve existing
+      if (data.position.lat !== undefined && data.position.lon !== undefined) {
+        const xy = latLonToXY({
+          lat: data.position.lat,
+          lon: data.position.lon,
+        });
+        target.position = { ...target.position, ...data.position, ...xy };
+      } else {
+        target.position = { ...target.position, ...data.position };
+      }
     }
     if (data.orientation) {
       target.orientation = {
@@ -713,7 +461,7 @@ io.on('connection', socket => {
       vessels: {
         [currentUserId]: {
           id: target.id,
-          position: target.position,
+          position: withLatLon(target.position),
           orientation: target.orientation,
           velocity: target.velocity,
         },
@@ -731,17 +479,20 @@ io.on('connection', socket => {
   socket.on('vessel:control', data => {
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
-    if (isGuest) {
-      console.info('Ignoring vessel:control from guest');
+    if (!isPlayerOrHigher) {
+      console.info('Ignoring vessel:control from non-player');
       return;
     }
 
-    const vesselRecord = globalState.vessels.get(currentUserId);
+    const vesselKey = getVesselIdForUser(currentUserId) || currentUserId;
+    const vesselRecord = globalState.vessels.get(vesselKey);
     if (!vesselRecord) {
       console.warn('No vessel for user, creating on control', currentUserId);
       ensureVesselForUser(currentUserId, effectiveUsername);
     }
-    const target = globalState.vessels.get(currentUserId);
+    const target = globalState.vessels.get(
+      getVesselIdForUser(currentUserId) || currentUserId,
+    );
     if (!target) return;
 
     if (data.throttle !== undefined) {
@@ -851,6 +602,9 @@ io.on('connection', socket => {
 server.listen(PORT, () => {
   console.info(`Server listening on port ${PORT}`);
 });
+
+// Seed default vessels at startup
+seedDefaultVessels();
 
 // Broadcast authoritative snapshots at a throttled rate (5Hz)
 const BROADCAST_INTERVAL_MS = 200;

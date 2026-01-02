@@ -12,7 +12,7 @@ export interface SimulationUpdateData {
 export interface VesselJoinedData {
   userId: string;
   username: string;
-  position: { x: number; y: number; z: number };
+  position: { x: number; y: number; z: number; lat?: number; lon?: number };
   orientation: { heading: number; roll: number; pitch: number };
 }
 export interface VesselLeftData {
@@ -20,7 +20,7 @@ export interface VesselLeftData {
 }
 export interface VesselUpdateData {
   userId: string;
-  position: { x: number; y: number; z: number };
+  position: { x: number; y: number; z: number; lat?: number; lon?: number };
   orientation: { heading: number; roll: number; pitch: number };
   velocity: { surge: number; sway: number; heave: number };
 }

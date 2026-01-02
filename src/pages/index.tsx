@@ -7,7 +7,7 @@ import { useRouter } from 'next/router';
 const Home: React.FC = () => {
   const router = useRouter();
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-gray-900">
+    <main className="min-h-full flex flex-col items-center justify-center bg-gray-900">
       <h1 className="text-4xl font-bold text-white mb-6">Ship Simulator</h1>
       <p className="text-gray-300 mb-8">
         Welcome to the Ship Simulator platform.
