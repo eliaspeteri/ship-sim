@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import 'dotenv/config';
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -21,6 +22,7 @@ import {
   SocketData,
 } from '../types/socket.types';
 import { latLonToXY, xyToLatLon } from '../lib/geo';
+import { prisma } from '../lib/prisma';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
@@ -50,6 +52,101 @@ interface VesselRecord {
     rudderAngle: number;
   };
   lastUpdate: number;
+}
+
+async function persistVesselToDb(vessel: VesselRecord) {
+  const pos = withLatLon(vessel.position);
+  await prisma.vessel.upsert({
+    where: { id: vessel.id },
+    update: {
+      ownerId: vessel.ownerId ?? null,
+      mode: vessel.mode,
+      lat: pos.lat ?? 0,
+      lon: pos.lon ?? 0,
+      z: pos.z,
+      heading: vessel.orientation.heading,
+      roll: vessel.orientation.roll,
+      pitch: vessel.orientation.pitch,
+      surge: vessel.velocity.surge,
+      sway: vessel.velocity.sway,
+      heave: vessel.velocity.heave,
+      throttle: vessel.controls.throttle,
+      rudderAngle: vessel.controls.rudderAngle,
+      mass: vessel.properties.mass,
+      length: vessel.properties.length,
+      beam: vessel.properties.beam,
+      draft: vessel.properties.draft,
+      lastUpdate: new Date(vessel.lastUpdate),
+      isAi: vessel.mode === 'ai',
+    },
+    create: {
+      id: vessel.id,
+      ownerId: vessel.ownerId ?? null,
+      mode: vessel.mode,
+      lat: pos.lat ?? 0,
+      lon: pos.lon ?? 0,
+      z: pos.z,
+      heading: vessel.orientation.heading,
+      roll: vessel.orientation.roll,
+      pitch: vessel.orientation.pitch,
+      surge: vessel.velocity.surge,
+      sway: vessel.velocity.sway,
+      heave: vessel.velocity.heave,
+      throttle: vessel.controls.throttle,
+      rudderAngle: vessel.controls.rudderAngle,
+      mass: vessel.properties.mass,
+      length: vessel.properties.length,
+      beam: vessel.properties.beam,
+      draft: vessel.properties.draft,
+      lastUpdate: new Date(vessel.lastUpdate),
+      isAi: vessel.mode === 'ai',
+    },
+  });
+}
+
+async function loadVesselsFromDb() {
+  const rows = await prisma.vessel.findMany();
+  if (!rows.length) return;
+
+  rows.forEach(row => {
+    const xy = latLonToXY({ lat: row.lat, lon: row.lon });
+    const vessel: VesselRecord = {
+      id: row.id,
+      ownerId: row.ownerId,
+      crewIds: new Set<string>(),
+      mode: (row.mode as VesselMode) || 'ai',
+      position: {
+        x: xy.x,
+        y: xy.y,
+        z: row.z,
+        lat: row.lat,
+        lon: row.lon,
+      },
+      orientation: {
+        heading: row.heading,
+        roll: row.roll,
+        pitch: row.pitch,
+      },
+      velocity: {
+        surge: row.surge,
+        sway: row.sway,
+        heave: row.heave,
+      },
+      properties: {
+        mass: row.mass,
+        length: row.length,
+        beam: row.beam,
+        draft: row.draft,
+      },
+      controls: {
+        throttle: row.throttle,
+        rudderAngle: row.rudderAngle,
+      },
+      lastUpdate: row.lastUpdate.getTime(),
+    };
+    globalState.vessels.set(vessel.id, vessel);
+  });
+  console.info(`Loaded ${rows.length} vessel(s) from database`);
 }
 
 function createDefaultAIVessel(id: string, position = { x: 0, y: 0, z: 0 }) {
@@ -95,19 +192,6 @@ const globalState = {
   },
 };
 
-function seedDefaultVessels() {
-  if (globalState.vessels.size > 0) return;
-  const aiVessel = createDefaultAIVessel('ai_default_1', {
-    x: 0,
-    y: 0,
-    z: 0,
-  });
-  globalState.vessels.set(aiVessel.id, aiVessel);
-  console.info(
-    `Seeded default AI vessel ${aiVessel.id} at (${aiVessel.position.x}, ${aiVessel.position.y})`,
-  );
-}
-
 const clamp = (val: number, min: number, max: number) =>
   Math.min(Math.max(val, min), max);
 
@@ -140,6 +224,7 @@ function takeOverAvailableAIVessel(
   aiVessel.ownerId = aiVessel.ownerId ?? userId;
   aiVessel.lastUpdate = Date.now();
   globalState.userLastVessel.set(userId, aiVessel.id);
+  void persistVesselToDb(aiVessel);
   console.info(
     `Assigned ${username} (${userId}) to AI vessel ${aiVessel.id} (takeover)`,
   );
@@ -202,6 +287,7 @@ function ensureVesselForUser(userId: string, _username: string): VesselRecord {
   };
   globalState.vessels.set(vessel.id, vessel);
   globalState.userLastVessel.set(userId, vessel.id);
+  void persistVesselToDb(vessel);
   return vessel;
 }
 
@@ -456,6 +542,7 @@ io.on('connection', socket => {
       target.velocity = data.velocity;
     }
     target.lastUpdate = Date.now();
+    void persistVesselToDb(target);
 
     socket.broadcast.emit('simulation:update', {
       vessels: {
@@ -598,13 +685,34 @@ io.on('connection', socket => {
   });
 });
 
-// Start the server
-server.listen(PORT, () => {
-  console.info(`Server listening on port ${PORT}`);
-});
+async function ensureDefaultVesselExists() {
+  if (globalState.vessels.size > 0) return;
+  const aiVessel = createDefaultAIVessel('ai_default_1', {
+    x: 0,
+    y: 0,
+    z: 0,
+  });
+  globalState.vessels.set(aiVessel.id, aiVessel);
+  await persistVesselToDb(aiVessel);
+  console.info(
+    `Seeded default AI vessel ${aiVessel.id} at (${aiVessel.position.x}, ${aiVessel.position.y})`,
+  );
+}
 
-// Seed default vessels at startup
-seedDefaultVessels();
+async function startServer() {
+  try {
+    await loadVesselsFromDb();
+    await ensureDefaultVesselExists();
+    server.listen(PORT, () => {
+      console.info(`Server listening on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error('Failed to start server', err);
+    process.exit(1);
+  }
+}
+
+void startServer();
 
 // Broadcast authoritative snapshots at a throttled rate (5Hz)
 const BROADCAST_INTERVAL_MS = 200;

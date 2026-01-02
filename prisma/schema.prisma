@@ -58,3 +58,27 @@ model VerificationToken {
 
     @@unique([identifier, token])
 }
+
+// Persisted vessel state (minimal fields; AI flag included)
+model Vessel {
+    id          String   @id
+    ownerId     String?
+    mode        String   // 'ai' | 'player'
+    lat         Float
+    lon         Float
+    z           Float
+    heading     Float
+    roll        Float
+    pitch       Float
+    surge       Float
+    sway        Float
+    heave       Float
+    throttle    Float
+    rudderAngle Float
+    mass        Float
+    length      Float
+    beam        Float
+    draft       Float
+    lastUpdate  DateTime @default(now())
+    isAi        Boolean  @default(false)
+}
