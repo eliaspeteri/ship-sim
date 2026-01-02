@@ -45,6 +45,7 @@ npm run wasm:check-exports # Validate WASM exports
 npm run lint               # eslint
 npm run format             # prettier
 ```
+
 > Jest is currently disabled; use `npm run astest` for physics tests.
 
 ## MVP TODOs (small, actionable tasks)
@@ -67,9 +68,12 @@ npm run format             # prettier
     - [ ] Add a smoke e2e (login ? start sim ? move vessel).
     - [x] Keep wasm export check (`npm run wasm:check-exports`) green.
 
+## Roadmap
+
+- See `roadmap.md` for the broader feature roadmap and role/mode plans.
+
 ## Contributing Notes
 
 - Keep interfaces small at the WASM boundary; no default params; explicit types.
 - Avoid magic numbers—put constants in config modules.
 - Prefer pure functions for physics; isolate rendering, state, and transport.
-

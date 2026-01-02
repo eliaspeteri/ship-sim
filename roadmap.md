@@ -1,0 +1,25 @@
+# Roadmap TODOs
+
+- [ ] Roles & permissions
+  - Define cumulative roles: Guest (unauth, spectator only), Spectator (auth, spectator only), Player (auth, join/create vessels; default for new users), Admin (kick/ban/demote/promote, update environment/time, mute chat).
+  - Enforce role checks across API/server and gate UI access for spectator vs play modes.
+  - Seed default roles and assign Player on registration.
+- [ ] Modes
+  - Spectator mode: elevated free camera with WASD/arrow movement and rotation; water plane follows user with larger radius; can view vessels and join if role allows; does not send vessel updates.
+  - Player mode: current sim for joining/creating vessels, crew visibility, and chat readiness; robust mode switching for vessel membership.
+- [ ] Layout component
+  - Shared navbar (home, sim, login, register) with room for future pages such as a 2D tiling map of active vessels.
+- [ ] Default vessels
+  - On server boot, load saved vessels; if none, spawn an AI-controlled vessel at a default lat/long/heading and publish to clients.
+- [ ] Position data
+  - Refactor x/y to lat/long; keep height/depth; update physics, rendering, and network schemas.
+- [ ] Auth review
+  - Audit NextAuth flow so the server receives auth/role on every request; align JWT/cookie handling and role mapping.
+- [ ] Persistence
+  - Confirm DB choice (Prisma/Postgres vs alternative) and persist users, vessels, environment state, bans/mutes, and chat history.
+- [ ] Frontend tests
+  - Add unit coverage and a smoke e2e (login → start sim → basic movement).
+- [ ] Globe & ocean
+  - Render globe with realistic ocean/land heightmap and bathymetry; ground ships when keel exceeds depth.
+- [ ] Physics realism
+  - Review AssemblyScript physics and improve hydrodynamics/environment forces without sacrificing stability.
