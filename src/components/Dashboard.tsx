@@ -214,27 +214,11 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
             size={140}
           />
           <CircularGauge
-            label="Rudder Angle"
-            value={(rudderAngleLocal * 180) / Math.PI}
-            min={-90}
-            max={90}
-            unit="?"
-            size={140}
-          />
-          <CircularGauge
             label="Engine RPM"
             value={engineState?.rpm || 0}
             min={0}
             max={1500}
             unit="rpm"
-            size={140}
-          />
-          <CircularGauge
-            label="Engine Temp"
-            value={engineState?.temperature || 25}
-            min={0}
-            max={120}
-            unit="?C"
             size={140}
           />
         </div>
