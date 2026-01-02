@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
 . "$(dirname "$0")/_/husky.sh"
 
-# Run lint:fix before commit with ESM support for flat config
-NODE_OPTIONS=--experimental-vm-modules npm run lint:fix
+# Run eslint with ESM flat config support
+NODE_OPTIONS=--experimental-vm-modules npx eslint . --fix
