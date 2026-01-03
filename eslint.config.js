@@ -38,6 +38,7 @@ export default [
       '**/.vercel/**',
       '**/assembly/**', // Ignore AssemblyScript files
       '**/scripts/**', // Ignore scripts directory
+      '**/next-env.d.ts', // Ignore Next.js generated types file
     ],
   },
 
