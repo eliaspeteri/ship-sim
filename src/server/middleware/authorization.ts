@@ -4,13 +4,13 @@
  */
 import { Request, Response, NextFunction } from 'express';
 import { Socket } from 'socket.io';
-import { UserAuth } from '../authService';
+import { AuthenticatedUser } from './authentication';
 
 /**
  * Interface for requests with attached user auth data
  */
 export interface AuthenticatedRequest extends Request {
-  user?: UserAuth;
+  user?: AuthenticatedUser;
 }
 
 /**
@@ -125,7 +125,7 @@ export function socketHasPermission(
   resource: string,
   action: string,
 ): boolean {
-  const userData = socket.data as UserAuth;
+  const userData = socket.data as AuthenticatedUser;
 
   // No user data means no permission
   if (!userData || !userData.permissions) {
@@ -146,7 +146,7 @@ export function createSocketPermissionMiddleware(
   action: string,
 ) {
   return (socket: Socket, next: (err?: Error) => void) => {
-    const userData = socket.data as UserAuth;
+    const userData = socket.data as AuthenticatedUser;
 
     // If no user data or not authenticated, reject
     if (!userData) {

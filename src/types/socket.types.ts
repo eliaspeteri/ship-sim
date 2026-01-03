@@ -1,6 +1,6 @@
-import { UserAuth } from '../server/authService';
 import { EnvironmentState } from './environment.types';
 import { SimpleVesselState } from './vessel.types';
+import { AuthenticatedUser } from '../server/middleware/authentication';
 
 // Type definitions for Socket.IO communication
 export interface SimulationUpdateData {
@@ -57,7 +57,7 @@ export interface InterServerEvents {
   // Custom inter-server events would go here if needed
   _placeholder?: boolean; // Placeholder to make TypeScript happy
 }
-export interface SocketData extends UserAuth {
+export interface SocketData extends AuthenticatedUser {
   // Additional socket data properties would go here if needed
   _socketSpecific?: boolean; // Placeholder to make TypeScript happy
 }

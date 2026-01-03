@@ -1,59 +1,74 @@
-/**
- * Authentication middleware for Express routes
- */
 import { Request, Response, NextFunction } from 'express';
-import { verifyAccessToken, TokenPayload } from '../authService';
+import jwt from 'jsonwebtoken';
+import { expandRoles, permissionsForRoles, Role, Permission } from '../roles';
+
+export interface AuthenticatedUser {
+  userId: string;
+  username: string;
+  roles: Role[];
+  permissions: Permission[];
+}
 
 // Extend the Express Request interface to include the user property
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
-      user?: TokenPayload;
+      user?: AuthenticatedUser;
     }
   }
 }
 
-/**
- * Middleware to authenticate requests using a JWT access token from an HttpOnly cookie.
- * If the token is valid, it attaches the decoded payload to `req.user`.
- * If the token is invalid or missing, it proceeds without attaching `req.user`,
- * allowing subsequent middleware or route handlers to decide how to handle unauthenticated requests.
- */
-export const authenticateRequest = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  // Read the access token from the 'access_token' cookie
-  const token = req.cookies?.access_token;
+const getTokenFromRequest = (req: Request): string | undefined => {
+  return (
+    req.cookies?.['next-auth.session-token'] ||
+    req.cookies?.['__Secure-next-auth.session-token']
+  );
+};
 
+const decodeNextAuthToken = (token: string): AuthenticatedUser | null => {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) return null;
+  try {
+    const decoded = jwt.verify(token, secret) as {
+      sub?: string;
+      name?: string;
+      email?: string;
+      role?: Role;
+    };
+    const baseRole: Role = decoded.role || 'player';
+    const roles = expandRoles([baseRole]);
+    const permissions = permissionsForRoles(roles);
+    return {
+      userId: decoded.sub || decoded.email || 'unknown',
+      username: decoded.name || decoded.email || 'Unknown',
+      roles,
+      permissions,
+    };
+  } catch (error) {
+    console.warn('Failed to verify NextAuth session token:', error);
+    return null;
+  }
+};
+
+/**
+ * Middleware to authenticate requests using the NextAuth session token cookie.
+ * Attaches a normalized user object to req.user when valid.
+ */
+export const authenticateRequest = (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): void => {
+  const token = getTokenFromRequest(req);
   if (!token) {
-    // No token found, proceed without authenticating
-    // console.debug('No access token cookie found.');
     return next();
   }
 
-  try {
-    // Verify the access token
-    const decodedPayload = await verifyAccessToken(token);
-
-    if (decodedPayload) {
-      // Token is valid, attach user payload to the request object
-      req.user = decodedPayload;
-      // console.debug(`Authenticated user: ${req.user.username}`);
-    } else {
-      // Token is invalid (expired, bad signature, etc.)
-      // console.debug('Invalid access token cookie found.');
-      // Clear the invalid cookie? Optional, might interfere with refresh logic if cleared too early.
-      // res.clearCookie('access_token', { path: '/' });
-    }
-  } catch (error) {
-    // Unexpected error during token verification
-    console.error('Error during access token verification middleware:', error);
+  const user = decodeNextAuthToken(token);
+  if (user) {
+    req.user = user;
   }
-
-  // Proceed to the next middleware/handler regardless of authentication success
   next();
 };
 
