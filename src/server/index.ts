@@ -38,6 +38,9 @@ const ADMIN_USERS = (process.env.ADMIN_USERS || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
+const PERF_LOGGING_ENABLED = process.env.PERF_LOGGING === 'true' || !PRODUCTION;
+const API_SLOW_WARN_MS = 200;
+const BROADCAST_DRIFT_WARN_FACTOR = 1.5;
 
 type VesselMode = 'player' | 'ai';
 type CoreVesselProperties = Pick<
@@ -349,6 +352,21 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser()); // Crucial for reading cookies
+if (PERF_LOGGING_ENABLED) {
+  // Simple request timing logger (warns on slow responses)
+  app.use((req, res, next) => {
+    const start = process.hrtime.bigint();
+    res.on('finish', () => {
+      const durationMs = Number(process.hrtime.bigint() - start) / 1e6;
+      if (durationMs > API_SLOW_WARN_MS) {
+        console.warn(
+          `Slow API response: ${req.method} ${req.path} ${durationMs.toFixed(1)}ms status=${res.statusCode}`,
+        );
+      }
+    });
+    next();
+  });
+}
 
 function parseCookies(cookieHeader?: string): Record<string, string> {
   if (!cookieHeader) return {};
@@ -725,8 +743,20 @@ void startServer();
 
 // Broadcast authoritative snapshots at a throttled rate (5Hz)
 const BROADCAST_INTERVAL_MS = 200;
+let lastBroadcastAt = Date.now();
 setInterval(() => {
   if (!io) return;
+  const now = Date.now();
+  const drift = now - lastBroadcastAt;
+  if (
+    PERF_LOGGING_ENABLED &&
+    drift > BROADCAST_INTERVAL_MS * BROADCAST_DRIFT_WARN_FACTOR
+  ) {
+    console.warn(
+      `Simulation broadcast drifted: expected ${BROADCAST_INTERVAL_MS}ms, got ${drift}ms`,
+    );
+  }
+  lastBroadcastAt = now;
   const snapshot = Object.fromEntries(
     Array.from(globalState.vessels.entries()).map(([id, v]) => [
       id,

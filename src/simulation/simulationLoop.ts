@@ -14,6 +14,12 @@ export class SimulationLoop {
   private lastFrameTime: number = 0;
   private accumulatedTime: number = 0;
   private readonly fixedTimeStep: number = 1 / 60; // Fixed physics step at 60Hz
+  private static readonly perfLoggingEnabled =
+    process.env.NEXT_PUBLIC_SIM_PERF_LOGS === 'true' ||
+    process.env.NODE_ENV !== 'production';
+  private static readonly perfLogIntervalMs = 5000;
+  private static readonly perfAvgWarnMs = 25;
+  private static readonly perfMaxWarnMs = 50;
 
   private lastStateUpdateTime = 0;
   private stabilityUpdateCounter = 0;
@@ -21,6 +27,11 @@ export class SimulationLoop {
   private lastBroadcastTime = 0;
   private readonly broadcastInterval = 0.2; // seconds (5 Hz)
   private stopped = false;
+  // Perf tracking
+  private frameCounter = 0;
+  private accumulatedFrameMs = 0;
+  private maxFrameMs = 0;
+  private lastPerfLogMs = 0;
 
   constructor() {
     if (simulationInstance) {
@@ -146,6 +157,14 @@ export class SimulationLoop {
     // Calculate time delta
     const deltaTime = (currentTime - this.lastFrameTime) / 1000; // in seconds
     this.lastFrameTime = currentTime;
+    if (SimulationLoop.perfLoggingEnabled) {
+      const deltaMs = deltaTime * 1000;
+      this.frameCounter += 1;
+      this.accumulatedFrameMs += deltaMs;
+      if (deltaMs > this.maxFrameMs) {
+        this.maxFrameMs = deltaMs;
+      }
+    }
 
     this.accumulatedTime += deltaTime;
 
@@ -156,6 +175,33 @@ export class SimulationLoop {
 
     // Update UI state from physics state
     this.updateUIFromPhysics();
+
+    // Perf budget log every interval in dev/preprod
+    if (
+      SimulationLoop.perfLoggingEnabled &&
+      currentTime - this.lastPerfLogMs > SimulationLoop.perfLogIntervalMs
+    ) {
+      const avgMs =
+        this.frameCounter > 0
+          ? this.accumulatedFrameMs / this.frameCounter
+          : 0;
+      if (
+        avgMs > SimulationLoop.perfAvgWarnMs ||
+        this.maxFrameMs > SimulationLoop.perfMaxWarnMs
+      ) {
+        console.warn(
+          `Simulation loop over budget: avg ${avgMs.toFixed(2)}ms, max ${this.maxFrameMs.toFixed(2)}ms`,
+        );
+      } else {
+        console.info(
+          `Simulation loop timing: avg ${avgMs.toFixed(2)}ms, max ${this.maxFrameMs.toFixed(2)}ms`,
+        );
+      }
+      this.lastPerfLogMs = currentTime;
+      this.frameCounter = 0;
+      this.accumulatedFrameMs = 0;
+      this.maxFrameMs = 0;
+    }
 
     // Continue the loop using arrow function
     if (!this.stopped) {
