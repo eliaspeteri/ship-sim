@@ -88,12 +88,15 @@ export interface VesselState {
   };
 }
 
-// Simplified vessel state for network transmission
-export type SimpleVesselState = Pick<
-  VesselState,
-  'position' | 'orientation' | 'velocity'
-> & {
+export type VesselPose = Pick<VesselState, 'position' | 'orientation'>;
+export type VesselVelocity = VesselState['velocity'];
+export type VesselControls = VesselState['controls'];
+export type VesselSnapshot = VesselPose & {
+  velocity: VesselVelocity;
+  controls?: Partial<VesselControls>;
   id: string;
-  controls?: Partial<VesselState['controls']>;
   ownerId?: string | null;
 };
+
+// Simplified vessel state for network transmission
+export type SimpleVesselState = VesselSnapshot;

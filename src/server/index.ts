@@ -21,6 +21,13 @@ import {
   ServerToClientEvents,
   SocketData,
 } from '../types/socket.types';
+import {
+  SimpleVesselState,
+  VesselControls,
+  VesselPose,
+  VesselState,
+  VesselVelocity,
+} from '../types/vessel.types';
 import { latLonToXY, xyToLatLon } from '../lib/geo';
 import { prisma } from '../lib/prisma';
 
@@ -33,24 +40,20 @@ const ADMIN_USERS = (process.env.ADMIN_USERS || '')
   .filter(Boolean);
 
 type VesselMode = 'player' | 'ai';
+type CoreVesselProperties = Pick<
+  VesselState['properties'],
+  'mass' | 'length' | 'beam' | 'draft'
+>;
 interface VesselRecord {
   id: string;
   ownerId: string | null;
   crewIds: Set<string>;
   mode: VesselMode;
-  position: { x: number; y: number; z: number; lat?: number; lon?: number };
-  orientation: { heading: number; roll: number; pitch: number };
-  velocity: { surge: number; sway: number; heave: number };
-  properties: {
-    mass: number;
-    length: number;
-    beam: number;
-    draft: number;
-  };
-  controls: {
-    throttle: number;
-    rudderAngle: number;
-  };
+  position: VesselPose['position'];
+  orientation: VesselPose['orientation'];
+  velocity: VesselVelocity;
+  properties: CoreVesselProperties;
+  controls: Pick<VesselControls, 'throttle' | 'rudderAngle'>;
   lastUpdate: number;
 }
 
@@ -318,17 +321,20 @@ const getVesselIdForUser = (userId: string): string | undefined => {
   return globalState.userLastVessel.get(userId) || userId;
 };
 
-const withLatLon = (pos: {
-  x: number;
-  y: number;
-  z: number;
-  lat?: number;
-  lon?: number;
-}) => {
+const withLatLon = (pos: VesselPose['position']) => {
   if (pos.lat !== undefined && pos.lon !== undefined) return pos;
   const ll = xyToLatLon({ x: pos.x, y: pos.y });
   return { ...pos, lat: ll.lat, lon: ll.lon };
 };
+
+const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => ({
+  id: v.id,
+  ownerId: v.ownerId,
+  position: withLatLon(v.position),
+  orientation: v.orientation,
+  velocity: v.velocity,
+  controls: v.controls,
+});
 
 // Create Express app
 const app = express();
@@ -500,14 +506,7 @@ io.on('connection', socket => {
     vessels: Object.fromEntries(
       Array.from(globalState.vessels.entries()).map(([id, v]) => [
         id,
-        {
-          id,
-          ownerId: v.ownerId,
-          position: withLatLon(v.position),
-          orientation: v.orientation,
-          velocity: v.velocity,
-          controls: v.controls,
-        },
+        toSimpleVesselState(v),
       ]),
     ),
     environment: globalState.environment,
@@ -561,14 +560,7 @@ io.on('connection', socket => {
 
     socket.broadcast.emit('simulation:update', {
       vessels: {
-        [currentUserId]: {
-          id: target.id,
-          ownerId: target.ownerId,
-          position: withLatLon(target.position),
-          orientation: target.orientation,
-          velocity: target.velocity,
-          controls: target.controls,
-        },
+        [currentUserId]: toSimpleVesselState(target),
       },
       partial: true,
       timestamp: target.lastUpdate,

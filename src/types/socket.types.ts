@@ -1,6 +1,13 @@
 import { EnvironmentState } from './environment.types';
-import { SimpleVesselState } from './vessel.types';
+import {
+  SimpleVesselState,
+  VesselControls,
+  VesselPose,
+  VesselVelocity,
+} from './vessel.types';
 import { AuthenticatedUser } from '../server/middleware/authentication';
+
+type ControlUpdate = Partial<Pick<VesselControls, 'throttle' | 'rudderAngle'>>;
 
 // Type definitions for Socket.IO communication
 export interface SimulationUpdateData {
@@ -12,18 +19,18 @@ export interface SimulationUpdateData {
 export interface VesselJoinedData {
   userId: string;
   username: string;
-  position: { x: number; y: number; z: number; lat?: number; lon?: number };
-  orientation: { heading: number; roll: number; pitch: number };
+  position: VesselPose['position'];
+  orientation: VesselPose['orientation'];
 }
 export interface VesselLeftData {
   userId: string;
 }
 export interface VesselUpdateData {
   userId: string;
-  position: { x: number; y: number; z: number; lat?: number; lon?: number };
-  orientation: { heading: number; roll: number; pitch: number };
-  velocity: { surge: number; sway: number; heave: number };
-  controls?: { throttle?: number; rudderAngle?: number };
+  position: VesselPose['position'];
+  orientation: VesselPose['orientation'];
+  velocity: VesselVelocity;
+  controls?: ControlUpdate;
 }
 export interface VesselControlData {
   userId: string;
