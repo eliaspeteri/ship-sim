@@ -57,13 +57,12 @@ npm run format             # prettier
   - Rendering/UI
     - [ ] Ensure Gerstner waves animate with correct phase and normals.
     - [x] Keep HUD minimal: speed, heading, throttle, rudder, sea state.
+    - [ ] Rework EnvironmentControls to match the current server-driven environment model and admin gating.
   - [ ] Controls: keyboard/mouse for throttle and rudder; reset button.
 - Auth
   - [ ] Add minimal rate limiting/lockout to auth endpoints.
   - [ ] Add logout endpoint wiring to UI.
 - State
-  - [ ] Save/load vessel + env to localStorage for session continuity.
-  - [ ] Remove any leftover DB calls in client code (cleanup).
   - Tooling
     - [ ] Add a smoke e2e (login ? start sim ? move vessel).
     - [x] Keep wasm export check (`npm run wasm:check-exports`) green.

@@ -9,16 +9,28 @@
   - Player mode: current sim for joining/creating vessels, crew visibility, and chat readiness; robust mode switching for vessel membership.
 - [ ] Layout component
   - Shared navbar (home, sim, login, register) with room for future pages such as a 2D tiling map of active vessels.
+- [ ] Environment controls
+  - Rebuild the EnvironmentControls UI to reflect the current server-driven weather model, admin gating, and live updates; remove obsolete toggles.
+- [ ] Instrumentation & observability
+  - Add basic metrics (loop timing, socket/API latency) and central log aggregation for server and sim loops.
 - [ ] Default vessels
   - On server boot, load saved vessels; if none, spawn an AI-controlled vessel at a default lat/long/heading and publish to clients.
 - [ ] Position data
   - Refactor x/y to lat/long; keep height/depth; update physics, rendering, and network schemas.
 - [ ] Auth review
   - Audit NextAuth flow so the server receives auth/role on every request; align JWT/cookie handling and role mapping.
+- [ ] Auth hardening
+  - Add logout endpoint/UI, rate limiting/lockout, and refresh/token rotation audit.
 - [ ] Persistence
   - Confirm DB choice (Prisma/Postgres vs alternative) and persist users, vessels, environment state, bans/mutes, and chat history.
+- [ ] Persistence polish
+  - Add migrations/seed data for default roles/vessels and a backup/restore plan.
 - [ ] Frontend tests
   - Add unit coverage and a smoke e2e (login → start sim → basic movement).
+- [ ] Simulation UX
+  - Add replay/ghost mode (record + playback), quick-start scenarios, and AI pilot on loss of control.
+- [ ] Performance budgets
+  - Profile WASM/renderer with targets for 60 Hz sim and smooth 3D rendering.
 - [ ] Globe & ocean
   - Render globe with realistic ocean/land heightmap and bathymetry; ground ships when keel exceeds depth.
 - [ ] Physics realism
