@@ -1,8 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+import { prisma } from '../../lib/prisma';
 
 export default async function handler(
   req: NextApiRequest,
@@ -25,7 +24,11 @@ export default async function handler(
   }
 
   try {
-    const existing = await prisma.user.findUnique({ where: { name: username } });
+    // name is not unique in the schema, so use findFirst for existence check
+    const existing = await prisma.user.findFirst({
+      where: { name: username },
+      select: { id: true },
+    });
     if (existing) {
       return res
         .status(409)
