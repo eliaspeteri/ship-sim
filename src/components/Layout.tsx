@@ -1,21 +1,38 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import React from 'react';
+import { signOut, useSession } from 'next-auth/react';
 
 type LayoutProps = {
   children: React.ReactNode;
   fullBleed?: boolean;
 };
 
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/sim', label: 'Simulator' },
-  { href: '/login', label: 'Login' },
-  { href: '/register', label: 'Register' },
-];
-
 const Layout: React.FC<LayoutProps> = ({ children, fullBleed = false }) => {
   const { pathname } = useRouter();
+  const { status } = useSession();
+  const isAuthed = status === 'authenticated';
+
+  const baseLinks = [
+    { href: '/', label: 'Home' },
+    { href: '/sim', label: 'Simulator' },
+  ];
+  const authLinks = isAuthed
+    ? []
+    : [
+        { href: '/login', label: 'Login' },
+        { href: '/register', label: 'Register' },
+      ];
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('Error during logout:', error);
+    } finally {
+      await signOut({ callbackUrl: '/login' });
+    }
+  };
 
   const navHeight = '64px';
   return (
@@ -29,7 +46,7 @@ const Layout: React.FC<LayoutProps> = ({ children, fullBleed = false }) => {
             Ship Simulator
           </div>
           <nav className="flex items-center gap-2">
-            {NAV_LINKS.map(link => {
+            {[...baseLinks, ...authLinks].map(link => {
               const isActive =
                 pathname === link.href ||
                 (link.href !== '/' && pathname.startsWith(link.href));
@@ -47,6 +64,15 @@ const Layout: React.FC<LayoutProps> = ({ children, fullBleed = false }) => {
                 </Link>
               );
             })}
+            {isAuthed ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-md px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:bg-gray-800 hover:text-white"
+              >
+                Logout
+              </button>
+            ) : null}
           </nav>
         </div>
       </header>

@@ -60,8 +60,8 @@ npm run format             # prettier
     - [ ] Rework EnvironmentControls to match the current server-driven environment model and admin gating.
   - [ ] Controls: keyboard/mouse for throttle and rudder; reset button.
 - Auth
-  - [ ] Add minimal rate limiting/lockout to auth endpoints.
-  - [ ] Add logout endpoint wiring to UI.
+  - [x] Add minimal rate limiting/lockout to auth endpoints.
+  - [x] Add logout endpoint wiring to UI.
 - State
   - Tooling
     - [ ] Add a smoke e2e (login ? start sim ? move vessel).
