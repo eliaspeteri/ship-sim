@@ -41,6 +41,7 @@ const ADMIN_USERS = (process.env.ADMIN_USERS || '')
 const PERF_LOGGING_ENABLED = process.env.PERF_LOGGING === 'true' || !PRODUCTION;
 const API_SLOW_WARN_MS = 200;
 const BROADCAST_DRIFT_WARN_FACTOR = 1.5;
+const MIN_PERSIST_INTERVAL_MS = 1000; // Throttle DB writes per vessel
 
 type VesselMode = 'player' | 'ai';
 type CoreVesselProperties = Pick<
@@ -60,54 +61,65 @@ interface VesselRecord {
   lastUpdate: number;
 }
 
+const vesselPersistAt = new Map<string, number>();
+
 async function persistVesselToDb(vessel: VesselRecord) {
+  const now = Date.now();
+  const lastPersist = vesselPersistAt.get(vessel.id) || 0;
+  if (now - lastPersist < MIN_PERSIST_INTERVAL_MS) return;
+  vesselPersistAt.set(vessel.id, now);
+
   const pos = withLatLon(vessel.position);
-  await prisma.vessel.upsert({
-    where: { id: vessel.id },
-    update: {
-      ownerId: vessel.ownerId ?? null,
-      mode: vessel.mode,
-      lat: pos.lat ?? 0,
-      lon: pos.lon ?? 0,
-      z: pos.z,
-      heading: vessel.orientation.heading,
-      roll: vessel.orientation.roll,
-      pitch: vessel.orientation.pitch,
-      surge: vessel.velocity.surge,
-      sway: vessel.velocity.sway,
-      heave: vessel.velocity.heave,
-      throttle: vessel.controls.throttle,
-      rudderAngle: vessel.controls.rudderAngle,
-      mass: vessel.properties.mass,
-      length: vessel.properties.length,
-      beam: vessel.properties.beam,
-      draft: vessel.properties.draft,
-      lastUpdate: new Date(vessel.lastUpdate),
-      isAi: vessel.mode === 'ai',
-    },
-    create: {
-      id: vessel.id,
-      ownerId: vessel.ownerId ?? null,
-      mode: vessel.mode,
-      lat: pos.lat ?? 0,
-      lon: pos.lon ?? 0,
-      z: pos.z,
-      heading: vessel.orientation.heading,
-      roll: vessel.orientation.roll,
-      pitch: vessel.orientation.pitch,
-      surge: vessel.velocity.surge,
-      sway: vessel.velocity.sway,
-      heave: vessel.velocity.heave,
-      throttle: vessel.controls.throttle,
-      rudderAngle: vessel.controls.rudderAngle,
-      mass: vessel.properties.mass,
-      length: vessel.properties.length,
-      beam: vessel.properties.beam,
-      draft: vessel.properties.draft,
-      lastUpdate: new Date(vessel.lastUpdate),
-      isAi: vessel.mode === 'ai',
-    },
-  });
+  try {
+    await prisma.vessel.upsert({
+      where: { id: vessel.id },
+      update: {
+        ownerId: vessel.ownerId ?? null,
+        mode: vessel.mode,
+        lat: pos.lat ?? 0,
+        lon: pos.lon ?? 0,
+        z: pos.z,
+        heading: vessel.orientation.heading,
+        roll: vessel.orientation.roll,
+        pitch: vessel.orientation.pitch,
+        surge: vessel.velocity.surge,
+        sway: vessel.velocity.sway,
+        heave: vessel.velocity.heave,
+        throttle: vessel.controls.throttle,
+        rudderAngle: vessel.controls.rudderAngle,
+        mass: vessel.properties.mass,
+        length: vessel.properties.length,
+        beam: vessel.properties.beam,
+        draft: vessel.properties.draft,
+        lastUpdate: new Date(vessel.lastUpdate),
+        isAi: vessel.mode === 'ai',
+      },
+      create: {
+        id: vessel.id,
+        ownerId: vessel.ownerId ?? null,
+        mode: vessel.mode,
+        lat: pos.lat ?? 0,
+        lon: pos.lon ?? 0,
+        z: pos.z,
+        heading: vessel.orientation.heading,
+        roll: vessel.orientation.roll,
+        pitch: vessel.orientation.pitch,
+        surge: vessel.velocity.surge,
+        sway: vessel.velocity.sway,
+        heave: vessel.velocity.heave,
+        throttle: vessel.controls.throttle,
+        rudderAngle: vessel.controls.rudderAngle,
+        mass: vessel.properties.mass,
+        length: vessel.properties.length,
+        beam: vessel.properties.beam,
+        draft: vessel.properties.draft,
+        lastUpdate: new Date(vessel.lastUpdate),
+        isAi: vessel.mode === 'ai',
+      },
+    });
+  } catch (err) {
+    console.error(`Failed to persist vessel ${vessel.id}`, err);
+  }
 }
 
 async function loadVesselsFromDb() {

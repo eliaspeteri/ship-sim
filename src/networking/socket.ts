@@ -11,6 +11,40 @@ import {
   VesselUpdateData,
 } from '../types/socket.types';
 
+const hasVesselChanged = (
+  prev: SimpleVesselState | undefined,
+  next: SimpleVesselState,
+): boolean => {
+  if (!prev) return true;
+
+  const posChanged =
+    prev.position.x !== next.position.x ||
+    prev.position.y !== next.position.y ||
+    prev.position.z !== next.position.z ||
+    prev.position.lat !== next.position.lat ||
+    prev.position.lon !== next.position.lon;
+  const orientationChanged =
+    prev.orientation.heading !== next.orientation.heading ||
+    prev.orientation.roll !== next.orientation.roll ||
+    prev.orientation.pitch !== next.orientation.pitch;
+  const velocityChanged =
+    prev.velocity.surge !== next.velocity.surge ||
+    prev.velocity.sway !== next.velocity.sway ||
+    prev.velocity.heave !== next.velocity.heave;
+  const controlsChanged =
+    (prev.controls?.throttle ?? 0) !== (next.controls?.throttle ?? 0) ||
+    (prev.controls?.rudderAngle ?? 0) !== (next.controls?.rudderAngle ?? 0);
+
+  return (
+    prev.id !== next.id ||
+    prev.ownerId !== next.ownerId ||
+    posChanged ||
+    orientationChanged ||
+    velocityChanged ||
+    controlsChanged
+  );
+};
+
 // Socket.IO Client Manager
 class SocketManager {
   private socket: ReturnType<typeof io> | null = null;
@@ -128,8 +162,9 @@ class SocketManager {
   // Handle simulation updates from server
   private handleSimulationUpdate(data: SimulationUpdateData): void {
     const store = useStore.getState();
-
-    const others: Record<string, SimpleVesselState> = {};
+    const currentOthers = store.otherVessels || {};
+    const nextOthers = data.partial ? { ...currentOthers } : {};
+    let changed = false;
 
     Object.entries(data.vessels).forEach(([id, vesselData]) => {
       const isSelf =
@@ -161,11 +196,24 @@ class SocketManager {
         }
         return;
       }
-      others[id] = vesselData;
+
+      const prev = nextOthers[id];
+      if (hasVesselChanged(prev, vesselData)) {
+        nextOthers[id] = vesselData;
+        changed = true;
+      }
     });
 
-    // Replace other vessels snapshot
-    store.setOtherVessels(others);
+    if (!data.partial) {
+      const removed =
+        Object.keys(currentOthers).length !== Object.keys(nextOthers).length ||
+        Object.keys(currentOthers).some(id => !(id in nextOthers));
+      changed = changed || removed;
+    }
+
+    if (changed || !data.partial) {
+      store.setOtherVessels(nextOthers);
+    }
   }
 
   // Handle environment updates from server
