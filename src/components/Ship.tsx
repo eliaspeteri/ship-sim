@@ -73,8 +73,8 @@ const Ship: React.FC<ShipProps> = ({
 
       const roll = orientation?.roll ?? 0;
       const pitch = orientation?.pitch ?? 0;
-      // Render heading: ship models face +Z; physics heading is radians CCW, so invert for Three's Y rotation
-      const renderHeading = -heading;
+      // Render heading: model forward (+Z) vs physics forward (+X). Rotate -90° to align axes and invert for Three.js.
+      const renderHeading = -heading - Math.PI / 2;
 
       // Apply heading, roll, and pitch (roll/pitch from physics; heading from store)
       obj.rotation.set(pitch, renderHeading, roll);
@@ -82,11 +82,7 @@ const Ship: React.FC<ShipProps> = ({
   });
 
   return (
-    <group
-      ref={shipRef}
-      position={[position.x, position.y, position.z]}
-      rotation={[0, heading, 0]}
-    >
+    <group ref={shipRef} position={[position.x, position.y, position.z]}>
       {modelLoaded && model?.scene && (
         <Detailed distances={[0, 50, 300]}>
           <primitive
