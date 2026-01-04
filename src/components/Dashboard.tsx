@@ -8,6 +8,10 @@ import { CircularGauge } from './CircularGauge';
 import RudderAngleIndicator from './RudderAngleIndicator';
 import { HelmControl } from './HelmControl';
 import socketManager from '../networking/socket';
+import {
+  RUDDER_STALL_ANGLE_DEG,
+  clampRudderAngle,
+} from '../constants/vessel';
 
 interface DashboardProps {
   className?: string;
@@ -63,18 +67,19 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
       // Update the reference to current values
       lastAppliedRef.current = {
         throttle: throttleLocal,
-        rudderAngle: rudderAngleLocal,
+        rudderAngle: clampRudderAngle(rudderAngleLocal),
       };
 
       // Apply the controls directly to the simulation engine
       const simulationLoop = getSimulationLoop();
       try {
+        const clampedRudder = clampRudderAngle(rudderAngleLocal);
         simulationLoop.applyControls({
           throttle: throttleLocal,
-          rudderAngle: rudderAngleLocal,
+          rudderAngle: clampedRudder,
           ballast: controls.ballast || 0.5,
         });
-        socketManager.sendControlUpdate(throttleLocal, rudderAngleLocal);
+        socketManager.sendControlUpdate(throttleLocal, clampedRudder);
       } catch (error) {
         console.error('Error applying controls directly:', error);
       }
@@ -244,14 +249,18 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
 
         <HelmControl
           value={(rudderAngleLocal * 180) / Math.PI}
-          minAngle={-35}
-          maxAngle={35}
-          onChange={deg => setRudderAngleLocal((deg * Math.PI) / 180)}
+          minAngle={-RUDDER_STALL_ANGLE_DEG}
+          maxAngle={RUDDER_STALL_ANGLE_DEG}
+          onChange={deg =>
+            setRudderAngleLocal(
+              clampRudderAngle((deg * Math.PI) / 180),
+            )
+          }
         />
 
         <RudderAngleIndicator
           angle={(rudderAngleLocal * 180) / Math.PI}
-          maxAngle={35}
+          maxAngle={RUDDER_STALL_ANGLE_DEG}
           size={220}
         />
       </div>

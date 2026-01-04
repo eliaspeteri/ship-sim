@@ -4,6 +4,10 @@ import { WasmBridge } from '../lib/wasmBridge';
 import { VesselState } from '../types/vessel.types';
 import { safe } from '../lib/safe';
 import socketManager from '../networking/socket';
+import { xyToLatLon } from '../lib/geo';
+import {
+  clampRudderAngle,
+} from '../constants/vessel';
 
 // Singleton for simulation instance
 let simulationInstance: SimulationLoop | null = null;
@@ -98,7 +102,7 @@ export class SimulationLoop {
         safe(angularVelocity.roll, 0),
         safe(angularVelocity.pitch, 0),
         throttle,
-        safe(controls.rudderAngle, 0),
+        clampRudderAngle(safe(controls.rudderAngle, 0)),
         safe(properties.mass, 14950000),
         safe(properties.length, 212),
         safe(properties.beam, 28),
@@ -116,11 +120,12 @@ export class SimulationLoop {
         const surge = this.wasmBridge.getVesselSurgeVelocity(vesselPtr);
         const sway = this.wasmBridge.getVesselSwayVelocity(vesselPtr);
         const heave = this.wasmBridge.getVesselHeaveVelocity(vesselPtr);
+        const ll = xyToLatLon({ x, y });
         // Update store with initial state (no advanced stability checks)
         state.updateVessel({
           orientation: { roll, pitch, heading: 0 },
           velocity: { sway, heave, surge },
-          position: { x, y, z },
+          position: { x, y, z, lat: ll.lat, lon: ll.lon },
         });
       }
 
@@ -259,6 +264,9 @@ export class SimulationLoop {
         y: isNaN(y) ? prevVesselPos?.y || 0 : y,
         z: isNaN(z) ? prevVesselPos?.z || 0 : z,
       };
+      const ll = xyToLatLon({ x: positionUpdate.x, y: positionUpdate.y });
+      positionUpdate.lat = ll.lat;
+      positionUpdate.lon = ll.lon;
 
       // Log if any values were NaN
       if (isNaN(x) || isNaN(y) || isNaN(z)) {
@@ -295,7 +303,7 @@ export class SimulationLoop {
    * Apply vessel controls to the physics engine
    * @param controls - Object containing throttle, rudder angle, and ballast values
    * @param controls.throttle - Throttle value (0 to 1)
-   * @param controls.rudderAngle - Rudder angle in degrees
+   * @param controls.rudderAngle - Rudder angle in radians
    * @param controls.ballast - Ballast value (0 to 1)
    * @returns void
    */
@@ -321,7 +329,10 @@ export class SimulationLoop {
 
       // Set rudder angle if provided
       if (controls.rudderAngle !== undefined) {
-        this.wasmBridge.setRudderAngle(vesselPtr, controls.rudderAngle);
+        this.wasmBridge.setRudderAngle(
+          vesselPtr,
+          clampRudderAngle(controls.rudderAngle),
+        );
       }
 
       // Set ballast if provided
@@ -360,6 +371,9 @@ export class SimulationLoop {
         y: this.wasmBridge.getVesselY(vesselPtr),
         z: this.wasmBridge.getVesselZ(vesselPtr),
       };
+      const ll = xyToLatLon({ x: positionUpdate.x, y: positionUpdate.y });
+      positionUpdate.lat = ll.lat;
+      positionUpdate.lon = ll.lon;
       vesselUpdate.position = positionUpdate;
 
       // Get vessel orientation including roll and pitch from physics

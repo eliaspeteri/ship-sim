@@ -35,3 +35,4 @@
   - Render globe with realistic ocean/land heightmap and bathymetry; ground ships when keel exceeds depth.
 - [ ] Physics realism
   - Review AssemblyScript physics and improve hydrodynamics/environment forces without sacrificing stability.
+  - Parameterize hydrodynamic constants per vessel (e.g., rudder stall angle/force coefficients) and pass them into WASM `createVessel`.

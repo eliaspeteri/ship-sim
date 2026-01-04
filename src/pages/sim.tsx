@@ -7,6 +7,7 @@ import useStore from '../store';
 import socketManager from '../networking/socket';
 import { initializeSimulation, startSimulation } from '../simulation';
 import { getSimulationLoop } from '../simulation';
+import { RUDDER_STALL_ANGLE_RAD } from '../constants/vessel';
 
 /**
  * Simulation page for Ship Simulator.
@@ -46,7 +47,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     if (socketToken) {
       socketManager.setAuthToken(socketToken, userId, username);
     }
-    socketManager.connect(process.env.NEXTPUBLIC_SOCKET_URL || '');
+    socketManager.connect(process.env.NEXT_PUBLIC_SOCKET_URL || '');
     initializeSimulation();
     startSimulation();
   }, [session, status]);
@@ -95,13 +96,21 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         case 'a':
         case 'A':
         case 'ArrowLeft':
-          rudder = clamp(rudder - rudderStep, -0.6, 0.6);
+          rudder = clamp(
+            rudder - rudderStep,
+            -RUDDER_STALL_ANGLE_RAD,
+            RUDDER_STALL_ANGLE_RAD,
+          );
           changed = true;
           break;
         case 'd':
         case 'D':
         case 'ArrowRight':
-          rudder = clamp(rudder + rudderStep, -0.6, 0.6);
+          rudder = clamp(
+            rudder + rudderStep,
+            -RUDDER_STALL_ANGLE_RAD,
+            RUDDER_STALL_ANGLE_RAD,
+          );
           changed = true;
           break;
         default:

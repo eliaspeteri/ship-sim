@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLeverDrag } from '../hooks/useLeverDrag'; // Reusing for rotational drag logic
+import { RUDDER_STALL_ANGLE_DEG } from '../constants/vessel';
 
 // Helper functions (similar to TelegraphLever)
 const polarToCartesian = (
@@ -89,8 +90,8 @@ interface HelmControlProps {
 export const HelmControl: React.FC<HelmControlProps> = ({
   value: initialValue,
   onChange,
-  minAngle = -40,
-  maxAngle = 40,
+  minAngle = -RUDDER_STALL_ANGLE_DEG,
+  maxAngle = RUDDER_STALL_ANGLE_DEG,
   numTicks = 9, // e.g., -40, -30, -20, -10, 0, 10, 20, 30, 40
   size = 200,
   label = 'Rudder Angle',

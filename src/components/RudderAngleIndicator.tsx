@@ -1,4 +1,5 @@
 import React, { JSX } from 'react';
+import { RUDDER_STALL_ANGLE_DEG } from '../constants/vessel';
 
 /**
  * Props for the RudderAngleIndicator component
@@ -28,7 +29,7 @@ interface RudderAngleIndicatorProps {
  */
 const RudderAngleIndicator: React.FC<RudderAngleIndicatorProps> = ({
   angle,
-  maxAngle = 35,
+  maxAngle = RUDDER_STALL_ANGLE_DEG,
   size = 200,
 }) => {
   // Constants for drawing

@@ -30,6 +30,7 @@ import {
 } from '../types/vessel.types';
 import { latLonToXY, xyToLatLon } from '../lib/geo';
 import { prisma } from '../lib/prisma';
+import { RUDDER_STALL_ANGLE_RAD } from '../constants/vessel';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
@@ -337,7 +338,18 @@ const getVesselIdForUser = (userId: string): string | undefined => {
 };
 
 const withLatLon = (pos: VesselPose['position']) => {
-  if (pos.lat !== undefined && pos.lon !== undefined) return pos;
+  const hasLatLon = pos.lat !== undefined && pos.lon !== undefined;
+  // If we already have lat/lon but they are still zero while x/y moved, recompute.
+  if (
+    hasLatLon &&
+    (pos.x !== 0 || pos.y !== 0) &&
+    pos.lat === 0 &&
+    pos.lon === 0
+  ) {
+    const ll = xyToLatLon({ x: pos.x, y: pos.y });
+    return { ...pos, lat: ll.lat, lon: ll.lon };
+  }
+  if (hasLatLon) return pos;
   const ll = xyToLatLon({ x: pos.x, y: pos.y });
   return { ...pos, lat: ll.lat, lon: ll.lon };
 };
@@ -546,7 +558,11 @@ io.on('connection', socket => {
   // Handle vessel:update events (from client sim)
   socket.on('vessel:update', data => {
     const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    if (!currentUserId) {
+      console.warn('Ignoring vessel:update from unidentified user');
+
+      return;
+    }
     if (!isPlayerOrHigher) {
       console.info('Ignoring vessel:update from non-player');
       return;
@@ -564,16 +580,36 @@ io.on('connection', socket => {
     if (!target) return;
 
     if (data.position) {
-      // If lat/lon provided, backfill x/y; otherwise preserve existing
-      if (data.position.lat !== undefined && data.position.lon !== undefined) {
+      const nextPosition: VesselPose['position'] = {
+        ...target.position,
+        ...data.position,
+      };
+
+      if (
+        data.position.lat !== undefined &&
+        data.position.lon !== undefined
+      ) {
         const xy = latLonToXY({
           lat: data.position.lat,
           lon: data.position.lon,
         });
-        target.position = { ...target.position, ...data.position, ...xy };
-      } else {
-        target.position = { ...target.position, ...data.position };
+        nextPosition.x = xy.x;
+        nextPosition.y = xy.y;
+        nextPosition.lat = data.position.lat;
+        nextPosition.lon = data.position.lon;
+      } else if (
+        data.position.x !== undefined ||
+        data.position.y !== undefined
+      ) {
+        const ll = xyToLatLon({
+          x: nextPosition.x ?? 0,
+          y: nextPosition.y ?? 0,
+        });
+        nextPosition.lat = ll.lat;
+        nextPosition.lon = ll.lon;
       }
+
+      target.position = nextPosition;
     }
     if (data.orientation) {
       target.orientation = {
@@ -586,11 +622,14 @@ io.on('connection', socket => {
       target.velocity = data.velocity;
     }
     target.lastUpdate = Date.now();
+    console.info(
+      `Vessel update from ${username}: pos=(${target.position.x.toFixed(1)},${target.position.y.toFixed(1)}) heading=${target.orientation.heading.toFixed(2)}`,
+    );
     void persistVesselToDb(target);
 
     socket.broadcast.emit('simulation:update', {
       vessels: {
-        [currentUserId]: toSimpleVesselState(target),
+        [target.id]: toSimpleVesselState(target),
       },
       partial: true,
       timestamp: target.lastUpdate,
@@ -625,7 +664,11 @@ io.on('connection', socket => {
       target.controls.throttle = clamp(data.throttle, -1, 1);
     }
     if (data.rudderAngle !== undefined) {
-      target.controls.rudderAngle = clamp(data.rudderAngle, -0.6, 0.6);
+      target.controls.rudderAngle = clamp(
+        data.rudderAngle,
+        -RUDDER_STALL_ANGLE_RAD,
+        RUDDER_STALL_ANGLE_RAD,
+      );
     }
     target.lastUpdate = Date.now();
 
@@ -769,17 +812,12 @@ setInterval(() => {
     );
   }
   lastBroadcastAt = now;
-  const snapshot = Object.fromEntries(
-    Array.from(globalState.vessels.entries()).map(([id, v]) => [
-      id,
-      {
+    const snapshot = Object.fromEntries(
+      Array.from(globalState.vessels.entries()).map(([id, v]) => [
         id,
-        position: v.position,
-        orientation: v.orientation,
-        velocity: v.velocity,
-      },
-    ]),
-  );
+        toSimpleVesselState(v),
+      ]),
+    );
   io.emit('simulation:update', {
     vessels: snapshot,
     environment: globalState.environment,
