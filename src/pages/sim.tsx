@@ -46,7 +46,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     if (socketToken) {
       socketManager.setAuthToken(socketToken, userId, username);
     }
-    socketManager.connect();
+    socketManager.connect(process.env.NEXTPUBLIC_SOCKET_URL || '');
     initializeSimulation();
     startSimulation();
   }, [session, status]);
