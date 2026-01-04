@@ -178,7 +178,10 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         </span>
         <button
           type="button"
-          onClick={() => setMode('player')}
+          onClick={() => {
+            setMode('player');
+            socketManager.notifyModeChange('player');
+          }}
           className={`rounded px-3 py-1 text-xs font-semibold transition-colors ${
             mode === 'player'
               ? 'bg-blue-600 text-white'
@@ -189,7 +192,10 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         </button>
         <button
           type="button"
-          onClick={() => setMode('spectator')}
+          onClick={() => {
+            setMode('spectator');
+            socketManager.notifyModeChange('spectator');
+          }}
           className={`rounded px-3 py-1 text-xs font-semibold transition-colors ${
             mode === 'spectator'
               ? 'bg-emerald-600 text-white'

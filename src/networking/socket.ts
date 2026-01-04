@@ -259,6 +259,12 @@ class SocketManager {
     // Function implementation
   }
 
+  // Notify server about local mode changes (player/spectator)
+  notifyModeChange(mode: 'player' | 'spectator'): void {
+    if (!this.socket?.connected) return;
+    this.socket.emit('user:mode', { mode });
+  }
+
   // Attempt to reconnect to server
   private attemptReconnect(): void {
     if (this.reconnectTimer) return;

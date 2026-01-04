@@ -58,6 +58,7 @@ export type ClientToServerEvents = {
     coordinates?: { lat: number; lng: number };
   }) => void;
   'chat:message': (data: { message: string }) => void;
+  'user:mode': (data: { mode: 'player' | 'spectator' }) => void;
 };
 // Define Socket.IO interface
 export interface InterServerEvents {

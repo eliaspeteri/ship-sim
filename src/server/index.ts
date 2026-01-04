@@ -54,6 +54,7 @@ interface VesselRecord {
   ownerId: string | null;
   crewIds: Set<string>;
   mode: VesselMode;
+  yawRate?: number;
   position: VesselPose['position'];
   orientation: VesselPose['orientation'];
   velocity: VesselVelocity;
@@ -181,6 +182,7 @@ function createDefaultAIVessel(id: string, position = { x: 0, y: 0, z: 0 }) {
     ownerId: null,
     crewIds: new Set<string>(),
     mode: 'ai',
+    yawRate: 0,
     position: { ...position, lat: latLon.lat, lon: latLon.lon },
     orientation: { heading: 0, roll: 0, pitch: 0 },
     velocity: { surge: 0, sway: 0, heave: 0 },
@@ -225,6 +227,82 @@ const clampHeading = (rad: number) => {
   if (h < 0) h += Math.PI * 2;
   return h;
 };
+
+function stepAIVessel(v: VesselRecord, dt: number) {
+  // Basic 2D integration mirroring the client WASM approximations
+  const throttle = clamp(v.controls.throttle, -1, 1);
+  const mass = v.properties.mass || 1_000_000;
+  const length = v.properties.length || 120;
+  const speedMag = Math.sqrt(v.velocity.surge ** 2 + v.velocity.sway ** 2);
+
+  const thrust = SERVER_MAX_THRUST * throttle;
+  const dragSurge = SERVER_DRAG * v.velocity.surge * Math.abs(v.velocity.surge);
+  const dragSway = SERVER_DRAG * v.velocity.sway * Math.abs(v.velocity.sway);
+
+  const stall =
+    1 -
+    Math.min(1, Math.abs(v.controls.rudderAngle) / SERVER_RUDDER_STALL) ** 2;
+  const rudderForce =
+    SERVER_RUDDER_COEF *
+    v.controls.rudderAngle *
+    speedMag *
+    speedMag *
+    Math.max(0, stall);
+  const rudderMoment = rudderForce * length * SERVER_RUDDER_ARM;
+
+  const Izz = mass * length * length * 0.1;
+  const uDot = (thrust - dragSurge) / mass;
+  const vDot =
+    (-dragSway - SERVER_SWAY_DAMP * v.velocity.sway + rudderForce) / mass;
+  const rDot = rudderMoment / Izz;
+
+  v.velocity.surge = clamp(
+    v.velocity.surge + uDot * dt,
+    -SERVER_MAX_SPEED,
+    SERVER_MAX_SPEED,
+  );
+  v.velocity.sway = clamp(
+    v.velocity.sway + vDot * dt,
+    -SERVER_MAX_SPEED * 0.6,
+    SERVER_MAX_SPEED * 0.6,
+  );
+
+  const currentYawRate = v.yawRate || 0;
+  const nextYawRate = clamp(
+    currentYawRate +
+      (rDot - SERVER_YAW_DAMP * currentYawRate - SERVER_YAW_DAMP_QUAD * currentYawRate * Math.abs(currentYawRate)) *
+        dt,
+    -SERVER_MAX_YAW,
+    SERVER_MAX_YAW,
+  );
+  v.yawRate = nextYawRate;
+  v.orientation.heading = clampHeading(v.orientation.heading + nextYawRate * dt);
+
+  const cosH = Math.cos(v.orientation.heading);
+  const sinH = Math.sin(v.orientation.heading);
+  const worldU = v.velocity.surge * cosH - v.velocity.sway * sinH;
+  const worldV = v.velocity.surge * sinH + v.velocity.sway * cosH;
+
+  v.position.x += worldU * dt;
+  v.position.y += worldV * dt;
+
+  // Keep lat/lon in sync
+  const ll = xyToLatLon({ x: v.position.x, y: v.position.y });
+  v.position.lat = ll.lat;
+  v.position.lon = ll.lon;
+}
+
+// Simple server-side integrator for AI/abandoned vessels
+const SERVER_MAX_THRUST = 8e5;
+const SERVER_DRAG = 0.8;
+const SERVER_RUDDER_COEF = 200000;
+const SERVER_RUDDER_STALL = 0.5;
+const SERVER_RUDDER_ARM = 0.4;
+const SERVER_YAW_DAMP = 0.5;
+const SERVER_YAW_DAMP_QUAD = 1.2;
+const SERVER_SWAY_DAMP = 0.6;
+const SERVER_MAX_YAW = 0.8;
+const SERVER_MAX_SPEED = 15;
 
 const hasAdminRole = (socket: import('socket.io').Socket) =>
   (socket.data.roles || []).includes('admin') ||
@@ -312,6 +390,7 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
     ownerId: userId,
     crewIds: new Set([userId]),
     mode: 'player',
+    yawRate: 0,
     position: { x: 0, y: 0, z: 0 },
     orientation: { heading: 0, roll: 0, pitch: 0 },
     velocity: { surge: 0, sway: 0, heave: 0 },
@@ -640,6 +719,26 @@ io.on('connection', socket => {
     ); */
   });
 
+  // Handle mode changes (player -> spectator -> player)
+  socket.on('user:mode', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    const targetId = getVesselIdForUser(currentUserId) || currentUserId;
+    const target = globalState.vessels.get(targetId);
+    if (!target) return;
+
+    if (data.mode === 'spectator') {
+      target.crewIds.delete(currentUserId);
+      if (target.crewIds.size === 0) {
+        target.mode = 'ai';
+      }
+    } else {
+      target.crewIds.add(currentUserId);
+      target.mode = 'player';
+    }
+    target.lastUpdate = Date.now();
+    void persistVesselToDb(target);
+  });
+
   // Handle vessel:control events
   socket.on('vessel:control', data => {
     const currentUserId = socket.data.userId || effectiveUserId;
@@ -812,12 +911,20 @@ setInterval(() => {
     );
   }
   lastBroadcastAt = now;
-    const snapshot = Object.fromEntries(
-      Array.from(globalState.vessels.entries()).map(([id, v]) => [
-        id,
-        toSimpleVesselState(v),
-      ]),
-    );
+  const dt = BROADCAST_INTERVAL_MS / 1000;
+  // Advance AI/abandoned vessels
+  for (const v of globalState.vessels.values()) {
+    if (v.mode === 'ai' || v.crewIds.size === 0) {
+      stepAIVessel(v, dt);
+    }
+  }
+
+  const snapshot = Object.fromEntries(
+    Array.from(globalState.vessels.entries()).map(([id, v]) => [
+      id,
+      toSimpleVesselState(v),
+    ]),
+  );
   io.emit('simulation:update', {
     vessels: snapshot,
     environment: globalState.environment,
