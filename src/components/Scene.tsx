@@ -133,7 +133,7 @@ function SpectatorController({
   mode: 'player' | 'spectator';
   focusRef: React.MutableRefObject<{ x: number; y: number }>;
   entryTargetRef: React.MutableRefObject<{ x: number; y: number }>;
-  controlsRef: React.RefObject<OrbitControlsImpl>;
+  controlsRef: React.RefObject<OrbitControlsImpl | null>;
 }) {
   const { camera } = useThree();
   const keys = useRef<Record<string, boolean>>({});
@@ -249,7 +249,7 @@ function LightTracker({
   targetRef,
   sunDirection,
 }: {
-  lightRef: React.RefObject<THREE.DirectionalLight>;
+  lightRef: React.RefObject<THREE.DirectionalLight | null>;
   targetRef: React.MutableRefObject<{ x: number; y: number }>;
   sunDirection: THREE.Vector3;
 }) {
@@ -271,12 +271,12 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
   const vesselOrientation = useStore(state => state.vessel.orientation);
   const otherVessels = useStore(state => state.otherVessels);
   const envTime = useStore(state => state.environment.timeOfDay);
-  const directionalLightRef = useRef<THREE.DirectionalLight>(null);
+  const directionalLightRef = useRef<THREE.DirectionalLight | null>(null);
   const focusRef = useRef<{ x: number; y: number }>({
     x: vesselPosition.x,
     y: vesselPosition.y,
   });
-  const orbitRef = useRef<OrbitControlsImpl>(null);
+  const orbitRef = useRef<OrbitControlsImpl | null>(null);
   const spectatorStartRef = useRef<{ x: number; y: number }>({
     x: vesselPosition.x,
     y: vesselPosition.y,
