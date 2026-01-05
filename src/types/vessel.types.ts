@@ -98,6 +98,7 @@ export type VesselSnapshot = VesselPose & {
   ownerId?: string | null;
   angularVelocity?: Partial<VesselState['angularVelocity']>;
   mode?: 'player' | 'ai';
+  desiredMode?: 'player' | 'ai';
 };
 
 // Simplified vessel state for network transmission

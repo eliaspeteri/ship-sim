@@ -54,6 +54,7 @@ interface VesselRecord {
   ownerId: string | null;
   crewIds: Set<string>;
   mode: VesselMode;
+  desiredMode: VesselMode;
   yawRate?: number;
   position: VesselPose['position'];
   orientation: VesselPose['orientation'];
@@ -81,6 +82,8 @@ async function persistVesselToDb(vessel: VesselRecord) {
       update: {
         ownerId: vessel.ownerId ?? null,
         mode: vessel.mode,
+        desiredMode: vessel.desiredMode || 'player',
+        desiredMode: vessel.desiredMode || 'player',
         lat: pos.lat ?? 0,
         lon: pos.lon ?? 0,
         z: pos.z,
@@ -106,6 +109,8 @@ async function persistVesselToDb(vessel: VesselRecord) {
         id: vessel.id,
         ownerId: vessel.ownerId ?? null,
         mode: vessel.mode,
+        desiredMode: vessel.desiredMode || 'player',
+        desiredMode: vessel.desiredMode || 'player',
         lat: pos.lat ?? 0,
         lon: pos.lon ?? 0,
         z: pos.z,
@@ -144,6 +149,7 @@ async function loadVesselsFromDb() {
       ownerId: row.ownerId,
       crewIds: new Set<string>(),
       mode: (row.mode as VesselMode) || 'ai',
+      desiredMode: (row.desiredMode as VesselMode) || 'player',
       position: {
         x: xy.x,
         y: xy.y,
@@ -194,6 +200,7 @@ function createDefaultAIVessel(id: string, position = { x: 0, y: 0, z: 0 }) {
     ownerId: null,
     crewIds: new Set<string>(),
     mode: 'ai',
+    desiredMode: 'ai',
     yawRate: 0,
     position: { ...position, lat: latLon.lat, lon: latLon.lon },
     orientation: { heading: 0, roll: 0, pitch: 0 },
@@ -405,6 +412,7 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
     ownerId: userId,
     crewIds: new Set([userId]),
     mode: 'player',
+    desiredMode: 'player',
     yawRate: 0,
     position: { x: 0, y: 0, z: 0 },
     orientation: { heading: 0, roll: 0, pitch: 0 },
@@ -451,6 +459,7 @@ const withLatLon = (pos: VesselPose['position']) => {
 const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => ({
   id: v.id,
   ownerId: v.ownerId,
+  desiredMode: v.desiredMode,
   mode: v.mode,
   position: withLatLon(v.position),
   orientation: v.orientation,
@@ -799,6 +808,28 @@ io.on('connection', socket => {
     }
     console.info(`Simulation state update from ${socket.data.username}:`, data);
     // Future: apply global sim changes
+  });
+
+  // Admin: force vessel desired mode (ai/player)
+  socket.on('admin:vesselMode', data => {
+    if (!hasAdminRole(socket)) {
+      socket.emit('error', 'Not authorized to change vessel mode');
+      return;
+    }
+    const target = globalState.vessels.get(data.vesselId);
+    if (!target) return;
+
+    if (data.mode === 'ai') {
+      target.desiredMode = 'ai';
+      target.mode = 'ai';
+      target.crewIds.clear();
+    } else {
+      target.desiredMode = 'player';
+      target.mode = 'player';
+      // crewIds unchanged; crew will rejoin on connect
+    }
+    target.lastUpdate = Date.now();
+    void persistVesselToDb(target);
   });
 
   // Handle admin weather control

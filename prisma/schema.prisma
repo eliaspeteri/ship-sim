@@ -64,6 +64,7 @@ model Vessel {
     id          String   @id
     ownerId     String?
     mode        String   // 'ai' | 'player'
+    desiredMode String   @default("player") // intended mode when unattended
     lat         Float
     lon         Float
     z           Float
