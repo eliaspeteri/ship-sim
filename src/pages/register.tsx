@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import { signIn } from 'next-auth/react';
 
 /**
  * Register page for Ship Simulator.
  * Allows new users to create an account by providing username and password.
- * On success, redirects to the login page.
+ * On success, logs the user in and redirects to the simulation.
  */
 const RegisterPage: React.FC = () => {
   const router = useRouter();
@@ -31,12 +32,24 @@ const RegisterPage: React.FC = () => {
         body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
-      if (res.ok && data.success) {
-        setSuccess(true);
-        setTimeout(() => router.push('/login'), 1200);
-      } else {
+      if (!res.ok || !data.success) {
         setError(data.error || 'Registration failed');
+        return;
       }
+
+      // Auto-login the new user and send them to the sim
+      const loginResult = await signIn('credentials', {
+        redirect: false,
+        username,
+        password,
+        callbackUrl: '/sim',
+      });
+      if (loginResult?.error) {
+        setError(loginResult.error);
+        return;
+      }
+      setSuccess(true);
+      await router.push('/sim');
     } catch {
       setError('Registration failed');
     } finally {
@@ -99,7 +112,7 @@ const RegisterPage: React.FC = () => {
             )}
             {success && (
               <div className="mb-3 bg-green-800 p-2 rounded text-sm">
-                Registration successful! Redirecting to login...
+                Registration successful! Signing you in...
               </div>
             )}
             <button
