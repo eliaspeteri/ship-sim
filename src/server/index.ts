@@ -69,10 +69,13 @@ interface VesselRecord {
 
 const vesselPersistAt = new Map<string, number>();
 
-async function persistVesselToDb(vessel: VesselRecord) {
+async function persistVesselToDb(
+  vessel: VesselRecord,
+  opts: { force?: boolean } = {},
+) {
   const now = Date.now();
   const lastPersist = vesselPersistAt.get(vessel.id) || 0;
-  if (now - lastPersist < MIN_PERSIST_INTERVAL_MS) return;
+  if (!opts.force && now - lastPersist < MIN_PERSIST_INTERVAL_MS) return;
   vesselPersistAt.set(vessel.id, now);
 
   const pos = withLatLon(vessel.position);
@@ -765,7 +768,7 @@ io.on('connection', socket => {
       console.debug(`Vessel ${target.id} switched to Player mode (crew added)`);
     }
     target.lastUpdate = Date.now();
-    void persistVesselToDb(target);
+    void persistVesselToDb(target, { force: true });
   });
 
   // Handle vessel:control events
@@ -834,7 +837,7 @@ io.on('connection', socket => {
       // crewIds unchanged; crew will rejoin on connect
     }
     target.lastUpdate = Date.now();
-    void persistVesselToDb(target);
+    void persistVesselToDb(target, { force: true });
   });
 
   // Handle admin weather control
