@@ -6,6 +6,7 @@ import {
   VesselVelocity,
 } from './vessel.types';
 import { AuthenticatedUser } from '../server/middleware/authentication';
+import type { Role } from '../server/roles';
 
 type ControlUpdate = Partial<Pick<VesselControls, 'throttle' | 'rudderAngle'>>;
 
@@ -15,6 +16,8 @@ export interface SimulationUpdateData {
   environment?: EnvironmentState;
   partial?: boolean;
   timestamp?: number;
+  self?: { userId: string; roles: Role[] };
+  chatHistory?: ChatMessageData[];
 }
 export interface VesselJoinedData {
   userId: string;
@@ -37,6 +40,7 @@ export interface VesselControlData {
   userId: string;
   throttle?: number;
   rudderAngle?: number;
+  ballast?: number;
 } // Type definitions for Socket.IO
 export type ServerToClientEvents = {
   'simulation:update': (data: SimulationUpdateData) => void;
@@ -47,12 +51,16 @@ export type ServerToClientEvents = {
     userId: string;
     username: string;
     message: string;
+    timestamp?: number;
   }) => void;
+  'chat:history': (data: ChatMessageData[]) => void;
   error: (error: string) => void;
 };
 export type ClientToServerEvents = {
   'vessel:update': (data: VesselUpdateData) => void;
   'vessel:control': (data: VesselControlData) => void;
+  'vessel:create': (data?: { x?: number; y?: number; lat?: number; lon?: number }) => void;
+  'vessel:helm': (data: { action: 'claim' | 'release' }) => void;
   'simulation:state': (data: { isRunning: boolean }) => void;
   'admin:weather': (data: {
     pattern?: string;

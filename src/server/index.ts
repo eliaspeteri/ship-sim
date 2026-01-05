@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import 'dotenv/config';
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -39,6 +38,7 @@ const ADMIN_USERS = (process.env.ADMIN_USERS || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
+const MAX_CREW = parseInt(process.env.MAX_CREW || '4', 10) || 4;
 const PERF_LOGGING_ENABLED = process.env.PERF_LOGGING === 'true' || !PRODUCTION;
 const API_SLOW_WARN_MS = 200;
 const BROADCAST_DRIFT_WARN_FACTOR = 1.5;
@@ -55,6 +55,9 @@ interface VesselRecord {
   id: string;
   ownerId: string | null;
   crewIds: Set<string>;
+  crewNames: Map<string, string>;
+  helmUserId?: string | null;
+  helmUsername?: string | null;
   mode: VesselMode;
   desiredMode: VesselMode;
   lastCrewAt: number;
@@ -154,6 +157,7 @@ async function loadVesselsFromDb() {
       id: row.id,
       ownerId: row.ownerId,
       crewIds: new Set<string>(),
+      crewNames: new Map<string, string>(),
       mode: (row.mode as VesselMode) || 'ai',
       desiredMode: (row.desiredMode as VesselMode) || 'player',
       lastCrewAt: row.lastCrewAt?.getTime() || Date.now(),
@@ -206,6 +210,7 @@ function createDefaultAIVessel(id: string, position = { x: 0, y: 0, z: 0 }) {
     id,
     ownerId: null,
     crewIds: new Set<string>(),
+    crewNames: new Map<string, string>(),
     mode: 'ai',
     desiredMode: 'ai',
     lastCrewAt: Date.now(),
@@ -223,6 +228,52 @@ function createDefaultAIVessel(id: string, position = { x: 0, y: 0, z: 0 }) {
     lastUpdate: Date.now(),
   };
   return vessel;
+}
+
+function createNewVesselForUser(
+  userId: string,
+  username: string,
+  position = { x: 0, y: 0, z: 0 },
+): VesselRecord {
+  const latLon = xyToLatLon({ x: position.x, y: position.y });
+  const vessel: VesselRecord = {
+    id: `${userId}_${Date.now()}`,
+    ownerId: userId,
+    crewIds: new Set<string>([userId]),
+    crewNames: new Map<string, string>([[userId, username]]),
+    helmUserId: userId,
+    helmUsername: username,
+    mode: 'player',
+    desiredMode: 'player',
+    lastCrewAt: Date.now(),
+    position: { ...position, lat: latLon.lat, lon: latLon.lon },
+    orientation: { heading: 0, roll: 0, pitch: 0 },
+    velocity: { surge: 0, sway: 0, heave: 0 },
+    properties: {
+      mass: 1_200_000,
+      length: 150,
+      beam: 24,
+      draft: 7,
+    },
+    controls: { throttle: 0, rudderAngle: 0, ballast: 0.5, bowThruster: 0 },
+    lastUpdate: Date.now(),
+  };
+  return vessel;
+}
+
+function detachUserFromCurrentVessel(userId: string): void {
+  const vessel = Array.from(globalState.vessels.values()).find(v =>
+    v.crewIds.has(userId),
+  );
+  if (!vessel) return;
+  vessel.crewIds.delete(userId);
+  vessel.crewNames.delete(userId);
+  vessel.lastCrewAt = Date.now();
+  if (vessel.crewIds.size === 0) {
+    vessel.mode = vessel.desiredMode === 'ai' ? 'ai' : 'ai';
+    vessel.desiredMode = vessel.mode;
+  }
+  void persistVesselToDb(vessel, { force: true });
 }
 
 // Application state
@@ -351,6 +402,7 @@ function takeOverAvailableAIVessel(
     `Assigning user ${username} to available AI vessel ${aiVessel.id}`,
   );
   aiVessel.crewIds.add(userId);
+  aiVessel.crewNames.set(userId, username);
   aiVessel.mode = 'player';
   aiVessel.ownerId = aiVessel.ownerId ?? userId;
   aiVessel.lastUpdate = Date.now();
@@ -360,6 +412,14 @@ function takeOverAvailableAIVessel(
     `Assigned ${username} (${userId}) to AI vessel ${aiVessel.id} (takeover)`,
   );
   return aiVessel;
+}
+
+function findJoinableVessel(userId: string): VesselRecord | null {
+  // Join a vessel that already has crew and room left
+  const joinable = Array.from(globalState.vessels.values())
+    .filter(v => v.mode === 'player' && v.crewIds.size > 0 && v.crewIds.size < MAX_CREW && !v.crewIds.has(userId))
+    .sort((a, b) => a.crewIds.size - b.crewIds.size);
+  return joinable[0] || null;
 }
 
 function ensureVesselForUser(userId: string, username: string): VesselRecord {
@@ -375,6 +435,7 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
       lastVessel.mode = lastVessel.desiredMode || 'player';
       if (lastVessel.mode === 'player') {
         lastVessel.crewIds.add(userId);
+        lastVessel.crewNames.set(userId, username);
       }
       return lastVessel;
     }
@@ -395,9 +456,22 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
     existing.mode = existing.desiredMode || existing.mode;
     if (existing.mode === 'player') {
       existing.crewIds.add(userId);
+      existing.crewNames.set(userId, username);
     }
     globalState.userLastVessel.set(userId, existing.id);
     return existing;
+  }
+
+  const joinable = findJoinableVessel(userId);
+  if (joinable) {
+    console.info(
+      `Joining user ${username} to shared vessel ${joinable.id} (${joinable.crewIds.size}/${MAX_CREW})`,
+    );
+    joinable.crewIds.add(userId);
+    joinable.crewNames.set(userId, username);
+    joinable.mode = 'player';
+    globalState.userLastVessel.set(userId, joinable.id);
+    return joinable;
   }
 
   // Try to reuse a vessel owned by this user (persisted)
@@ -409,6 +483,7 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
       `Reassigning user ${username} to owned vessel ${owned.id} from persistence`,
     );
     owned.crewIds.add(userId);
+    owned.crewNames.set(userId, username);
     owned.mode = 'player';
     globalState.userLastVessel.set(userId, owned.id);
     return owned;
@@ -471,6 +546,13 @@ const withLatLon = (pos: VesselPose['position']) => {
 const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => ({
   id: v.id,
   ownerId: v.ownerId,
+  crewIds: Array.from(v.crewIds),
+  crewCount: v.crewIds.size,
+  crewNames:
+    v.crewNames.size > 0
+      ? Object.fromEntries(Array.from(v.crewNames.entries()))
+      : undefined,
+  helm: { userId: v.helmUserId ?? null, username: v.helmUsername ?? null },
   desiredMode: v.desiredMode,
   mode: v.mode,
   lastCrewAt: v.lastCrewAt,
@@ -661,17 +743,39 @@ io.on('connection', socket => {
     });
   }
 
-  // Send initial snapshot
-  socket.emit('simulation:update', {
-    vessels: Object.fromEntries(
-      Array.from(globalState.vessels.entries()).map(([id, v]) => [
-        id,
-        toSimpleVesselState(v),
-      ]),
-    ),
-    environment: globalState.environment,
-    timestamp: Date.now(),
-  });
+  // Send initial snapshot with recent chat history
+  void (async () => {
+    let chatHistory: { userId: string; username: string; message: string; timestamp: number }[] = [];
+    try {
+      const rows = await prisma.chatMessage.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      });
+      chatHistory = rows
+        .map(r => ({
+          userId: r.userId,
+          username: r.username,
+          message: r.message,
+          timestamp: r.createdAt.getTime(),
+        }))
+        .reverse();
+    } catch (err) {
+      console.warn('Failed to load chat history', err);
+    }
+
+    socket.emit('simulation:update', {
+      vessels: Object.fromEntries(
+        Array.from(globalState.vessels.entries()).map(([id, v]) => [
+          id,
+          toSimpleVesselState(v),
+        ]),
+      ),
+      environment: globalState.environment,
+      timestamp: Date.now(),
+      self: { userId: effectiveUserId, roles: roles || ['guest'] },
+      chatHistory,
+    });
+  })();
 
   // Handle vessel:update events (from client sim)
   socket.on('vessel:update', data => {
@@ -757,8 +861,18 @@ io.on('connection', socket => {
   // Handle mode changes (player -> spectator -> player)
   socket.on('user:mode', data => {
     const currentUserId = socket.data.userId || effectiveUserId;
+    const wantsPlayer = data.mode === 'player';
+
+    if (wantsPlayer && !isPlayerOrHigher) {
+      socket.emit('error', 'Your role does not permit player mode');
+      return;
+    }
+
     const targetId = getVesselIdForUser(currentUserId) || currentUserId;
-    const target = globalState.vessels.get(targetId);
+    let target = globalState.vessels.get(targetId);
+    if (!target && wantsPlayer) {
+      target = ensureVesselForUser(currentUserId, effectiveUsername);
+    }
     if (!target) return;
 
     if (data.mode === 'spectator') {
@@ -786,7 +900,7 @@ io.on('connection', socket => {
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
     if (!isPlayerOrHigher) {
-      console.info('Ignoring vessel:control from non-player');
+      socket.emit('error', 'Not authorized to control a vessel');
       return;
     }
 
@@ -801,6 +915,16 @@ io.on('connection', socket => {
     );
     if (!target) return;
 
+    if (!target.helmUserId || target.helmUserId !== currentUserId) {
+      socket.emit(
+        'error',
+        target.helmUserId
+          ? `Helm held by ${target.helmUsername || target.helmUserId}`
+          : 'Claim the helm to steer',
+      );
+      return;
+    }
+
     if (data.throttle !== undefined) {
       target.controls.throttle = clamp(data.throttle, -1, 1);
     }
@@ -810,6 +934,9 @@ io.on('connection', socket => {
         -RUDDER_STALL_ANGLE_RAD,
         RUDDER_STALL_ANGLE_RAD,
       );
+    }
+    if (data.ballast !== undefined) {
+      target.controls.ballast = clamp(data.ballast, 0, 1);
     }
     target.lastUpdate = Date.now();
 
@@ -826,6 +953,62 @@ io.on('connection', socket => {
     }
     console.info(`Simulation state update from ${socket.data.username}:`, data);
     // Future: apply global sim changes
+  });
+
+  socket.on('vessel:create', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    const currentUsername = socket.data.username || effectiveUsername;
+    if (!isPlayerOrHigher) {
+      socket.emit('error', 'Not authorized to create a vessel');
+      return;
+    }
+    detachUserFromCurrentVessel(currentUserId);
+    let position = { x: 0, y: 0, z: 0 };
+    if (data?.lat !== undefined && data?.lon !== undefined) {
+      const xy = latLonToXY({ lat: data.lat, lon: data.lon });
+      position = { x: xy.x, y: xy.y, z: 0 };
+    } else if (data?.x !== undefined && data?.y !== undefined) {
+      position = { x: data.x, y: data.y, z: 0 };
+    }
+
+    const newVessel = createNewVesselForUser(currentUserId, currentUsername, position);
+    globalState.vessels.set(newVessel.id, newVessel);
+    globalState.userLastVessel.set(currentUserId, newVessel.id);
+    void persistVesselToDb(newVessel, { force: true });
+    socket.emit('simulation:update', {
+      vessels: { [newVessel.id]: toSimpleVesselState(newVessel) },
+      partial: true,
+      timestamp: Date.now(),
+    });
+    console.info(
+      `Created new vessel ${newVessel.id} for ${currentUsername} (${currentUserId})`,
+    );
+  });
+
+  socket.on('vessel:helm', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    const currentUsername = socket.data.username || effectiveUsername;
+    const vesselKey = getVesselIdForUser(currentUserId) || currentUserId;
+    const vessel = globalState.vessels.get(vesselKey);
+    if (!vessel) return;
+    if (!vessel.crewIds.has(currentUserId)) {
+      socket.emit('error', 'You are not crew on this vessel');
+      return;
+    }
+    if (data.action === 'claim') {
+      vessel.helmUserId = currentUserId;
+      vessel.helmUsername = currentUsername;
+    } else {
+      vessel.helmUserId = null;
+      vessel.helmUsername = null;
+    }
+    vessel.lastUpdate = Date.now();
+    void persistVesselToDb(vessel, { force: true });
+    io.emit('simulation:update', {
+      vessels: { [vessel.id]: toSimpleVesselState(vessel) },
+      partial: true,
+      timestamp: Date.now(),
+    });
   });
 
   // Admin: force vessel desired mode (ai/player)
@@ -898,11 +1081,24 @@ io.on('connection', socket => {
     const message = (data.message || '').trim();
     if (!message || message.length > 500) return;
 
-    io.emit('chat:message', {
+    const payload = {
       userId: socket.data.userId || 'unknown',
       username: socket.data.username || 'Guest',
       message,
-    });
+      timestamp: Date.now(),
+    };
+
+    void prisma.chatMessage
+      .create({
+        data: {
+          userId: payload.userId,
+          username: payload.username,
+          message: payload.message,
+        },
+      })
+      .catch(err => console.warn('Failed to persist chat message', err));
+
+    io.emit('chat:message', payload);
   });
 
   // Handle disconnect

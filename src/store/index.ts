@@ -4,6 +4,7 @@ import { VesselState, ShipType, SimpleVesselState } from '../types/vessel.types'
 import { WasmModule } from '../types/wasm';
 import { EventLogEntry } from '../types/events.types';
 import { EnvironmentState } from '../types/environment.types';
+import type { Role } from '../server/roles';
 
 // Machinery failures for more realistic simulation
 interface MachinerySystemStatus {
@@ -41,6 +42,18 @@ interface NavigationData {
 interface SimulationState {
   mode: 'player' | 'spectator';
   setMode: (mode: 'player' | 'spectator') => void;
+  roles: Role[];
+  setRoles: (roles: Role[]) => void;
+  notice: { type: 'info' | 'error'; message: string } | null;
+  setNotice: (notice: SimulationState['notice']) => void;
+  sessionUserId: string | null;
+  setSessionUserId: (id: string | null) => void;
+  crewIds: string[];
+  crewNames: Record<string, string>;
+  setCrew: (crew: { ids?: string[]; names?: Record<string, string> }) => void;
+  chatMessages: { userId: string; username: string; message: string; timestamp: number }[];
+  addChatMessage: (msg: { userId: string; username: string; message: string; timestamp?: number }) => void;
+  setChatMessages: (msgs: { userId: string; username: string; message: string; timestamp: number }[]) => void;
 
   // Vessel state
   vessel: VesselState;
@@ -106,6 +119,7 @@ const defaultVesselState: VesselState = {
     ballast: 0.5,
     bowThruster: 0,
   },
+  helm: { userId: null, username: null },
   properties: {
     name: 'SS Atlantic Conveyor',
     type: ShipType.CONTAINER,
@@ -206,6 +220,25 @@ const defaultNavigationData: NavigationData = {
 const useStore = create<SimulationState>()((set, get) => ({
   mode: 'player',
   setMode: mode => set({ mode }),
+  roles: ['guest'],
+  setRoles: roles => set({ roles }),
+  notice: null,
+  setNotice: notice => set({ notice }),
+  sessionUserId: null,
+  setSessionUserId: id => set({ sessionUserId: id }),
+  crewIds: [],
+  crewNames: {},
+  setCrew: crew =>
+    set({
+      crewIds: crew.ids ?? [],
+      crewNames: crew.names ?? {},
+    }),
+  chatMessages: [],
+  addChatMessage: message =>
+    set(state => ({
+      chatMessages: [...state.chatMessages, message].slice(-50),
+    })),
+  setChatMessages: messages => set({ chatMessages: messages.slice(-50) }),
 
   // Vessel state
   vessel: defaultVesselState,
@@ -253,6 +286,13 @@ const useStore = create<SimulationState>()((set, get) => ({
           updatedVessel.controls = {
             ...updatedVessel.controls,
             ...vesselUpdate.controls,
+          };
+        }
+
+        if (vesselUpdate.helm) {
+          updatedVessel.helm = {
+            ...updatedVessel.helm,
+            ...vesselUpdate.helm,
           };
         }
 

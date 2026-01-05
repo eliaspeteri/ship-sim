@@ -87,3 +87,11 @@ model Vessel {
     lastUpdate  DateTime @default(now())
     isAi        Boolean  @default(false)
 }
+
+model ChatMessage {
+    id        String   @id @default(cuid())
+    userId    String
+    username  String
+    message   String
+    createdAt DateTime @default(now())
+}

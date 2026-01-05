@@ -147,7 +147,14 @@ class SocketManager {
     });
 
     this.socket.on('chat:message', (data: ChatMessageData) => {
-      // Add to event log for now
+      useStore
+        .getState()
+        .addChatMessage({
+          userId: data.userId,
+          username: data.username,
+          message: data.message,
+          timestamp: data.timestamp || Date.now(),
+        });
       if (data.userId === 'system') {
         useStore.getState().addEvent({
           category: 'system',
@@ -160,12 +167,33 @@ class SocketManager {
 
     this.socket.on('error', (error: unknown) => {
       console.error('Socket.IO error:', error);
+      const store = useStore.getState();
+      const message =
+        typeof error === 'string'
+          ? error
+          : error instanceof Error
+            ? error.message
+            : 'Connection error';
+      store.setNotice({ type: 'error', message });
     });
   }
 
   // Handle simulation updates from server
   private handleSimulationUpdate(data: SimulationUpdateData): void {
     const store = useStore.getState();
+    if (data.self?.roles) {
+      store.setRoles(data.self.roles);
+    }
+    if (data.chatHistory) {
+      store.setChatMessages(
+        data.chatHistory.map(msg => ({
+          userId: msg.userId,
+          username: msg.username,
+          message: msg.message,
+          timestamp: msg.timestamp || Date.now(),
+        })),
+      );
+    }
     const currentOthers = store.otherVessels || {};
     const nextOthers = data.partial ? { ...currentOthers } : {};
     let changed = false;
@@ -174,47 +202,59 @@ class SocketManager {
         const isSelf =
           id === this.userId ||
           id === store.currentVesselId ||
-          vesselData.ownerId === this.userId;
+          vesselData.ownerId === this.userId ||
+          (Array.isArray(vesselData.crewIds) &&
+            vesselData.crewIds.includes(this.userId));
         if (isSelf) {
+        if (store.currentVesselId !== id) {
+          store.setCurrentVesselId(id);
+        }
         if (!this.hasHydratedSelf) {
           this.hasHydratedSelf = true;
           store.setCurrentVesselId(id);
           this.lastSelfSnapshot = vesselData;
           this.selfHydrateResolvers.forEach(resolve => resolve(vesselData));
           this.selfHydrateResolvers = [];
-          store.updateVessel({
-            position: vesselData.position,
-            orientation: vesselData.orientation,
-            velocity: vesselData.velocity,
-            angularVelocity: vesselData.angularVelocity,
-            controls: vesselData.controls
-              ? {
-                  ...store.vessel.controls,
-                  throttle:
-                    vesselData.controls.throttle ??
-                    store.vessel.controls?.throttle ??
-                    0,
-                  rudderAngle:
-                    vesselData.controls.rudderAngle ??
-                    store.vessel.controls?.rudderAngle ??
-                    0,
-                  ballast:
-                    vesselData.controls.ballast ??
-                    store.vessel.controls?.ballast ??
-                    0.5,
-                  bowThruster:
-                    vesselData.controls.bowThruster ??
-                    store.vessel.controls?.bowThruster ??
-                    0,
-                }
-              : store.vessel.controls,
+        }
+        if (vesselData.crewIds || vesselData.crewNames) {
+          store.setCrew({
+            ids: vesselData.crewIds,
+            names: vesselData.crewNames,
           });
-          const desired = vesselData.desiredMode || vesselData.mode;
-          if (desired === 'ai') {
-            store.setMode('spectator');
-          } else {
-            store.setMode('player');
-          }
+        }
+        store.updateVessel({
+          position: vesselData.position,
+          orientation: vesselData.orientation,
+          velocity: vesselData.velocity,
+          angularVelocity: vesselData.angularVelocity,
+          controls: vesselData.controls
+            ? {
+                ...store.vessel.controls,
+                throttle:
+                  vesselData.controls.throttle ??
+                  store.vessel.controls?.throttle ??
+                  0,
+                rudderAngle:
+                  vesselData.controls.rudderAngle ??
+                  store.vessel.controls?.rudderAngle ??
+                  0,
+                ballast:
+                  vesselData.controls.ballast ??
+                  store.vessel.controls?.ballast ??
+                  0.5,
+                bowThruster:
+                  vesselData.controls.bowThruster ??
+                  store.vessel.controls?.bowThruster ??
+                  0,
+              }
+            : store.vessel.controls,
+          helm: vesselData.helm,
+        });
+        const desired = vesselData.desiredMode || vesselData.mode;
+        if (desired === 'ai') {
+          store.setMode('spectator');
+        } else {
+          store.setMode('player');
         }
         return;
       }
@@ -223,6 +263,18 @@ class SocketManager {
       if (hasVesselChanged(prev, vesselData)) {
         nextOthers[id] = vesselData;
         changed = true;
+        if (
+          id === store.currentVesselId &&
+          (vesselData.crewIds || vesselData.crewNames || vesselData.helm)
+        ) {
+          store.setCrew({
+            ids: vesselData.crewIds,
+            names: vesselData.crewNames,
+          });
+          if (vesselData.helm) {
+            store.updateVessel({ helm: vesselData.helm });
+          }
+        }
       }
     });
 
@@ -270,16 +322,32 @@ class SocketManager {
   }
 
   // Send vessel control update to server
-  sendControlUpdate(throttle: number, rudderAngle: number): void {
+  sendControlUpdate(throttle: number, rudderAngle: number, ballast?: number): void {
     if (!this.socket?.connected) return;
 
     const controlData: VesselControlData = {
       userId: this.userId,
       throttle,
       rudderAngle,
+      ballast,
     };
 
     this.socket.emit('vessel:control', controlData);
+  }
+
+  requestNewVessel(position?: { x?: number; y?: number; lat?: number; lon?: number }): void {
+    if (!this.socket?.connected) return;
+    this.socket.emit('vessel:create', position);
+  }
+
+  requestHelm(action: 'claim' | 'release'): void {
+    if (!this.socket?.connected) return;
+    this.socket.emit('vessel:helm', { action });
+  }
+
+  sendChatMessage(message: string): void {
+    if (!this.socket?.connected) return;
+    this.socket.emit('chat:message', { message });
   }
 
   // Update vessel position
