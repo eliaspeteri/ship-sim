@@ -357,15 +357,15 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           sunDirection={sunDirection}
           size={isSpectator ? 80000 : 40000}
         />
-      <Ship
-        position={{
-          x: vesselPosition.x,
-          y: 0,
-          z: vesselPosition.y,
-        }}
-        heading={vesselPosition.heading}
-        shipType={vesselProperties.type}
-      />
+        <Ship
+          position={{
+            x: vesselPosition.x,
+            y: 0,
+            z: vesselPosition.y,
+          }}
+          heading={vesselPosition.heading}
+          shipType={vesselProperties.type}
+        />
         {Object.entries(otherVessels || {}).map(([id, v]) => (
           <Ship
             key={id}
@@ -386,7 +386,6 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           maxDistance={
             isSpectator ? 5000 : Math.max(vesselProperties.length * 5, 500)
           }
-          // Fix tilt at ~45deg in spectator; allow full orbit in player mode
           minPolarAngle={isSpectator ? Math.PI / 4 : Math.PI * 0.05}
           maxPolarAngle={isSpectator ? Math.PI / 4 : Math.PI * 0.5}
           enableDamping

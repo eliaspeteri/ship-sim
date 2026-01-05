@@ -8,10 +8,7 @@ import { CircularGauge } from './CircularGauge';
 import RudderAngleIndicator from './RudderAngleIndicator';
 import { HelmControl } from './HelmControl';
 import socketManager from '../networking/socket';
-import {
-  RUDDER_STALL_ANGLE_DEG,
-  clampRudderAngle,
-} from '../constants/vessel';
+import { RUDDER_STALL_ANGLE_DEG, clampRudderAngle } from '../constants/vessel';
 
 interface DashboardProps {
   className?: string;
@@ -180,6 +177,12 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
             </div>
           </div>
           <div className="bg-gray-800/70 p-2 rounded">
+            <div className="text-gray-400 text-xs">Sway</div>
+            <div className="font-mono">
+              {((velocity?.sway || 0) * 1.94384).toFixed(1)} kts
+            </div>
+          </div>
+          <div className="bg-gray-800/70 p-2 rounded">
             <div className="text-gray-400 text-xs">Course</div>
             <div className="font-mono">
               {(() => {
@@ -252,9 +255,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           minAngle={-RUDDER_STALL_ANGLE_DEG}
           maxAngle={RUDDER_STALL_ANGLE_DEG}
           onChange={deg =>
-            setRudderAngleLocal(
-              clampRudderAngle((deg * Math.PI) / 180),
-            )
+            setRudderAngleLocal(clampRudderAngle((deg * Math.PI) / 180))
           }
         />
 
