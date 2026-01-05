@@ -152,18 +152,18 @@ function SpectatorController({
     if (mode !== 'spectator') return;
     const start = entryTargetRef.current;
     positionRef.current.set(start.x - 200, 220, start.y - 200);
-    forwardRef.current.set(0, 0, -1);
-    focusRef.current = { x: positionRef.current.x, y: positionRef.current.z };
+    tmpVec.current.set(start.x, 0, start.y);
+    forwardRef.current
+      .copy(tmpVec.current)
+      .sub(positionRef.current)
+      .normalize();
+    focusRef.current = { x: start.x, y: start.y };
     camera.position.copy(positionRef.current);
     if (controlsRef.current) {
       controlsRef.current.target.set(focusRef.current.x, 0, focusRef.current.y);
       controlsRef.current.update();
     } else {
-      camera.lookAt(
-        tmpVec.current
-          .copy(positionRef.current)
-          .add(forwardRef.current.clone().multiplyScalar(50)),
-      );
+      camera.lookAt(tmpVec.current.set(focusRef.current.x, 0, focusRef.current.y));
     }
   }, [mode, camera, focusRef, controlsRef, entryTargetRef]);
 
@@ -222,21 +222,21 @@ function SpectatorController({
       movement.normalize().multiplyScalar(moveSpeed);
       positionRef.current.add(movement);
       camera.position.add(movement);
+      focusRef.current = {
+        x: focusRef.current.x + movement.x,
+        y: focusRef.current.y + movement.z,
+      };
     }
-
-    focusRef.current = {
-      x: positionRef.current.x,
-      y: positionRef.current.z,
-    };
 
     if (controlsRef.current) {
       controlsRef.current.target.set(focusRef.current.x, 0, focusRef.current.y);
       controlsRef.current.update();
+      positionRef.current.copy(camera.position);
     } else {
       const lookAt = tmpVec.current
-        .copy(positionRef.current)
-        .add(forwardRef.current.clone().multiplyScalar(200));
+        .set(focusRef.current.x, 0, focusRef.current.y);
       camera.lookAt(lookAt);
+      positionRef.current.copy(camera.position);
     }
   });
 
