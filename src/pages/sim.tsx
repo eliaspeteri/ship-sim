@@ -30,12 +30,13 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     }
   }, [session, status, router]);
 
-  // Start simulation and socket once per mount (avoid reconnects on tab focus)
+  // Start simulation after hydrating from the first self snapshot over the socket
   useEffect(() => {
     if (status !== 'authenticated' || !session) return;
     if (hasStartedRef.current) return;
 
     hasStartedRef.current = true;
+    let cancelled = false;
     // Attach auth token for socket if available from session callback
     const socketToken = (session as unknown as { socketToken?: string })
       ?.socketToken;
@@ -48,20 +49,27 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       socketManager.setAuthToken(socketToken, userId, username);
     }
     socketManager.connect(process.env.NEXT_PUBLIC_SOCKET_URL || '');
-    initializeSimulation();
-    startSimulation();
-  }, [session, status]);
 
-  // Clean up only on unmount
-  useEffect(
-    () => () => {
+    (async () => {
+      try {
+        await socketManager.waitForSelfSnapshot();
+        if (cancelled) return;
+        await initializeSimulation();
+        if (cancelled) return;
+        startSimulation();
+      } catch (error) {
+        console.error('Failed to hydrate simulation before start:', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
       if (hasStartedRef.current) {
         socketManager.disconnect();
         hasStartedRef.current = false;
       }
-    },
-    [],
-  );
+    };
+  }, [session, status]);
 
   // Keyboard controls (W/S throttle, A/D rudder, arrows also)
   useEffect(() => {

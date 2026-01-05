@@ -55,6 +55,8 @@ class SocketManager {
   private maxReconnectAttempts = 5;
   private authToken: string | null = null;
   private hasHydratedSelf = false;
+  private lastSelfSnapshot: SimpleVesselState | null = null;
+  private selfHydrateResolvers: Array<(vessel: SimpleVesselState) => void> = [];
 
   constructor() {
     this.userId = this.generateUserId();
@@ -75,6 +77,8 @@ class SocketManager {
 
     // Reset hydration marker on new connection
     this.hasHydratedSelf = false;
+    this.lastSelfSnapshot = null;
+    this.selfHydrateResolvers = [];
     useStore.getState().setCurrentVesselId(null);
 
     this.socket = io(url, {
@@ -175,6 +179,9 @@ class SocketManager {
         if (!this.hasHydratedSelf) {
           this.hasHydratedSelf = true;
           store.setCurrentVesselId(id);
+          this.lastSelfSnapshot = vesselData;
+          this.selfHydrateResolvers.forEach(resolve => resolve(vesselData));
+          this.selfHydrateResolvers = [];
           store.updateVessel({
             position: vesselData.position,
             orientation: vesselData.orientation,
@@ -214,6 +221,14 @@ class SocketManager {
     if (changed || !data.partial) {
       store.setOtherVessels(nextOthers);
     }
+  }
+
+  // Await the first self snapshot after connect; resolves immediately if already hydrated
+  waitForSelfSnapshot(): Promise<SimpleVesselState> {
+    if (this.lastSelfSnapshot) return Promise.resolve(this.lastSelfSnapshot);
+    return new Promise(resolve => {
+      this.selfHydrateResolvers.push(resolve);
+    });
   }
 
   // Handle environment updates from server
