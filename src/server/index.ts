@@ -997,6 +997,7 @@ let lastBroadcastAt = Date.now();
       ) {
         v.mode = 'ai';
         v.lastUpdate = now;
+        void persistVesselToDb(v, { force: true });
       }
       if (
         v.mode === 'player' &&
@@ -1006,6 +1007,7 @@ let lastBroadcastAt = Date.now();
       ) {
         v.mode = 'ai';
         v.lastUpdate = now;
+        void persistVesselToDb(v, { force: true });
       }
     }
 
