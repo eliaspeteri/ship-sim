@@ -222,6 +222,9 @@ const globalState = {
 const clamp = (val: number, min: number, max: number) =>
   Math.min(Math.max(val, min), max);
 
+const clampSigned = (val: number, limit: number) =>
+  Math.min(Math.max(val, -limit), limit);
+
 const clampHeading = (rad: number) => {
   let h = rad % (Math.PI * 2);
   if (h < 0) h += Math.PI * 2;
@@ -254,25 +257,22 @@ function stepAIVessel(v: VesselRecord, dt: number) {
   const uDot = (thrust - dragSurge) / mass;
   const vDot =
     (-dragSway - SERVER_SWAY_DAMP * v.velocity.sway + rudderForce) / mass;
-  const rDot = rudderMoment / Izz;
+  const r = v.yawRate || 0;
+  const rDot =
+    (rudderMoment - SERVER_YAW_DAMP * r - SERVER_YAW_DAMP_QUAD * r * Math.abs(r)) /
+    Izz;
 
-  v.velocity.surge = clamp(
+  v.velocity.surge = clampSigned(
     v.velocity.surge + uDot * dt,
-    -SERVER_MAX_SPEED,
     SERVER_MAX_SPEED,
   );
-  v.velocity.sway = clamp(
+  v.velocity.sway = clampSigned(
     v.velocity.sway + vDot * dt,
-    -SERVER_MAX_SPEED * 0.6,
     SERVER_MAX_SPEED * 0.6,
   );
 
-  const currentYawRate = v.yawRate || 0;
-  const nextYawRate = clamp(
-    currentYawRate +
-      (rDot - SERVER_YAW_DAMP * currentYawRate - SERVER_YAW_DAMP_QUAD * currentYawRate * Math.abs(currentYawRate)) *
-        dt,
-    -SERVER_MAX_YAW,
+  const nextYawRate = clampSigned(
+    r + rDot * dt,
     SERVER_MAX_YAW,
   );
   v.yawRate = nextYawRate;
@@ -699,6 +699,9 @@ io.on('connection', socket => {
     }
     if (data.velocity) {
       target.velocity = data.velocity;
+    }
+    if (data.angularVelocity && typeof data.angularVelocity.yaw === 'number') {
+      target.yawRate = data.angularVelocity.yaw;
     }
     target.lastUpdate = Date.now();
     console.info(

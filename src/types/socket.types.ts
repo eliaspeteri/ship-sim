@@ -30,6 +30,7 @@ export interface VesselUpdateData {
   position: VesselPose['position'];
   orientation: VesselPose['orientation'];
   velocity: VesselVelocity;
+  angularVelocity?: { yaw?: number; roll?: number; pitch?: number };
   controls?: ControlUpdate;
 }
 export interface VesselControlData {

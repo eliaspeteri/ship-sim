@@ -233,6 +233,7 @@ class SocketManager {
       position: vessel.position,
       orientation: vessel.orientation,
       velocity: vessel.velocity,
+      angularVelocity: vessel.angularVelocity,
     };
 
     this.socket.emit('vessel:update', updateData);
