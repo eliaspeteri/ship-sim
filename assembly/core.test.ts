@@ -344,6 +344,40 @@ describe('Physics core (lean)', () => {
     expect<f64>(floated).lessThan(0.0); // displaced below waterline
   });
 
+  test('roll and pitch persist and respond to waves', () => {
+    resetGlobalVessel();
+    const ptr = createVessel(
+      0,
+      0,
+      0,
+      0,
+      0.1,
+      -0.2,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0.5,
+      0.0,
+      5_000_000,
+      120,
+      20,
+      6,
+    );
+    const initialRoll = getVesselRollAngle(ptr);
+    const initialPitch = getVesselPitchAngle(ptr);
+    updateVesselState(ptr, 0.2, 10.0, 0, 0, 0); // wind drives wave coupling
+    const nextRoll = getVesselRollAngle(ptr);
+    const nextPitch = getVesselPitchAngle(ptr);
+    expect<f64>(initialRoll).equal(0.1);
+    expect<f64>(initialPitch).equal(-0.2);
+    expect<f64>(nextRoll).notEqual(initialRoll);
+    expect<f64>(nextPitch).notEqual(initialPitch);
+  });
+
   test('getter surfaces return values without throwing', () => {
     resetGlobalVessel();
     const ptr = createVessel(

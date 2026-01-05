@@ -24,16 +24,22 @@ const HEAVE_STIFFNESS: f64 = 2.0; // spring toward target draft (tunable)
 const HEAVE_DAMPING: f64 = 1.6; // damping on heave velocity
 const WAVE_HEIGHT_PER_WIND: f64 = 0.05; // m of wave per m/s wind (rough)
 const MAX_WAVE_HEIGHT: f64 = 3.0;
+const ROLL_DAMPING: f64 = 0.8;
+const PITCH_DAMPING: f64 = 0.6;
 
 class VesselState {
   x: f64;
   y: f64;
   z: f64;
+  rollAngle: f64;
+  pitchAngle: f64;
   psi: f64; // heading
   u: f64; // surge
   v: f64; // sway
   w: f64; // heave (unused)
   r: f64; // yaw rate
+  p: f64; // roll rate
+  q: f64; // pitch rate
   throttle: f64;
   rudderAngle: f64;
   mass: f64;
@@ -51,10 +57,14 @@ class VesselState {
     y: f64,
     z: f64,
     psi: f64,
+    roll: f64,
+    pitch: f64,
     u: f64,
     v: f64,
     w: f64,
     r: f64,
+    p: f64,
+    q: f64,
     throttle: f64,
     rudderAngle: f64,
     mass: f64,
@@ -67,10 +77,14 @@ class VesselState {
     this.y = y;
     this.z = z;
     this.psi = psi;
+    this.rollAngle = roll;
+    this.pitchAngle = pitch;
     this.u = u;
     this.v = v;
     this.w = w;
     this.r = r;
+    this.p = p;
+    this.q = q;
     this.throttle = throttle;
     this.rudderAngle = rudderAngle;
     this.mass = mass > 0 ? mass : DEFAULT_MASS;
@@ -140,10 +154,14 @@ export function createVessel(
       y,
       z,
       psi,
+      _phi,
+      _theta,
       u,
       v,
       w,
       r,
+      _p,
+      _q,
       clamp01(throttle),
       rudderAngle,
       mass,
@@ -208,6 +226,8 @@ export function updateVesselState(
   // Inertia approximations
   const mass = effectiveMass;
   const Izz = mass * vessel.length * vessel.length * 0.1;
+  const Ixx = mass * vessel.beam * vessel.beam * 0.08;
+  const Iyy = mass * vessel.length * vessel.length * 0.08;
 
   // Accelerations
   const uDot = (thrust - dragSurge + currentSurge) / mass;
@@ -233,6 +253,29 @@ export function updateVesselState(
     (targetZ - vessel.z) * HEAVE_STIFFNESS - HEAVE_DAMPING * vessel.w;
   vessel.w += heaveAccel * safeDt;
   vessel.z += vessel.w * safeDt;
+
+  // Roll/pitch restoring toward calm-water and wave slopes
+  const waveSlopeRoll = targetWave * 0.02 * Math.sin(vessel.wavePhase + 1.0);
+  const waveSlopePitch = targetWave * 0.02 * Math.cos(vessel.wavePhase);
+  const gmRoll =
+    vessel.beam * vessel.beam * vessel.blockCoefficient /
+    (12.0 * (vessel.draft + 0.1));
+  const gmPitch =
+    vessel.length * vessel.blockCoefficient /
+    (12.0 * (vessel.draft + 0.1));
+
+  const rollRestoring =
+    -GRAVITY * gmRoll * mass * (vessel.rollAngle - waveSlopeRoll);
+  const pitchRestoring =
+    -GRAVITY * gmPitch * mass * (vessel.pitchAngle - waveSlopePitch);
+
+  const pDot = (rollRestoring - ROLL_DAMPING * vessel.p) / Ixx;
+  const qDot = (pitchRestoring - PITCH_DAMPING * vessel.q) / Iyy;
+  vessel.p += pDot * safeDt;
+  vessel.q += qDot * safeDt;
+
+  vessel.rollAngle += vessel.p * safeDt;
+  vessel.pitchAngle += vessel.q * safeDt;
 
   // Integrate velocities
   vessel.u += uDot * safeDt;
@@ -309,10 +352,10 @@ export function getVesselHeaveVelocity(vesselPtr: usize): f64 {
   return ensureVessel(vesselPtr).w;
 }
 export function getVesselRollAngle(_vesselPtr: usize): f64 {
-  return 0.0;
+  return ensureVessel(_vesselPtr).rollAngle;
 }
 export function getVesselPitchAngle(_vesselPtr: usize): f64 {
-  return 0.0;
+  return ensureVessel(_vesselPtr).pitchAngle;
 }
 export function getVesselRudderAngle(vesselPtr: usize): f64 {
   return ensureVessel(vesselPtr).rudderAngle;
@@ -336,10 +379,10 @@ export function getVesselBallastLevel(vesselPtr: usize): f64 {
   return ensureVessel(vesselPtr).ballast;
 }
 export function getVesselRollRate(_vesselPtr: usize): f64 {
-  return 0.0;
+  return ensureVessel(_vesselPtr).p;
 }
 export function getVesselPitchRate(_vesselPtr: usize): f64 {
-  return 0.0;
+  return ensureVessel(_vesselPtr).q;
 }
 export function getVesselYawRate(vesselPtr: usize): f64 {
   return ensureVessel(vesselPtr).r;
