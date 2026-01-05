@@ -503,6 +503,7 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
     id: userId,
     ownerId: userId,
     crewIds: new Set([userId]),
+    crewNames: new Map([[userId, username]]),
     mode: 'player',
     desiredMode: 'player',
     lastCrewAt: Date.now(),
@@ -528,7 +529,8 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
 let weatherTransitionInterval: NodeJS.Timeout | null = null;
 let targetWeather: WeatherPattern | null = null;
 
-const normalizeVesselId = (id?: string | null) => (id ? id.split('_')[0] : id);
+const normalizeVesselId = (id?: string | null): string | undefined =>
+  id ? id.split('_')[0] : undefined;
 
 const getVesselIdForUser = (userId: string): string | undefined => {
   const stored = globalState.userLastVessel.get(userId);
@@ -973,7 +975,7 @@ io.on('connection', socket => {
       if (target.crewIds.size === 0) {
         target.desiredMode = 'ai';
         target.mode = 'ai';
-        console.debug(
+        console.info(
           `Vessel ${target.id} switched to AI mode (user spectated, no crew)`,
         );
       }
@@ -981,7 +983,7 @@ io.on('connection', socket => {
       target.crewIds.add(currentUserId);
       target.desiredMode = 'player';
       target.mode = 'player';
-      console.debug(`Vessel ${target.id} switched to Player mode (crew added)`);
+      console.info(`Vessel ${target.id} switched to Player mode (crew added)`);
     }
     target.lastCrewAt = Date.now();
     target.lastUpdate = Date.now();
