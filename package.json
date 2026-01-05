@@ -23,7 +23,7 @@
     "asbuild": "npm run asbuild:debug && npm run asbuild:release",
     "astest": "as-test",
     "wasm:check-exports": "npm run asbuild && npx tsx scripts/check-wasm-exports.ts",
-    "server": "npx tsx src/server/index.ts",
+    "server": "npx tsx watch src/server/index.ts",
     "prepare": "husky"
   },
   "dependencies": {
