@@ -48,28 +48,9 @@ npm run format             # prettier
 
 > Jest is currently disabled; use `npm run astest` for physics tests.
 
-## MVP TODOs (small, actionable tasks)
-
-- Physics
-  - [x] Harden fixed timestep loop for WASM; ensure single application per frame.
-  - [x] Add AS tests for thrust/drag signs, clamping, and heading updates.
-  - [ ] Wire Gerstner wave input (sea state → amplitude/steepness) into physics forces.
-  - Rendering/UI
-    - [ ] Ensure Gerstner waves animate with correct phase and normals.
-    - [x] Keep HUD minimal: speed, heading, throttle, rudder, sea state.
-    - [ ] Rework EnvironmentControls to match the current server-driven environment model and admin gating.
-  - [ ] Controls: keyboard/mouse for throttle and rudder; reset button.
-- Auth
-  - [x] Add minimal rate limiting/lockout to auth endpoints.
-  - [x] Add logout endpoint wiring to UI.
-- State
-  - Tooling
-    - [ ] Add a smoke e2e (login ? start sim ? move vessel).
-    - [x] Keep wasm export check (`npm run wasm:check-exports`) green.
-
 ## Roadmap
 
-- See `roadmap.md` for the broader feature roadmap and role/mode plans.
+- See `roadmap.md` for the consolidated feature backlog and role/mode plans.
 
 ## Contributing Notes
 

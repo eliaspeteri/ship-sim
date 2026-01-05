@@ -7,10 +7,20 @@
 - [ ] Modes
   - Spectator mode: elevated free camera with WASD/arrow movement and rotation; water plane follows user with larger radius; can view vessels and join if role allows; does not send vessel updates.
   - Player mode: current sim for joining/creating vessels, crew visibility, and chat readiness; robust mode switching for vessel membership.
+- [ ] Vessel join/create UX
+  - Prompt new users to choose between creating their own vessel or joining an available crew slot (respect max crew), instead of auto-assigning.
+  - Surface crew list for the active vessel in the HUD; add a basic vessel-local chat.
+  - Add spawn picker (ports/anchors) when creating a vessel.
+  - Persist crew chat history in the database and replay recent messages on join.
 - [ ] Layout component
   - Shared navbar (home, sim, login, register) with room for future pages such as a 2D tiling map of active vessels.
+- [ ] UI overhaul
+  - Replace Tailwind-heavy styling with a custom or alternative styling approach; refresh HUD/layout components for clarity and responsiveness.
 - [ ] Environment controls
   - Rebuild the EnvironmentControls UI to reflect the current server-driven weather model, admin gating, and live updates; remove obsolete toggles.
+- [ ] Controls & ballast
+  - Expose ballast control in the UI, wire to physics, and show feedback/state.
+  - Expand helm/crew roles (e.g., helm/engine/radio) to avoid control conflicts.
 - [ ] Instrumentation & observability
   - Add basic metrics (loop timing, socket/API latency) and central log aggregation for server and sim loops.
 - [ ] Default vessels
@@ -36,3 +46,8 @@
 - [ ] Physics realism
   - Review AssemblyScript physics and improve hydrodynamics/environment forces without sacrificing stability.
   - Parameterize hydrodynamic constants per vessel (e.g., rudder stall angle/force coefficients) and pass them into WASM `createVessel`.
+  - Wire Gerstner wave input (sea state → amplitude/steepness) into physics forces and renderer; ensure waves animate with correct phase and normals.
+  - Add basic hull-form differentiation (block coefficient per vessel, draft/beam effects) and buoyancy/heave modeling.
+- [ ] Missions & economy
+  - Add mission system (deliveries, towing, harbor entries) with rewards and failure conditions.
+  - Implement a simple economy: vessel operating costs, fuel consumption, port fees, and earnings tied to missions or cargo.
