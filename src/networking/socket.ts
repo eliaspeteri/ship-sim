@@ -186,6 +186,7 @@ class SocketManager {
             position: vesselData.position,
             orientation: vesselData.orientation,
             velocity: vesselData.velocity,
+            angularVelocity: vesselData.angularVelocity,
             controls: vesselData.controls
               ? {
                   ...store.vessel.controls,
@@ -196,6 +197,14 @@ class SocketManager {
                   rudderAngle:
                     vesselData.controls.rudderAngle ??
                     store.vessel.controls?.rudderAngle ??
+                    0,
+                  ballast:
+                    vesselData.controls.ballast ??
+                    store.vessel.controls?.ballast ??
+                    0.5,
+                  bowThruster:
+                    vesselData.controls.bowThruster ??
+                    store.vessel.controls?.bowThruster ??
                     0,
                 }
               : store.vessel.controls,

@@ -75,6 +75,9 @@ model Vessel {
     heave       Float
     throttle    Float
     rudderAngle Float
+    ballast     Float     @default(0.5)
+    bowThruster Float     @default(0.0)
+    yawRate     Float     @default(0.0)
     mass        Float
     length      Float
     beam        Float

@@ -59,7 +59,10 @@ interface VesselRecord {
   orientation: VesselPose['orientation'];
   velocity: VesselVelocity;
   properties: CoreVesselProperties;
-  controls: Pick<VesselControls, 'throttle' | 'rudderAngle'>;
+  controls: Pick<
+    VesselControls,
+    'throttle' | 'rudderAngle' | 'ballast' | 'bowThruster'
+  >;
   lastUpdate: number;
 }
 
@@ -84,16 +87,19 @@ async function persistVesselToDb(vessel: VesselRecord) {
         heading: vessel.orientation.heading,
         roll: vessel.orientation.roll,
         pitch: vessel.orientation.pitch,
-        surge: vessel.velocity.surge,
-        sway: vessel.velocity.sway,
-        heave: vessel.velocity.heave,
-        throttle: vessel.controls.throttle,
-        rudderAngle: vessel.controls.rudderAngle,
-        mass: vessel.properties.mass,
-        length: vessel.properties.length,
-        beam: vessel.properties.beam,
-        draft: vessel.properties.draft,
-        lastUpdate: new Date(vessel.lastUpdate),
+      surge: vessel.velocity.surge,
+      sway: vessel.velocity.sway,
+      heave: vessel.velocity.heave,
+      yawRate: vessel.yawRate ?? 0,
+      throttle: vessel.controls.throttle,
+      rudderAngle: vessel.controls.rudderAngle,
+      ballast: vessel.controls.ballast ?? 0.5,
+      bowThruster: vessel.controls.bowThruster ?? 0,
+      mass: vessel.properties.mass,
+      length: vessel.properties.length,
+      beam: vessel.properties.beam,
+      draft: vessel.properties.draft,
+      lastUpdate: new Date(vessel.lastUpdate),
         isAi: vessel.mode === 'ai',
       },
       create: {
@@ -106,16 +112,19 @@ async function persistVesselToDb(vessel: VesselRecord) {
         heading: vessel.orientation.heading,
         roll: vessel.orientation.roll,
         pitch: vessel.orientation.pitch,
-        surge: vessel.velocity.surge,
-        sway: vessel.velocity.sway,
-        heave: vessel.velocity.heave,
-        throttle: vessel.controls.throttle,
-        rudderAngle: vessel.controls.rudderAngle,
-        mass: vessel.properties.mass,
-        length: vessel.properties.length,
-        beam: vessel.properties.beam,
-        draft: vessel.properties.draft,
-        lastUpdate: new Date(vessel.lastUpdate),
+      surge: vessel.velocity.surge,
+      sway: vessel.velocity.sway,
+      heave: vessel.velocity.heave,
+      yawRate: vessel.yawRate ?? 0,
+      throttle: vessel.controls.throttle,
+      rudderAngle: vessel.controls.rudderAngle,
+      ballast: vessel.controls.ballast ?? 0.5,
+      bowThruster: vessel.controls.bowThruster ?? 0,
+      mass: vessel.properties.mass,
+      length: vessel.properties.length,
+      beam: vessel.properties.beam,
+      draft: vessel.properties.draft,
+      lastUpdate: new Date(vessel.lastUpdate),
         isAi: vessel.mode === 'ai',
       },
     });
@@ -152,6 +161,7 @@ async function loadVesselsFromDb() {
         sway: row.sway,
         heave: row.heave,
       },
+      yawRate: row.yawRate ?? 0,
       properties: {
         mass: row.mass,
         length: row.length,
@@ -161,6 +171,8 @@ async function loadVesselsFromDb() {
       controls: {
         throttle: row.throttle,
         rudderAngle: row.rudderAngle,
+        ballast: row.ballast ?? 0.5,
+        bowThruster: row.bowThruster ?? 0,
       },
       lastUpdate: row.lastUpdate.getTime(),
     };
@@ -192,7 +204,7 @@ function createDefaultAIVessel(id: string, position = { x: 0, y: 0, z: 0 }) {
       beam: 24,
       draft: 7,
     },
-    controls: { throttle: 0, rudderAngle: 0 },
+    controls: { throttle: 0, rudderAngle: 0, ballast: 0.5, bowThruster: 0 },
     lastUpdate: Date.now(),
   };
   return vessel;
@@ -400,7 +412,7 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
       beam: 20,
       draft: 6,
     },
-    controls: { throttle: 0, rudderAngle: 0 },
+    controls: { throttle: 0, rudderAngle: 0, ballast: 0.5, bowThruster: 0 },
     lastUpdate: Date.now(),
   };
   globalState.vessels.set(vessel.id, vessel);
@@ -440,6 +452,7 @@ const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => ({
   orientation: v.orientation,
   velocity: v.velocity,
   controls: v.controls,
+  angularVelocity: { yaw: v.yawRate ?? 0 },
 });
 
 // Create Express app
