@@ -1,7 +1,27 @@
+import v8 from 'node:v8';
 import js from '@eslint/js';
 import { FlatCompat } from '@eslint/eslintrc';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+// Provide structuredClone for older Node versions
+if (typeof globalThis.structuredClone !== 'function') {
+  globalThis.structuredClone = value => v8.deserialize(v8.serialize(value));
+}
+
+// Polyfill AbortSignal.throwIfAborted for older Node
+if (
+  typeof globalThis.AbortSignal !== 'undefined' &&
+  !globalThis.AbortSignal.prototype.throwIfAborted
+) {
+  globalThis.AbortSignal.prototype.throwIfAborted = function throwIfAborted() {
+    if (this.aborted) {
+      const error = new Error('This operation was aborted');
+      error.name = 'AbortError';
+      throw error;
+    }
+  };
+}
 
 // Mimic CommonJS variables -- needed for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -20,6 +40,13 @@ const pluginConfigs = compat.extends(
 );
 
 export default [
+  {
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
+  },
   // Default ESLint config
   js.configs.recommended,
 
