@@ -21,8 +21,6 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const setMode = useStore(state => state.setMode);
   const hasStartedRef = useRef(false);
   const navHeightVar = 'var(--nav-height, 0px)';
-  const toggleMode = () =>
-    setMode(mode === 'player' ? 'spectator' : 'player');
 
   useEffect(() => {
     if (status === 'loading') return;

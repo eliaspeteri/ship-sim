@@ -83,7 +83,6 @@ async function persistVesselToDb(vessel: VesselRecord) {
         ownerId: vessel.ownerId ?? null,
         mode: vessel.mode,
         desiredMode: vessel.desiredMode || 'player',
-        desiredMode: vessel.desiredMode || 'player',
         lat: pos.lat ?? 0,
         lon: pos.lon ?? 0,
         z: pos.z,
@@ -109,7 +108,6 @@ async function persistVesselToDb(vessel: VesselRecord) {
         id: vessel.id,
         ownerId: vessel.ownerId ?? null,
         mode: vessel.mode,
-        desiredMode: vessel.desiredMode || 'player',
         desiredMode: vessel.desiredMode || 'player',
         lat: pos.lat ?? 0,
         lon: pos.lon ?? 0,
@@ -363,6 +361,8 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
       console.info(
         `Reassigning user ${username} to their last vessel ${lastId}`,
       );
+      // Restore desired mode; if player, add crew back
+      lastVessel.mode = lastVessel.desiredMode || 'player';
       if (lastVessel.mode === 'player') {
         lastVessel.crewIds.add(userId);
       }
@@ -382,6 +382,7 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
     console.info(
       `Reassigning user ${username} to existing crewed vessel ${existing.id}`,
     );
+    existing.mode = existing.desiredMode || existing.mode;
     if (existing.mode === 'player') {
       existing.crewIds.add(userId);
     }
