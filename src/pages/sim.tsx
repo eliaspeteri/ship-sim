@@ -30,7 +30,6 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const notice = useStore(state => state.notice);
   const setNotice = useStore(state => state.setNotice);
   const crewIds = useStore(state => state.crewIds);
-  const crewNames = useStore(state => state.crewNames);
   const setSessionUserId = useStore(state => state.setSessionUserId);
   const hasStartedRef = useRef(false);
   const navHeightVar = 'var(--nav-height, 0px)';
@@ -134,7 +133,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       Math.min(Math.max(val, min), max);
 
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      const active = document.activeElement as HTMLElement | null;
+      const active = document.activeElement as globalThis.HTMLElement | null;
       if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
         return;
       }
