@@ -231,6 +231,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const vesselPosition = {
     x: vessel?.position?.x || 0,
     y: vessel?.position?.y || 0,
+    z: vessel?.position?.z || 0,
     heading: vessel?.orientation?.heading || 0,
   };
 

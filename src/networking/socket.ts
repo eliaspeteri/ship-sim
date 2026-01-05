@@ -180,20 +180,20 @@ class SocketManager {
 
   // Handle simulation updates from server
   private handleSimulationUpdate(data: SimulationUpdateData): void {
-    const store = useStore.getState();
-    if (data.self?.roles) {
-      store.setRoles(data.self.roles);
-    }
-    if (data.chatHistory) {
-      store.setChatMessages(
-        data.chatHistory.map(msg => ({
-          userId: msg.userId,
-          username: msg.username,
-          message: msg.message,
-          timestamp: msg.timestamp || Date.now(),
-        })),
-      );
-    }
+      const store = useStore.getState();
+      if (data.self?.roles) {
+        store.setRoles(data.self.roles);
+      }
+      if (data.chatHistory) {
+        store.setChatMessages(
+          data.chatHistory.map(msg => ({
+            userId: msg.userId,
+            username: msg.username,
+            message: msg.message,
+            timestamp: msg.timestamp || Date.now(),
+          })),
+        );
+      }
     const currentOthers = store.otherVessels || {};
     const nextOthers = data.partial ? { ...currentOthers } : {};
     let changed = false;

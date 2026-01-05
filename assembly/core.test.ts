@@ -286,6 +286,64 @@ describe('Physics core (lean)', () => {
     expect<f64>(getVesselBallastLevel(heavy)).equal(1.0);
   });
 
+  test('buoyancy pulls vessel toward target draft with ballast', () => {
+    resetGlobalVessel();
+    const ptr = createVessel(
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0.0,
+      0.0,
+      5_000_000,
+      120,
+      20,
+      6,
+    );
+    setBallast(ptr, 1.0);
+    // run several steps to settle heave
+    for (let i = 0; i < 20; i++) {
+      updateVesselState(ptr, 0.1, 5.0, 0, 0, 0);
+    }
+    const sunk = getVesselZ(ptr);
+    resetGlobalVessel();
+    const ptr2 = createVessel(
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0.0,
+      0.0,
+      5_000_000,
+      120,
+      20,
+      6,
+    );
+    setBallast(ptr2, 0.0);
+    for (let i = 0; i < 20; i++) {
+      updateVesselState(ptr2, 0.1, 5.0, 0, 0, 0);
+    }
+    const floated = getVesselZ(ptr2);
+    expect<f64>(sunk).lessThan(floated); // heavier ballast sits lower (more negative z)
+    expect<f64>(floated).lessThan(0.0); // displaced below waterline
+  });
+
   test('getter surfaces return values without throwing', () => {
     resetGlobalVessel();
     const ptr = createVessel(

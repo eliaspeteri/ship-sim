@@ -14,6 +14,7 @@ interface SceneProps {
   vesselPosition: {
     x: number;
     y: number;
+    z: number;
     heading: number;
   };
   mode: 'player' | 'spectator';
@@ -362,7 +363,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
         <Ship
           position={{
             x: vesselPosition.x,
-            y: 0,
+            y: vesselPosition.z,
             z: vesselPosition.y,
           }}
           heading={vesselPosition.heading}
@@ -375,7 +376,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
         {Object.entries(otherVessels || {}).map(([id, v]) => (
           <Ship
             key={id}
-            position={{ x: v.position.x, y: 0, z: v.position.y }}
+            position={{ x: v.position.x, y: v.position.z ?? 0, z: v.position.y }}
             heading={v.orientation.heading}
             shipType={vesselProperties.type}
             ballast={v.controls?.ballast ?? 0.5}

@@ -12,12 +12,18 @@ const DEFAULT_MASS: f64 = 5.0e6;
 const DEFAULT_LENGTH: f64 = 120.0;
 const DEFAULT_BEAM: f64 = 20.0;
 const DEFAULT_DRAFT: f64 = 6.0;
+const DEFAULT_BLOCK_COEFFICIENT: f64 = 0.75;
+const GRAVITY: f64 = 9.81;
 const YAW_DAMPING: f64 = 0.5;
 const YAW_DAMPING_QUAD: f64 = 1.2;
 const SWAY_DAMPING: f64 = 0.6;
 const MAX_YAW_RATE: f64 = 0.8; // rad/s cap
 const MAX_SPEED: f64 = 15.0; // m/s cap (≈29 kts)
 const PIVOT_AFT_RATIO: f64 = 0.25; // fraction of length aft of midship for yaw pivot
+const HEAVE_STIFFNESS: f64 = 2.0; // spring toward target draft (tunable)
+const HEAVE_DAMPING: f64 = 1.6; // damping on heave velocity
+const WAVE_HEIGHT_PER_WIND: f64 = 0.05; // m of wave per m/s wind (rough)
+const MAX_WAVE_HEIGHT: f64 = 3.0;
 
 class VesselState {
   x: f64;
@@ -35,6 +41,7 @@ class VesselState {
   beam: f64;
   draft: f64;
   ballast: f64;
+  blockCoefficient: f64;
   waveHeight: f64;
   wavePhase: f64;
   fuelLevel: f64;
@@ -54,6 +61,7 @@ class VesselState {
     length: f64,
     beam: f64,
     draft: f64,
+    blockCoefficient: f64 = DEFAULT_BLOCK_COEFFICIENT,
   ) {
     this.x = x;
     this.y = y;
@@ -70,6 +78,8 @@ class VesselState {
     this.beam = beam > 0 ? beam : DEFAULT_BEAM;
     this.draft = draft > 0 ? draft : DEFAULT_DRAFT;
     this.ballast = 0.5;
+    this.blockCoefficient =
+      blockCoefficient > 0 ? blockCoefficient : DEFAULT_BLOCK_COEFFICIENT;
     this.waveHeight = 0.0;
     this.wavePhase = 0.0;
     this.fuelLevel = 1.0;
@@ -122,6 +132,7 @@ export function createVessel(
   length: f64,
   beam: f64,
   draft: f64,
+  blockCoefficient: f64 = DEFAULT_BLOCK_COEFFICIENT,
 ): usize {
   if (globalVessel === null) {
     globalVessel = new VesselState(
@@ -139,6 +150,7 @@ export function createVessel(
       length,
       beam,
       draft,
+      blockCoefficient,
     );
   }
   return changetype<usize>(globalVessel);
@@ -205,6 +217,22 @@ export function updateVesselState(
     (rudderMoment - windYaw - YAW_DAMPING * vessel.r -
       YAW_DAMPING_QUAD * vessel.r * Math.abs(vessel.r)) /
     Izz;
+
+  // Wave height as a crude function of wind
+  const targetWave = Math.min(MAX_WAVE_HEIGHT, windSpeed * WAVE_HEIGHT_PER_WIND);
+  vessel.waveHeight = targetWave;
+  vessel.wavePhase += safeDt * 2.0; // arbitrary speed for phase change
+  const waveSample = targetWave * Math.sin(vessel.wavePhase);
+
+  // Buoyancy / heave toward target draft (includes ballast and wave surface)
+  const neutralDraft =
+    effectiveMass / (WATER_DENSITY * vessel.length * vessel.beam * vessel.blockCoefficient + 1e-6);
+  const targetDraft = neutralDraft * (0.7 + ballastFactor * 0.5);
+  const targetZ = -(targetDraft + waveSample);
+  const heaveAccel =
+    (targetZ - vessel.z) * HEAVE_STIFFNESS - HEAVE_DAMPING * vessel.w;
+  vessel.w += heaveAccel * safeDt;
+  vessel.z += vessel.w * safeDt;
 
   // Integrate velocities
   vessel.u += uDot * safeDt;
