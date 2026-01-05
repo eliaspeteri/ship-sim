@@ -10,7 +10,7 @@
  (type $8 (func))
  (type $9 (func (param i32 i32 i32 i32)))
  (type $10 (func (param i32 i32) (result i32)))
- (type $11 (func (param i32 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64) (result i32)))
+ (type $11 (func (param i32 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64) (result i32)))
  (type $12 (func (param f64 i64) (result i32)))
  (type $13 (func (param i32 f64 f64 f64 f64 f64) (result i32)))
  (import "env" "memory" (memory $0 16 100))
@@ -37,6 +37,8 @@
  (global $assembly/index/HEAVE_DAMPING f64 (f64.const 1.6))
  (global $assembly/index/WAVE_HEIGHT_PER_WIND f64 (f64.const 0.05))
  (global $assembly/index/MAX_WAVE_HEIGHT f64 (f64.const 3))
+ (global $assembly/index/ROLL_DAMPING f64 (f64.const 0.8))
+ (global $assembly/index/PITCH_DAMPING f64 (f64.const 0.6))
  (global $assembly/index/globalVessel (mut i32) (i32.const 0))
  (global $~argumentsLength (mut i32) (i32.const 0))
  (global $~lib/rt/stub/startOffset (mut i32) (i32.const 0))
@@ -107,82 +109,102 @@
  (func $assembly/index/VesselState#set:psi (param $this i32) (param $psi f64)
   local.get $this
   local.get $psi
+  f64.store offset=40
+ )
+ (func $assembly/index/VesselState#set:rollAngle (param $this i32) (param $rollAngle f64)
+  local.get $this
+  local.get $rollAngle
   f64.store offset=24
+ )
+ (func $assembly/index/VesselState#set:pitchAngle (param $this i32) (param $pitchAngle f64)
+  local.get $this
+  local.get $pitchAngle
+  f64.store offset=32
  )
  (func $assembly/index/VesselState#set:u (param $this i32) (param $u f64)
   local.get $this
   local.get $u
-  f64.store offset=32
+  f64.store offset=48
  )
  (func $assembly/index/VesselState#set:v (param $this i32) (param $v f64)
   local.get $this
   local.get $v
-  f64.store offset=40
+  f64.store offset=56
  )
  (func $assembly/index/VesselState#set:w (param $this i32) (param $w f64)
   local.get $this
   local.get $w
-  f64.store offset=48
+  f64.store offset=64
  )
  (func $assembly/index/VesselState#set:r (param $this i32) (param $r f64)
   local.get $this
   local.get $r
-  f64.store offset=56
+  f64.store offset=72
+ )
+ (func $assembly/index/VesselState#set:p (param $this i32) (param $p f64)
+  local.get $this
+  local.get $p
+  f64.store offset=80
+ )
+ (func $assembly/index/VesselState#set:q (param $this i32) (param $q f64)
+  local.get $this
+  local.get $q
+  f64.store offset=88
  )
  (func $assembly/index/VesselState#set:throttle (param $this i32) (param $throttle f64)
   local.get $this
   local.get $throttle
-  f64.store offset=64
+  f64.store offset=96
  )
  (func $assembly/index/VesselState#set:rudderAngle (param $this i32) (param $rudderAngle f64)
   local.get $this
   local.get $rudderAngle
-  f64.store offset=72
+  f64.store offset=104
  )
  (func $assembly/index/VesselState#set:mass (param $this i32) (param $mass f64)
   local.get $this
   local.get $mass
-  f64.store offset=80
+  f64.store offset=112
  )
  (func $assembly/index/VesselState#set:length (param $this i32) (param $length f64)
   local.get $this
   local.get $length
-  f64.store offset=88
+  f64.store offset=120
  )
  (func $assembly/index/VesselState#set:beam (param $this i32) (param $beam f64)
   local.get $this
   local.get $beam
-  f64.store offset=96
+  f64.store offset=128
  )
  (func $assembly/index/VesselState#set:draft (param $this i32) (param $draft f64)
   local.get $this
   local.get $draft
-  f64.store offset=104
+  f64.store offset=136
  )
  (func $assembly/index/VesselState#set:ballast (param $this i32) (param $ballast f64)
   local.get $this
   local.get $ballast
-  f64.store offset=112
+  f64.store offset=144
  )
  (func $assembly/index/VesselState#set:blockCoefficient (param $this i32) (param $blockCoefficient f64)
   local.get $this
   local.get $blockCoefficient
-  f64.store offset=120
+  f64.store offset=152
  )
  (func $assembly/index/VesselState#set:waveHeight (param $this i32) (param $waveHeight f64)
   local.get $this
   local.get $waveHeight
-  f64.store offset=128
+  f64.store offset=160
  )
  (func $assembly/index/VesselState#set:wavePhase (param $this i32) (param $wavePhase f64)
   local.get $this
   local.get $wavePhase
-  f64.store offset=136
+  f64.store offset=168
  )
  (func $assembly/index/VesselState#set:fuelLevel (param $this i32) (param $fuelLevel f64)
   local.get $this
   local.get $fuelLevel
-  f64.store offset=144
+  f64.store offset=176
  )
  (func $~lib/rt/stub/maybeGrowMemory (param $newOffset i32)
   (local $pagesBefore i32)
@@ -359,11 +381,11 @@
   i32.add
   return
  )
- (func $assembly/index/VesselState#constructor (param $this i32) (param $x f64) (param $y f64) (param $z f64) (param $psi f64) (param $u f64) (param $v f64) (param $w f64) (param $r f64) (param $throttle f64) (param $rudderAngle f64) (param $mass f64) (param $length f64) (param $beam f64) (param $draft f64) (param $blockCoefficient f64) (result i32)
+ (func $assembly/index/VesselState#constructor (param $this i32) (param $x f64) (param $y f64) (param $z f64) (param $psi f64) (param $roll f64) (param $pitch f64) (param $u f64) (param $v f64) (param $w f64) (param $r f64) (param $p f64) (param $q f64) (param $throttle f64) (param $rudderAngle f64) (param $mass f64) (param $length f64) (param $beam f64) (param $draft f64) (param $blockCoefficient f64) (result i32)
   local.get $this
   i32.eqz
   if
-   i32.const 152
+   i32.const 184
    i32.const 4
    call $~lib/rt/stub/__new
    local.set $this
@@ -379,6 +401,12 @@
   call $assembly/index/VesselState#set:z
   local.get $this
   f64.const 0
+  call $assembly/index/VesselState#set:rollAngle
+  local.get $this
+  f64.const 0
+  call $assembly/index/VesselState#set:pitchAngle
+  local.get $this
+  f64.const 0
   call $assembly/index/VesselState#set:psi
   local.get $this
   f64.const 0
@@ -392,6 +420,12 @@
   local.get $this
   f64.const 0
   call $assembly/index/VesselState#set:r
+  local.get $this
+  f64.const 0
+  call $assembly/index/VesselState#set:p
+  local.get $this
+  f64.const 0
+  call $assembly/index/VesselState#set:q
   local.get $this
   f64.const 0
   call $assembly/index/VesselState#set:throttle
@@ -438,6 +472,12 @@
   local.get $psi
   call $assembly/index/VesselState#set:psi
   local.get $this
+  local.get $roll
+  call $assembly/index/VesselState#set:rollAngle
+  local.get $this
+  local.get $pitch
+  call $assembly/index/VesselState#set:pitchAngle
+  local.get $this
   local.get $u
   call $assembly/index/VesselState#set:u
   local.get $this
@@ -449,6 +489,12 @@
   local.get $this
   local.get $r
   call $assembly/index/VesselState#set:r
+  local.get $this
+  local.get $p
+  call $assembly/index/VesselState#set:p
+  local.get $this
+  local.get $q
+  call $assembly/index/VesselState#set:q
   local.get $this
   local.get $throttle
   call $assembly/index/VesselState#set:throttle
@@ -547,10 +593,14 @@
    local.get $y
    local.get $z
    local.get $psi
+   local.get $_phi
+   local.get $_theta
    local.get $u
    local.get $v
    local.get $w
    local.get $r
+   local.get $_p
+   local.get $_q
    local.get $throttle
    call $assembly/index/clamp01
    local.get $rudderAngle
@@ -607,7 +657,7 @@
   if
    i32.const 160
    i32.const 224
-   i32.const 110
+   i32.const 124
    i32.const 24
    call $~lib/builtins/abort
    unreachable
@@ -617,15 +667,15 @@
  )
  (func $assembly/index/VesselState#get:ballast (param $this i32) (result f64)
   local.get $this
-  f64.load offset=112
+  f64.load offset=144
  )
  (func $assembly/index/VesselState#get:mass (param $this i32) (result f64)
   local.get $this
-  f64.load offset=80
+  f64.load offset=112
  )
  (func $assembly/index/VesselState#get:throttle (param $this i32) (result f64)
   local.get $this
-  f64.load offset=64
+  f64.load offset=96
  )
  (func $assembly/index/clampSigned (param $value f64) (param $limit f64) (result f64)
   local.get $value
@@ -649,19 +699,19 @@
  )
  (func $assembly/index/VesselState#get:fuelLevel (param $this i32) (result f64)
   local.get $this
-  f64.load offset=144
+  f64.load offset=176
  )
  (func $assembly/index/VesselState#get:u (param $this i32) (result f64)
   local.get $this
-  f64.load offset=32
+  f64.load offset=48
  )
  (func $assembly/index/VesselState#get:v (param $this i32) (result f64)
   local.get $this
-  f64.load offset=40
+  f64.load offset=56
  )
  (func $assembly/index/VesselState#get:psi (param $this i32) (result f64)
   local.get $this
-  f64.load offset=24
+  f64.load offset=40
  )
  (func $~lib/math/pio2_large_quot (param $x f64) (param $u i64) (result i32)
   (local $magnitude i64)
@@ -2206,7 +2256,7 @@
  )
  (func $assembly/index/VesselState#get:rudderAngle (param $this i32) (result f64)
   local.get $this
-  f64.load offset=72
+  f64.load offset=104
  )
  (func $~lib/math/NativeMath.pow (param $x f64) (param $y f64) (result f64)
   (local $x|2 f64)
@@ -3254,23 +3304,23 @@
  )
  (func $assembly/index/VesselState#get:length (param $this i32) (result f64)
   local.get $this
-  f64.load offset=88
- )
- (func $assembly/index/VesselState#get:r (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=56
- )
- (func $assembly/index/VesselState#get:wavePhase (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=136
+  f64.load offset=120
  )
  (func $assembly/index/VesselState#get:beam (param $this i32) (result f64)
   local.get $this
-  f64.load offset=96
+  f64.load offset=128
+ )
+ (func $assembly/index/VesselState#get:r (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=72
+ )
+ (func $assembly/index/VesselState#get:wavePhase (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=168
  )
  (func $assembly/index/VesselState#get:blockCoefficient (param $this i32) (result f64)
   local.get $this
-  f64.load offset=120
+  f64.load offset=152
  )
  (func $assembly/index/VesselState#get:z (param $this i32) (result f64)
   local.get $this
@@ -3278,7 +3328,27 @@
  )
  (func $assembly/index/VesselState#get:w (param $this i32) (result f64)
   local.get $this
-  f64.load offset=48
+  f64.load offset=64
+ )
+ (func $assembly/index/VesselState#get:draft (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=136
+ )
+ (func $assembly/index/VesselState#get:rollAngle (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=24
+ )
+ (func $assembly/index/VesselState#get:pitchAngle (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=32
+ )
+ (func $assembly/index/VesselState#get:p (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=80
+ )
+ (func $assembly/index/VesselState#get:q (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=88
  )
  (func $~lib/math/NativeMath.mod (param $x f64) (param $y f64) (result f64)
   (local $ux i64)
@@ -3565,10 +3635,6 @@
   local.get $this
   f64.load offset=8
  )
- (func $assembly/index/VesselState#get:draft (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=104
- )
  (func $assembly/index/updateVesselState (param $vesselPtr i32) (param $dt f64) (param $windSpeed f64) (param $windDirection f64) (param $currentSpeed f64) (param $currentDirection f64) (result i32)
   (local $vessel i32)
   (local $safeDt f64)
@@ -3597,18 +3663,28 @@
   (local $windYaw f64)
   (local $mass f64)
   (local $Izz f64)
+  (local $Ixx f64)
+  (local $Iyy f64)
   (local $uDot f64)
   (local $vDot f64)
-  (local $x|35 f64)
+  (local $x|37 f64)
   (local $rDot f64)
-  (local $value1|37 f64)
-  (local $value2|38 f64)
+  (local $value1|39 f64)
+  (local $value2|40 f64)
   (local $targetWave f64)
   (local $waveSample f64)
   (local $neutralDraft f64)
   (local $targetDraft f64)
   (local $targetZ f64)
   (local $heaveAccel f64)
+  (local $waveSlopeRoll f64)
+  (local $waveSlopePitch f64)
+  (local $gmRoll f64)
+  (local $gmPitch f64)
+  (local $rollRestoring f64)
+  (local $pitchRestoring f64)
+  (local $pDot f64)
+  (local $qDot f64)
   (local $cosPsi f64)
   (local $sinPsi f64)
   (local $worldU f64)
@@ -3814,6 +3890,26 @@
   f64.const 0.1
   f64.mul
   local.set $Izz
+  local.get $mass
+  local.get $vessel
+  call $assembly/index/VesselState#get:beam
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:beam
+  f64.mul
+  f64.const 0.08
+  f64.mul
+  local.set $Ixx
+  local.get $mass
+  local.get $vessel
+  call $assembly/index/VesselState#get:length
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:length
+  f64.mul
+  f64.const 0.08
+  f64.mul
+  local.set $Iyy
   local.get $thrust
   local.get $dragSurge
   f64.sub
@@ -3851,8 +3947,8 @@
   block $~lib/math/NativeMath.abs|inlined.3 (result f64)
    local.get $vessel
    call $assembly/index/VesselState#get:r
-   local.set $x|35
-   local.get $x|35
+   local.set $x|37
+   local.get $x|37
    f64.abs
    br $~lib/math/NativeMath.abs|inlined.3
   end
@@ -3863,13 +3959,13 @@
   local.set $rDot
   block $~lib/math/NativeMath.min|inlined.1 (result f64)
    global.get $assembly/index/MAX_WAVE_HEIGHT
-   local.set $value1|37
+   local.set $value1|39
    local.get $windSpeed
    global.get $assembly/index/WAVE_HEIGHT_PER_WIND
    f64.mul
-   local.set $value2|38
-   local.get $value1|37
-   local.get $value2|38
+   local.set $value2|40
+   local.get $value1|39
+   local.get $value2|40
    f64.min
    br $~lib/math/NativeMath.min|inlined.1
   end
@@ -3948,6 +4044,129 @@
   f64.mul
   f64.add
   call $assembly/index/VesselState#set:z
+  local.get $targetWave
+  f64.const 0.02
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:wavePhase
+  f64.const 1
+  f64.add
+  call $~lib/math/NativeMath.sin
+  f64.mul
+  local.set $waveSlopeRoll
+  local.get $targetWave
+  f64.const 0.02
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:wavePhase
+  call $~lib/math/NativeMath.cos
+  f64.mul
+  local.set $waveSlopePitch
+  local.get $vessel
+  call $assembly/index/VesselState#get:beam
+  local.get $vessel
+  call $assembly/index/VesselState#get:beam
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:blockCoefficient
+  f64.mul
+  f64.const 12
+  local.get $vessel
+  call $assembly/index/VesselState#get:draft
+  f64.const 0.1
+  f64.add
+  f64.mul
+  f64.div
+  local.set $gmRoll
+  local.get $vessel
+  call $assembly/index/VesselState#get:length
+  local.get $vessel
+  call $assembly/index/VesselState#get:blockCoefficient
+  f64.mul
+  f64.const 12
+  local.get $vessel
+  call $assembly/index/VesselState#get:draft
+  f64.const 0.1
+  f64.add
+  f64.mul
+  f64.div
+  local.set $gmPitch
+  global.get $assembly/index/GRAVITY
+  f64.neg
+  local.get $gmRoll
+  f64.mul
+  local.get $mass
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:rollAngle
+  local.get $waveSlopeRoll
+  f64.sub
+  f64.mul
+  local.set $rollRestoring
+  global.get $assembly/index/GRAVITY
+  f64.neg
+  local.get $gmPitch
+  f64.mul
+  local.get $mass
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:pitchAngle
+  local.get $waveSlopePitch
+  f64.sub
+  f64.mul
+  local.set $pitchRestoring
+  local.get $rollRestoring
+  global.get $assembly/index/ROLL_DAMPING
+  local.get $vessel
+  call $assembly/index/VesselState#get:p
+  f64.mul
+  f64.sub
+  local.get $Ixx
+  f64.div
+  local.set $pDot
+  local.get $pitchRestoring
+  global.get $assembly/index/PITCH_DAMPING
+  local.get $vessel
+  call $assembly/index/VesselState#get:q
+  f64.mul
+  f64.sub
+  local.get $Iyy
+  f64.div
+  local.set $qDot
+  local.get $vessel
+  local.get $vessel
+  call $assembly/index/VesselState#get:p
+  local.get $pDot
+  local.get $safeDt
+  f64.mul
+  f64.add
+  call $assembly/index/VesselState#set:p
+  local.get $vessel
+  local.get $vessel
+  call $assembly/index/VesselState#get:q
+  local.get $qDot
+  local.get $safeDt
+  f64.mul
+  f64.add
+  call $assembly/index/VesselState#set:q
+  local.get $vessel
+  local.get $vessel
+  call $assembly/index/VesselState#get:rollAngle
+  local.get $vessel
+  call $assembly/index/VesselState#get:p
+  local.get $safeDt
+  f64.mul
+  f64.add
+  call $assembly/index/VesselState#set:rollAngle
+  local.get $vessel
+  local.get $vessel
+  call $assembly/index/VesselState#get:pitchAngle
+  local.get $vessel
+  call $assembly/index/VesselState#get:q
+  local.get $safeDt
+  f64.mul
+  f64.add
+  call $assembly/index/VesselState#set:pitchAngle
   local.get $vessel
   local.get $vessel
   call $assembly/index/VesselState#get:u
@@ -4187,11 +4406,15 @@
   return
  )
  (func $assembly/index/getVesselRollAngle (param $_vesselPtr i32) (result f64)
-  f64.const 0
+  local.get $_vesselPtr
+  call $assembly/index/ensureVessel
+  call $assembly/index/VesselState#get:rollAngle
   return
  )
  (func $assembly/index/getVesselPitchAngle (param $_vesselPtr i32) (result f64)
-  f64.const 0
+  local.get $_vesselPtr
+  call $assembly/index/ensureVessel
+  call $assembly/index/VesselState#get:pitchAngle
   return
  )
  (func $assembly/index/getVesselRudderAngle (param $vesselPtr i32) (result f64)
@@ -4238,11 +4461,15 @@
   return
  )
  (func $assembly/index/getVesselRollRate (param $_vesselPtr i32) (result f64)
-  f64.const 0
+  local.get $_vesselPtr
+  call $assembly/index/ensureVessel
+  call $assembly/index/VesselState#get:p
   return
  )
  (func $assembly/index/getVesselPitchRate (param $_vesselPtr i32) (result f64)
-  f64.const 0
+  local.get $_vesselPtr
+  call $assembly/index/ensureVessel
+  call $assembly/index/VesselState#get:q
   return
  )
  (func $assembly/index/getVesselYawRate (param $vesselPtr i32) (result f64)
