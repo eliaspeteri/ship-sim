@@ -752,11 +752,15 @@ io.on('connection', socket => {
     if (data.mode === 'spectator') {
       target.crewIds.delete(currentUserId);
       if (target.crewIds.size === 0) {
+        target.desiredMode = 'ai';
         target.mode = 'ai';
-        console.debug(`Vessel ${target.id} switched to AI mode (no crew)`);
+        console.debug(
+          `Vessel ${target.id} switched to AI mode (user spectated, no crew)`,
+        );
       }
     } else {
       target.crewIds.add(currentUserId);
+      target.desiredMode = 'player';
       target.mode = 'player';
       console.debug(`Vessel ${target.id} switched to Player mode (crew added)`);
     }
