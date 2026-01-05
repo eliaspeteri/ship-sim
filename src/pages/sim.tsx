@@ -21,6 +21,8 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const setMode = useStore(state => state.setMode);
   const hasStartedRef = useRef(false);
   const navHeightVar = 'var(--nav-height, 0px)';
+  const toggleMode = () =>
+    setMode(mode === 'player' ? 'spectator' : 'player');
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -187,30 +189,17 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         <button
           type="button"
           onClick={() => {
-            setMode('player');
-            socketManager.notifyModeChange('player');
+            const nextMode = mode === 'player' ? 'spectator' : 'player';
+            setMode(nextMode);
+            socketManager.notifyModeChange(nextMode);
           }}
           className={`rounded px-3 py-1 text-xs font-semibold transition-colors ${
             mode === 'player'
               ? 'bg-blue-600 text-white'
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              : 'bg-emerald-600 text-white'
           }`}
         >
-          Player
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setMode('spectator');
-            socketManager.notifyModeChange('spectator');
-          }}
-          className={`rounded px-3 py-1 text-xs font-semibold transition-colors ${
-            mode === 'spectator'
-              ? 'bg-emerald-600 text-white'
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-          }`}
-        >
-          Spectator
+          {mode === 'player' ? 'Player' : 'Spectator'}
         </button>
       </div>
 

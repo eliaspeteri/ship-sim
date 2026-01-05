@@ -87,19 +87,19 @@ async function persistVesselToDb(vessel: VesselRecord) {
         heading: vessel.orientation.heading,
         roll: vessel.orientation.roll,
         pitch: vessel.orientation.pitch,
-      surge: vessel.velocity.surge,
-      sway: vessel.velocity.sway,
-      heave: vessel.velocity.heave,
-      yawRate: vessel.yawRate ?? 0,
-      throttle: vessel.controls.throttle,
-      rudderAngle: vessel.controls.rudderAngle,
-      ballast: vessel.controls.ballast ?? 0.5,
-      bowThruster: vessel.controls.bowThruster ?? 0,
-      mass: vessel.properties.mass,
-      length: vessel.properties.length,
-      beam: vessel.properties.beam,
-      draft: vessel.properties.draft,
-      lastUpdate: new Date(vessel.lastUpdate),
+        surge: vessel.velocity.surge,
+        sway: vessel.velocity.sway,
+        heave: vessel.velocity.heave,
+        yawRate: vessel.yawRate ?? 0,
+        throttle: vessel.controls.throttle,
+        rudderAngle: vessel.controls.rudderAngle,
+        ballast: vessel.controls.ballast ?? 0.5,
+        bowThruster: vessel.controls.bowThruster ?? 0,
+        mass: vessel.properties.mass,
+        length: vessel.properties.length,
+        beam: vessel.properties.beam,
+        draft: vessel.properties.draft,
+        lastUpdate: new Date(vessel.lastUpdate),
         isAi: vessel.mode === 'ai',
       },
       create: {
@@ -112,19 +112,19 @@ async function persistVesselToDb(vessel: VesselRecord) {
         heading: vessel.orientation.heading,
         roll: vessel.orientation.roll,
         pitch: vessel.orientation.pitch,
-      surge: vessel.velocity.surge,
-      sway: vessel.velocity.sway,
-      heave: vessel.velocity.heave,
-      yawRate: vessel.yawRate ?? 0,
-      throttle: vessel.controls.throttle,
-      rudderAngle: vessel.controls.rudderAngle,
-      ballast: vessel.controls.ballast ?? 0.5,
-      bowThruster: vessel.controls.bowThruster ?? 0,
-      mass: vessel.properties.mass,
-      length: vessel.properties.length,
-      beam: vessel.properties.beam,
-      draft: vessel.properties.draft,
-      lastUpdate: new Date(vessel.lastUpdate),
+        surge: vessel.velocity.surge,
+        sway: vessel.velocity.sway,
+        heave: vessel.velocity.heave,
+        yawRate: vessel.yawRate ?? 0,
+        throttle: vessel.controls.throttle,
+        rudderAngle: vessel.controls.rudderAngle,
+        ballast: vessel.controls.ballast ?? 0.5,
+        bowThruster: vessel.controls.bowThruster ?? 0,
+        mass: vessel.properties.mass,
+        length: vessel.properties.length,
+        beam: vessel.properties.beam,
+        draft: vessel.properties.draft,
+        lastUpdate: new Date(vessel.lastUpdate),
         isAi: vessel.mode === 'ai',
       },
     });
@@ -271,7 +271,9 @@ function stepAIVessel(v: VesselRecord, dt: number) {
     (-dragSway - SERVER_SWAY_DAMP * v.velocity.sway + rudderForce) / mass;
   const r = v.yawRate || 0;
   const rDot =
-    (rudderMoment - SERVER_YAW_DAMP * r - SERVER_YAW_DAMP_QUAD * r * Math.abs(r)) /
+    (rudderMoment -
+      SERVER_YAW_DAMP * r -
+      SERVER_YAW_DAMP_QUAD * r * Math.abs(r)) /
     Izz;
 
   v.velocity.surge = clampSigned(
@@ -283,12 +285,11 @@ function stepAIVessel(v: VesselRecord, dt: number) {
     SERVER_MAX_SPEED * 0.6,
   );
 
-  const nextYawRate = clampSigned(
-    r + rDot * dt,
-    SERVER_MAX_YAW,
-  );
+  const nextYawRate = clampSigned(r + rDot * dt, SERVER_MAX_YAW);
   v.yawRate = nextYawRate;
-  v.orientation.heading = clampHeading(v.orientation.heading + nextYawRate * dt);
+  v.orientation.heading = clampHeading(
+    v.orientation.heading + nextYawRate * dt,
+  );
 
   const cosH = Math.cos(v.orientation.heading);
   const sinH = Math.sin(v.orientation.heading);
@@ -355,8 +356,9 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
       console.info(
         `Reassigning user ${username} to their last vessel ${lastId}`,
       );
-      lastVessel.crewIds.add(userId);
-      lastVessel.mode = 'player';
+      if (lastVessel.mode === 'player') {
+        lastVessel.crewIds.add(userId);
+      }
       return lastVessel;
     }
   }
@@ -373,8 +375,9 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
     console.info(
       `Reassigning user ${username} to existing crewed vessel ${existing.id}`,
     );
-    existing.crewIds.add(userId);
-    existing.mode = 'player';
+    if (existing.mode === 'player') {
+      existing.crewIds.add(userId);
+    }
     globalState.userLastVessel.set(userId, existing.id);
     return existing;
   }
@@ -448,6 +451,7 @@ const withLatLon = (pos: VesselPose['position']) => {
 const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => ({
   id: v.id,
   ownerId: v.ownerId,
+  mode: v.mode,
   position: withLatLon(v.position),
   orientation: v.orientation,
   velocity: v.velocity,
@@ -677,10 +681,7 @@ io.on('connection', socket => {
         ...data.position,
       };
 
-      if (
-        data.position.lat !== undefined &&
-        data.position.lon !== undefined
-      ) {
+      if (data.position.lat !== undefined && data.position.lon !== undefined) {
         const xy = latLonToXY({
           lat: data.position.lat,
           lon: data.position.lon,
@@ -729,10 +730,6 @@ io.on('connection', socket => {
       partial: true,
       timestamp: target.lastUpdate,
     });
-
-    /*     console.info(
-      `Update from ${currentUserId}: pos=(${target.position.x.toFixed(1)},${target.position.y.toFixed(1)}) heading=${target.orientation.heading.toFixed(2)}`,
-    ); */
   });
 
   // Handle mode changes (player -> spectator -> player)
@@ -746,10 +743,12 @@ io.on('connection', socket => {
       target.crewIds.delete(currentUserId);
       if (target.crewIds.size === 0) {
         target.mode = 'ai';
+        console.debug(`Vessel ${target.id} switched to AI mode (no crew)`);
       }
     } else {
       target.crewIds.add(currentUserId);
       target.mode = 'player';
+      console.debug(`Vessel ${target.id} switched to Player mode (crew added)`);
     }
     target.lastUpdate = Date.now();
     void persistVesselToDb(target);
@@ -869,9 +868,9 @@ io.on('connection', socket => {
         : undefined;
       if (vesselRecord) {
         vesselRecord.crewIds.delete(currentUserId);
-        if (vesselRecord.crewIds.size === 0 && vesselRecord.mode === 'ai') {
+        if (vesselRecord.crewIds.size === 0) {
           vesselRecord.mode = 'ai';
-          // Keep last controls/state; AI logic will use it later for true AI vessels
+          // AI integrator will continue using existing controls/state
         }
       }
     }
@@ -928,10 +927,16 @@ setInterval(() => {
   }
   lastBroadcastAt = now;
   const dt = BROADCAST_INTERVAL_MS / 1000;
-  // Advance AI/abandoned vessels
+
+  // Advance AI vessels using substeps for stability
+  const targetSubDt = 1 / 60; // ~60 Hz
+  const steps = Math.max(1, Math.round(dt / targetSubDt));
+  const subDt = dt / steps;
   for (const v of globalState.vessels.values()) {
     if (v.mode === 'ai') {
-      stepAIVessel(v, dt);
+      for (let i = 0; i < steps; i++) {
+        stepAIVessel(v, subDt);
+      }
     }
   }
 

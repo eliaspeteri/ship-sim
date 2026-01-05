@@ -171,47 +171,52 @@ class SocketManager {
     let changed = false;
 
     Object.entries(data.vessels).forEach(([id, vesselData]) => {
-      const isSelf =
-        id === this.userId ||
-        id === store.currentVesselId ||
-        vesselData.ownerId === this.userId;
-      if (isSelf) {
-        if (!this.hasHydratedSelf) {
-          this.hasHydratedSelf = true;
-          store.setCurrentVesselId(id);
-          this.lastSelfSnapshot = vesselData;
-          this.selfHydrateResolvers.forEach(resolve => resolve(vesselData));
-          this.selfHydrateResolvers = [];
-          store.updateVessel({
-            position: vesselData.position,
-            orientation: vesselData.orientation,
-            velocity: vesselData.velocity,
-            angularVelocity: vesselData.angularVelocity,
-            controls: vesselData.controls
-              ? {
-                  ...store.vessel.controls,
-                  throttle:
-                    vesselData.controls.throttle ??
-                    store.vessel.controls?.throttle ??
-                    0,
-                  rudderAngle:
-                    vesselData.controls.rudderAngle ??
-                    store.vessel.controls?.rudderAngle ??
-                    0,
-                  ballast:
-                    vesselData.controls.ballast ??
-                    store.vessel.controls?.ballast ??
-                    0.5,
-                  bowThruster:
-                    vesselData.controls.bowThruster ??
-                    store.vessel.controls?.bowThruster ??
-                    0,
-                }
-              : store.vessel.controls,
-          });
+        const isSelf =
+          id === this.userId ||
+          id === store.currentVesselId ||
+          vesselData.ownerId === this.userId;
+        if (isSelf) {
+          if (!this.hasHydratedSelf) {
+            this.hasHydratedSelf = true;
+            store.setCurrentVesselId(id);
+            this.lastSelfSnapshot = vesselData;
+            this.selfHydrateResolvers.forEach(resolve => resolve(vesselData));
+            this.selfHydrateResolvers = [];
+            store.updateVessel({
+              position: vesselData.position,
+              orientation: vesselData.orientation,
+              velocity: vesselData.velocity,
+              angularVelocity: vesselData.angularVelocity,
+              controls: vesselData.controls
+                ? {
+                    ...store.vessel.controls,
+                    throttle:
+                      vesselData.controls.throttle ??
+                      store.vessel.controls?.throttle ??
+                      0,
+                    rudderAngle:
+                      vesselData.controls.rudderAngle ??
+                      store.vessel.controls?.rudderAngle ??
+                      0,
+                    ballast:
+                      vesselData.controls.ballast ??
+                      store.vessel.controls?.ballast ??
+                      0.5,
+                    bowThruster:
+                      vesselData.controls.bowThruster ??
+                      store.vessel.controls?.bowThruster ??
+                      0,
+                  }
+                : store.vessel.controls,
+            });
+            if (vesselData.mode === 'ai') {
+              store.setMode('spectator');
+            } else if (vesselData.mode === 'player') {
+              store.setMode('player');
+            }
+          }
+          return;
         }
-        return;
-      }
 
       const prev = nextOthers[id];
       if (hasVesselChanged(prev, vesselData)) {
