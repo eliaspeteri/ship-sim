@@ -11,7 +11,11 @@
   - Prompt new users to choose between creating their own vessel or joining an available crew slot (respect max crew), instead of auto-assigning.
   - Surface crew list for the active vessel in the HUD; add a basic vessel-local chat.
   - Add spawn picker (ports/anchors) when creating a vessel.
-  - Persist crew chat history in the database and replay recent messages on join.
+  - Persist chat history (global + vessel channels) in the database and replay/paginate messages on join.
+- [ ] Chat & spaces
+  - Keep global chat open for everyone; add vessel-local channels with history pagination (implemented).
+  - Add private spaces/namespaces so friends can sail in invite-only sessions or solo with AI traffic.
+  - Build scenario/tutorial spaces that gate rank progression and enforce collision/COLREGs rules with penalties.
 - [ ] Layout component
   - Shared navbar (home, sim, login, register) with room for future pages such as a 2D tiling map of active vessels.
 - [ ] UI overhaul
