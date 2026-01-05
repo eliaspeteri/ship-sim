@@ -34,6 +34,7 @@ class VesselState {
   length: f64;
   beam: f64;
   draft: f64;
+  ballast: f64;
   waveHeight: f64;
   wavePhase: f64;
   fuelLevel: f64;
@@ -68,6 +69,7 @@ class VesselState {
     this.length = length > 0 ? length : DEFAULT_LENGTH;
     this.beam = beam > 0 ? beam : DEFAULT_BEAM;
     this.draft = draft > 0 ? draft : DEFAULT_DRAFT;
+    this.ballast = 0.5;
     this.waveHeight = 0.0;
     this.wavePhase = 0.0;
     this.fuelLevel = 1.0;
@@ -153,6 +155,10 @@ export function updateVesselState(
   const vessel = ensureVessel(vesselPtr);
   const safeDt = dt < 0.0 ? 0.0 : dt > 0.25 ? 0.25 : dt;
 
+  // Simple ballast effect: heavier ship accelerates and turns slower
+  const ballastFactor = clamp01(vessel.ballast);
+  const effectiveMass = vessel.mass * (0.9 + ballastFactor * 0.4); // 0.9x .. 1.3x
+
   // Engine thrust and drag
   const throttle =
     clampSigned(vessel.throttle, 1.0) * (vessel.fuelLevel > 0.0 ? 1.0 : 0.0);
@@ -188,7 +194,7 @@ export function updateVesselState(
     windSpeed * windSpeed * 0.01 * Math.sin(windDirection - vessel.psi);
 
   // Inertia approximations
-  const mass = vessel.mass;
+  const mass = effectiveMass;
   const Izz = mass * vessel.length * vessel.length * 0.1;
 
   // Accelerations
@@ -220,8 +226,8 @@ export function updateVesselState(
   vessel.x += worldU * safeDt;
   vessel.y += worldV * safeDt;
 
-  // Keep z at water level
-  vessel.z = 0.0;
+  // Simple heave offset from ballast (no wave model yet)
+  vessel.z = -vessel.draft * (0.4 + 0.4 * vessel.ballast);
 
   return vesselPtr;
 }
@@ -243,7 +249,8 @@ export function setRudderAngle(vesselPtr: usize, angle: f64): void {
 }
 
 export function setBallast(vesselPtr: usize, _level: f64): void {
-  ensureVessel(vesselPtr);
+  const vessel = ensureVessel(vesselPtr);
+  vessel.ballast = clamp01(_level);
 }
 
 // === Getters ===
@@ -297,8 +304,8 @@ export function getVesselGM(_vesselPtr: usize): f64 {
 export function getVesselCenterOfGravityY(_vesselPtr: usize): f64 {
   return 0.0;
 }
-export function getVesselBallastLevel(_vesselPtr: usize): f64 {
-  return 0.5;
+export function getVesselBallastLevel(vesselPtr: usize): f64 {
+  return ensureVessel(vesselPtr).ballast;
 }
 export function getVesselRollRate(_vesselPtr: usize): f64 {
   return 0.0;

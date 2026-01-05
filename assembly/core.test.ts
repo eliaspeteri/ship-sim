@@ -24,6 +24,7 @@ import {
   getVesselRollAngle,
   getVesselPitchAngle,
   resetGlobalVessel,
+  setBallast,
 } from './index';
 import {
   describe,
@@ -227,6 +228,62 @@ describe('Physics core (lean)', () => {
     updateVesselState(ptr, 0.2, 5.0, Math.PI / 2.0, 0, 0);
     const afterHeading = getVesselHeading(ptr);
     expect<f64>(afterHeading).notEqual(beforeHeading);
+  });
+
+  test('ballast changes acceleration response', () => {
+    resetGlobalVessel();
+    const heavy = createVessel(
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0.5,
+      0.0,
+      5_000_000,
+      120,
+      20,
+      6,
+    );
+    setBallast(heavy, 1.0);
+    setThrottle(heavy, 0.5);
+    updateVesselState(heavy, 0.5, 0, 0, 0, 0);
+
+    resetGlobalVessel();
+    const light = createVessel(
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0.5,
+      0.0,
+      5_000_000,
+      120,
+      20,
+      6,
+    );
+    setBallast(light, 0.0);
+    setThrottle(light, 0.5);
+    updateVesselState(light, 0.5, 0, 0, 0, 0);
+
+    expect<f64>(getVesselX(light)).greaterThan(getVesselX(heavy));
+    expect<f64>(getVesselBallastLevel(light)).equal(0.0);
+    expect<f64>(getVesselBallastLevel(heavy)).equal(1.0);
   });
 
   test('getter surfaces return values without throwing', () => {
