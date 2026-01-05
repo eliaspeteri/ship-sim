@@ -5,6 +5,7 @@ import { WasmModule } from '../types/wasm';
 import { EventLogEntry } from '../types/events.types';
 import { EnvironmentState } from '../types/environment.types';
 import type { Role } from '../server/roles';
+import { ChatMessageData } from '../types/socket.types';
 
 // Machinery failures for more realistic simulation
 interface MachinerySystemStatus {
@@ -38,6 +39,42 @@ interface NavigationData {
   autopilotHeading: number | null;
 }
 
+const normalizeChannel = (channel?: string): string => {
+  const raw = channel || 'global';
+  if (raw.startsWith('vessel:')) {
+    const [, rest] = raw.split(':');
+    const [id] = rest.split('_'); // strip any persisted suffix
+    return `vessel:${id}`;
+  }
+  return raw;
+};
+const normalizeChatMessage = (msg: ChatMessageData): ChatMessageData => ({
+  ...msg,
+  timestamp: msg.timestamp ?? Date.now(),
+  channel: normalizeChannel(msg.channel),
+});
+
+const mergeChatMessages = (
+  existing: ChatMessageData[],
+  incoming: ChatMessageData[],
+  maxMessages = 200,
+): ChatMessageData[] => {
+  const merged = new Map<string, ChatMessageData>();
+  [...existing, ...incoming].forEach(msg => {
+    const normalized = normalizeChatMessage(msg);
+    const key =
+      normalized.id ||
+      `${normalized.channel}|${normalized.timestamp}|${normalized.userId}|${normalized.message}`;
+    if (!merged.has(key)) {
+      merged.set(key, normalized);
+    }
+  });
+
+  return Array.from(merged.values())
+    .sort((a, b) => a.timestamp - b.timestamp)
+    .slice(-maxMessages);
+};
+
 // Complete simulation state with new system
 interface SimulationState {
   mode: 'player' | 'spectator';
@@ -51,9 +88,16 @@ interface SimulationState {
   crewIds: string[];
   crewNames: Record<string, string>;
   setCrew: (crew: { ids?: string[]; names?: Record<string, string> }) => void;
-  chatMessages: { userId: string; username: string; message: string; timestamp: number }[];
-  addChatMessage: (msg: { userId: string; username: string; message: string; timestamp?: number }) => void;
-  setChatMessages: (msgs: { userId: string; username: string; message: string; timestamp: number }[]) => void;
+  chatMessages: ChatMessageData[];
+  chatHistoryMeta: Record<string, { hasMore: boolean; loaded?: boolean }>;
+  addChatMessage: (msg: ChatMessageData) => void;
+  setChatMessages: (msgs: ChatMessageData[]) => void;
+  mergeChatMessages: (msgs: ChatMessageData[]) => void;
+  replaceChannelMessages: (channel: string, msgs: ChatMessageData[]) => void;
+  setChatHistoryMeta: (
+    channel: string,
+    meta: { hasMore: boolean; loaded?: boolean },
+  ) => void;
 
   // Vessel state
   vessel: VesselState;
@@ -234,18 +278,46 @@ const useStore = create<SimulationState>()((set, get) => ({
       crewNames: crew.names ?? {},
     }),
   chatMessages: [],
+  chatHistoryMeta: {},
   addChatMessage: message =>
     set(state => ({
-      chatMessages: [...state.chatMessages, message].slice(-50),
+      chatMessages: mergeChatMessages(state.chatMessages, [message]),
     })),
-  setChatMessages: messages => set({ chatMessages: messages.slice(-50) }),
+  setChatMessages: messages =>
+    set({
+      chatMessages: mergeChatMessages([], messages),
+    }),
+  mergeChatMessages: messages =>
+    set(state => ({
+      chatMessages: mergeChatMessages(state.chatMessages, messages),
+    })),
+  replaceChannelMessages: (channel, messages) =>
+    set(state => {
+      const normalizedChannel = normalizeChannel(channel);
+      const retained = state.chatMessages.filter(
+        msg => normalizeChannel(msg.channel) !== normalizedChannel,
+      );
+      return {
+        chatMessages: mergeChatMessages(retained, messages),
+      };
+    }),
+  setChatHistoryMeta: (channel, meta) =>
+    set(state => ({
+      chatHistoryMeta: {
+        ...state.chatHistoryMeta,
+        [channel]: {
+          hasMore: meta.hasMore,
+          loaded: meta.loaded ?? state.chatHistoryMeta[channel]?.loaded ?? false,
+        },
+      },
+    })),
 
   // Vessel state
   vessel: defaultVesselState,
   currentVesselId: null,
   otherVessels: {},
   resetVessel: () => set({ vessel: defaultVesselState }),
-  setCurrentVesselId: id => set({ currentVesselId: id }),
+  setCurrentVesselId: id => set({ currentVesselId: id ? id.split('_')[0] : null }),
   setOtherVessels: vessels => set({ otherVessels: vessels }),
   updateVessel: vesselUpdate =>
     set(state => {

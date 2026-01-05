@@ -43,8 +43,8 @@ const PERF_LOGGING_ENABLED = process.env.PERF_LOGGING === 'true' || !PRODUCTION;
 const API_SLOW_WARN_MS = 200;
 const BROADCAST_DRIFT_WARN_FACTOR = 1.5;
 const MIN_PERSIST_INTERVAL_MS = 1000; // Throttle DB writes per vessel
-const AI_GRACE_MS =
-  parseInt(process.env.AI_GRACE_MS || '30000', 10) || 30000; // default 30s
+const AI_GRACE_MS = parseInt(process.env.AI_GRACE_MS || '30000', 10) || 30000; // default 30s
+const CHAT_HISTORY_PAGE_SIZE = 20;
 
 type VesselMode = 'player' | 'ai';
 type CoreVesselProperties = Pick<
@@ -417,7 +417,13 @@ function takeOverAvailableAIVessel(
 function findJoinableVessel(userId: string): VesselRecord | null {
   // Join a vessel that already has crew and room left
   const joinable = Array.from(globalState.vessels.values())
-    .filter(v => v.mode === 'player' && v.crewIds.size > 0 && v.crewIds.size < MAX_CREW && !v.crewIds.has(userId))
+    .filter(
+      v =>
+        v.mode === 'player' &&
+        v.crewIds.size > 0 &&
+        v.crewIds.size < MAX_CREW &&
+        !v.crewIds.has(userId),
+    )
     .sort((a, b) => a.crewIds.size - b.crewIds.size);
   return joinable[0] || null;
 }
@@ -522,8 +528,11 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
 let weatherTransitionInterval: NodeJS.Timeout | null = null;
 let targetWeather: WeatherPattern | null = null;
 
+const normalizeVesselId = (id?: string | null) => (id ? id.split('_')[0] : id);
+
 const getVesselIdForUser = (userId: string): string | undefined => {
-  return globalState.userLastVessel.get(userId) || userId;
+  const stored = globalState.userLastVessel.get(userId);
+  return normalizeVesselId(stored || userId) || undefined;
 };
 
 const withLatLon = (pos: VesselPose['position']) => {
@@ -541,6 +550,66 @@ const withLatLon = (pos: VesselPose['position']) => {
   if (hasLatLon) return pos;
   const ll = xyToLatLon({ x: pos.x, y: pos.y });
   return { ...pos, lat: ll.lat, lon: ll.lon };
+};
+
+const resolveChatChannel = (
+  requestedChannel: string | undefined,
+  vesselId?: string,
+): string => {
+  const normalizedVesselId = normalizeVesselId(vesselId);
+  const vesselChannel =
+    normalizedVesselId && globalState.vessels.has(normalizedVesselId)
+      ? `vessel:${normalizedVesselId}`
+      : null;
+  if (requestedChannel && requestedChannel.startsWith('vessel:')) {
+    return vesselChannel || 'global';
+  }
+  if (requestedChannel === 'global') {
+    return 'global';
+  }
+  return vesselChannel || 'global';
+};
+
+const loadChatHistory = async (
+  channel: string,
+  before?: number,
+  limit = CHAT_HISTORY_PAGE_SIZE,
+): Promise<{
+  messages: {
+    id: string;
+    userId: string;
+    username: string;
+    message: string;
+    timestamp: number;
+    channel: string;
+  }[];
+  hasMore: boolean;
+}> => {
+  const take = Math.min(Math.max(limit, 1), 50);
+  const rows = await prisma.chatMessage.findMany({
+    where: {
+      channel,
+      ...(before ? { createdAt: { lt: new Date(before) } } : {}),
+    },
+    orderBy: { createdAt: 'desc' },
+    take: take + 1,
+  });
+  const hasMore = rows.length > take;
+  console.info(
+    `Loaded ${Math.min(rows.length, take)} chat messages for channel ${channel} (hasMore: ${hasMore})`,
+  );
+  const messages = rows
+    .slice(0, take)
+    .map(r => ({
+      id: r.id,
+      userId: r.userId,
+      username: r.username,
+      message: r.message,
+      timestamp: r.createdAt.getTime(),
+      channel,
+    }))
+    .reverse();
+  return { messages, hasMore };
 };
 
 const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => ({
@@ -733,6 +802,13 @@ io.on('connection', socket => {
     `Socket connected: ${effectiveUsername} (${effectiveUserId}) role=${isPlayerOrHigher ? 'player' : isSpectatorOnly ? 'spectator' : 'guest'}`,
   );
 
+  const normalizedVesselId = normalizeVesselId(vessel?.id);
+  socket.data.vesselId = normalizedVesselId || vessel?.id;
+  socket.join('chat:global');
+  if (normalizedVesselId) {
+    socket.join(`vessel:${normalizedVesselId}`);
+  }
+
   // Notify others that this vessel is crewed
   if (vessel) {
     socket.broadcast.emit('vessel:joined', {
@@ -745,20 +821,37 @@ io.on('connection', socket => {
 
   // Send initial snapshot with recent chat history
   void (async () => {
-    let chatHistory: { userId: string; username: string; message: string; timestamp: number }[] = [];
+    let chatHistory: {
+      id: string;
+      userId: string;
+      username: string;
+      message: string;
+      timestamp: number;
+      channel: string;
+    }[] = [];
     try {
-      const rows = await prisma.chatMessage.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      });
-      chatHistory = rows
-        .map(r => ({
-          userId: r.userId,
-          username: r.username,
-          message: r.message,
-          timestamp: r.createdAt.getTime(),
-        }))
-        .reverse();
+      const channelsToLoad = ['global'];
+      const vesselIdForChat = socket.data.vesselId || vessel?.id;
+      if (vesselIdForChat) {
+        channelsToLoad.push(`vessel:${vesselIdForChat}`);
+      }
+      const results = await Promise.all(
+        channelsToLoad.map(async channel => {
+          try {
+            console.info(`Loading chat history for channel ${channel}`);
+            const { messages } = await loadChatHistory(
+              channel,
+              undefined,
+              CHAT_HISTORY_PAGE_SIZE,
+            );
+            return messages;
+          } catch (err) {
+            console.warn(`Failed to load chat history for ${channel}`, err);
+            return [] as typeof chatHistory;
+          }
+        }),
+      );
+      chatHistory = results.flat().sort((a, b) => a.timestamp - b.timestamp);
     } catch (err) {
       console.warn('Failed to load chat history', err);
     }
@@ -971,7 +1064,11 @@ io.on('connection', socket => {
       position = { x: data.x, y: data.y, z: 0 };
     }
 
-    const newVessel = createNewVesselForUser(currentUserId, currentUsername, position);
+    const newVessel = createNewVesselForUser(
+      currentUserId,
+      currentUsername,
+      position,
+    );
     globalState.vessels.set(newVessel.id, newVessel);
     globalState.userLastVessel.set(currentUserId, newVessel.id);
     void persistVesselToDb(newVessel, { force: true });
@@ -1072,7 +1169,7 @@ io.on('connection', socket => {
   });
 
   // Handle chat messages
-  socket.on('chat:message', data => {
+  socket.on('chat:message', async data => {
     if (!socketHasPermission(socket, 'chat', 'send')) {
       socket.emit('error', 'Not authorized to send chat messages');
       return;
@@ -1081,24 +1178,72 @@ io.on('connection', socket => {
     const message = (data.message || '').trim();
     if (!message || message.length > 500) return;
 
+    const currentVesselId = normalizeVesselId(
+      getVesselIdForUser(socket.data.userId || effectiveUserId),
+    );
+    const channel = resolveChatChannel(data.channel, currentVesselId);
     const payload = {
+      id: '',
       userId: socket.data.userId || 'unknown',
       username: socket.data.username || 'Guest',
       message,
       timestamp: Date.now(),
+      channel,
     };
 
-    void prisma.chatMessage
-      .create({
+    try {
+      const row = await prisma.chatMessage.create({
         data: {
           userId: payload.userId,
           username: payload.username,
           message: payload.message,
+          channel: payload.channel,
         },
-      })
-      .catch(err => console.warn('Failed to persist chat message', err));
+      });
+      payload.id = row.id;
+      payload.timestamp = row.createdAt.getTime();
+    } catch (err) {
+      console.warn('Failed to persist chat message', err);
+    }
 
-    io.emit('chat:message', payload);
+    const room = channel === 'global' ? 'chat:global' : channel;
+    io.to(room).emit('chat:message', payload);
+  });
+
+  socket.on('chat:history', async data => {
+    const currentVesselId = normalizeVesselId(
+      getVesselIdForUser(socket.data.userId || effectiveUserId),
+    );
+    const channel = resolveChatChannel(data?.channel, currentVesselId);
+    const before = typeof data?.before === 'number' ? data.before : undefined;
+    const limit =
+      typeof data?.limit === 'number' && !Number.isNaN(data.limit)
+        ? Math.min(Math.max(Math.floor(data.limit), 1), 50)
+        : CHAT_HISTORY_PAGE_SIZE;
+    try {
+      console.info(
+        `Loading chat history for channel ${channel} before ${before} limit ${limit}`,
+      );
+      const { messages, hasMore } = await loadChatHistory(
+        channel,
+        before,
+        limit,
+      );
+      socket.emit('chat:history', {
+        channel,
+        messages,
+        hasMore,
+        reset: !before,
+      });
+    } catch (err) {
+      console.warn('Failed to load chat history', err);
+      socket.emit('chat:history', {
+        channel,
+        messages: [],
+        hasMore: false,
+        reset: !before,
+      });
+    }
   });
 
   // Handle disconnect
@@ -1159,11 +1304,11 @@ void startServer();
 // Broadcast authoritative snapshots at a throttled rate (5Hz)
 const BROADCAST_INTERVAL_MS = 200;
 let lastBroadcastAt = Date.now();
-  setInterval(() => {
-    if (!io) return;
-    const now = Date.now();
-    const drift = now - lastBroadcastAt;
-    if (
+setInterval(() => {
+  if (!io) return;
+  const now = Date.now();
+  const drift = now - lastBroadcastAt;
+  if (
     PERF_LOGGING_ENABLED &&
     drift > BROADCAST_INTERVAL_MS * BROADCAST_DRIFT_WARN_FACTOR
   ) {
@@ -1171,45 +1316,45 @@ let lastBroadcastAt = Date.now();
       `Simulation broadcast drifted: expected ${BROADCAST_INTERVAL_MS}ms, got ${drift}ms`,
     );
   }
-    lastBroadcastAt = now;
-    const dt = BROADCAST_INTERVAL_MS / 1000;
+  lastBroadcastAt = now;
+  const dt = BROADCAST_INTERVAL_MS / 1000;
 
-    // Advance AI vessels using substeps for stability
-    const targetSubDt = 1 / 60; // ~60 Hz
-    const steps = Math.max(1, Math.round(dt / targetSubDt));
-    const subDt = dt / steps;
-    for (const v of globalState.vessels.values()) {
-      if (v.mode === 'ai') {
-        for (let i = 0; i < steps; i++) {
-          stepAIVessel(v, subDt);
-        }
-      }
-      // Grace-period promotion to AI for empty player vessels
-      if (
-        v.mode === 'player' &&
-        v.crewIds.size === 0 &&
-        v.desiredMode === 'player' &&
-        now - v.lastCrewAt > AI_GRACE_MS
-      ) {
-        v.mode = 'ai';
-        v.lastUpdate = now;
-        void persistVesselToDb(v, { force: true });
-      }
-      if (
-        v.mode === 'player' &&
-        v.crewIds.size === 0 &&
-        v.desiredMode === 'ai' &&
-        now - v.lastCrewAt > 0
-      ) {
-        v.mode = 'ai';
-        v.lastUpdate = now;
-        void persistVesselToDb(v, { force: true });
+  // Advance AI vessels using substeps for stability
+  const targetSubDt = 1 / 60; // ~60 Hz
+  const steps = Math.max(1, Math.round(dt / targetSubDt));
+  const subDt = dt / steps;
+  for (const v of globalState.vessels.values()) {
+    if (v.mode === 'ai') {
+      for (let i = 0; i < steps; i++) {
+        stepAIVessel(v, subDt);
       }
     }
+    // Grace-period promotion to AI for empty player vessels
+    if (
+      v.mode === 'player' &&
+      v.crewIds.size === 0 &&
+      v.desiredMode === 'player' &&
+      now - v.lastCrewAt > AI_GRACE_MS
+    ) {
+      v.mode = 'ai';
+      v.lastUpdate = now;
+      void persistVesselToDb(v, { force: true });
+    }
+    if (
+      v.mode === 'player' &&
+      v.crewIds.size === 0 &&
+      v.desiredMode === 'ai' &&
+      now - v.lastCrewAt > 0
+    ) {
+      v.mode = 'ai';
+      v.lastUpdate = now;
+      void persistVesselToDb(v, { force: true });
+    }
+  }
 
-    const snapshot = Object.fromEntries(
-      Array.from(globalState.vessels.entries()).map(([id, v]) => [
-        id,
+  const snapshot = Object.fromEntries(
+    Array.from(globalState.vessels.entries()).map(([id, v]) => [
+      id,
       toSimpleVesselState(v),
     ]),
   );

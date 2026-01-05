@@ -42,6 +42,20 @@ export interface VesselControlData {
   rudderAngle?: number;
   ballast?: number;
 } // Type definitions for Socket.IO
+
+export interface ChatHistoryRequest {
+  channel?: string;
+  before?: number;
+  limit?: number;
+}
+
+export interface ChatHistoryResponse {
+  channel: string;
+  messages: ChatMessageData[];
+  hasMore: boolean;
+  reset?: boolean;
+}
+
 export type ServerToClientEvents = {
   'simulation:update': (data: SimulationUpdateData) => void;
   'vessel:joined': (data: VesselJoinedData) => void;
@@ -52,8 +66,9 @@ export type ServerToClientEvents = {
     username: string;
     message: string;
     timestamp?: number;
+    channel?: string;
   }) => void;
-  'chat:history': (data: ChatMessageData[]) => void;
+  'chat:history': (data: ChatHistoryResponse) => void;
   error: (error: string) => void;
 };
 export type ClientToServerEvents = {
@@ -66,7 +81,8 @@ export type ClientToServerEvents = {
     pattern?: string;
     coordinates?: { lat: number; lng: number };
   }) => void;
-  'chat:message': (data: { message: string }) => void;
+  'chat:message': (data: { message: string; channel?: string }) => void;
+  'chat:history': (data: ChatHistoryRequest) => void;
   'admin:vesselMode': (data: { vesselId: string; mode: 'player' | 'ai' }) => void;
   'user:mode': (data: { mode: 'player' | 'spectator' }) => void;
 };
@@ -77,6 +93,7 @@ export interface InterServerEvents {
 }
 export interface SocketData extends AuthenticatedUser {
   // Additional socket data properties would go here if needed
+  vesselId?: string;
   _socketSpecific?: boolean; // Placeholder to make TypeScript happy
 }
 
@@ -85,4 +102,6 @@ export interface ChatMessageData {
   username: string;
   message: string;
   timestamp: number;
+  id?: string;
+  channel?: string;
 }

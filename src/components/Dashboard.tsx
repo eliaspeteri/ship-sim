@@ -23,8 +23,10 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   const crewNames = useStore(state => state.crewNames);
   const helm = useStore(state => state.vessel.helm);
   const chatMessages = useStore(state => state.chatMessages);
-  const addChatMessage = useStore(state => state.addChatMessage);
+  const chatHistoryMeta = useStore(state => state.chatHistoryMeta);
+  const currentVesselId = useStore(state => state.currentVesselId);
   const [chatInput, setChatInput] = useState('');
+  const [chatChannel, setChatChannel] = useState<string>('global');
   const sessionUserId = useStore(state => state.sessionUserId);
 
   // Destructure vessel state for easier access
@@ -44,6 +46,27 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
     controls?.rudderAngle || 0,
   );
   const [ballastLocal, setBallastLocal] = useState(controls?.ballast ?? 0.5);
+  const normalizeVesselId = (id: string | null) => {
+    if (!id) return null;
+    return id.split('_')[0] || id;
+  };
+  const vesselChannel = currentVesselId
+    ? `vessel:${normalizeVesselId(currentVesselId)}`
+    : null;
+
+  useEffect(() => {
+    if (chatChannel.startsWith('vessel:')) {
+      if (!vesselChannel) {
+        setChatChannel('global');
+      } else if (chatChannel.split(':')[1] !== vesselChannel.split(':')[1]) {
+        setChatChannel(vesselChannel);
+      }
+    }
+  }, [chatChannel, vesselChannel]);
+
+  useEffect(() => {
+    socketManager.requestChatHistory(chatChannel);
+  }, [chatChannel]);
 
   // Keep local lever state in sync with store changes (e.g., keyboard input)
   useEffect(() => {
@@ -88,7 +111,11 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           rudderAngle: clampedRudder,
           ballast: ballastLocal,
         });
-        socketManager.sendControlUpdate(throttleLocal, clampedRudder, ballastLocal);
+        socketManager.sendControlUpdate(
+          throttleLocal,
+          clampedRudder,
+          ballastLocal,
+        );
       } catch (error) {
         console.error('Error applying controls directly:', error);
       }
@@ -116,12 +143,37 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
 
   const navOffset = 'calc(var(--nav-height, 0px) + 1rem)';
   const panelMaxHeight = 'calc(92vh - var(--nav-height, 0px))';
+  const filteredChatMessages = chatMessages.filter(msg => {
+    const chan = msg.channel || 'global';
+    if (chan === chatChannel) return true;
+    if (chatChannel.startsWith('vessel:') && chan.startsWith('vessel:')) {
+      return (
+        chan.split(':')[1]?.split('_')[0] ===
+        chatChannel.split(':')[1]?.split('_')[0]
+      );
+    }
+    return false;
+  });
+  const earliestChatTimestamp =
+    filteredChatMessages.length > 0
+      ? filteredChatMessages[0].timestamp
+      : undefined;
+  const hasMoreHistory = chatHistoryMeta[chatChannel]?.hasMore ?? false;
+  const chatLoaded =
+    chatHistoryMeta[chatChannel]?.loaded ?? filteredChatMessages.length > 0;
 
   const sendChat = () => {
     const trimmed = chatInput.trim();
     if (!trimmed) return;
-    socketManager.sendChatMessage(trimmed);
+    socketManager.sendChatMessage(trimmed, chatChannel);
     setChatInput('');
+  };
+
+  const loadOlderChat = () => {
+    console.info(
+      `Requesting older chat messages for channel ${chatChannel} before ${earliestChatTimestamp}`,
+    );
+    socketManager.requestChatHistory(chatChannel, earliestChatTimestamp);
   };
 
   return (
@@ -168,7 +220,9 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
             </div>
           )}
           {crewIds.length === 0 ? (
-            <div className="text-sm text-gray-300">You are alone on this vessel</div>
+            <div className="text-sm text-gray-300">
+              You are alone on this vessel
+            </div>
           ) : (
             <ul className="text-sm space-y-1">
               {crewIds.map(id => (
@@ -188,13 +242,50 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
         </div>
 
         <div className="bg-gray-800/70 p-2 rounded flex flex-col space-y-2">
-          <div className="text-gray-400 text-xs mb-1">Crew Chat</div>
+          <div className="flex items-center justify-between">
+            <div className="text-gray-400 text-xs">Chat</div>
+            <div className="flex items-center space-x-2">
+              <span className="text-[10px] uppercase text-gray-500">
+                Channel
+              </span>
+              <select
+                className="rounded bg-gray-900 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                value={chatChannel}
+                onChange={e => setChatChannel(e.target.value)}
+              >
+                <option value="global">Global</option>
+                {vesselChannel && (
+                  <option value={vesselChannel}>This vessel</option>
+                )}
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              className="text-xs rounded bg-gray-700 px-2 py-1 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={loadOlderChat}
+              disabled={!hasMoreHistory}
+            >
+              Load older
+            </button>
+            <span className="text-[10px] uppercase text-gray-500">
+              {chatChannel === 'global' ? 'Global chat' : 'Vessel chat'}
+            </span>
+          </div>
           <div className="max-h-32 overflow-y-auto space-y-1 text-sm">
-            {chatMessages.length === 0 ? (
-              <div className="text-gray-400 text-xs">No messages yet</div>
+            {filteredChatMessages.length === 0 ? (
+              chatLoaded ? (
+                <div className="text-gray-400 text-xs">No messages yet</div>
+              ) : (
+                <div className="text-gray-400 text-xs">Loading chat...</div>
+              )
             ) : (
-              chatMessages.map((msg, idx) => (
-                <div key={`${msg.timestamp}-${idx}`} className="text-gray-200">
+              filteredChatMessages.map((msg, idx) => (
+                <div
+                  key={`${msg.id || msg.timestamp}-${idx}`}
+                  className="text-gray-200"
+                >
                   <span className="font-semibold text-gray-100">
                     {msg.username || msg.userId}:
                   </span>{' '}
@@ -206,7 +297,11 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           <div className="flex space-x-2">
             <input
               className="flex-1 rounded bg-gray-900 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="Message crew..."
+              placeholder={
+                chatChannel === 'global'
+                  ? 'Message everyone...'
+                  : 'Message this vessel...'
+              }
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
               onKeyDown={e => {

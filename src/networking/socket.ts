@@ -11,6 +11,8 @@ import {
   VesselUpdateData,
 } from '../types/socket.types';
 
+const CHAT_HISTORY_PAGE_SIZE = 20;
+
 const hasVesselChanged = (
   prev: SimpleVesselState | undefined,
   next: SimpleVesselState,
@@ -57,6 +59,7 @@ class SocketManager {
   private hasHydratedSelf = false;
   private lastSelfSnapshot: SimpleVesselState | null = null;
   private selfHydrateResolvers: Array<(vessel: SimpleVesselState) => void> = [];
+  private chatHistoryLoading: Set<string> = new Set();
 
   constructor() {
     this.userId = this.generateUserId();
@@ -110,6 +113,7 @@ class SocketManager {
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = null;
       }
+      this.requestChatHistory('global');
     });
 
     this.socket.on('disconnect', (reason: string) => {
@@ -150,10 +154,12 @@ class SocketManager {
       useStore
         .getState()
         .addChatMessage({
+          id: data.id,
           userId: data.userId,
           username: data.username,
           message: data.message,
           timestamp: data.timestamp || Date.now(),
+          channel: data.channel || 'global',
         });
       if (data.userId === 'system') {
         useStore.getState().addEvent({
@@ -163,6 +169,44 @@ class SocketManager {
           severity: 'info',
         });
       }
+    });
+
+    this.socket.on('chat:history', data => {
+      const channel = data?.channel || 'global';
+      const normalizedChannel =
+        channel && channel.startsWith('vessel:')
+          ? `vessel:${channel.split(':')[1]?.split('_')[0] || ''}`
+          : channel;
+      const messages = Array.isArray(data?.messages) ? data.messages : [];
+      const store = useStore.getState();
+      const normalizedMessages = messages.map(msg => ({
+        id: msg.id,
+        userId: msg.userId,
+        username: msg.username,
+        message: msg.message,
+        timestamp: msg.timestamp || Date.now(),
+        channel: msg.channel || normalizedChannel,
+      }));
+      if (data?.reset) {
+        if (normalizedMessages.length > 0) {
+          store.replaceChannelMessages(normalizedChannel, normalizedMessages);
+        } else {
+          // If the server returned no messages on reset, keep existing ones but mark loaded.
+          store.setChatHistoryMeta(normalizedChannel, {
+            hasMore: data?.hasMore ?? false,
+            loaded: true,
+          });
+        }
+      } else if (normalizedMessages.length > 0) {
+        store.mergeChatMessages(normalizedMessages);
+      }
+      if (data?.hasMore !== undefined) {
+        store.setChatHistoryMeta(normalizedChannel, {
+          hasMore: data.hasMore,
+          loaded: true,
+        });
+      }
+      this.chatHistoryLoading.delete(normalizedChannel);
     });
 
     this.socket.on('error', (error: unknown) => {
@@ -191,8 +235,20 @@ class SocketManager {
             username: msg.username,
             message: msg.message,
             timestamp: msg.timestamp || Date.now(),
+            channel: msg.channel || 'global',
           })),
         );
+        const perChannel = new Map<string, number>();
+        data.chatHistory.forEach(msg => {
+          const channel = msg.channel || 'global';
+          perChannel.set(channel, (perChannel.get(channel) || 0) + 1);
+        });
+        perChannel.forEach((count, channel) => {
+          store.setChatHistoryMeta(channel, {
+            hasMore: count >= CHAT_HISTORY_PAGE_SIZE,
+            loaded: true,
+          });
+        });
       }
     const currentOthers = store.otherVessels || {};
     const nextOthers = data.partial ? { ...currentOthers } : {};
@@ -345,9 +401,39 @@ class SocketManager {
     this.socket.emit('vessel:helm', { action });
   }
 
-  sendChatMessage(message: string): void {
+  sendChatMessage(message: string, channel = 'global'): void {
     if (!this.socket?.connected) return;
-    this.socket.emit('chat:message', { message });
+    this.socket.emit('chat:message', { message, channel });
+  }
+
+  requestChatHistory(channel: string, before?: number, limit = 20): void {
+    if (!this.socket?.connected) return;
+    const normalizedChannel =
+      channel && channel.startsWith('vessel:')
+        ? `vessel:${channel.split(':')[1]?.split('_')[0] || ''}`
+        : channel;
+    if (!before) {
+      const store = useStore.getState();
+      const meta = store.chatHistoryMeta[normalizedChannel || channel];
+      const hasMessages =
+        store.chatMessages.filter(
+          msg =>
+            (msg.channel || 'global') === normalizedChannel ||
+            msg.channel === channel,
+        ).length > 0;
+      if (meta?.loaded || hasMessages) {
+        store.setChatHistoryMeta(normalizedChannel || channel, {
+          hasMore: meta?.hasMore ?? false,
+          loaded: true,
+        });
+        return;
+      }
+      if (this.chatHistoryLoading.has(normalizedChannel || channel)) {
+        return;
+      }
+      this.chatHistoryLoading.add(normalizedChannel || channel);
+    }
+    this.socket.emit('chat:history', { channel: normalizedChannel || channel, before, limit });
   }
 
   // Update vessel position
