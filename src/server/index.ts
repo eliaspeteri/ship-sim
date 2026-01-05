@@ -43,6 +43,8 @@ const PERF_LOGGING_ENABLED = process.env.PERF_LOGGING === 'true' || !PRODUCTION;
 const API_SLOW_WARN_MS = 200;
 const BROADCAST_DRIFT_WARN_FACTOR = 1.5;
 const MIN_PERSIST_INTERVAL_MS = 1000; // Throttle DB writes per vessel
+const AI_GRACE_MS =
+  parseInt(process.env.AI_GRACE_MS || '30000', 10) || 30000; // default 30s
 
 type VesselMode = 'player' | 'ai';
 type CoreVesselProperties = Pick<
@@ -55,6 +57,7 @@ interface VesselRecord {
   crewIds: Set<string>;
   mode: VesselMode;
   desiredMode: VesselMode;
+  lastCrewAt: number;
   yawRate?: number;
   position: VesselPose['position'];
   orientation: VesselPose['orientation'];
@@ -106,6 +109,7 @@ async function persistVesselToDb(
         draft: vessel.properties.draft,
         lastUpdate: new Date(vessel.lastUpdate),
         isAi: vessel.mode === 'ai',
+        lastCrewAt: new Date(vessel.lastCrewAt || vessel.lastUpdate),
       },
       create: {
         id: vessel.id,
@@ -132,6 +136,7 @@ async function persistVesselToDb(
         draft: vessel.properties.draft,
         lastUpdate: new Date(vessel.lastUpdate),
         isAi: vessel.mode === 'ai',
+        lastCrewAt: new Date(vessel.lastCrewAt || vessel.lastUpdate),
       },
     });
   } catch (err) {
@@ -151,6 +156,7 @@ async function loadVesselsFromDb() {
       crewIds: new Set<string>(),
       mode: (row.mode as VesselMode) || 'ai',
       desiredMode: (row.desiredMode as VesselMode) || 'player',
+      lastCrewAt: row.lastCrewAt?.getTime() || Date.now(),
       position: {
         x: xy.x,
         y: xy.y,
@@ -202,6 +208,7 @@ function createDefaultAIVessel(id: string, position = { x: 0, y: 0, z: 0 }) {
     crewIds: new Set<string>(),
     mode: 'ai',
     desiredMode: 'ai',
+    lastCrewAt: Date.now(),
     yawRate: 0,
     position: { ...position, lat: latLon.lat, lon: latLon.lon },
     orientation: { heading: 0, roll: 0, pitch: 0 },
@@ -417,6 +424,7 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
     crewIds: new Set([userId]),
     mode: 'player',
     desiredMode: 'player',
+    lastCrewAt: Date.now(),
     yawRate: 0,
     position: { x: 0, y: 0, z: 0 },
     orientation: { heading: 0, roll: 0, pitch: 0 },
@@ -465,6 +473,7 @@ const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => ({
   ownerId: v.ownerId,
   desiredMode: v.desiredMode,
   mode: v.mode,
+  lastCrewAt: v.lastCrewAt,
   position: withLatLon(v.position),
   orientation: v.orientation,
   velocity: v.velocity,
@@ -767,6 +776,7 @@ io.on('connection', socket => {
       target.mode = 'player';
       console.debug(`Vessel ${target.id} switched to Player mode (crew added)`);
     }
+    target.lastCrewAt = Date.now();
     target.lastUpdate = Date.now();
     void persistVesselToDb(target, { force: true });
   });
@@ -908,8 +918,9 @@ io.on('connection', socket => {
       if (vesselRecord) {
         vesselRecord.crewIds.delete(currentUserId);
         if (vesselRecord.crewIds.size === 0) {
-          vesselRecord.mode = 'ai';
-          // AI integrator will continue using existing controls/state
+          vesselRecord.mode = vesselRecord.desiredMode || 'player';
+          vesselRecord.lastCrewAt = Date.now();
+          // AI integrator will continue using existing controls/state if desiredMode is ai
         }
       }
     }
@@ -952,11 +963,11 @@ void startServer();
 // Broadcast authoritative snapshots at a throttled rate (5Hz)
 const BROADCAST_INTERVAL_MS = 200;
 let lastBroadcastAt = Date.now();
-setInterval(() => {
-  if (!io) return;
-  const now = Date.now();
-  const drift = now - lastBroadcastAt;
-  if (
+  setInterval(() => {
+    if (!io) return;
+    const now = Date.now();
+    const drift = now - lastBroadcastAt;
+    if (
     PERF_LOGGING_ENABLED &&
     drift > BROADCAST_INTERVAL_MS * BROADCAST_DRIFT_WARN_FACTOR
   ) {
@@ -964,24 +975,43 @@ setInterval(() => {
       `Simulation broadcast drifted: expected ${BROADCAST_INTERVAL_MS}ms, got ${drift}ms`,
     );
   }
-  lastBroadcastAt = now;
-  const dt = BROADCAST_INTERVAL_MS / 1000;
+    lastBroadcastAt = now;
+    const dt = BROADCAST_INTERVAL_MS / 1000;
 
-  // Advance AI vessels using substeps for stability
-  const targetSubDt = 1 / 60; // ~60 Hz
-  const steps = Math.max(1, Math.round(dt / targetSubDt));
-  const subDt = dt / steps;
-  for (const v of globalState.vessels.values()) {
-    if (v.mode === 'ai') {
-      for (let i = 0; i < steps; i++) {
-        stepAIVessel(v, subDt);
+    // Advance AI vessels using substeps for stability
+    const targetSubDt = 1 / 60; // ~60 Hz
+    const steps = Math.max(1, Math.round(dt / targetSubDt));
+    const subDt = dt / steps;
+    for (const v of globalState.vessels.values()) {
+      if (v.mode === 'ai') {
+        for (let i = 0; i < steps; i++) {
+          stepAIVessel(v, subDt);
+        }
+      }
+      // Grace-period promotion to AI for empty player vessels
+      if (
+        v.mode === 'player' &&
+        v.crewIds.size === 0 &&
+        v.desiredMode === 'player' &&
+        now - v.lastCrewAt > AI_GRACE_MS
+      ) {
+        v.mode = 'ai';
+        v.lastUpdate = now;
+      }
+      if (
+        v.mode === 'player' &&
+        v.crewIds.size === 0 &&
+        v.desiredMode === 'ai' &&
+        now - v.lastCrewAt > 0
+      ) {
+        v.mode = 'ai';
+        v.lastUpdate = now;
       }
     }
-  }
 
-  const snapshot = Object.fromEntries(
-    Array.from(globalState.vessels.entries()).map(([id, v]) => [
-      id,
+    const snapshot = Object.fromEntries(
+      Array.from(globalState.vessels.entries()).map(([id, v]) => [
+        id,
       toSimpleVesselState(v),
     ]),
   );

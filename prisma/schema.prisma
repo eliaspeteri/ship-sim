@@ -65,6 +65,7 @@ model Vessel {
     ownerId     String?
     mode        String   // 'ai' | 'player'
     desiredMode String   @default("player") // intended mode when unattended
+    lastCrewAt  DateTime @default(now()) // last time a crew member was attached
     lat         Float
     lon         Float
     z           Float

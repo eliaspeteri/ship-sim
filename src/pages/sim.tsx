@@ -62,8 +62,16 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       }
     })();
 
+    const handleUnload = () => {
+      socketManager.disconnect();
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+
     return () => {
       cancelled = true;
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
       if (hasStartedRef.current) {
         socketManager.disconnect();
         hasStartedRef.current = false;
