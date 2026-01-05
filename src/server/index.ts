@@ -869,9 +869,9 @@ io.on('connection', socket => {
         : undefined;
       if (vesselRecord) {
         vesselRecord.crewIds.delete(currentUserId);
-        if (vesselRecord.crewIds.size === 0) {
+        if (vesselRecord.crewIds.size === 0 && vesselRecord.mode === 'ai') {
           vesselRecord.mode = 'ai';
-          // Keep last controls/state; AI logic will use it later
+          // Keep last controls/state; AI logic will use it later for true AI vessels
         }
       }
     }
@@ -930,7 +930,7 @@ setInterval(() => {
   const dt = BROADCAST_INTERVAL_MS / 1000;
   // Advance AI/abandoned vessels
   for (const v of globalState.vessels.values()) {
-    if (v.mode === 'ai' || v.crewIds.size === 0) {
+    if (v.mode === 'ai') {
       stepAIVessel(v, dt);
     }
   }
