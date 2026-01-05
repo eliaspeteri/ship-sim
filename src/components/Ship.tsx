@@ -8,6 +8,10 @@ interface ShipProps {
   position: { x: number; y: number; z: number };
   heading: number;
   shipType?: 'CONTAINER' | 'TANKER' | 'CARGO' | 'DEFAULT';
+  ballast?: number;
+  draft?: number;
+  roll?: number;
+  pitch?: number;
 }
 
 const SHIP_MODELS = {
@@ -21,11 +25,17 @@ const Ship: React.FC<ShipProps> = ({
   position,
   heading,
   shipType = 'DEFAULT',
+  ballast = 0.5,
+  draft = 6,
+  roll,
+  pitch,
 }) => {
   const shipRef = useRef<THREE.Group>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
   const model = SHIP_MODELS[shipType] ? useGLTF(SHIP_MODELS[shipType]) : null;
   const orientation = useStore(state => state.vessel.orientation);
+  const controls = useStore(state => state.vessel.controls);
+  const properties = useStore(state => state.vessel.properties);
 
   useEffect(() => {
     if (model) {
@@ -68,16 +78,17 @@ const Ship: React.FC<ShipProps> = ({
   useFrame(() => {
     const obj = shipRef.current;
     if (obj) {
+      const sink = -draft * (0.4 + 0.4 * ballast); // simple visual offset
       // Position from props and physics state
-      obj.position.set(position.x, position.y, position.z);
+      obj.position.set(position.x, sink, position.z);
 
-      const roll = orientation?.roll ?? 0;
-      const pitch = orientation?.pitch ?? 0;
+      const rollAngle = roll ?? orientation?.roll ?? 0;
+      const pitchAngle = pitch ?? orientation?.pitch ?? 0;
       // Render heading: model forward (+Z) vs physics forward (+X). Rotate -90° to align axes and invert for Three.js.
       const renderHeading = -heading - Math.PI / 2;
 
       // Apply heading, roll, and pitch (roll/pitch from physics; heading from store)
-      obj.rotation.set(pitch, renderHeading, roll);
+      obj.rotation.set(pitchAngle, renderHeading, rollAngle);
     }
   });
 

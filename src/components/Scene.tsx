@@ -266,6 +266,8 @@ function LightTracker({
 export default function Scene({ vesselPosition, mode }: SceneProps) {
   const isSpectator = mode === 'spectator';
   const vesselProperties = useStore(state => state.vessel.properties);
+  const vesselControls = useStore(state => state.vessel.controls);
+  const vesselOrientation = useStore(state => state.vessel.orientation);
   const otherVessels = useStore(state => state.otherVessels);
   const envTime = useStore(state => state.environment.timeOfDay);
   const directionalLightRef = useRef<THREE.DirectionalLight>(null);
@@ -365,6 +367,10 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           }}
           heading={vesselPosition.heading}
           shipType={vesselProperties.type}
+          ballast={vesselControls.ballast}
+          draft={vesselProperties.draft}
+          roll={vesselOrientation.roll}
+          pitch={vesselOrientation.pitch}
         />
         {Object.entries(otherVessels || {}).map(([id, v]) => (
           <Ship
@@ -372,6 +378,8 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
             position={{ x: v.position.x, y: 0, z: v.position.y }}
             heading={v.orientation.heading}
             shipType={vesselProperties.type}
+            ballast={v.controls?.ballast ?? 0.5}
+            draft={vesselProperties.draft}
           />
         ))}
         <OrbitControls

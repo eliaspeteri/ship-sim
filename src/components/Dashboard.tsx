@@ -19,6 +19,13 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   const vessel = useStore(state => state.vessel);
   const environment = useStore(state => state.environment);
   const mode = useStore(state => state.mode);
+  const crewIds = useStore(state => state.crewIds);
+  const crewNames = useStore(state => state.crewNames);
+  const helm = useStore(state => state.vessel.helm);
+  const chatMessages = useStore(state => state.chatMessages);
+  const addChatMessage = useStore(state => state.addChatMessage);
+  const [chatInput, setChatInput] = useState('');
+  const sessionUserId = useStore(state => state.sessionUserId);
 
   // Destructure vessel state for easier access
   const {
@@ -36,18 +43,21 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   const [rudderAngleLocal, setRudderAngleLocal] = useState(
     controls?.rudderAngle || 0,
   );
+  const [ballastLocal, setBallastLocal] = useState(controls?.ballast ?? 0.5);
 
   // Keep local lever state in sync with store changes (e.g., keyboard input)
   useEffect(() => {
     if (!controls) return;
     setThrottleLocal(controls.throttle ?? 0);
     setRudderAngleLocal(controls.rudderAngle ?? 0);
+    setBallastLocal(controls.ballast ?? 0.5);
   }, [controls?.throttle, controls?.rudderAngle, controls]);
 
   // Track last applied values to prevent redundant updates
   const lastAppliedRef = useRef({
     throttle: controls?.throttle || 0,
     rudderAngle: controls?.rudderAngle || 0,
+    ballast: controls?.ballast ?? 0.5,
   });
 
   // Apply controls whenever throttle or rudder changes, but use a debounce pattern
@@ -59,12 +69,14 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
     // Only apply controls if values actually changed
     if (
       throttleLocal !== lastAppliedRef.current.throttle ||
-      rudderAngleLocal !== lastAppliedRef.current.rudderAngle
+      rudderAngleLocal !== lastAppliedRef.current.rudderAngle ||
+      ballastLocal !== lastAppliedRef.current.ballast
     ) {
       // Update the reference to current values
       lastAppliedRef.current = {
         throttle: throttleLocal,
         rudderAngle: clampRudderAngle(rudderAngleLocal),
+        ballast: ballastLocal,
       };
 
       // Apply the controls directly to the simulation engine
@@ -74,14 +86,14 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
         simulationLoop.applyControls({
           throttle: throttleLocal,
           rudderAngle: clampedRudder,
-          ballast: controls.ballast || 0.5,
+          ballast: ballastLocal,
         });
-        socketManager.sendControlUpdate(throttleLocal, clampedRudder);
+        socketManager.sendControlUpdate(throttleLocal, clampedRudder, ballastLocal);
       } catch (error) {
         console.error('Error applying controls directly:', error);
       }
     }
-  }, [throttleLocal, rudderAngleLocal, controls, mode]);
+  }, [throttleLocal, rudderAngleLocal, ballastLocal, controls, mode]);
 
   // Reset controls only when dashboard unmounts
   useEffect(
@@ -104,6 +116,13 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
 
   const navOffset = 'calc(var(--nav-height, 0px) + 1rem)';
   const panelMaxHeight = 'calc(92vh - var(--nav-height, 0px))';
+
+  const sendChat = () => {
+    const trimmed = chatInput.trim();
+    if (!trimmed) return;
+    socketManager.sendChatMessage(trimmed);
+    setChatInput('');
+  };
 
   return (
     <div className={`${className} pointer-events-none text-white`}>
@@ -138,6 +157,72 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
                     />
                   ),
               )}
+          </div>
+        </div>
+
+        <div className="bg-gray-800/70 p-2 rounded">
+          <div className="text-gray-400 text-xs mb-1">Crew</div>
+          {helm?.userId && (
+            <div className="text-[11px] text-amber-300 mb-1">
+              Helm: {helm.username || helm.userId}
+            </div>
+          )}
+          {crewIds.length === 0 ? (
+            <div className="text-sm text-gray-300">You are alone on this vessel</div>
+          ) : (
+            <ul className="text-sm space-y-1">
+              {crewIds.map(id => (
+                <li key={id} className="flex items-center justify-between">
+                  <span className="font-mono text-gray-200">
+                    {crewNames[id] || id}
+                    {id === helm?.userId ? ' (helm)' : ''}
+                    {id === sessionUserId ? ' (you)' : ''}
+                  </span>
+                  <span className="text-[10px] uppercase text-gray-500">
+                    {helm?.userId === id ? 'Helm' : 'Crew'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="bg-gray-800/70 p-2 rounded flex flex-col space-y-2">
+          <div className="text-gray-400 text-xs mb-1">Crew Chat</div>
+          <div className="max-h-32 overflow-y-auto space-y-1 text-sm">
+            {chatMessages.length === 0 ? (
+              <div className="text-gray-400 text-xs">No messages yet</div>
+            ) : (
+              chatMessages.map((msg, idx) => (
+                <div key={`${msg.timestamp}-${idx}`} className="text-gray-200">
+                  <span className="font-semibold text-gray-100">
+                    {msg.username || msg.userId}:
+                  </span>{' '}
+                  {msg.message}
+                </div>
+              ))
+            )}
+          </div>
+          <div className="flex space-x-2">
+            <input
+              className="flex-1 rounded bg-gray-900 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Message crew..."
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  sendChat();
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={sendChat}
+              className="rounded bg-blue-600 px-2 py-1 text-sm font-semibold hover:bg-blue-700"
+            >
+              Send
+            </button>
           </div>
         </div>
 
@@ -264,6 +349,22 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           maxAngle={RUDDER_STALL_ANGLE_DEG}
           size={220}
         />
+
+        <div className="flex flex-col space-y-1">
+          <div className="text-gray-400 text-xs">Ballast</div>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={ballastLocal}
+            onChange={e => setBallastLocal(parseFloat(e.target.value))}
+            className="w-40 accent-blue-500"
+          />
+          <div className="text-xs text-gray-300">
+            {(ballastLocal * 100).toFixed(0)}%
+          </div>
+        </div>
       </div>
     </div>
   );

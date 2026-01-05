@@ -32,6 +32,10 @@ export interface VesselState {
     ballast: number; // 0.0-1.0 ballast level
     bowThruster?: number; // -1.0 to 1.0
   };
+  helm?: {
+    userId: string | null;
+    username?: string | null;
+  };
 
   // Vessel properties
   properties: {
@@ -96,6 +100,10 @@ export type VesselSnapshot = VesselPose & {
   controls?: Partial<VesselControls>;
   id: string;
   ownerId?: string | null;
+  crewIds?: string[];
+  crewCount?: number;
+  crewNames?: Record<string, string>;
+  helm?: VesselState['helm'];
   angularVelocity?: Partial<VesselState['angularVelocity']>;
   mode?: 'player' | 'ai';
   desiredMode?: 'player' | 'ai';
