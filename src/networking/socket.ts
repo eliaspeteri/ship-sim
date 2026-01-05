@@ -1,8 +1,10 @@
 import io from 'socket.io-client';
+import type * as SocketIOClient from 'socket.io-client';
 import useStore from '../store';
 import { SimpleVesselState } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
 import {
+  ChatHistoryResponse,
   ChatMessageData,
   SimulationUpdateData,
   VesselControlData,
@@ -12,6 +14,23 @@ import {
 } from '../types/socket.types';
 
 const CHAT_HISTORY_PAGE_SIZE = 20;
+
+type ClientSocket = ReturnType<typeof io> & {
+  auth?: {
+    token?: string | null;
+    userId?: string | null;
+    username?: string | null;
+  };
+};
+
+type ClientConnectOpts = Partial<SocketIOClient.ConnectOpts> & {
+  withCredentials?: boolean;
+  auth?: {
+    userId?: string | null;
+    username?: string | null;
+    token?: string | null;
+  };
+};
 
 const hasVesselChanged = (
   prev: SimpleVesselState | undefined,
@@ -49,7 +68,7 @@ const hasVesselChanged = (
 
 // Socket.IO Client Manager
 class SocketManager {
-  private socket: ReturnType<typeof io> | null = null;
+  private socket: ClientSocket | null = null;
   private userId: string;
   private username: string = 'Anonymous';
   private reconnectTimer: NodeJS.Timeout | null = null;
@@ -84,18 +103,20 @@ class SocketManager {
     this.selfHydrateResolvers = [];
     useStore.getState().setCurrentVesselId(null);
 
-    this.socket = io(url, {
+    const options: ClientConnectOpts = {
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 10000,
-      withCredentials: true as unknown as boolean,
+      withCredentials: true,
       auth: {
         userId: this.userId,
         username: this.username,
         token: this.authToken || undefined,
       },
-    });
+    };
+
+    this.socket = io(url, options) as ClientSocket;
 
     // Set up event listeners
     this.setupEventListeners();
@@ -171,15 +192,17 @@ class SocketManager {
       }
     });
 
-    this.socket.on('chat:history', data => {
+    this.socket.on('chat:history', (data: ChatHistoryResponse) => {
       const channel = data?.channel || 'global';
       const normalizedChannel =
         channel && channel.startsWith('vessel:')
           ? `vessel:${channel.split(':')[1]?.split('_')[0] || ''}`
           : channel;
-      const messages = Array.isArray(data?.messages) ? data.messages : [];
+      const messages: ChatMessageData[] = Array.isArray(data?.messages)
+        ? data.messages
+        : [];
       const store = useStore.getState();
-      const normalizedMessages = messages.map(msg => ({
+      const normalizedMessages = messages.map((msg: ChatMessageData) => ({
         id: msg.id,
         userId: msg.userId,
         username: msg.username,
@@ -282,7 +305,12 @@ class SocketManager {
           position: vesselData.position,
           orientation: vesselData.orientation,
           velocity: vesselData.velocity,
-          angularVelocity: vesselData.angularVelocity,
+          angularVelocity: vesselData.angularVelocity
+            ? {
+                ...store.vessel.angularVelocity,
+                ...vesselData.angularVelocity,
+              }
+            : undefined,
           controls: vesselData.controls
             ? {
                 ...store.vessel.controls,
