@@ -1,7 +1,7 @@
 import { WasmModule } from '../types/wasm';
 
 let wasmInstance: WasmModule | null = null;
-const textDecoder = new TextDecoder('utf-16le');
+const textDecoder = new globalThis.TextDecoder('utf-16le');
 
 function isDevelopmentMode(): boolean {
   return process.env.NODE_ENV === 'development';
@@ -61,8 +61,11 @@ export async function loadWasmModule(): Promise<WasmModule> {
   const exports = instance.exports as WebAssembly.Exports;
 
   const setArgs = (len: number) => {
-    if (typeof (exports as any).__setArgumentsLength === 'function') {
-      (exports as any).__setArgumentsLength(len);
+    const maybeSetter = (exports as {
+      __setArgumentsLength?: (len: number) => void;
+    }).__setArgumentsLength;
+    if (typeof maybeSetter === 'function') {
+      maybeSetter(len);
     }
   };
 
