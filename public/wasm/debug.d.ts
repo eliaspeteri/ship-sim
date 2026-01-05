@@ -22,9 +22,10 @@ export declare const table: WebAssembly.Table;
  * @param length `f64`
  * @param beam `f64`
  * @param draft `f64`
+ * @param blockCoefficient `f64`
  * @returns `usize`
  */
-export declare function createVessel(x: number, y: number, z: number, psi: number, _phi: number, _theta: number, u: number, v: number, w: number, r: number, _p: number, _q: number, throttle: number, rudderAngle: number, mass: number, length: number, beam: number, draft: number): number;
+export declare function createVessel(x: number, y: number, z: number, psi: number, _phi: number, _theta: number, u: number, v: number, w: number, r: number, _p: number, _q: number, throttle: number, rudderAngle: number, mass: number, length: number, beam: number, draft: number, blockCoefficient?: number): number;
 /**
  * assembly/index/updateVesselState
  * @param vesselPtr `usize`
@@ -152,10 +153,10 @@ export declare function getVesselGM(_vesselPtr: number): number;
 export declare function getVesselCenterOfGravityY(_vesselPtr: number): number;
 /**
  * assembly/index/getVesselBallastLevel
- * @param _vesselPtr `usize`
+ * @param vesselPtr `usize`
  * @returns `f64`
  */
-export declare function getVesselBallastLevel(_vesselPtr: number): number;
+export declare function getVesselBallastLevel(vesselPtr: number): number;
 /**
  * assembly/index/getVesselRollRate
  * @param _vesselPtr `usize`

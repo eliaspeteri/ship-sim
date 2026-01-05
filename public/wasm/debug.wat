@@ -4,13 +4,13 @@
  (type $2 (func (param f64) (result f64)))
  (type $3 (func (param i32 i32)))
  (type $4 (func (param f64 f64) (result f64)))
- (type $5 (func (param i32) (result i32)))
- (type $6 (func))
- (type $7 (func (param i32 i32 i32 i32)))
- (type $8 (func (param i32)))
- (type $9 (func (param i32 i32) (result i32)))
- (type $10 (func (param i32 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64) (result i32)))
- (type $11 (func (param f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64) (result i32)))
+ (type $5 (func (param i32)))
+ (type $6 (func (param i32) (result i32)))
+ (type $7 (func (param f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64) (result i32)))
+ (type $8 (func))
+ (type $9 (func (param i32 i32 i32 i32)))
+ (type $10 (func (param i32 i32) (result i32)))
+ (type $11 (func (param i32 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64) (result i32)))
  (type $12 (func (param f64 i64) (result i32)))
  (type $13 (func (param i32 f64 f64 f64 f64 f64) (result i32)))
  (import "env" "memory" (memory $0 16 100))
@@ -25,13 +25,20 @@
  (global $assembly/index/DEFAULT_LENGTH f64 (f64.const 120))
  (global $assembly/index/DEFAULT_BEAM f64 (f64.const 20))
  (global $assembly/index/DEFAULT_DRAFT f64 (f64.const 6))
+ (global $assembly/index/DEFAULT_BLOCK_COEFFICIENT f64 (f64.const 0.75))
+ (global $assembly/index/GRAVITY f64 (f64.const 9.81))
  (global $assembly/index/YAW_DAMPING f64 (f64.const 0.5))
  (global $assembly/index/YAW_DAMPING_QUAD f64 (f64.const 1.2))
  (global $assembly/index/SWAY_DAMPING f64 (f64.const 0.6))
  (global $assembly/index/MAX_YAW_RATE f64 (f64.const 0.8))
  (global $assembly/index/MAX_SPEED f64 (f64.const 15))
  (global $assembly/index/PIVOT_AFT_RATIO f64 (f64.const 0.25))
+ (global $assembly/index/HEAVE_STIFFNESS f64 (f64.const 2))
+ (global $assembly/index/HEAVE_DAMPING f64 (f64.const 1.6))
+ (global $assembly/index/WAVE_HEIGHT_PER_WIND f64 (f64.const 0.05))
+ (global $assembly/index/MAX_WAVE_HEIGHT f64 (f64.const 3))
  (global $assembly/index/globalVessel (mut i32) (i32.const 0))
+ (global $~argumentsLength (mut i32) (i32.const 0))
  (global $~lib/rt/stub/startOffset (mut i32) (i32.const 0))
  (global $~lib/rt/stub/offset (mut i32) (i32.const 0))
  (global $~lib/native/ASC_SHRINK_LEVEL i32 (i32.const 0))
@@ -50,7 +57,7 @@
  (data $6 (i32.const 4560) "\00\00\00\00\00\00\00\00\00\00\00\00\00\00\f0?n\bf\88\1aO;\9b<53\fb\a9=\f6\ef?]\dc\d8\9c\13`q\bca\80w>\9a\ec\ef?\d1f\87\10z^\90\bc\85\7fn\e8\15\e3\ef?\13\f6g5R\d2\8c<t\85\15\d3\b0\d9\ef?\fa\8e\f9#\80\ce\8b\bc\de\f6\dd)k\d0\ef?a\c8\e6aN\f7`<\c8\9bu\18E\c7\ef?\99\d33[\e4\a3\90<\83\f3\c6\ca>\be\ef?m{\83]\a6\9a\97<\0f\89\f9lX\b5\ef?\fc\ef\fd\92\1a\b5\8e<\f7Gr+\92\ac\ef?\d1\9c/p=\be><\a2\d1\d32\ec\a3\ef?\0bn\90\894\03j\bc\1b\d3\fe\aff\9b\ef?\0e\bd/*RV\95\bcQ[\12\d0\01\93\ef?U\eaN\8c\ef\80P\bc\cc1l\c0\bd\8a\ef?\16\f4\d5\b9#\c9\91\bc\e0-\a9\ae\9a\82\ef?\afU\\\e9\e3\d3\80<Q\8e\a5\c8\98z\ef?H\93\a5\ea\15\1b\80\bc{Q}<\b8r\ef?=2\deU\f0\1f\8f\bc\ea\8d\8c8\f9j\ef?\bfS\13?\8c\89\8b<u\cbo\eb[c\ef?&\eb\11v\9c\d9\96\bc\d4\\\04\84\e0[\ef?`/:>\f7\ec\9a<\aa\b9h1\87T\ef?\9d8\86\cb\82\e7\8f\bc\1d\d9\fc\"PM\ef?\8d\c3\a6DAo\8a<\d6\8cb\88;F\ef?}\04\e4\b0\05z\80<\96\dc}\91I?\ef?\94\a8\a8\e3\fd\8e\96<8bunz8\ef?}Ht\f2\18^\87<?\a6\b2O\ce1\ef?\f2\e7\1f\98+G\80<\dd|\e2eE+\ef?^\08q?{\b8\96\bc\81c\f5\e1\df$\ef?1\ab\tm\e1\f7\82<\e1\de\1f\f5\9d\1e\ef?\fa\bfo\1a\9b!=\bc\90\d9\da\d0\7f\18\ef?\b4\n\0cr\827\8b<\0b\03\e4\a6\85\12\ef?\8f\cb\ce\89\92\14n<V/>\a9\af\0c\ef?\b6\ab\b0MuM\83<\15\b71\n\fe\06\ef?Lt\ac\e2\01B\86<1\d8L\fcp\01\ef?J\f8\d3]9\dd\8f<\ff\16d\b2\08\fc\ee?\04[\8e;\80\a3\86\bc\f1\9f\92_\c5\f6\ee?hPK\cc\edJ\92\bc\cb\a9:7\a7\f1\ee?\8e-Q\1b\f8\07\99\bcf\d8\05m\ae\ec\ee?\d26\94>\e8\d1q\bc\f7\9f\e54\db\e7\ee?\15\1b\ce\b3\19\19\99\bc\e5\a8\13\c3-\e3\ee?mL*\a7H\9f\85<\"4\12L\a6\de\ee?\8ai(z`\12\93\bc\1c\80\ac\04E\da\ee?[\89\17H\8f\a7X\bc*.\f7!\n\d6\ee?\1b\9aIg\9b,|\bc\97\a8P\d9\f5\d1\ee?\11\ac\c2`\edcC<-\89a`\08\ce\ee?\efd\06;\tf\96<W\00\1d\edA\ca\ee?y\03\a1\da\e1\ccn<\d0<\c1\b5\a2\c6\ee?0\12\0f?\8e\ff\93<\de\d3\d7\f0*\c3\ee?\b0\afz\bb\ce\90v<\'*6\d5\da\bf\ee?w\e0T\eb\bd\1d\93<\r\dd\fd\99\b2\bc\ee?\8e\a3q\004\94\8f\bc\a7,\9dv\b2\b9\ee?I\a3\93\dc\cc\de\87\bcBf\cf\a2\da\b6\ee?_8\0f\bd\c6\dex\bc\82O\9dV+\b4\ee?\f6\\{\ecF\12\86\bc\0f\92]\ca\a4\b1\ee?\8e\d7\fd\18\055\93<\da\'\b56G\af\ee?\05\9b\8a/\b7\98{<\fd\c7\97\d4\12\ad\ee?\tT\1c\e2\e1c\90<)TH\dd\07\ab\ee?\ea\c6\19P\85\c74<\b7FY\8a&\a9\ee?5\c0d+\e62\94<H!\ad\15o\a7\ee?\9fv\99aJ\e4\8c\bc\t\dcv\b9\e1\a5\ee?\a8M\ef;\c53\8c\bc\85U:\b0~\a4\ee?\ae\e9+\89xS\84\bc \c3\cc4F\a3\ee?XXVx\dd\ce\93\bc%\"U\828\a2\ee?d\19~\80\aa\10W<s\a9L\d4U\a1\ee?(\"^\bf\ef\b3\93\bc\cd;\7ff\9e\a0\ee?\82\b94\87\ad\12j\bc\bf\da\0bu\12\a0\ee?\ee\a9m\b8\efgc\bc/\1ae<\b2\9f\ee?Q\88\e0T=\dc\80\bc\84\94Q\f9}\9f\ee?\cf>Z~d\1fx\bct_\ec\e8u\9f\ee?\b0}\8b\c0J\ee\86\bct\81\a5H\9a\9f\ee?\8a\e6U\1e2\19\86\bc\c9gBV\eb\9f\ee?\d3\d4\t^\cb\9c\90<?]\deOi\a0\ee?\1d\a5M\b9\dc2{\bc\87\01\ebs\14\a1\ee?k\c0gT\fd\ec\94<2\c10\01\ed\a1\ee?Ul\d6\ab\e1\ebe<bN\cf6\f3\a2\ee?B\cf\b3/\c5\a1\88\bc\12\1a>T\'\a4\ee?47;\f1\b6i\93\bc\13\ceL\99\89\a5\ee?\1e\ff\19:\84^\80\bc\ad\c7#F\1a\a7\ee?nWr\d8P\d4\94\bc\ed\92D\9b\d9\a8\ee?\00\8a\0e[g\ad\90<\99f\8a\d9\c7\aa\ee?\b4\ea\f0\c1/\b7\8d<\db\a0*B\e5\ac\ee?\ff\e7\c5\9c`\b6e\bc\8cD\b5\162\af\ee?D_\f3Y\83\f6{<6w\15\99\ae\b1\ee?\83=\1e\a7\1f\t\93\bc\c6\ff\91\0b[\b4\ee?)\1el\8b\b8\a9]\bc\e5\c5\cd\b07\b7\ee?Y\b9\90|\f9#l\bc\0fR\c8\cbD\ba\ee?\aa\f9\f4\"CC\92\bcPN\de\9f\82\bd\ee?K\8ef\d7l\ca\85\bc\ba\07\cap\f1\c0\ee?\'\ce\91+\fc\afq<\90\f0\a3\82\91\c4\ee?\bbs\n\e15\d2m<##\e3\19c\c8\ee?c\"b\"\04\c5\87\bce\e5]{f\cc\ee?\d51\e2\e3\86\1c\8b<3-J\ec\9b\d0\ee?\15\bb\bc\d3\d1\bb\91\bc]%>\b2\03\d5\ee?\d21\ee\9c1\cc\90<X\b30\13\9e\d9\ee?\b3Zsn\84i\84<\bf\fdyUk\de\ee?\b4\9d\8e\97\cd\df\82\bcz\f3\d3\bfk\e3\ee?\873\cb\92w\1a\8c<\ad\d3Z\99\9f\e8\ee?\fa\d9\d1J\8f{\90\bcf\b6\8d)\07\ee\ee?\ba\ae\dcV\d9\c3U\bc\fb\15O\b8\a2\f3\ee?@\f6\a6=\0e\a4\90\bc:Y\e5\8dr\f9\ee?4\93\ad8\f4\d6h\bcG^\fb\f2v\ff\ee?5\8aXk\e2\ee\91\bcJ\06\a10\b0\05\ef?\cd\dd_\n\d7\fft<\d2\c1K\90\1e\0c\ef?\ac\98\92\fa\fb\bd\91\bc\t\1e\d7[\c2\12\ef?\b3\0c\af0\aens<\9cR\85\dd\9b\19\ef?\94\fd\9f\\2\e3\8e<z\d0\ff_\ab \ef?\acY\t\d1\8f\e0\84<K\d1W.\f1\'\ef?g\1aN8\af\cdc<\b5\e7\06\94m/\ef?h\19\92l,kg<i\90\ef\dc 7\ef?\d2\b5\cc\83\18\8a\80\bc\fa\c3]U\0b?\ef?o\fa\ff?]\ad\8f\bc|\89\07J-G\ef?I\a9u8\ae\r\90\bc\f2\89\r\08\87O\ef?\a7\07=\a6\85\a3t<\87\a4\fb\dc\18X\ef?\0f\"@ \9e\91\82\bc\98\83\c9\16\e3`\ef?\ac\92\c1\d5PZ\8e<\852\db\03\e6i\ef?Kk\01\acY:\84<`\b4\01\f3!s\ef?\1f>\b4\07!\d5\82\bc_\9b{3\97|\ef?\c9\rG;\b9*\89\bc)\a1\f5\14F\86\ef?\d3\88:`\04\b6t<\f6?\8b\e7.\90\ef?qr\9dQ\ec\c5\83<\83L\c7\fbQ\9a\ef?\f0\91\d3\8f\12\f7\8f\bc\da\90\a4\a2\af\a4\ef?}t#\e2\98\ae\8d\bc\f1g\8e-H\af\ef?\08 \aaA\bc\c3\8e<\'Za\ee\1b\ba\ef?2\eb\a9\c3\94+\84<\97\bak7+\c5\ef?\ee\85\d11\a9d\8a<@En[v\d0\ef?\ed\e3;\e4\ba7\8e\bc\14\be\9c\ad\fd\db\ef?\9d\cd\91M;\89w<\d8\90\9e\81\c1\e7\ef?\89\cc`A\c1\05S<\f1q\8f+\c2\f3\ef?")
  (table $0 1 funcref)
  (elem $0 (i32.const 1))
- (export "createVessel" (func $assembly/index/createVessel))
+ (export "createVessel" (func $assembly/index/createVessel@varargs))
  (export "updateVesselState" (func $assembly/index/updateVesselState))
  (export "setThrottle" (func $assembly/index/setThrottle))
  (export "setRudderAngle" (func $assembly/index/setRudderAngle))
@@ -80,6 +87,7 @@
  (export "resetGlobalVessel" (func $assembly/index/resetGlobalVessel))
  (export "memory" (memory $0))
  (export "table" (table $0))
+ (export "__setArgumentsLength" (func $~setArgumentsLength))
  (start $~start)
  (func $assembly/index/VesselState#set:x (param $this i32) (param $x f64)
   local.get $this
@@ -151,20 +159,30 @@
   local.get $draft
   f64.store offset=104
  )
+ (func $assembly/index/VesselState#set:ballast (param $this i32) (param $ballast f64)
+  local.get $this
+  local.get $ballast
+  f64.store offset=112
+ )
+ (func $assembly/index/VesselState#set:blockCoefficient (param $this i32) (param $blockCoefficient f64)
+  local.get $this
+  local.get $blockCoefficient
+  f64.store offset=120
+ )
  (func $assembly/index/VesselState#set:waveHeight (param $this i32) (param $waveHeight f64)
   local.get $this
   local.get $waveHeight
-  f64.store offset=112
+  f64.store offset=128
  )
  (func $assembly/index/VesselState#set:wavePhase (param $this i32) (param $wavePhase f64)
   local.get $this
   local.get $wavePhase
-  f64.store offset=120
+  f64.store offset=136
  )
  (func $assembly/index/VesselState#set:fuelLevel (param $this i32) (param $fuelLevel f64)
   local.get $this
   local.get $fuelLevel
-  f64.store offset=128
+  f64.store offset=144
  )
  (func $~lib/rt/stub/maybeGrowMemory (param $newOffset i32)
   (local $pagesBefore i32)
@@ -341,11 +359,11 @@
   i32.add
   return
  )
- (func $assembly/index/VesselState#constructor (param $this i32) (param $x f64) (param $y f64) (param $z f64) (param $psi f64) (param $u f64) (param $v f64) (param $w f64) (param $r f64) (param $throttle f64) (param $rudderAngle f64) (param $mass f64) (param $length f64) (param $beam f64) (param $draft f64) (result i32)
+ (func $assembly/index/VesselState#constructor (param $this i32) (param $x f64) (param $y f64) (param $z f64) (param $psi f64) (param $u f64) (param $v f64) (param $w f64) (param $r f64) (param $throttle f64) (param $rudderAngle f64) (param $mass f64) (param $length f64) (param $beam f64) (param $draft f64) (param $blockCoefficient f64) (result i32)
   local.get $this
   i32.eqz
   if
-   i32.const 136
+   i32.const 152
    i32.const 4
    call $~lib/rt/stub/__new
    local.set $this
@@ -392,6 +410,12 @@
   local.get $this
   f64.const 0
   call $assembly/index/VesselState#set:draft
+  local.get $this
+  f64.const 0
+  call $assembly/index/VesselState#set:ballast
+  local.get $this
+  f64.const 0
+  call $assembly/index/VesselState#set:blockCoefficient
   local.get $this
   f64.const 0
   call $assembly/index/VesselState#set:waveHeight
@@ -472,6 +496,19 @@
   end
   call $assembly/index/VesselState#set:draft
   local.get $this
+  f64.const 0.5
+  call $assembly/index/VesselState#set:ballast
+  local.get $this
+  local.get $blockCoefficient
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $blockCoefficient
+  else
+   global.get $assembly/index/DEFAULT_BLOCK_COEFFICIENT
+  end
+  call $assembly/index/VesselState#set:blockCoefficient
+  local.get $this
   f64.const 0
   call $assembly/index/VesselState#set:waveHeight
   local.get $this
@@ -500,7 +537,7 @@
   local.get $value
   return
  )
- (func $assembly/index/createVessel (param $x f64) (param $y f64) (param $z f64) (param $psi f64) (param $_phi f64) (param $_theta f64) (param $u f64) (param $v f64) (param $w f64) (param $r f64) (param $_p f64) (param $_q f64) (param $throttle f64) (param $rudderAngle f64) (param $mass f64) (param $length f64) (param $beam f64) (param $draft f64) (result i32)
+ (func $assembly/index/createVessel (param $x f64) (param $y f64) (param $z f64) (param $psi f64) (param $_phi f64) (param $_theta f64) (param $u f64) (param $v f64) (param $w f64) (param $r f64) (param $_p f64) (param $_q f64) (param $throttle f64) (param $rudderAngle f64) (param $mass f64) (param $length f64) (param $beam f64) (param $draft f64) (param $blockCoefficient f64) (result i32)
   global.get $assembly/index/globalVessel
   i32.const 0
   i32.eq
@@ -521,11 +558,47 @@
    local.get $length
    local.get $beam
    local.get $draft
+   local.get $blockCoefficient
    call $assembly/index/VesselState#constructor
    global.set $assembly/index/globalVessel
   end
   global.get $assembly/index/globalVessel
   return
+ )
+ (func $assembly/index/createVessel@varargs (param $x f64) (param $y f64) (param $z f64) (param $psi f64) (param $_phi f64) (param $_theta f64) (param $u f64) (param $v f64) (param $w f64) (param $r f64) (param $_p f64) (param $_q f64) (param $throttle f64) (param $rudderAngle f64) (param $mass f64) (param $length f64) (param $beam f64) (param $draft f64) (param $blockCoefficient f64) (result i32)
+  block $1of1
+   block $0of1
+    block $outOfRange
+     global.get $~argumentsLength
+     i32.const 18
+     i32.sub
+     br_table $0of1 $1of1 $outOfRange
+    end
+    unreachable
+   end
+   global.get $assembly/index/DEFAULT_BLOCK_COEFFICIENT
+   local.set $blockCoefficient
+  end
+  local.get $x
+  local.get $y
+  local.get $z
+  local.get $psi
+  local.get $_phi
+  local.get $_theta
+  local.get $u
+  local.get $v
+  local.get $w
+  local.get $r
+  local.get $_p
+  local.get $_q
+  local.get $throttle
+  local.get $rudderAngle
+  local.get $mass
+  local.get $length
+  local.get $beam
+  local.get $draft
+  local.get $blockCoefficient
+  call $assembly/index/createVessel
  )
  (func $assembly/index/ensureVessel (param $vesselPtr i32) (result i32)
   local.get $vesselPtr
@@ -534,13 +607,21 @@
   if
    i32.const 160
    i32.const 224
-   i32.const 98
+   i32.const 110
    i32.const 24
    call $~lib/builtins/abort
    unreachable
   end
   local.get $vesselPtr
   return
+ )
+ (func $assembly/index/VesselState#get:ballast (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=112
+ )
+ (func $assembly/index/VesselState#get:mass (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=80
  )
  (func $assembly/index/VesselState#get:throttle (param $this i32) (result f64)
   local.get $this
@@ -568,7 +649,7 @@
  )
  (func $assembly/index/VesselState#get:fuelLevel (param $this i32) (result f64)
   local.get $this
-  f64.load offset=128
+  f64.load offset=144
  )
  (func $assembly/index/VesselState#get:u (param $this i32) (result f64)
   local.get $this
@@ -1558,10 +1639,6 @@
    local.get $x
   end
   return
- )
- (func $assembly/index/VesselState#get:mass (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=80
  )
  (func $~lib/math/NativeMath.sin (param $x f64) (result f64)
   (local $u i64)
@@ -3183,6 +3260,26 @@
   local.get $this
   f64.load offset=56
  )
+ (func $assembly/index/VesselState#get:wavePhase (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=136
+ )
+ (func $assembly/index/VesselState#get:beam (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=96
+ )
+ (func $assembly/index/VesselState#get:blockCoefficient (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=120
+ )
+ (func $assembly/index/VesselState#get:z (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=16
+ )
+ (func $assembly/index/VesselState#get:w (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=48
+ )
  (func $~lib/math/NativeMath.mod (param $x f64) (param $y f64) (result f64)
   (local $ux i64)
   (local $uy i64)
@@ -3468,26 +3565,32 @@
   local.get $this
   f64.load offset=8
  )
+ (func $assembly/index/VesselState#get:draft (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=104
+ )
  (func $assembly/index/updateVesselState (param $vesselPtr i32) (param $dt f64) (param $windSpeed f64) (param $windDirection f64) (param $currentSpeed f64) (param $currentDirection f64) (result i32)
   (local $vessel i32)
   (local $safeDt f64)
+  (local $ballastFactor f64)
+  (local $effectiveMass f64)
   (local $throttle f64)
   (local $thrust f64)
   (local $x f64)
   (local $dragSurge f64)
-  (local $x|12 f64)
+  (local $x|14 f64)
   (local $dragSway f64)
   (local $relCurrentDir f64)
   (local $currentSurge f64)
   (local $currentSway f64)
-  (local $x|17 f64)
-  (local $speedMag f64)
   (local $x|19 f64)
+  (local $speedMag f64)
+  (local $x|21 f64)
   (local $value1 f64)
   (local $value2 f64)
   (local $stallFactor f64)
-  (local $value1|23 f64)
-  (local $value2|24 f64)
+  (local $value1|25 f64)
+  (local $value2|26 f64)
   (local $rudderForce f64)
   (local $leverArm f64)
   (local $rudderMoment f64)
@@ -3496,8 +3599,16 @@
   (local $Izz f64)
   (local $uDot f64)
   (local $vDot f64)
-  (local $x|33 f64)
+  (local $x|35 f64)
   (local $rDot f64)
+  (local $value1|37 f64)
+  (local $value2|38 f64)
+  (local $targetWave f64)
+  (local $waveSample f64)
+  (local $neutralDraft f64)
+  (local $targetDraft f64)
+  (local $targetZ f64)
+  (local $heaveAccel f64)
   (local $cosPsi f64)
   (local $sinPsi f64)
   (local $worldU f64)
@@ -3521,6 +3632,19 @@
    end
   end
   local.set $safeDt
+  local.get $vessel
+  call $assembly/index/VesselState#get:ballast
+  call $assembly/index/clamp01
+  local.set $ballastFactor
+  local.get $vessel
+  call $assembly/index/VesselState#get:mass
+  f64.const 0.9
+  local.get $ballastFactor
+  f64.const 0.4
+  f64.mul
+  f64.add
+  f64.mul
+  local.set $effectiveMass
   local.get $vessel
   call $assembly/index/VesselState#get:throttle
   f64.const 1
@@ -3561,8 +3685,8 @@
   block $~lib/math/NativeMath.abs|inlined.1 (result f64)
    local.get $vessel
    call $assembly/index/VesselState#get:v
-   local.set $x|12
-   local.get $x|12
+   local.set $x|14
+   local.get $x|14
    f64.abs
    br $~lib/math/NativeMath.abs|inlined.1
   end
@@ -3605,8 +3729,8 @@
    call $assembly/index/VesselState#get:v
    f64.mul
    f64.add
-   local.set $x|17
-   local.get $x|17
+   local.set $x|19
+   local.get $x|19
    f64.sqrt
    br $~lib/math/NativeMath.sqrt|inlined.0
   end
@@ -3618,8 +3742,8 @@
    block $~lib/math/NativeMath.abs|inlined.2 (result f64)
     local.get $vessel
     call $assembly/index/VesselState#get:rudderAngle
-    local.set $x|19
-    local.get $x|19
+    local.set $x|21
+    local.get $x|21
     f64.abs
     br $~lib/math/NativeMath.abs|inlined.2
    end
@@ -3645,11 +3769,11 @@
   f64.mul
   block $~lib/math/NativeMath.max|inlined.0 (result f64)
    f64.const 0
-   local.set $value1|23
+   local.set $value1|25
    local.get $stallFactor
-   local.set $value2|24
-   local.get $value1|23
-   local.get $value2|24
+   local.set $value2|26
+   local.get $value1|25
+   local.get $value2|26
    f64.max
    br $~lib/math/NativeMath.max|inlined.0
   end
@@ -3678,8 +3802,7 @@
   call $~lib/math/NativeMath.sin
   f64.mul
   local.set $windYaw
-  local.get $vessel
-  call $assembly/index/VesselState#get:mass
+  local.get $effectiveMass
   local.set $mass
   local.get $mass
   local.get $vessel
@@ -3728,8 +3851,8 @@
   block $~lib/math/NativeMath.abs|inlined.3 (result f64)
    local.get $vessel
    call $assembly/index/VesselState#get:r
-   local.set $x|33
-   local.get $x|33
+   local.set $x|35
+   local.get $x|35
    f64.abs
    br $~lib/math/NativeMath.abs|inlined.3
   end
@@ -3738,6 +3861,93 @@
   local.get $Izz
   f64.div
   local.set $rDot
+  block $~lib/math/NativeMath.min|inlined.1 (result f64)
+   global.get $assembly/index/MAX_WAVE_HEIGHT
+   local.set $value1|37
+   local.get $windSpeed
+   global.get $assembly/index/WAVE_HEIGHT_PER_WIND
+   f64.mul
+   local.set $value2|38
+   local.get $value1|37
+   local.get $value2|38
+   f64.min
+   br $~lib/math/NativeMath.min|inlined.1
+  end
+  local.set $targetWave
+  local.get $vessel
+  local.get $targetWave
+  call $assembly/index/VesselState#set:waveHeight
+  local.get $vessel
+  local.get $vessel
+  call $assembly/index/VesselState#get:wavePhase
+  local.get $safeDt
+  f64.const 2
+  f64.mul
+  f64.add
+  call $assembly/index/VesselState#set:wavePhase
+  local.get $targetWave
+  local.get $vessel
+  call $assembly/index/VesselState#get:wavePhase
+  call $~lib/math/NativeMath.sin
+  f64.mul
+  local.set $waveSample
+  local.get $effectiveMass
+  global.get $assembly/index/WATER_DENSITY
+  local.get $vessel
+  call $assembly/index/VesselState#get:length
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:beam
+  f64.mul
+  local.get $vessel
+  call $assembly/index/VesselState#get:blockCoefficient
+  f64.mul
+  f64.const 1e-06
+  f64.add
+  f64.div
+  local.set $neutralDraft
+  local.get $neutralDraft
+  f64.const 0.7
+  local.get $ballastFactor
+  f64.const 0.5
+  f64.mul
+  f64.add
+  f64.mul
+  local.set $targetDraft
+  local.get $targetDraft
+  local.get $waveSample
+  f64.add
+  f64.neg
+  local.set $targetZ
+  local.get $targetZ
+  local.get $vessel
+  call $assembly/index/VesselState#get:z
+  f64.sub
+  global.get $assembly/index/HEAVE_STIFFNESS
+  f64.mul
+  global.get $assembly/index/HEAVE_DAMPING
+  local.get $vessel
+  call $assembly/index/VesselState#get:w
+  f64.mul
+  f64.sub
+  local.set $heaveAccel
+  local.get $vessel
+  local.get $vessel
+  call $assembly/index/VesselState#get:w
+  local.get $heaveAccel
+  local.get $safeDt
+  f64.mul
+  f64.add
+  call $assembly/index/VesselState#set:w
+  local.get $vessel
+  local.get $vessel
+  call $assembly/index/VesselState#get:z
+  local.get $vessel
+  call $assembly/index/VesselState#get:w
+  local.get $safeDt
+  f64.mul
+  f64.add
+  call $assembly/index/VesselState#set:z
   local.get $vessel
   local.get $vessel
   call $assembly/index/VesselState#get:u
@@ -3837,7 +4047,16 @@
   f64.add
   call $assembly/index/VesselState#set:y
   local.get $vessel
-  f64.const 0
+  local.get $vessel
+  call $assembly/index/VesselState#get:draft
+  f64.neg
+  f64.const 0.4
+  f64.const 0.4
+  local.get $vessel
+  call $assembly/index/VesselState#get:ballast
+  f64.mul
+  f64.add
+  f64.mul
   call $assembly/index/VesselState#set:z
   local.get $vesselPtr
   return
@@ -3891,9 +4110,14 @@
   call $assembly/index/VesselState#set:rudderAngle
  )
  (func $assembly/index/setBallast (param $vesselPtr i32) (param $_level f64)
+  (local $vessel i32)
   local.get $vesselPtr
   call $assembly/index/ensureVessel
-  drop
+  local.set $vessel
+  local.get $vessel
+  local.get $_level
+  call $assembly/index/clamp01
+  call $assembly/index/VesselState#set:ballast
  )
  (func $assembly/index/getVesselX (param $vesselPtr i32) (result f64)
   local.get $vesselPtr
@@ -3906,10 +4130,6 @@
   call $assembly/index/ensureVessel
   call $assembly/index/VesselState#get:y
   return
- )
- (func $assembly/index/VesselState#get:z (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=16
  )
  (func $assembly/index/getVesselZ (param $vesselPtr i32) (result f64)
   local.get $vesselPtr
@@ -3959,10 +4179,6 @@
   call $assembly/index/ensureVessel
   call $assembly/index/VesselState#get:v
   return
- )
- (func $assembly/index/VesselState#get:w (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=48
  )
  (func $assembly/index/getVesselHeaveVelocity (param $vesselPtr i32) (result f64)
   local.get $vesselPtr
@@ -4015,8 +4231,10 @@
   f64.const 0
   return
  )
- (func $assembly/index/getVesselBallastLevel (param $_vesselPtr i32) (result f64)
-  f64.const 0.5
+ (func $assembly/index/getVesselBallastLevel (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/index/ensureVessel
+  call $assembly/index/VesselState#get:ballast
   return
  )
  (func $assembly/index/getVesselRollRate (param $_vesselPtr i32) (result f64)
@@ -4065,6 +4283,10 @@
  (func $assembly/index/resetGlobalVessel
   i32.const 0
   global.set $assembly/index/globalVessel
+ )
+ (func $~setArgumentsLength (param $0 i32)
+  local.get $0
+  global.set $~argumentsLength
  )
  (func $~start
   global.get $~lib/memory/__heap_base

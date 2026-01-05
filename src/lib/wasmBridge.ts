@@ -48,6 +48,7 @@ export class WasmBridge {
     length: number,
     beam: number,
     draft: number,
+    blockCoefficient: number,
   ): number {
     return this.wasmModule.createVessel(
       x,
@@ -68,6 +69,7 @@ export class WasmBridge {
       length,
       beam,
       draft,
+      blockCoefficient,
     );
   }
 

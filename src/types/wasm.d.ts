@@ -24,6 +24,7 @@ export interface WasmModule {
     length: number,
     beam: number,
     draft: number,
+    blockCoefficient: number,
   ) => number;
   destroyVessel?: (vesselPtr: number) => void;
 

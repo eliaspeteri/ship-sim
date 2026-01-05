@@ -1,6 +1,7 @@
 import { WasmModule } from '../types/wasm';
 
 let wasmInstance: WasmModule | null = null;
+const textDecoder = new TextDecoder('utf-16le');
 
 function isDevelopmentMode(): boolean {
   return process.env.NODE_ENV === 'development';
@@ -26,8 +27,31 @@ export async function loadWasmModule(): Promise<WasmModule> {
   const imports = {
     env: {
       memory,
-      abort: (line: number, column: number) => {
-        throw new Error(`AssemblyScript abort: ${line}:${column}`);
+      // AssemblyScript abort signature: (msg?: usize, file?: usize, line?: i32, col?: i32)
+      abort: (msgPtr: number, filePtr: number, line: number, column: number) => {
+        let message = 'abort';
+        let file = '';
+        try {
+          if (msgPtr) {
+            const buffer = new Uint16Array(memory.buffer);
+            const len = buffer[msgPtr - 2 >>> 1];
+            message = textDecoder.decode(
+              new Uint8Array(memory.buffer, msgPtr, len << 1),
+            );
+          }
+          if (filePtr) {
+            const buffer = new Uint16Array(memory.buffer);
+            const len = buffer[filePtr - 2 >>> 1];
+            file = textDecoder.decode(
+              new Uint8Array(memory.buffer, filePtr, len << 1),
+            );
+          }
+        } catch (err) {
+          console.warn('Failed to decode abort message', err);
+        }
+        throw new Error(
+          `AssemblyScript abort: ${message} at ${file}:${line}:${column}`,
+        );
       },
     },
   };
@@ -36,16 +60,32 @@ export async function loadWasmModule(): Promise<WasmModule> {
   const instance = await WebAssembly.instantiate(module, imports);
   const exports = instance.exports as WebAssembly.Exports;
 
+  const setArgs = (len: number) => {
+    if (typeof (exports as any).__setArgumentsLength === 'function') {
+      (exports as any).__setArgumentsLength(len);
+    }
+  };
+
   const wrapper: WasmModule = {
-    updateVesselState: exports.updateVesselState as (
+    updateVesselState: (
       vesselPtr: number,
       dt: number,
       windSpeed: number,
       windDirection: number,
       currentSpeed: number,
       currentDirection: number,
-    ) => number,
-    createVessel: exports.createVessel as (
+    ) => {
+      setArgs(6);
+      return (exports.updateVesselState as CallableFunction)(
+        vesselPtr,
+        dt,
+        windSpeed,
+        windDirection,
+        currentSpeed,
+        currentDirection,
+      ) as number;
+    },
+    createVessel: (
       x: number,
       y: number,
       z: number,
@@ -64,7 +104,31 @@ export async function loadWasmModule(): Promise<WasmModule> {
       length: number,
       beam: number,
       draft: number,
-    ) => number,
+      blockCoefficient: number,
+    ) => {
+      setArgs(19);
+      return (exports.createVessel as CallableFunction)(
+        x,
+        y,
+        z,
+        heading,
+        roll,
+        pitch,
+        surge,
+        sway,
+        heave,
+        yawRate,
+        rollRate,
+        pitchRate,
+        throttle,
+        rudderAngle,
+        mass,
+        length,
+        beam,
+        draft,
+        blockCoefficient,
+      ) as number;
+    },
     setThrottle: exports.setThrottle as (
       vesselPtr: number,
       throttle: number,

@@ -88,6 +88,9 @@ export class SimulationLoop {
       const sway = isRestoring ? initialSway : 0;
       const heave = isRestoring ? initialHeave : 0;
       const throttle = isRestoring ? initialThrottle : 0;
+      const blockCoeff = Number.isFinite(properties.blockCoefficient)
+        ? properties.blockCoefficient
+        : 0.8;
       const vesselPtr = this.wasmBridge.createVessel(
         safe(position.x, 0),
         safe(position.y, 0),
@@ -107,6 +110,7 @@ export class SimulationLoop {
         safe(properties.length, 212),
         safe(properties.beam, 28),
         safe(properties.draft, 9.1),
+        blockCoeff,
       );
       state.setWasmVesselPtr(vesselPtr);
 
