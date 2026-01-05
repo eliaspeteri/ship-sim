@@ -93,5 +93,6 @@ model ChatMessage {
     userId    String
     username  String
     message   String
+    channel   String   @default("global") // global or vessel:<id>
     createdAt DateTime @default(now())
 }
