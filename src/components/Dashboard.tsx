@@ -26,7 +26,10 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   const chatHistoryMeta = useStore(state => state.chatHistoryMeta);
   const currentVesselId = useStore(state => state.currentVesselId);
   const [chatInput, setChatInput] = useState('');
-  const [chatChannel, setChatChannel] = useState<string>('global');
+  const spaceId = useStore(state => state.spaceId);
+  const [chatChannel, setChatChannel] = useState<string>(
+    `space:${spaceId}:global`,
+  );
   const sessionUserId = useStore(state => state.sessionUserId);
 
   // Destructure vessel state for easier access
@@ -55,14 +58,22 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
     : null;
 
   useEffect(() => {
-    if (chatChannel.startsWith('vessel:')) {
+    const spacePrefix = `space:${spaceId}`;
+    const channelSpace = chatChannel.startsWith('space:')
+      ? chatChannel.split(':')[1]
+      : null;
+    if (channelSpace && channelSpace !== spaceId) {
+      setChatChannel(`${spacePrefix}:global`);
+      return;
+    }
+    if (chatChannel.includes(':vessel:')) {
       if (!vesselChannel) {
-        setChatChannel('global');
-      } else if (chatChannel.split(':')[1] !== vesselChannel.split(':')[1]) {
-        setChatChannel(vesselChannel);
+        setChatChannel(`${spacePrefix}:global`);
+      } else if (!chatChannel.endsWith(vesselChannel.split(':').pop() || '')) {
+        setChatChannel(`${spacePrefix}:${vesselChannel}`);
       }
     }
-  }, [chatChannel, vesselChannel]);
+  }, [chatChannel, vesselChannel, spaceId]);
 
   useEffect(() => {
     socketManager.requestChatHistory(chatChannel);
@@ -144,13 +155,14 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   const navOffset = 'calc(var(--nav-height, 0px) + 1rem)';
   const panelMaxHeight = 'calc(92vh - var(--nav-height, 0px))';
   const filteredChatMessages = chatMessages.filter(msg => {
-    const chan = msg.channel || 'global';
+    const chan = msg.channel || `space:${spaceId}:global`;
     if (chan === chatChannel) return true;
-    if (chatChannel.startsWith('vessel:') && chan.startsWith('vessel:')) {
-      return (
-        chan.split(':')[1]?.split('_')[0] ===
-        chatChannel.split(':')[1]?.split('_')[0]
-      );
+    if (
+      chatChannel.includes(':vessel:') &&
+      chan.includes(':vessel:') &&
+      chan.split(':').slice(-1)[0] === chatChannel.split(':').slice(-1)[0]
+    ) {
+      return true;
     }
     return false;
   });
@@ -253,9 +265,11 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
                 value={chatChannel}
                 onChange={e => setChatChannel(e.target.value)}
               >
-                <option value="global">Global</option>
+                <option value={`space:${spaceId}:global`}>This space</option>
                 {vesselChannel && (
-                  <option value={vesselChannel}>This vessel</option>
+                  <option value={`space:${spaceId}:${vesselChannel}`}>
+                    This vessel
+                  </option>
                 )}
               </select>
             </div>
@@ -270,7 +284,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
               Load older
             </button>
             <span className="text-[10px] uppercase text-gray-500">
-              {chatChannel === 'global' ? 'Global chat' : 'Vessel chat'}
+              {chatChannel.includes(':vessel:') ? 'Vessel chat' : 'Space chat'}
             </span>
           </div>
           <div className="max-h-32 overflow-y-auto space-y-1 text-sm">
@@ -298,9 +312,9 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
             <input
               className="flex-1 rounded bg-gray-900 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
               placeholder={
-                chatChannel === 'global'
-                  ? 'Message everyone...'
-                  : 'Message this vessel...'
+                chatChannel.includes(':vessel:')
+                  ? 'Message this vessel...'
+                  : 'Message everyone...'
               }
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}

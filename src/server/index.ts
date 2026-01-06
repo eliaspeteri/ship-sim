@@ -1174,13 +1174,7 @@ io.on('connection', socket => {
 
     if (data.mode === 'spectator') {
       target.crewIds.delete(currentUserId);
-      if (target.crewIds.size === 0) {
-        target.desiredMode = 'ai';
-        target.mode = 'ai';
-        console.info(
-          `Vessel ${target.id} switched to AI mode (user spectated, no crew)`,
-        );
-      }
+      // Leave desired/mode as-is; AI_GRACE_MS will swap to AI if needed without killing controls immediately.
     } else {
       target.crewIds.add(currentUserId);
       target.desiredMode = 'player';
