@@ -668,11 +668,11 @@ let targetWeather: WeatherPattern | null = null;
 let weatherMode: 'manual' | 'auto' = 'auto';
 
 const normalizeVesselId = (id?: string | null): string | undefined =>
-  id ? id.split('_')[0] : undefined;
+  id || undefined;
 
 const getVesselIdForUser = (userId: string): string | undefined => {
   const stored = globalState.userLastVessel.get(userId);
-  return normalizeVesselId(stored || userId) || undefined;
+  return stored || userId || undefined;
 };
 
 const withLatLon = (pos: VesselPose['position']) => {

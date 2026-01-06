@@ -340,8 +340,6 @@ class SocketManager {
         const desired = vesselData.desiredMode || vesselData.mode;
         if (desired === 'ai') {
           store.setMode('spectator');
-        } else {
-          store.setMode('player');
         }
         return;
       }
