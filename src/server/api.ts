@@ -1,8 +1,11 @@
 import express from 'express';
+import bcrypt from 'bcryptjs';
+import { randomUUID } from 'crypto';
 import { authenticateRequest, requireAuth } from './middleware/authentication';
 import { requirePermission, requireRole } from './middleware/authorization';
 import { VesselState, ShipType } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
+import { prisma } from '../lib/prisma';
 
 // First, define proper types for the database models
 interface DBVesselState {
@@ -239,6 +242,174 @@ router.post(
     res.json(environmentState);
   },
 );
+
+const serializeSpace = (space: {
+  id: string;
+  name: string;
+  visibility: string;
+  inviteToken: string | null;
+  passwordHash?: string | null;
+  createdBy?: string | null;
+}) => ({
+  id: space.id,
+  name: space.name,
+  visibility: space.visibility,
+  inviteToken: space.inviteToken || undefined,
+  createdBy: space.createdBy || undefined,
+});
+
+const mergeSpaces = (
+  base: ReturnType<typeof serializeSpace>[],
+  extra: ReturnType<typeof serializeSpace>[],
+) => {
+  const map = new Map<string, ReturnType<typeof serializeSpace>>();
+  [...base, ...extra].forEach(s => map.set(s.id, s));
+  return Array.from(map.values());
+};
+
+// GET /api/spaces - list public spaces or fetch private via invite token
+router.get('/spaces', async (req, res) => {
+  const inviteToken =
+    typeof req.query.inviteToken === 'string'
+      ? req.query.inviteToken.trim()
+      : undefined;
+  const password =
+    typeof req.query.password === 'string' ? req.query.password : undefined;
+  const includeKnown =
+    typeof req.query.includeKnown === 'string' &&
+    ['1', 'true', 'yes'].includes(req.query.includeKnown.toLowerCase());
+
+  try {
+    // Fetch public spaces first
+    const publicSpaces = await prisma.space.findMany({
+      where: { visibility: 'public' },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const collected: ReturnType<typeof serializeSpace>[] = publicSpaces.map(
+      serializeSpace,
+    );
+
+    // Include known spaces for the current user
+    if (includeKnown && req.user?.userId) {
+      const known = await prisma.spaceAccess.findMany({
+        where: { userId: req.user.userId },
+        select: { spaceId: true },
+      });
+      const ids = known.map(k => k.spaceId).filter(Boolean);
+      if (ids.length > 0) {
+        const knownSpaces = await prisma.space.findMany({
+          where: { id: { in: ids } },
+        });
+        knownSpaces.map(serializeSpace).forEach(s => collected.push(s));
+      }
+    }
+
+    // If invite token was provided, fetch/authorize it
+    if (inviteToken) {
+      const space = await prisma.space.findUnique({
+        where: { inviteToken },
+      });
+      if (!space) {
+        res.status(404).json({ error: 'Space not found' });
+        return;
+      }
+      if (space.visibility === 'private' && space.passwordHash) {
+        if (!password) {
+          res
+            .status(403)
+            .json({ error: 'Password required', requiresPassword: true });
+          return;
+        }
+        const ok = await bcrypt.compare(password, space.passwordHash);
+        if (!ok) {
+          res
+            .status(403)
+            .json({ error: 'Invalid password', requiresPassword: true });
+          return;
+        }
+      }
+      collected.push(serializeSpace(space));
+    }
+
+    res.json({ spaces: mergeSpaces([], collected) });
+  } catch (err) {
+    console.error('Failed to fetch spaces', err);
+    res.status(500).json({ error: 'Failed to fetch spaces' });
+  }
+});
+
+// POST /api/spaces - create a new space
+router.post('/spaces', requireAuth, async (req, res) => {
+  const name = (req.body?.name || '').trim();
+  if (!name) {
+    res.status(400).json({ error: 'Space name is required' });
+    return;
+  }
+  const visibility =
+    req.body?.visibility === 'private' ? 'private' : 'public';
+  const password =
+    typeof req.body?.password === 'string' ? req.body.password : undefined;
+  const inviteToken =
+    (typeof req.body?.inviteToken === 'string' &&
+      req.body.inviteToken.trim()) ||
+    randomUUID();
+
+  try {
+    if (visibility === 'public') {
+      const existing = await prisma.space.findFirst({
+        where: { visibility: 'public', name },
+      });
+      if (existing) {
+        res.status(409).json({ error: 'Public space name must be unique' });
+        return;
+      }
+    }
+    const passwordHash = password ? await bcrypt.hash(password, 10) : null;
+    const space = await prisma.space.create({
+      data: {
+        name,
+        visibility,
+        inviteToken,
+        passwordHash,
+        createdBy: req.user?.userId || null,
+      },
+    });
+    res.status(201).json(serializeSpace(space));
+  } catch (err) {
+    console.error('Failed to create space', err);
+    res.status(500).json({ error: 'Failed to create space' });
+  }
+});
+
+// POST /api/spaces/known - upsert a known space for the user
+router.post('/spaces/known', requireAuth, async (req, res) => {
+  const { spaceId, inviteToken } = req.body || {};
+  if (!spaceId || typeof spaceId !== 'string') {
+    res.status(400).json({ error: 'spaceId is required' });
+    return;
+  }
+  try {
+    const space = await prisma.space.findUnique({ where: { id: spaceId } });
+    if (!space) {
+      res.status(404).json({ error: 'Space not found' });
+      return;
+    }
+    await prisma.spaceAccess.upsert({
+      where: { userId_spaceId: { userId: req.user!.userId, spaceId } },
+      update: { inviteToken: inviteToken || space.inviteToken || null },
+      create: {
+        userId: req.user!.userId,
+        spaceId,
+        inviteToken: inviteToken || space.inviteToken || null,
+      },
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Failed to save known space', err);
+    res.status(500).json({ error: 'Failed to save known space' });
+  }
+});
 
 // GET /api/settings/:userId
 router.get('/settings/:userId', requireAuth, function (req, res) {

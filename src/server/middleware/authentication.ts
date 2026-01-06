@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { getToken } from 'next-auth/jwt';
 import { expandRoles, permissionsForRoles, Role, Permission } from '../roles';
 
 export interface AuthenticatedUser {
@@ -26,25 +27,49 @@ const getTokenFromRequest = (req: Request): string | undefined => {
   );
 };
 
-const decodeNextAuthToken = (token: string): AuthenticatedUser | null => {
+const toAuthenticatedUser = (
+  token: { sub?: string; name?: string; email?: string; role?: Role },
+): AuthenticatedUser => {
+  const baseRole: Role = token.role || 'player';
+  const roles = expandRoles([baseRole]);
+  const permissions = permissionsForRoles(roles);
+  return {
+    userId: token.sub || token.email || 'unknown',
+    username: token.name || token.email || 'Unknown',
+    roles,
+    permissions,
+  };
+};
+
+const decodeNextAuthToken = async (req: Request): Promise<AuthenticatedUser | null> => {
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) return null;
+
+  // First try the official NextAuth decoder (handles encrypted/JWE cookies)
   try {
-    const decoded = jwt.verify(token, secret) as {
+    const token = await getToken({
+      req: req as unknown as Parameters<typeof getToken>[0]['req'],
+      secret,
+      secureCookie: false,
+    });
+    if (token) {
+      return toAuthenticatedUser(token as { sub?: string; name?: string; email?: string; role?: Role });
+    }
+  } catch (err) {
+    console.warn('Failed to decode NextAuth token via getToken:', err);
+  }
+
+  // Fallback to legacy JWT verification
+  const raw = getTokenFromRequest(req);
+  if (!raw) return null;
+  try {
+    const decoded = jwt.verify(raw, secret) as {
       sub?: string;
       name?: string;
       email?: string;
       role?: Role;
     };
-    const baseRole: Role = decoded.role || 'player';
-    const roles = expandRoles([baseRole]);
-    const permissions = permissionsForRoles(roles);
-    return {
-      userId: decoded.sub || decoded.email || 'unknown',
-      username: decoded.name || decoded.email || 'Unknown',
-      roles,
-      permissions,
-    };
+    return toAuthenticatedUser(decoded);
   } catch (error) {
     console.warn('Failed to verify NextAuth session token:', error);
     return null;
@@ -55,19 +80,18 @@ const decodeNextAuthToken = (token: string): AuthenticatedUser | null => {
  * Middleware to authenticate requests using the NextAuth session token cookie.
  * Attaches a normalized user object to req.user when valid.
  */
-export const authenticateRequest = (
+export const authenticateRequest = async (
   req: Request,
   _res: Response,
   next: NextFunction,
-): void => {
-  const token = getTokenFromRequest(req);
-  if (!token) {
-    return next();
-  }
-
-  const user = decodeNextAuthToken(token);
-  if (user) {
-    req.user = user;
+): Promise<void> => {
+  try {
+    const user = await decodeNextAuthToken(req);
+    if (user) {
+      req.user = user;
+    }
+  } catch (err) {
+    console.warn('Failed to authenticate request:', err);
   }
   next();
 };

@@ -127,6 +127,7 @@ async function persistVesselToDb(
     await prisma.vessel.upsert({
       where: { id: vessel.id },
       update: {
+        spaceId: vessel.spaceId || DEFAULT_SPACE_ID,
         ownerId: vessel.ownerId ?? null,
         mode: vessel.mode,
         desiredMode: vessel.desiredMode || 'player',
@@ -154,6 +155,7 @@ async function persistVesselToDb(
       },
       create: {
         id: vessel.id,
+        spaceId: vessel.spaceId || DEFAULT_SPACE_ID,
         ownerId: vessel.ownerId ?? null,
         mode: vessel.mode,
         desiredMode: vessel.desiredMode || 'player',
@@ -781,9 +783,11 @@ const loadChatHistory = async (
   hasMore: boolean;
 }> => {
   const take = Math.min(Math.max(limit, 1), 50);
+  const spaceId = channel.startsWith('space:') ? channel.split(':')[1] : null;
   const rows = await prisma.chatMessage.findMany({
     where: {
       channel,
+      ...(spaceId ? { spaceId } : {}),
       ...(before ? { createdAt: { lt: new Date(before) } } : {}),
     },
     orderBy: { createdAt: 'desc' },
@@ -1414,6 +1418,7 @@ io.on('connection', socket => {
           userId: payload.userId,
           username: payload.username,
           message: payload.message,
+          spaceId: spaceId || DEFAULT_SPACE_ID,
           channel: payload.channel,
         },
       });
@@ -1494,6 +1499,18 @@ io.on('connection', socket => {
   });
 });
 
+async function ensureDefaultSpaceExists() {
+  try {
+    await prisma.space.upsert({
+      where: { id: DEFAULT_SPACE_ID },
+      update: { name: 'Global', visibility: 'public' },
+      create: { id: DEFAULT_SPACE_ID, name: 'Global', visibility: 'public' },
+    });
+  } catch (err) {
+    console.warn('Failed to ensure default space exists', err);
+  }
+}
+
 async function ensureDefaultVesselExists() {
   if (globalState.vessels.size > 0) return;
   const aiVessel = createDefaultAIVessel('ai_default_1', {
@@ -1510,6 +1527,7 @@ async function ensureDefaultVesselExists() {
 
 async function startServer() {
   try {
+    await ensureDefaultSpaceExists();
     await loadVesselsFromDb();
     await loadEnvironmentFromDb(DEFAULT_SPACE_ID);
     await ensureDefaultVesselExists();

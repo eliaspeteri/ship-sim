@@ -22,6 +22,12 @@ const PORTS = [
  * Requires authentication. Shows the simulation UI if authenticated.
  */
 const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
+  type SpaceSummary = {
+    id: string;
+    name: string;
+    visibility: string;
+    inviteToken?: string;
+  };
   const { data: session, status } = useSession();
   const router = useRouter();
   const vessel = useStore(state => state.vessel);
@@ -47,6 +53,191 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const [showJoinChoice, setShowJoinChoice] = React.useState(false);
   const [selectedPort, setSelectedPort] = React.useState(PORTS[0].name);
   const [spaceInput, setSpaceInput] = React.useState(spaceId || 'global');
+  const [spaces, setSpaces] = React.useState<SpaceSummary[]>([]);
+  const [spacesLoading, setSpacesLoading] = React.useState(false);
+  const [spaceError, setSpaceError] = React.useState<string | null>(null);
+  const [inviteToken, setInviteToken] = React.useState('');
+  const [invitePassword, setInvitePassword] = React.useState('');
+  const [newSpaceName, setNewSpaceName] = React.useState('');
+  const [newSpaceVisibility, setNewSpaceVisibility] =
+    React.useState<'public' | 'private'>('public');
+  const [newSpacePassword, setNewSpacePassword] = React.useState('');
+  const [spaceModalOpen, setSpaceModalOpen] = React.useState(false);
+  const [hasChosenSpace, setHasChosenSpace] = React.useState(false);
+  const [knownSpaces, setKnownSpaces] = React.useState<SpaceSummary[]>([]);
+  const [spaceFlow, setSpaceFlow] = React.useState<'choice' | 'join' | 'create'>('choice');
+
+  const joinSpace = React.useCallback(
+    (next: string) => {
+      const normalized = next.trim().toLowerCase() || 'global';
+      setSpaceInput(normalized);
+      setSpaceId(normalized);
+      setChatMessages([]);
+      socketManager.switchSpace(normalized);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('ship-sim-space', normalized);
+        window.localStorage.setItem('ship-sim-space-selected', 'true');
+      }
+      setHasChosenSpace(true);
+      setSpaceModalOpen(false);
+      setSpaceFlow('choice');
+      router.replace(
+        { pathname: router.pathname, query: { ...router.query, space: normalized } },
+        undefined,
+        { shallow: true },
+      );
+    },
+    [router, setChatMessages, setSpaceId],
+  );
+
+  const mergeSpaceLists = React.useCallback(
+    (prev: SpaceSummary[], incoming: SpaceSummary[]): SpaceSummary[] => {
+      const map = new Map<string, SpaceSummary>();
+      [...prev, ...incoming].forEach((space: SpaceSummary) => {
+        map.set(space.id, {
+          ...space,
+          visibility: space.visibility || 'public',
+        });
+      });
+      return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    },
+    [],
+  );
+
+  const mergeSpaces = React.useCallback(
+    (incoming: SpaceSummary[]) => {
+      setSpaces(prev => mergeSpaceLists(prev, incoming));
+    },
+    [mergeSpaceLists],
+  );
+
+  const getApiBase = React.useCallback(() => {
+    const envBase =
+      process.env.NEXT_PUBLIC_SERVER_URL ||
+      process.env.NEXT_PUBLIC_SOCKET_URL ||
+      '';
+    if (envBase) return envBase.replace(/\/$/, '');
+    if (typeof window !== 'undefined') {
+      const { protocol, hostname } = window.location;
+      const port = process.env.NEXT_PUBLIC_SERVER_PORT || '3001';
+      return `${protocol}//${hostname}:${port}`;
+    }
+    return 'http://localhost:3001';
+  }, []);
+
+  const saveKnownSpace = React.useCallback(
+    async (spaceId: string, inviteToken?: string) => {
+      try {
+        const apiBase = getApiBase();
+        await fetch(`${apiBase}/api/spaces/known`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ spaceId, inviteToken }),
+        });
+      } catch (err) {
+        console.warn('Failed to save known space', err);
+      }
+    },
+    [getApiBase],
+  );
+
+  const fetchSpaces = React.useCallback(
+    async (opts?: { inviteToken?: string; password?: string }) => {
+      setSpacesLoading(true);
+      setSpaceError(null);
+      try {
+        const apiBase = getApiBase();
+        const params = new URLSearchParams();
+        if (opts?.inviteToken) params.set('inviteToken', opts.inviteToken.trim());
+        if (opts?.password) params.set('password', opts.password);
+        params.set('includeKnown', 'true');
+        const qs = params.toString();
+        const res = await fetch(`${apiBase}/api/spaces${qs ? `?${qs}` : ''}`, {
+          credentials: 'include',
+        });
+        if (!res.ok) {
+          throw new Error(`Request failed with status ${res.status}`);
+        }
+        const data = await res.json();
+        const incoming = Array.isArray(data?.spaces) ? data.spaces : [];
+        mergeSpaces(incoming);
+        setKnownSpaces(prev => mergeSpaceLists(prev, incoming));
+        if (opts?.inviteToken && incoming.length > 0) {
+          await Promise.all(
+            incoming.map(space =>
+              saveKnownSpace(space.id, space.inviteToken || opts.inviteToken),
+            ),
+          );
+        }
+        if (opts?.inviteToken && incoming.length > 0) {
+          setSpaceInput(incoming[0].id);
+        }
+      } catch (error) {
+        console.error('Failed to load spaces', error);
+        setSpaceError('Failed to load spaces. Check invite or try again.');
+      } finally {
+        setSpacesLoading(false);
+      }
+    },
+    [getApiBase, mergeSpaces, saveKnownSpace],
+  );
+
+  const handleCreateSpace = React.useCallback(async () => {
+    const name = newSpaceName.trim();
+    if (!name) {
+      setSpaceError('Space name is required');
+      return;
+    }
+    const creatingPublicDuplicate =
+      newSpaceVisibility === 'public' &&
+      spaces.some(
+        s => s.visibility === 'public' && s.name.toLowerCase() === name.toLowerCase(),
+      );
+    if (creatingPublicDuplicate) {
+      setSpaceError('A public space with that name already exists');
+      return;
+    }
+    setSpaceError(null);
+    try {
+      const apiBase = getApiBase();
+      const res = await fetch(`${apiBase}/api/spaces`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          visibility: newSpaceVisibility,
+          password: newSpacePassword || undefined,
+        }),
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const message =
+          (body as { error?: string })?.error ||
+          `Request failed with status ${res.status}`;
+        throw new Error(message);
+      }
+      const created = await res.json();
+      mergeSpaces([created]);
+      setKnownSpaces(prev => mergeSpaceLists(prev, [created]));
+      setNewSpaceName('');
+      setNewSpacePassword('');
+      void saveKnownSpace(created.id, created.inviteToken);
+      joinSpace(created.id);
+    } catch (error) {
+      console.error('Failed to create space', error);
+      setSpaceError('Failed to create space');
+    }
+  }, [
+    getApiBase,
+    joinSpace,
+    mergeSpaces,
+    saveKnownSpace,
+    newSpaceName,
+    newSpacePassword,
+    newSpaceVisibility,
+  ]);
 
   useEffect(() => {
     if (userId) setSessionUserId(userId);
@@ -57,6 +248,20 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   }, [spaceId]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const savedSpace = window.localStorage.getItem('ship-sim-space');
+    const savedSelected = window.localStorage.getItem('ship-sim-space-selected');
+    if (savedSpace) {
+      setSpaceId(savedSpace);
+      setSpaceInput(savedSpace);
+      setHasChosenSpace(true);
+    } else if (!savedSelected) {
+      setSpaceModalOpen(true);
+      setSpaceFlow('choice');
+    }
+  }, [setSpaceId]);
+
+  useEffect(() => {
     const querySpace =
       typeof router.query.space === 'string'
         ? router.query.space.trim().toLowerCase()
@@ -65,8 +270,17 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       setSpaceId(querySpace);
       socketManager.switchSpace(querySpace);
       setChatMessages([]);
+      setHasChosenSpace(true);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('ship-sim-space', querySpace);
+        window.localStorage.setItem('ship-sim-space-selected', 'true');
+      }
     }
   }, [router.query.space, setSpaceId, spaceId, setChatMessages]);
+
+  useEffect(() => {
+    void fetchSpaces();
+  }, [fetchSpaces]);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -93,6 +307,10 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   // Start simulation after hydrating from the first self snapshot over the socket
   useEffect(() => {
     if (status !== 'authenticated' || !session) return;
+    if (!hasChosenSpace) {
+      setSpaceModalOpen(true);
+      return;
+    }
     if (hasStartedRef.current) return;
 
     hasStartedRef.current = true;
@@ -331,32 +549,247 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
           {mode === 'player' ? 'Player' : 'Spectator'}
         </button>
       </div>
-      <div className="fixed left-4 top-[calc(var(--nav-height,0px)+8px)] z-40 flex items-center gap-2 rounded-lg bg-gray-900/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur">
-        <span className="text-xs uppercase text-gray-300">Space</span>
-        <input
-          className="w-32 rounded-md bg-gray-800 px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-          value={spaceInput}
-          onChange={e => setSpaceInput(e.target.value)}
-          placeholder="global"
-        />
-        <button
-          type="button"
-          className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold hover:bg-blue-700"
-          onClick={() => {
-            const next = spaceInput.trim().toLowerCase() || 'global';
-            setSpaceId(next);
-            setChatMessages([]);
-            socketManager.switchSpace(next);
-            router.replace(
-              { pathname: router.pathname, query: { ...router.query, space: next } },
-              undefined,
-              { shallow: true },
-            );
-          }}
-        >
-          Join
-        </button>
-      </div>
+      <button
+        type="button"
+        className="fixed left-4 top-[calc(var(--nav-height,0px)+8px)] z-40 rounded-md bg-gray-900/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur hover:bg-gray-800"
+        onClick={() => {
+          setSpaceModalOpen(true);
+          setSpaceError(null);
+          setSpaceFlow('choice');
+        }}
+        title="Switch space or join with invite"
+      >
+        Spaces
+      </button>
+      {spaceModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="relative w-[560px] max-w-[90vw] rounded-lg bg-gray-900 p-4 text-white shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {spaceFlow !== 'choice' ? (
+                  <button
+                    className="flex items-center gap-1 rounded-md bg-gray-800 px-4 py-2 text-sm font-semibold hover:bg-gray-700"
+                    onClick={() => {
+                      setSpaceFlow('choice');
+                      setSpaceError(null);
+                    }}
+                  >
+                    <span aria-hidden="true">←</span>
+                    Back
+                  </button>
+                ) : (
+                  <div className="w-[68px]" />
+                )}
+                <div className="text-lg font-semibold">Choose a space</div>
+              </div>
+              <button
+                className="rounded-md bg-red-700 px-4 py-2 text-xs font-semibold hover:bg-red-600"
+                onClick={() => {
+                  setSpaceModalOpen(false);
+                  setSpaceFlow('choice');
+                  setSpaceError(null);
+                }}
+              >
+                ✕ Close
+              </button>
+            </div>
+            {spaceFlow === 'choice' ? (
+              <div className="mb-6 flex gap-3">
+                <button
+                  className="flex-1 rounded-md bg-blue-700 px-4 py-6 text-center text-sm font-semibold hover:bg-blue-600"
+                  onClick={() => {
+                    setSpaceFlow('join');
+                    setSpaceError(null);
+                  }}
+                >
+                  Join space
+                </button>
+                <button
+                  className="flex-1 rounded-md bg-emerald-700 px-4 py-6 text-center text-sm font-semibold hover:bg-emerald-600"
+                  onClick={() => {
+                    setSpaceFlow('create');
+                    setSpaceError(null);
+                  }}
+                >
+                  Create space
+                </button>
+              </div>
+            ) : null}
+
+            {spaceFlow === 'join' ? (
+              <>
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-xs uppercase text-gray-300">Space</span>
+                  <input
+                    className="w-32 rounded-md bg-gray-800 px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={spaceInput}
+                    onChange={e => setSpaceInput(e.target.value)}
+                    placeholder="global"
+                  />
+                  <button
+                    type="button"
+                    className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold hover:bg-blue-700"
+                    onClick={() => {
+                      setSpaceError(null);
+                      joinSpace(spaceInput);
+                    }}
+                  >
+                    Join
+                  </button>
+                  <button
+                  className="rounded-md bg-gray-800 px-3 py-1 text-xs hover:bg-gray-700"
+                  onClick={() => {
+                    setSpaceFlow('choice');
+                    setSpaceError(null);
+                  }}
+                >
+                  Back
+                </button>
+              </div>
+                <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-gray-300">
+                  {spacesLoading ? <span>Loading spaces...</span> : null}
+                  {spaces.map(space => (
+                    <button
+                      key={space.id}
+                      className={`rounded-full border px-3 py-1 text-white hover:border-blue-500 hover:text-blue-200 ${
+                        space.visibility === 'private'
+                          ? 'border-pink-700 bg-pink-900/60'
+                          : 'border-gray-700 bg-gray-800'
+                      }`}
+                      onClick={() => joinSpace(space.id)}
+                      title={space.visibility === 'private' ? 'Private space' : 'Public space'}
+                    >
+                      {space.name}{' '}
+                      <span className="uppercase text-[10px]">
+                        {space.visibility === 'private' ? 'Private' : 'Public'}
+                      </span>
+                    </button>
+                  ))}
+                  {!spacesLoading && spaces.length === 0 ? (
+                    <span className="text-gray-400">No public spaces yet</span>
+                  ) : null}
+                  {(knownSpaces?.length || 0) > 0 ? (
+                    <span className="rounded-full border border-indigo-700 bg-indigo-900/60 px-2 py-1 text-[11px] text-indigo-100">
+                      Known spaces: {knownSpaces.length}
+                    </span>
+                  ) : null}
+                </div>
+                {spaces.length > 0 ? (
+                  <div className="mb-3 rounded-md border border-gray-800 bg-gray-800 px-3 py-2 text-xs text-gray-200">
+                    <div className="flex items-center justify-between">
+                      <span>
+                        Details for: <strong>{spaceInput || '—'}</strong>
+                      </span>
+                      {spaces.find(s => s.id === spaceInput)?.inviteToken ? (
+                        <button
+                          className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600"
+                          onClick={async () => {
+                            const invite = spaces.find(s => s.id === spaceInput)?.inviteToken;
+                            if (invite) {
+                              try {
+                                await navigator.clipboard.writeText(invite);
+                                setSpaceError(null);
+                              } catch {
+                                setSpaceError('Failed to copy invite token');
+                              }
+                            }
+                          }}
+                        >
+                          Copy invite token
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="text-gray-400">
+                      Invite token:{' '}
+                      {spaces.find(s => s.id === spaceInput)?.inviteToken || '—'}
+                    </div>
+                  </div>
+                ) : null}
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <input
+                    className="w-32 rounded-md bg-gray-800 px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={inviteToken}
+                    onChange={e => setInviteToken(e.target.value)}
+                    placeholder="Invite code"
+                  />
+                  <input
+                    className="w-32 rounded-md bg-gray-800 px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={invitePassword}
+                    onChange={e => setInvitePassword(e.target.value)}
+                    type="password"
+                    placeholder="Invite password"
+                  />
+                  <button
+                    type="button"
+                    className="rounded-md bg-gray-700 px-3 py-1 text-xs font-semibold hover:bg-gray-600"
+                    onClick={() => {
+                      setSpaceError(null);
+                      fetchSpaces({ inviteToken, password: invitePassword });
+                    }}
+                  >
+                    Use invite
+                  </button>
+                </div>
+              </>
+            ) : null}
+
+            {spaceFlow === 'create' ? (
+              <>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs uppercase text-gray-300">Create a new space</span>
+                  <button
+                    className="rounded-md bg-gray-800 px-3 py-1 text-xs hover:bg-gray-700"
+                    onClick={() => {
+                      setSpaceFlow('choice');
+                      setSpaceError(null);
+                    }}
+                  >
+                    Back
+                  </button>
+                </div>
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <input
+                    className="w-32 flex-1 rounded-md bg-gray-800 px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={newSpaceName}
+                    onChange={e => setNewSpaceName(e.target.value)}
+                    placeholder="New space name"
+                  />
+                  <select
+                    className="rounded-md bg-gray-800 px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={newSpaceVisibility}
+                    onChange={e =>
+                      setNewSpaceVisibility(
+                        e.target.value === 'private' ? 'private' : 'public',
+                      )
+                    }
+                  >
+                    <option value="public">Public</option>
+                    <option value="private">Private</option>
+                  </select>
+                  <input
+                    className="w-32 rounded-md bg-gray-800 px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={newSpacePassword}
+                    onChange={e => setNewSpacePassword(e.target.value)}
+                    type="password"
+                    placeholder="Password (optional)"
+                  />
+                  <button
+                    type="button"
+                    className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold hover:bg-emerald-700"
+                    onClick={() => void handleCreateSpace()}
+                  >
+                    Create
+                  </button>
+                </div>
+              </>
+            ) : null}
+
+            {spaceError ? (
+              <div className="text-xs text-red-400">{spaceError}</div>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {mode !== 'spectator' ? <Dashboard /> : null}
       <Scene vesselPosition={vesselPosition} mode={mode} />

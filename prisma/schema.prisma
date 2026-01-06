@@ -62,6 +62,7 @@ model VerificationToken {
 // Persisted vessel state (minimal fields; AI flag included)
 model Vessel {
     id          String   @id
+    spaceId     String   @default("global")
     ownerId     String?
     mode        String   // 'ai' | 'player'
     desiredMode String   @default("player") // intended mode when unattended
@@ -86,6 +87,8 @@ model Vessel {
     draft       Float
     lastUpdate  DateTime @default(now())
     isAi        Boolean  @default(false)
+
+    @@index([spaceId])
 }
 
 model ChatMessage {
@@ -93,13 +96,16 @@ model ChatMessage {
     userId    String
     username  String
     message   String
+    spaceId   String   @default("global")
     channel   String   @default("global") // global or vessel:<id>
     createdAt DateTime @default(now())
+
+    @@index([spaceId, channel])
 }
 
 model WeatherState {
     id                     String   @id
-    spaceId                String   @unique
+    spaceId                String   @unique @default("global")
     name                   String?
     windSpeed              Float
     windDirection          Float
@@ -116,4 +122,29 @@ model WeatherState {
     precipitationIntensity Float?
     createdAt              DateTime @default(now())
     updatedAt              DateTime @updatedAt
+}
+
+model Space {
+    id           String   @id @default(cuid())
+    name         String
+    visibility   String   @default("public") // 'public' | 'private'
+    inviteToken  String?  @unique
+    passwordHash String?
+    createdBy    String?
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+
+    @@index([visibility])
+}
+
+model SpaceAccess {
+    id          String   @id @default(cuid())
+    userId      String
+    spaceId     String
+    inviteToken String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@unique([userId, spaceId])
+    @@index([userId])
 }
