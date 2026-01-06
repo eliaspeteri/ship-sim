@@ -79,7 +79,7 @@ interface VesselRecord {
 
 const WEATHER_AUTO_INTERVAL_MS = 5 * 60 * 1000;
 const vesselPersistAt = new Map<string, number>();
-let environmentPersistAt = 0;
+const environmentPersistAt = new Map<string, number>();
 let nextAutoWeatherAt = Date.now() + WEATHER_AUTO_INTERVAL_MS;
 
 const currentUtcTimeOfDay = () => {
@@ -109,9 +109,8 @@ const getVesselIdForUser = (
   return stored || userId || undefined;
 };
 
-const getSpaceIdForSocket = (
-  socket: import('socket.io').Socket,
-): string => socket.data.spaceId || DEFAULT_SPACE_ID;
+const getSpaceIdForSocket = (socket: import('socket.io').Socket): string =>
+  socket.data.spaceId || DEFAULT_SPACE_ID;
 
 async function persistVesselToDb(
   vessel: VesselRecord,
@@ -195,7 +194,8 @@ async function loadVesselsFromDb() {
     const xy = latLonToXY({ lat: row.lat, lon: row.lon });
     const vessel: VesselRecord = {
       id: row.id,
-      spaceId: (row as unknown as { spaceId?: string }).spaceId || DEFAULT_SPACE_ID,
+      spaceId:
+        (row as unknown as { spaceId?: string }).spaceId || DEFAULT_SPACE_ID,
       ownerId: row.ownerId,
       crewIds: new Set<string>(),
       crewNames: new Map<string, string>(),
@@ -254,11 +254,16 @@ async function loadEnvironmentFromDb(spaceId = DEFAULT_SPACE_ID) {
       where: { id: spaceId },
     });
     if (!row) {
-      globalState.environment.timeOfDay = currentUtcTimeOfDay();
+      const pattern = getWeatherPattern();
+      pattern.timeOfDay = currentUtcTimeOfDay();
+      const env = applyWeatherPattern(spaceId, pattern);
+      env.name = 'Auto weather';
+      globalState.environmentBySpace.set(spaceId, env);
+      await persistEnvironmentToDb({ force: true, spaceId });
       return;
     }
 
-    globalState.environment = {
+    const env: EnvironmentState = {
       wind: {
         speed: row.windSpeed,
         direction: row.windDirection,
@@ -279,7 +284,8 @@ async function loadEnvironmentFromDb(spaceId = DEFAULT_SPACE_ID) {
       precipitationIntensity: row.precipitationIntensity ?? 0,
       name: row.name || spaceId,
     };
-    environmentPersistAt = Date.now();
+    globalState.environmentBySpace.set(spaceId, env);
+    environmentPersistAt.set(spaceId, Date.now());
     console.info(`Loaded weather state for space ${row.spaceId}`);
   } catch (err) {
     console.warn('Failed to load weather state; using defaults', err);
@@ -290,12 +296,13 @@ async function persistEnvironmentToDb(
   opts: { force?: boolean; spaceId?: string } = {},
 ) {
   const now = Date.now();
-  if (!opts.force && now - environmentPersistAt < ENV_PERSIST_INTERVAL_MS) {
+  const spaceId = opts.spaceId || DEFAULT_SPACE_ID;
+  const lastPersist = environmentPersistAt.get(spaceId) || 0;
+  if (!opts.force && now - lastPersist < ENV_PERSIST_INTERVAL_MS) {
     return;
   }
-  const env = globalState.environment;
-  const spaceId = opts.spaceId || DEFAULT_SPACE_ID;
-  environmentPersistAt = now;
+  const env = getEnvironmentForSpace(spaceId);
+  environmentPersistAt.set(spaceId, now);
   try {
     await prisma.weatherState.upsert({
       where: { id: spaceId },
@@ -438,8 +445,12 @@ const getDefaultEnvironment = (name = 'Global'): EnvironmentState => ({
   name,
 });
 
-const applyWeatherPattern = (pattern: WeatherPattern): void => {
-  globalState.environment = {
+const applyWeatherPattern = (
+  spaceId: string,
+  pattern: WeatherPattern,
+): EnvironmentState => {
+  const env = getEnvironmentForSpace(spaceId);
+  const next: EnvironmentState = {
     wind: {
       speed: pattern.wind.speed,
       direction: pattern.wind.direction,
@@ -454,21 +465,30 @@ const applyWeatherPattern = (pattern: WeatherPattern): void => {
     seaState: Math.round(pattern.seaState),
     waterDepth: pattern.waterDepth,
     visibility: pattern.visibility,
-    timeOfDay:
-      pattern.timeOfDay ??
-      globalState.environment.timeOfDay ??
-      currentUtcTimeOfDay(),
+    timeOfDay: pattern.timeOfDay ?? env.timeOfDay ?? currentUtcTimeOfDay(),
     precipitation: pattern.precipitation,
     precipitationIntensity: pattern.precipitationIntensity,
     name: pattern.name || 'Weather',
   };
+  globalState.environmentBySpace.set(spaceId, next);
+  return next;
 };
 
 // Application state
 const globalState = {
   vessels: new Map<string, VesselRecord>(),
   userLastVessel: new Map<string, string>(),
-  environment: getDefaultEnvironment(),
+  environmentBySpace: new Map<string, EnvironmentState>([
+    [DEFAULT_SPACE_ID, getDefaultEnvironment()],
+  ]),
+};
+
+const getEnvironmentForSpace = (spaceId: string): EnvironmentState => {
+  const existing = globalState.environmentBySpace.get(spaceId);
+  if (existing) return existing;
+  const env = getDefaultEnvironment(spaceId);
+  globalState.environmentBySpace.set(spaceId, env);
+  return env;
 };
 
 const clamp = (val: number, min: number, max: number) =>
@@ -617,9 +637,7 @@ function ensureVesselForUser(
   spaceId: string,
 ): VesselRecord {
   // Prefer last vessel if still present
-  const lastId = globalState.userLastVessel.get(
-    userSpaceKey(userId, spaceId),
-  );
+  const lastId = globalState.userLastVessel.get(userSpaceKey(userId, spaceId));
   if (lastId) {
     const lastVessel = globalState.vessels.get(lastId);
     if (lastVessel && (lastVessel.spaceId || DEFAULT_SPACE_ID) === spaceId) {
@@ -643,8 +661,7 @@ function ensureVesselForUser(
 
   // Otherwise find any vessel where user is crew
   const existing = Array.from(globalState.vessels.values()).find(
-    v =>
-      v.crewIds.has(userId) && (v.spaceId || DEFAULT_SPACE_ID) === spaceId,
+    v => v.crewIds.has(userId) && (v.spaceId || DEFAULT_SPACE_ID) === spaceId,
   );
   if (existing) {
     console.info(
@@ -921,7 +938,12 @@ io.use((socket, next) => {
     cookies['next-auth.session-token'] ||
     cookies['__Secure-next-auth.session-token'];
   const authPayload = socket.handshake.auth as
-    | { token?: string; socketToken?: string; accessToken?: string; spaceId?: string }
+    | {
+        token?: string;
+        socketToken?: string;
+        accessToken?: string;
+        spaceId?: string;
+      }
     | undefined;
   const rawToken =
     authPayload?.socketToken ||
@@ -986,7 +1008,7 @@ io.use((socket, next) => {
   next();
 });
 
-io.on('connection', socket => {
+io.on('connection', async socket => {
   const { userId, username, roles, spaceId: socketSpaceId } = socket.data;
   const spaceId = socketSpaceId || DEFAULT_SPACE_ID;
   const effectiveUserId =
@@ -1014,6 +1036,10 @@ io.on('connection', socket => {
     socket.join(`space:${spaceId}:vessel:${normalizedVesselId}`);
   }
 
+  // Load and send environment for this space on connect
+  await loadEnvironmentFromDb(spaceId);
+  socket.emit('environment:update', getEnvironmentForSpace(spaceId));
+
   // Notify others that this vessel is crewed
   if (vessel) {
     socket.to(`space:${spaceId}`).emit('vessel:joined', {
@@ -1036,7 +1062,8 @@ io.on('connection', socket => {
     }[] = [];
     try {
       const channelsToLoad = [`space:${spaceId}:global`];
-      const vesselIdForChat = socket.data.vesselId || vesselChannelId(vessel?.id);
+      const vesselIdForChat =
+        socket.data.vesselId || vesselChannelId(vessel?.id);
       if (vesselIdForChat) {
         channelsToLoad.push(`space:${spaceId}:vessel:${vesselIdForChat}`);
       }
@@ -1064,14 +1091,15 @@ io.on('connection', socket => {
     const vesselsInSpace = Object.fromEntries(
       Array.from(globalState.vessels.entries())
         .filter(
-          ([, v]) => (v.spaceId || DEFAULT_SPACE_ID) === (spaceId || DEFAULT_SPACE_ID),
+          ([, v]) =>
+            (v.spaceId || DEFAULT_SPACE_ID) === (spaceId || DEFAULT_SPACE_ID),
         )
         .map(([id, v]) => [id, toSimpleVesselState(v)]),
     );
 
     socket.emit('simulation:update', {
       vessels: vesselsInSpace,
-      environment: globalState.environment,
+      environment: globalState.environmentBySpace.get(spaceId),
       timestamp: Date.now(),
       self: { userId: effectiveUserId, roles: roles || ['guest'], spaceId },
       chatHistory,
@@ -1094,7 +1122,10 @@ io.on('connection', socket => {
     const vesselKey =
       getVesselIdForUser(currentUserId, spaceId) || currentUserId;
     const vesselRecord = globalState.vessels.get(vesselKey);
-    if (!vesselRecord || (vesselRecord.spaceId || DEFAULT_SPACE_ID) !== spaceId) {
+    if (
+      !vesselRecord ||
+      (vesselRecord.spaceId || DEFAULT_SPACE_ID) !== spaceId
+    ) {
       console.warn('No vessel for user, creating on update', currentUserId);
       ensureVesselForUser(currentUserId, effectiveUsername, spaceId);
     }
@@ -1203,7 +1234,10 @@ io.on('connection', socket => {
     const vesselKey =
       getVesselIdForUser(currentUserId, spaceId) || currentUserId;
     const vesselRecord = globalState.vessels.get(vesselKey);
-    if (!vesselRecord || (vesselRecord.spaceId || DEFAULT_SPACE_ID) !== spaceId) {
+    if (
+      !vesselRecord ||
+      (vesselRecord.spaceId || DEFAULT_SPACE_ID) !== spaceId
+    ) {
       console.warn('No vessel for user, creating on control', currentUserId);
       ensureVesselForUser(currentUserId, effectiveUsername, spaceId);
     }
@@ -1354,9 +1388,9 @@ io.on('connection', socket => {
       targetWeather = null;
       const pattern = getWeatherPattern();
       pattern.timeOfDay = currentUtcTimeOfDay();
-      applyWeatherPattern(pattern);
+      const env = applyWeatherPattern(spaceId, pattern);
       nextAutoWeatherAt = Date.now() + WEATHER_AUTO_INTERVAL_MS;
-      io.to(`space:${spaceId}`).emit('environment:update', globalState.environment);
+      io.to(`space:${spaceId}`).emit('environment:update', env);
       void persistEnvironmentToDb({ force: true, spaceId });
       console.info(
         `Weather set to auto by ${socket.data.username}; next change at ${new Date(nextAutoWeatherAt).toISOString()}`,
@@ -1367,8 +1401,8 @@ io.on('connection', socket => {
     weatherMode = 'manual';
     if (data.pattern) {
       targetWeather = getWeatherPattern(data.pattern);
-      applyWeatherPattern(targetWeather);
-      io.to(`space:${spaceId}`).emit('environment:update', globalState.environment);
+      const env = applyWeatherPattern(spaceId, targetWeather);
+      io.to(`space:${spaceId}`).emit('environment:update', env);
       void persistEnvironmentToDb({ force: true, spaceId });
       console.info(
         `Weather preset '${data.pattern}' applied by ${socket.data.username}`,
@@ -1378,14 +1412,17 @@ io.on('connection', socket => {
         data.coordinates.lat,
         data.coordinates.lng,
       );
-      applyWeatherPattern(targetWeather);
-      io.to(`space:${spaceId}`).emit('environment:update', globalState.environment);
+      const env = applyWeatherPattern(spaceId, targetWeather);
+      io.to(`space:${spaceId}`).emit('environment:update', env);
       void persistEnvironmentToDb({ force: true, spaceId });
       console.info(
         `Weather from coordinates applied by ${socket.data.username} (${data.coordinates.lat}, ${data.coordinates.lng})`,
       );
     } else {
-      io.to(`space:${spaceId}`).emit('environment:update', globalState.environment);
+      io.to(`space:${spaceId}`).emit(
+        'environment:update',
+        getEnvironmentForSpace(spaceId),
+      );
     }
   });
 
@@ -1494,7 +1531,9 @@ io.on('connection', socket => {
     }
 
     if (currentUserId) {
-      socket.to(`space:${spaceId}`).emit('vessel:left', { userId: currentUserId });
+      socket
+        .to(`space:${spaceId}`)
+        .emit('vessel:left', { userId: currentUserId });
     }
   });
 });
@@ -1560,7 +1599,7 @@ setInterval(() => {
   lastBroadcastAt = now;
   const dt = BROADCAST_INTERVAL_MS / 1000;
   let environmentChanged = false;
-  const env = globalState.environment;
+  const env = getEnvironmentForSpace(DEFAULT_SPACE_ID);
   if (weatherMode === 'auto') {
     const nextTime = currentUtcTimeOfDay();
     if (Math.abs((env.timeOfDay ?? 0) - nextTime) > 1e-3) {
@@ -1570,7 +1609,7 @@ setInterval(() => {
     if (now >= nextAutoWeatherAt) {
       const autoPattern = getWeatherPattern();
       autoPattern.timeOfDay = currentUtcTimeOfDay();
-      applyWeatherPattern(autoPattern);
+      applyWeatherPattern(DEFAULT_SPACE_ID, autoPattern);
       nextAutoWeatherAt = now + WEATHER_AUTO_INTERVAL_MS;
       environmentChanged = true;
       console.info(
@@ -1612,25 +1651,32 @@ setInterval(() => {
     }
   }
 
-  const snapshot = Object.fromEntries(
-    Array.from(globalState.vessels.entries())
-      .filter(
-        ([, v]) =>
-          (v.spaceId || DEFAULT_SPACE_ID) === (DEFAULT_SPACE_ID || 'global'),
-      )
-      .map(([id, v]) => [id, toSimpleVesselState(v)]),
-  );
-
-  if (environmentChanged) {
-    void persistEnvironmentToDb();
+  // Broadcast per space
+  const vesselsBySpace = new Map<
+    string,
+    Record<string, ReturnType<typeof toSimpleVesselState>>
+  >();
+  for (const [id, v] of globalState.vessels.entries()) {
+    const sid = v.spaceId || DEFAULT_SPACE_ID;
+    if (!vesselsBySpace.has(sid)) vesselsBySpace.set(sid, {});
+    vesselsBySpace.get(sid)![id] = toSimpleVesselState(v);
   }
 
-  io.to(`space:${DEFAULT_SPACE_ID}`).emit('simulation:update', {
-    vessels: snapshot,
-    environment: globalState.environment,
-    timestamp: Date.now(),
-    spaceId: DEFAULT_SPACE_ID,
-  });
+  for (const [sid, vessels] of vesselsBySpace.entries()) {
+    const env = getEnvironmentForSpace(sid);
+    io.to(`space:${sid}`).emit('simulation:update', {
+      vessels,
+      environment: env,
+      timestamp: Date.now(),
+      spaceId: sid,
+    });
+  }
+
+  if (environmentChanged) {
+    for (const sid of globalState.environmentBySpace.keys()) {
+      void persistEnvironmentToDb({ spaceId: sid });
+    }
+  }
 }, BROADCAST_INTERVAL_MS);
 
 // Export the app and io for potential testing or extension

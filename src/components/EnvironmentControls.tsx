@@ -92,6 +92,11 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
     `${metrics.visibility.toFixed(1)} nm vis • ${formatTimeOfDay(metrics.timeOfDay)}`,
   ];
 
+  const modeBadge =
+    environment.name && environment.name.toLowerCase().includes('auto')
+      ? 'Auto'
+      : 'Preset';
+
   return (
     <div
       className={`${className} rounded-2xl border border-gray-800 bg-gray-900/80 p-4 text-white shadow-2xl backdrop-blur`}
@@ -120,7 +125,10 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
             }`}
           >
             <span className="h-2 w-2 rounded-full bg-current" />
-            {isConnected ? 'Live' : 'Offline'}
+            {isConnected ? 'Connected' : 'Offline'}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-blue-700/70 px-3 py-1 text-[11px] font-semibold uppercase text-blue-50">
+            {modeBadge}
           </span>
           <button
             type="button"

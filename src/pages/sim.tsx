@@ -59,13 +59,16 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const [inviteToken, setInviteToken] = React.useState('');
   const [invitePassword, setInvitePassword] = React.useState('');
   const [newSpaceName, setNewSpaceName] = React.useState('');
-  const [newSpaceVisibility, setNewSpaceVisibility] =
-    React.useState<'public' | 'private'>('public');
+  const [newSpaceVisibility, setNewSpaceVisibility] = React.useState<
+    'public' | 'private'
+  >('public');
   const [newSpacePassword, setNewSpacePassword] = React.useState('');
   const [spaceModalOpen, setSpaceModalOpen] = React.useState(false);
   const [hasChosenSpace, setHasChosenSpace] = React.useState(false);
   const [knownSpaces, setKnownSpaces] = React.useState<SpaceSummary[]>([]);
-  const [spaceFlow, setSpaceFlow] = React.useState<'choice' | 'join' | 'create'>('choice');
+  const [spaceFlow, setSpaceFlow] = React.useState<
+    'choice' | 'join' | 'create'
+  >('choice');
 
   const joinSpace = React.useCallback(
     (next: string) => {
@@ -82,7 +85,10 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       setSpaceModalOpen(false);
       setSpaceFlow('choice');
       router.replace(
-        { pathname: router.pathname, query: { ...router.query, space: normalized } },
+        {
+          pathname: router.pathname,
+          query: { ...router.query, space: normalized },
+        },
         undefined,
         { shallow: true },
       );
@@ -99,7 +105,9 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
           visibility: space.visibility || 'public',
         });
       });
-      return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+      return Array.from(map.values()).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
     },
     [],
   );
@@ -149,7 +157,8 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       try {
         const apiBase = getApiBase();
         const params = new URLSearchParams();
-        if (opts?.inviteToken) params.set('inviteToken', opts.inviteToken.trim());
+        if (opts?.inviteToken)
+          params.set('inviteToken', opts.inviteToken.trim());
         if (opts?.password) params.set('password', opts.password);
         params.set('includeKnown', 'true');
         const qs = params.toString();
@@ -165,7 +174,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         setKnownSpaces(prev => mergeSpaceLists(prev, incoming));
         if (opts?.inviteToken && incoming.length > 0) {
           await Promise.all(
-            incoming.map(space =>
+            incoming.map((space: { id: string; inviteToken: string }) =>
               saveKnownSpace(space.id, space.inviteToken || opts.inviteToken),
             ),
           );
@@ -192,7 +201,9 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     const creatingPublicDuplicate =
       newSpaceVisibility === 'public' &&
       spaces.some(
-        s => s.visibility === 'public' && s.name.toLowerCase() === name.toLowerCase(),
+        s =>
+          s.visibility === 'public' &&
+          s.name.toLowerCase() === name.toLowerCase(),
       );
     if (creatingPublicDuplicate) {
       setSpaceError('A public space with that name already exists');
@@ -250,7 +261,9 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const savedSpace = window.localStorage.getItem('ship-sim-space');
-    const savedSelected = window.localStorage.getItem('ship-sim-space-selected');
+    const savedSelected = window.localStorage.getItem(
+      'ship-sim-space-selected',
+    );
     if (savedSpace) {
       setSpaceId(savedSpace);
       setSpaceInput(savedSpace);
@@ -284,7 +297,9 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
 
   useEffect(() => {
     if (status !== 'authenticated') return;
-    const seen = typeof window !== 'undefined' && sessionStorage.getItem('ship-sim-join-choice');
+    const seen =
+      typeof window !== 'undefined' &&
+      sessionStorage.getItem('ship-sim-join-choice');
     if (!seen) {
       setShowJoinChoice(true);
     }
@@ -373,7 +388,10 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
 
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       const active = document.activeElement as globalThis.HTMLElement | null;
-      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+      if (
+        active &&
+        (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')
+      ) {
         return;
       }
 
@@ -549,21 +567,19 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
           {mode === 'player' ? 'Player' : 'Spectator'}
         </button>
       </div>
-      <button
-        type="button"
-        className="fixed left-4 top-[calc(var(--nav-height,0px)+8px)] z-40 rounded-md bg-gray-900/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur hover:bg-gray-800"
-        onClick={() => {
-          setSpaceModalOpen(true);
-          setSpaceError(null);
-          setSpaceFlow('choice');
-        }}
-        title="Switch space or join with invite"
-      >
-        Spaces
-      </button>
       {spaceModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="relative w-[560px] max-w-[90vw] rounded-lg bg-gray-900 p-4 text-white shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          onClick={() => {
+            setSpaceModalOpen(false);
+            setSpaceFlow('choice');
+            setSpaceError(null);
+          }}
+        >
+          <div
+            className="relative w-[560px] max-w-[90vw] rounded-lg bg-gray-900 p-4 text-white shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {spaceFlow !== 'choice' ? (
@@ -637,15 +653,15 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                     Join
                   </button>
                   <button
-                  className="rounded-md bg-gray-800 px-3 py-1 text-xs hover:bg-gray-700"
-                  onClick={() => {
-                    setSpaceFlow('choice');
-                    setSpaceError(null);
-                  }}
-                >
-                  Back
-                </button>
-              </div>
+                    className="rounded-md bg-gray-800 px-3 py-1 text-xs hover:bg-gray-700"
+                    onClick={() => {
+                      setSpaceFlow('choice');
+                      setSpaceError(null);
+                    }}
+                  >
+                    Back
+                  </button>
+                </div>
                 <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-gray-300">
                   {spacesLoading ? <span>Loading spaces...</span> : null}
                   {spaces.map(space => (
@@ -657,7 +673,11 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                           : 'border-gray-700 bg-gray-800'
                       }`}
                       onClick={() => joinSpace(space.id)}
-                      title={space.visibility === 'private' ? 'Private space' : 'Public space'}
+                      title={
+                        space.visibility === 'private'
+                          ? 'Private space'
+                          : 'Public space'
+                      }
                     >
                       {space.name}{' '}
                       <span className="uppercase text-[10px]">
@@ -684,7 +704,9 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                         <button
                           className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600"
                           onClick={async () => {
-                            const invite = spaces.find(s => s.id === spaceInput)?.inviteToken;
+                            const invite = spaces.find(
+                              s => s.id === spaceInput,
+                            )?.inviteToken;
                             if (invite) {
                               try {
                                 await navigator.clipboard.writeText(invite);
@@ -701,7 +723,8 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                     </div>
                     <div className="text-gray-400">
                       Invite token:{' '}
-                      {spaces.find(s => s.id === spaceInput)?.inviteToken || '—'}
+                      {spaces.find(s => s.id === spaceInput)?.inviteToken ||
+                        '—'}
                     </div>
                   </div>
                 ) : null}
@@ -736,7 +759,9 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
             {spaceFlow === 'create' ? (
               <>
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs uppercase text-gray-300">Create a new space</span>
+                  <span className="text-xs uppercase text-gray-300">
+                    Create a new space
+                  </span>
                   <button
                     className="rounded-md bg-gray-800 px-3 py-1 text-xs hover:bg-gray-700"
                     onClick={() => {
@@ -793,13 +818,18 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
 
       {mode !== 'spectator' ? <Dashboard /> : null}
       <Scene vesselPosition={vesselPosition} mode={mode} />
-      <HudDrawer />
+      <HudDrawer onOpenSpaces={() => {
+        setSpaceModalOpen(true);
+        setSpaceError(null);
+        setSpaceFlow('choice');
+      }} />
       {showJoinChoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="rounded-lg bg-gray-900 p-6 text-white shadow-2xl w-[420px] space-y-4">
             <h2 className="text-xl font-bold">Choose how to join</h2>
             <p className="text-sm text-gray-300">
-              You can join an available vessel with open crew slots or start your own.
+              You can join an available vessel with open crew slots or start
+              your own.
             </p>
             <div className="flex flex-col gap-2">
               <label className="text-sm text-gray-300">
@@ -830,7 +860,8 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
               <button
                 className="rounded bg-indigo-600 px-4 py-2 text-left font-semibold hover:bg-indigo-700"
                 onClick={() => {
-                  const port = PORTS.find(p => p.name === selectedPort) || PORTS[0];
+                  const port =
+                    PORTS.find(p => p.name === selectedPort) || PORTS[0];
                   socketManager.requestNewVessel({
                     x: port.position.x,
                     y: port.position.y,
