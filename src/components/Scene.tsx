@@ -283,18 +283,25 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
   });
 
   // Simple sun direction derived from time of day (0-24). Kept adaptable for future lat/season logic.
-  const sunDirection = useMemo(() => {
+  const { sunDirection, lightIntensity } = useMemo(() => {
     const t = envTime ?? 12;
     const normalized = ((t % 24) + 24) / 24; // 0..1
+    // Simple solar model: elevation crosses horizon at ~06:00/18:00, peaks at noon, negative at night.
+    const elevation = Math.sin((normalized - 0.25) * Math.PI * 2);
     const azimuth = normalized * Math.PI * 2;
-    const elevation = Math.max(0.1, Math.sin(normalized * Math.PI)); // keep sun above horizon for now
+    const horizontalMag = Math.max(0, Math.sqrt(Math.max(0, 1 - elevation ** 2)));
     const dir = new THREE.Vector3(
-      Math.cos(azimuth) * Math.cos(elevation),
+      Math.cos(azimuth) * horizontalMag,
       elevation,
-      Math.sin(azimuth) * Math.cos(elevation),
-    );
-    dir.normalize();
-    return dir;
+      Math.sin(azimuth) * horizontalMag,
+    ).normalize();
+    const daylight = Math.max(0, elevation);
+    const lightIntensity = {
+      directional: 0.15 + daylight * 0.95,
+      ambient: 0.12 + daylight * 0.45,
+      hemi: 0.1 + daylight * 0.35,
+    };
+    return { sunDirection: dir, daylight, lightIntensity };
   }, [envTime]);
 
   useEffect(() => {
@@ -343,11 +350,13 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           mieDirectionalG={0.8}
         />
         <Environment preset="sunset" />
-        <ambientLight intensity={0.45} />
-        <hemisphereLight args={['#6fa6ff', '#0b1e2d', 0.25]} />
+        <ambientLight intensity={lightIntensity.ambient} />
+        <hemisphereLight
+          args={['#6fa6ff', '#0b1e2d', lightIntensity.hemi]}
+        />
         <directionalLight
           ref={directionalLightRef}
-          intensity={1.0}
+          intensity={lightIntensity.directional}
           color={0xfff0dd}
         />
         <LightTracker
