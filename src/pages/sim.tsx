@@ -28,11 +28,13 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const mode = useStore(state => state.mode);
   const setMode = useStore(state => state.setMode);
   const setSpaceId = useStore(state => state.setSpaceId);
+  const spaceId = useStore(state => state.spaceId);
   const roles = useStore(state => state.roles);
   const notice = useStore(state => state.notice);
   const setNotice = useStore(state => state.setNotice);
   const crewIds = useStore(state => state.crewIds);
   const setSessionUserId = useStore(state => state.setSessionUserId);
+  const setChatMessages = useStore(state => state.setChatMessages);
   const hasStartedRef = useRef(false);
   const navHeightVar = 'var(--nav-height, 0px)';
   const sessionRole = (session?.user as { role?: string })?.role;
@@ -44,21 +46,27 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const userId = (session?.user as { id?: string })?.id;
   const [showJoinChoice, setShowJoinChoice] = React.useState(false);
   const [selectedPort, setSelectedPort] = React.useState(PORTS[0].name);
+  const [spaceInput, setSpaceInput] = React.useState(spaceId || 'global');
 
   useEffect(() => {
     if (userId) setSessionUserId(userId);
   }, [userId, setSessionUserId]);
 
   useEffect(() => {
+    setSpaceInput(spaceId || 'global');
+  }, [spaceId]);
+
+  useEffect(() => {
     const querySpace =
       typeof router.query.space === 'string'
         ? router.query.space.trim().toLowerCase()
         : null;
-    if (querySpace) {
+    if (querySpace && querySpace !== spaceId) {
       setSpaceId(querySpace);
-      socketManager.setSpaceId(querySpace);
+      socketManager.switchSpace(querySpace);
+      setChatMessages([]);
     }
-  }, [router.query.space, setSpaceId]);
+  }, [router.query.space, setSpaceId, spaceId, setChatMessages]);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -321,6 +329,32 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
           }
         >
           {mode === 'player' ? 'Player' : 'Spectator'}
+        </button>
+      </div>
+      <div className="fixed left-4 top-[calc(var(--nav-height,0px)+8px)] z-40 flex items-center gap-2 rounded-lg bg-gray-900/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur">
+        <span className="text-xs uppercase text-gray-300">Space</span>
+        <input
+          className="w-32 rounded-md bg-gray-800 px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+          value={spaceInput}
+          onChange={e => setSpaceInput(e.target.value)}
+          placeholder="global"
+        />
+        <button
+          type="button"
+          className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold hover:bg-blue-700"
+          onClick={() => {
+            const next = spaceInput.trim().toLowerCase() || 'global';
+            setSpaceId(next);
+            setChatMessages([]);
+            socketManager.switchSpace(next);
+            router.replace(
+              { pathname: router.pathname, query: { ...router.query, space: next } },
+              undefined,
+              { shallow: true },
+            );
+          }}
+        >
+          Join
         </button>
       </div>
 

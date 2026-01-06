@@ -56,6 +56,7 @@ type CoreVesselProperties = Pick<
 >;
 interface VesselRecord {
   id: string;
+  spaceId?: string;
   ownerId: string | null;
   crewIds: Set<string>;
   crewNames: Map<string, string>;
@@ -91,6 +92,24 @@ const currentUtcTimeOfDay = () => {
     24
   );
 };
+
+const userSpaceKey = (userId: string, spaceId: string) =>
+  `${spaceId || DEFAULT_SPACE_ID}:${userId}`;
+
+const normalizeVesselId = (id?: string | null): string | undefined =>
+  id || undefined;
+
+const getVesselIdForUser = (
+  userId: string,
+  spaceId: string,
+): string | undefined => {
+  const stored = globalState.userLastVessel.get(userSpaceKey(userId, spaceId));
+  return stored || userId || undefined;
+};
+
+const getSpaceIdForSocket = (
+  socket: import('socket.io').Socket,
+): string => socket.data.spaceId || DEFAULT_SPACE_ID;
 
 async function persistVesselToDb(
   vessel: VesselRecord,
@@ -172,6 +191,7 @@ async function loadVesselsFromDb() {
     const xy = latLonToXY({ lat: row.lat, lon: row.lon });
     const vessel: VesselRecord = {
       id: row.id,
+      spaceId: (row as unknown as { spaceId?: string }).spaceId || DEFAULT_SPACE_ID,
       ownerId: row.ownerId,
       crewIds: new Set<string>(),
       crewNames: new Map<string, string>(),
@@ -215,7 +235,10 @@ async function loadVesselsFromDb() {
     }
     globalState.vessels.set(vessel.id, vessel);
     if (row.ownerId) {
-      globalState.userLastVessel.set(row.ownerId, vessel.id);
+      globalState.userLastVessel.set(
+        userSpaceKey(row.ownerId, vessel.spaceId || DEFAULT_SPACE_ID),
+        vessel.id,
+      );
     }
   });
   console.info(`Loaded ${rows.length} vessel(s) from database`);
@@ -317,6 +340,7 @@ function createDefaultAIVessel(id: string, position = { x: 0, y: 0, z: 0 }) {
   const latLon = xyToLatLon({ x: position.x, y: position.y });
   const vessel: VesselRecord = {
     id,
+    spaceId: DEFAULT_SPACE_ID,
     ownerId: null,
     crewIds: new Set<string>(),
     crewNames: new Map<string, string>(),
@@ -343,10 +367,12 @@ function createNewVesselForUser(
   userId: string,
   username: string,
   position = { x: 0, y: 0, z: 0 },
+  spaceId: string = DEFAULT_SPACE_ID,
 ): VesselRecord {
   const latLon = xyToLatLon({ x: position.x, y: position.y });
   const vessel: VesselRecord = {
     id: `${userId}_${Date.now()}`,
+    spaceId,
     ownerId: userId,
     crewIds: new Set<string>([userId]),
     crewNames: new Map<string, string>([[userId, username]]),
@@ -370,9 +396,11 @@ function createNewVesselForUser(
   return vessel;
 }
 
-function detachUserFromCurrentVessel(userId: string): void {
-  const vessel = Array.from(globalState.vessels.values()).find(v =>
-    v.crewIds.has(userId),
+function detachUserFromCurrentVessel(userId: string, spaceId: string): void {
+  const vessel = Array.from(globalState.vessels.values()).find(
+    v =>
+      v.crewIds.has(userId) &&
+      (v.spaceId || DEFAULT_SPACE_ID) === (spaceId || DEFAULT_SPACE_ID),
   );
   if (!vessel) return;
   vessel.crewIds.delete(userId);
@@ -535,9 +563,13 @@ const hasAdminRole = (socket: import('socket.io').Socket) =>
 function takeOverAvailableAIVessel(
   userId: string,
   username: string,
+  spaceId: string,
 ): VesselRecord | null {
   const aiVessel = Array.from(globalState.vessels.values()).find(
-    v => v.mode === 'ai' && v.crewIds.size === 0,
+    v =>
+      v.mode === 'ai' &&
+      v.crewIds.size === 0 &&
+      (v.spaceId || DEFAULT_SPACE_ID) === spaceId,
   );
   if (!aiVessel) return null;
   console.info(
@@ -547,8 +579,9 @@ function takeOverAvailableAIVessel(
   aiVessel.crewNames.set(userId, username);
   aiVessel.mode = 'player';
   aiVessel.ownerId = aiVessel.ownerId ?? userId;
+  aiVessel.spaceId = spaceId;
   aiVessel.lastUpdate = Date.now();
-  globalState.userLastVessel.set(userId, aiVessel.id);
+  globalState.userLastVessel.set(userSpaceKey(userId, spaceId), aiVessel.id);
   void persistVesselToDb(aiVessel);
   console.info(
     `Assigned ${username} (${userId}) to AI vessel ${aiVessel.id} (takeover)`,
@@ -556,11 +589,15 @@ function takeOverAvailableAIVessel(
   return aiVessel;
 }
 
-function findJoinableVessel(userId: string): VesselRecord | null {
+function findJoinableVessel(
+  userId: string,
+  spaceId: string,
+): VesselRecord | null {
   // Join a vessel that already has crew and room left
   const joinable = Array.from(globalState.vessels.values())
     .filter(
       v =>
+        (v.spaceId || DEFAULT_SPACE_ID) === spaceId &&
         v.mode === 'player' &&
         v.crewIds.size > 0 &&
         v.crewIds.size < MAX_CREW &&
@@ -570,12 +607,18 @@ function findJoinableVessel(userId: string): VesselRecord | null {
   return joinable[0] || null;
 }
 
-function ensureVesselForUser(userId: string, username: string): VesselRecord {
+function ensureVesselForUser(
+  userId: string,
+  username: string,
+  spaceId: string,
+): VesselRecord {
   // Prefer last vessel if still present
-  const lastId = globalState.userLastVessel.get(userId);
+  const lastId = globalState.userLastVessel.get(
+    userSpaceKey(userId, spaceId),
+  );
   if (lastId) {
     const lastVessel = globalState.vessels.get(lastId);
-    if (lastVessel) {
+    if (lastVessel && (lastVessel.spaceId || DEFAULT_SPACE_ID) === spaceId) {
       console.info(
         `Reassigning user ${username} to their last vessel ${lastId}`,
       );
@@ -585,6 +628,7 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
         lastVessel.crewIds.add(userId);
         lastVessel.crewNames.set(userId, username);
       }
+      lastVessel.spaceId = spaceId;
       return lastVessel;
     }
   }
@@ -594,8 +638,9 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
   );
 
   // Otherwise find any vessel where user is crew
-  const existing = Array.from(globalState.vessels.values()).find(v =>
-    v.crewIds.has(userId),
+  const existing = Array.from(globalState.vessels.values()).find(
+    v =>
+      v.crewIds.has(userId) && (v.spaceId || DEFAULT_SPACE_ID) === spaceId,
   );
   if (existing) {
     console.info(
@@ -606,11 +651,12 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
       existing.crewIds.add(userId);
       existing.crewNames.set(userId, username);
     }
-    globalState.userLastVessel.set(userId, existing.id);
+    existing.spaceId = spaceId;
+    globalState.userLastVessel.set(userSpaceKey(userId, spaceId), existing.id);
     return existing;
   }
 
-  const joinable = findJoinableVessel(userId);
+  const joinable = findJoinableVessel(userId, spaceId);
   if (joinable) {
     console.info(
       `Joining user ${username} to shared vessel ${joinable.id} (${joinable.crewIds.size}/${MAX_CREW})`,
@@ -618,13 +664,14 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
     joinable.crewIds.add(userId);
     joinable.crewNames.set(userId, username);
     joinable.mode = 'player';
-    globalState.userLastVessel.set(userId, joinable.id);
+    joinable.spaceId = spaceId;
+    globalState.userLastVessel.set(userSpaceKey(userId, spaceId), joinable.id);
     return joinable;
   }
 
   // Try to reuse a vessel owned by this user (persisted)
   const owned = Array.from(globalState.vessels.values()).find(
-    v => v.ownerId === userId,
+    v => v.ownerId === userId && (v.spaceId || DEFAULT_SPACE_ID) === spaceId,
   );
   if (owned) {
     console.info(
@@ -633,16 +680,18 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
     owned.crewIds.add(userId);
     owned.crewNames.set(userId, username);
     owned.mode = 'player';
-    globalState.userLastVessel.set(userId, owned.id);
+    owned.spaceId = spaceId;
+    globalState.userLastVessel.set(userSpaceKey(userId, spaceId), owned.id);
     return owned;
   }
 
-  const aiTaken = takeOverAvailableAIVessel(userId, username);
+  const aiTaken = takeOverAvailableAIVessel(userId, username, spaceId);
   if (aiTaken) return aiTaken;
 
   console.info(`Creating new vessel for user ${username}.`);
   const vessel: VesselRecord = {
     id: userId,
+    spaceId,
     ownerId: userId,
     crewIds: new Set([userId]),
     crewNames: new Map([[userId, username]]),
@@ -663,25 +712,13 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
     lastUpdate: Date.now(),
   };
   globalState.vessels.set(vessel.id, vessel);
-  globalState.userLastVessel.set(userId, vessel.id);
+  globalState.userLastVessel.set(userSpaceKey(userId, spaceId), vessel.id);
   void persistVesselToDb(vessel);
   return vessel;
 }
 
 let targetWeather: WeatherPattern | null = null;
 let weatherMode: 'manual' | 'auto' = 'auto';
-
-const normalizeVesselId = (id?: string | null): string | undefined =>
-  id || undefined;
-
-const getVesselIdForUser = (userId: string): string | undefined => {
-  const stored = globalState.userLastVessel.get(userId);
-  return stored || userId || undefined;
-};
-
-const getSpaceIdForSocket = (
-  socket: import('socket.io').Socket,
-): string => socket.data.spaceId || DEFAULT_SPACE_ID;
 
 const withLatLon = (pos: VesselPose['position']) => {
   const hasLatLon = pos.lat !== undefined && pos.lon !== undefined;
@@ -702,20 +739,28 @@ const withLatLon = (pos: VesselPose['position']) => {
 
 const resolveChatChannel = (
   requestedChannel: string | undefined,
-  vesselId?: string,
+  vesselId: string | undefined,
+  spaceId: string,
 ): string => {
+  const space = spaceId || DEFAULT_SPACE_ID;
+  if (requestedChannel && requestedChannel.startsWith('space:')) {
+    const parts = requestedChannel.split(':');
+    if (parts[1] !== space) {
+      return `space:${space}:global`;
+    }
+    return requestedChannel;
+  }
   const normalizedVesselId = normalizeVesselId(vesselId);
-  const vesselChannel =
-    normalizedVesselId && globalState.vessels.has(normalizedVesselId)
-      ? `vessel:${normalizedVesselId}`
-      : null;
+  const vesselChannel = normalizedVesselId
+    ? `space:${space}:vessel:${normalizedVesselId}`
+    : null;
   if (requestedChannel && requestedChannel.startsWith('vessel:')) {
-    return vesselChannel || 'global';
+    return vesselChannel || `space:${space}:global`;
   }
   if (requestedChannel === 'global') {
-    return 'global';
+    return `space:${space}:global`;
   }
-  return vesselChannel || 'global';
+  return vesselChannel || `space:${space}:global`;
 };
 
 const loadChatHistory = async (
@@ -948,7 +993,7 @@ io.on('connection', socket => {
 
   let vessel: VesselRecord | null = null;
   if (isPlayerOrHigher) {
-    vessel = ensureVesselForUser(effectiveUserId, effectiveUsername);
+    vessel = ensureVesselForUser(effectiveUserId, effectiveUsername, spaceId);
   }
 
   console.info(
@@ -957,15 +1002,15 @@ io.on('connection', socket => {
 
   const normalizedVesselId = normalizeVesselId(vessel?.id);
   socket.data.vesselId = normalizedVesselId || vessel?.id;
-  socket.join('chat:global');
   socket.join(`space:${spaceId}`);
+  socket.join(`space:${spaceId}:global`);
   if (normalizedVesselId) {
-    socket.join(`vessel:${normalizedVesselId}`);
+    socket.join(`space:${spaceId}:vessel:${normalizedVesselId}`);
   }
 
   // Notify others that this vessel is crewed
   if (vessel) {
-    socket.broadcast.emit('vessel:joined', {
+    socket.to(`space:${spaceId}`).emit('vessel:joined', {
       userId: vessel.id,
       username: effectiveUsername,
       position: withLatLon(vessel.position),
@@ -984,10 +1029,10 @@ io.on('connection', socket => {
       channel: string;
     }[] = [];
     try {
-      const channelsToLoad = ['global'];
+      const channelsToLoad = [`space:${spaceId}:global`];
       const vesselIdForChat = socket.data.vesselId || vessel?.id;
       if (vesselIdForChat) {
-        channelsToLoad.push(`vessel:${vesselIdForChat}`);
+        channelsToLoad.push(`space:${spaceId}:vessel:${vesselIdForChat}`);
       }
       const results = await Promise.all(
         channelsToLoad.map(async channel => {
@@ -1010,13 +1055,16 @@ io.on('connection', socket => {
       console.warn('Failed to load chat history', err);
     }
 
+    const vesselsInSpace = Object.fromEntries(
+      Array.from(globalState.vessels.entries())
+        .filter(
+          ([, v]) => (v.spaceId || DEFAULT_SPACE_ID) === (spaceId || DEFAULT_SPACE_ID),
+        )
+        .map(([id, v]) => [id, toSimpleVesselState(v)]),
+    );
+
     socket.emit('simulation:update', {
-      vessels: Object.fromEntries(
-        Array.from(globalState.vessels.entries()).map(([id, v]) => [
-          id,
-          toSimpleVesselState(v),
-        ]),
-      ),
+      vessels: vesselsInSpace,
       environment: globalState.environment,
       timestamp: Date.now(),
       self: { userId: effectiveUserId, roles: roles || ['guest'], spaceId },
@@ -1037,16 +1085,17 @@ io.on('connection', socket => {
       return;
     }
 
-    const vesselKey = getVesselIdForUser(currentUserId) || currentUserId;
+    const vesselKey =
+      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
     const vesselRecord = globalState.vessels.get(vesselKey);
-    if (!vesselRecord) {
+    if (!vesselRecord || (vesselRecord.spaceId || DEFAULT_SPACE_ID) !== spaceId) {
       console.warn('No vessel for user, creating on update', currentUserId);
-      ensureVesselForUser(currentUserId, effectiveUsername);
+      ensureVesselForUser(currentUserId, effectiveUsername, spaceId);
     }
     const target = globalState.vessels.get(
-      getVesselIdForUser(currentUserId) || currentUserId,
+      getVesselIdForUser(currentUserId, spaceId) || currentUserId,
     );
-    if (!target) return;
+    if (!target || (target.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
 
     if (data.position) {
       const nextPosition: VesselPose['position'] = {
@@ -1096,7 +1145,7 @@ io.on('connection', socket => {
     );
     void persistVesselToDb(target);
 
-    socket.broadcast.emit('simulation:update', {
+    socket.to(`space:${spaceId}`).emit('simulation:update', {
       vessels: {
         [target.id]: toSimpleVesselState(target),
       },
@@ -1115,12 +1164,13 @@ io.on('connection', socket => {
       return;
     }
 
-    const targetId = getVesselIdForUser(currentUserId) || currentUserId;
+    const targetId =
+      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
     let target = globalState.vessels.get(targetId);
     if (!target && wantsPlayer) {
-      target = ensureVesselForUser(currentUserId, effectiveUsername);
+      target = ensureVesselForUser(currentUserId, effectiveUsername, spaceId);
     }
-    if (!target) return;
+    if (!target || (target.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
 
     if (data.mode === 'spectator') {
       target.crewIds.delete(currentUserId);
@@ -1151,16 +1201,17 @@ io.on('connection', socket => {
       return;
     }
 
-    const vesselKey = getVesselIdForUser(currentUserId) || currentUserId;
+    const vesselKey =
+      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
     const vesselRecord = globalState.vessels.get(vesselKey);
-    if (!vesselRecord) {
+    if (!vesselRecord || (vesselRecord.spaceId || DEFAULT_SPACE_ID) !== spaceId) {
       console.warn('No vessel for user, creating on control', currentUserId);
-      ensureVesselForUser(currentUserId, effectiveUsername);
+      ensureVesselForUser(currentUserId, effectiveUsername, spaceId);
     }
     const target = globalState.vessels.get(
-      getVesselIdForUser(currentUserId) || currentUserId,
+      getVesselIdForUser(currentUserId, spaceId) || currentUserId,
     );
-    if (!target) return;
+    if (!target || (target.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
 
     if (!target.helmUserId || target.helmUserId !== currentUserId) {
       socket.emit(
@@ -1209,7 +1260,7 @@ io.on('connection', socket => {
       socket.emit('error', 'Not authorized to create a vessel');
       return;
     }
-    detachUserFromCurrentVessel(currentUserId);
+    detachUserFromCurrentVessel(currentUserId, spaceId);
     let position = { x: 0, y: 0, z: 0 };
     if (data?.lat !== undefined && data?.lon !== undefined) {
       const xy = latLonToXY({ lat: data.lat, lon: data.lon });
@@ -1222,11 +1273,15 @@ io.on('connection', socket => {
       currentUserId,
       currentUsername,
       position,
+      spaceId,
     );
     globalState.vessels.set(newVessel.id, newVessel);
-    globalState.userLastVessel.set(currentUserId, newVessel.id);
+    globalState.userLastVessel.set(
+      userSpaceKey(currentUserId, spaceId),
+      newVessel.id,
+    );
     void persistVesselToDb(newVessel, { force: true });
-    socket.emit('simulation:update', {
+    io.to(`space:${spaceId}`).emit('simulation:update', {
       vessels: { [newVessel.id]: toSimpleVesselState(newVessel) },
       partial: true,
       timestamp: Date.now(),
@@ -1239,9 +1294,10 @@ io.on('connection', socket => {
   socket.on('vessel:helm', data => {
     const currentUserId = socket.data.userId || effectiveUserId;
     const currentUsername = socket.data.username || effectiveUsername;
-    const vesselKey = getVesselIdForUser(currentUserId) || currentUserId;
+    const vesselKey =
+      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
     const vessel = globalState.vessels.get(vesselKey);
-    if (!vessel) return;
+    if (!vessel || (vessel.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
     if (!vessel.crewIds.has(currentUserId)) {
       socket.emit('error', 'You are not crew on this vessel');
       return;
@@ -1255,7 +1311,7 @@ io.on('connection', socket => {
     }
     vessel.lastUpdate = Date.now();
     void persistVesselToDb(vessel, { force: true });
-    io.emit('simulation:update', {
+    io.to(`space:${spaceId}`).emit('simulation:update', {
       vessels: { [vessel.id]: toSimpleVesselState(vessel) },
       partial: true,
       timestamp: Date.now(),
@@ -1301,7 +1357,7 @@ io.on('connection', socket => {
       pattern.timeOfDay = currentUtcTimeOfDay();
       applyWeatherPattern(pattern);
       nextAutoWeatherAt = Date.now() + WEATHER_AUTO_INTERVAL_MS;
-      io.emit('environment:update', globalState.environment);
+      io.to(`space:${spaceId}`).emit('environment:update', globalState.environment);
       void persistEnvironmentToDb({ force: true, spaceId });
       console.info(
         `Weather set to auto by ${socket.data.username}; next change at ${new Date(nextAutoWeatherAt).toISOString()}`,
@@ -1313,7 +1369,7 @@ io.on('connection', socket => {
     if (data.pattern) {
       targetWeather = getWeatherPattern(data.pattern);
       applyWeatherPattern(targetWeather);
-      io.emit('environment:update', globalState.environment);
+      io.to(`space:${spaceId}`).emit('environment:update', globalState.environment);
       void persistEnvironmentToDb({ force: true, spaceId });
       console.info(
         `Weather preset '${data.pattern}' applied by ${socket.data.username}`,
@@ -1324,13 +1380,13 @@ io.on('connection', socket => {
         data.coordinates.lng,
       );
       applyWeatherPattern(targetWeather);
-      io.emit('environment:update', globalState.environment);
+      io.to(`space:${spaceId}`).emit('environment:update', globalState.environment);
       void persistEnvironmentToDb({ force: true, spaceId });
       console.info(
         `Weather from coordinates applied by ${socket.data.username} (${data.coordinates.lat}, ${data.coordinates.lng})`,
       );
     } else {
-      io.emit('environment:update', globalState.environment);
+      io.to(`space:${spaceId}`).emit('environment:update', globalState.environment);
     }
   });
 
@@ -1345,9 +1401,9 @@ io.on('connection', socket => {
     if (!message || message.length > 500) return;
 
     const currentVesselId = normalizeVesselId(
-      getVesselIdForUser(socket.data.userId || effectiveUserId),
+      getVesselIdForUser(socket.data.userId || effectiveUserId, spaceId),
     );
-    const channel = resolveChatChannel(data.channel, currentVesselId);
+    const channel = resolveChatChannel(data.channel, currentVesselId, spaceId);
     const payload = {
       id: '',
       userId: socket.data.userId || 'unknown',
@@ -1372,15 +1428,18 @@ io.on('connection', socket => {
       console.warn('Failed to persist chat message', err);
     }
 
-    const room = channel === 'global' ? 'chat:global' : channel;
+    const room =
+      channel && channel.startsWith('space:')
+        ? channel
+        : `space:${spaceId}:global`;
     io.to(room).emit('chat:message', payload);
   });
 
   socket.on('chat:history', async data => {
     const currentVesselId = normalizeVesselId(
-      getVesselIdForUser(socket.data.userId || effectiveUserId),
+      getVesselIdForUser(socket.data.userId || effectiveUserId, spaceId),
     );
-    const channel = resolveChatChannel(data?.channel, currentVesselId);
+    const channel = resolveChatChannel(data?.channel, currentVesselId, spaceId);
     const before = typeof data?.before === 'number' ? data.before : undefined;
     const limit =
       typeof data?.limit === 'number' && !Number.isNaN(data.limit)
@@ -1419,8 +1478,10 @@ io.on('connection', socket => {
     console.info(`Socket disconnected: ${currentUsername} (${currentUserId})`);
 
     if (!isGuest) {
-      const vesselRecord = currentUserId
-        ? globalState.vessels.get(currentUserId)
+      const vesselId =
+        currentUserId && getVesselIdForUser(currentUserId, spaceId);
+      const vesselRecord = vesselId
+        ? globalState.vessels.get(vesselId)
         : undefined;
       if (vesselRecord) {
         vesselRecord.crewIds.delete(currentUserId);
@@ -1433,7 +1494,7 @@ io.on('connection', socket => {
     }
 
     if (currentUserId) {
-      socket.broadcast.emit('vessel:left', { userId: currentUserId });
+      socket.to(`space:${spaceId}`).emit('vessel:left', { userId: currentUserId });
     }
   });
 });
@@ -1539,17 +1600,19 @@ setInterval(() => {
   }
 
   const snapshot = Object.fromEntries(
-    Array.from(globalState.vessels.entries()).map(([id, v]) => [
-      id,
-      toSimpleVesselState(v),
-    ]),
+    Array.from(globalState.vessels.entries())
+      .filter(
+        ([, v]) =>
+          (v.spaceId || DEFAULT_SPACE_ID) === (DEFAULT_SPACE_ID || 'global'),
+      )
+      .map(([id, v]) => [id, toSimpleVesselState(v)]),
   );
 
   if (environmentChanged) {
     void persistEnvironmentToDb();
   }
 
-  io.emit('simulation:update', {
+  io.to(`space:${DEFAULT_SPACE_ID}`).emit('simulation:update', {
     vessels: snapshot,
     environment: globalState.environment,
     timestamp: Date.now(),

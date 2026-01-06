@@ -76,6 +76,7 @@ class SocketManager {
   private connectionAttempts = 0;
   private maxReconnectAttempts = 5;
   private authToken: string | null = null;
+  private lastUrl: string = 'http://localhost:3001';
   private spaceId: string = 'global';
   private hasHydratedSelf = false;
   private lastSelfSnapshot: SimpleVesselState | null = null;
@@ -91,6 +92,7 @@ class SocketManager {
     if (this.socket?.connected) {
       return; // Already connected or in progress
     }
+    this.lastUrl = url;
 
     if (this.socket) {
       // Clean up any old instance before reconnecting
@@ -123,6 +125,13 @@ class SocketManager {
 
     // Set up event listeners
     this.setupEventListeners();
+  }
+
+  switchSpace(spaceId: string): void {
+    this.setSpaceId(spaceId);
+    const url = this.lastUrl || 'http://localhost:3001';
+    this.disconnect();
+    this.connect(url);
   }
 
   // Setup Socket.IO event listeners
@@ -442,15 +451,13 @@ class SocketManager {
 
   sendChatMessage(message: string, channel = 'global'): void {
     if (!this.socket?.connected) return;
-    this.socket.emit('chat:message', { message, channel });
+    const targetChannel = this.buildSpaceChannel(channel);
+    this.socket.emit('chat:message', { message, channel: targetChannel });
   }
 
   requestChatHistory(channel: string, before?: number, limit = 20): void {
     if (!this.socket?.connected) return;
-    const normalizedChannel =
-      channel && channel.startsWith('vessel:')
-        ? `vessel:${channel.split(':')[1]?.split('_')[0] || ''}`
-        : channel;
+    const normalizedChannel = this.buildSpaceChannel(channel);
     if (!before) {
       const store = useStore.getState();
       const meta = store.chatHistoryMeta[normalizedChannel || channel];
@@ -487,6 +494,19 @@ class SocketManager {
   notifyModeChange(mode: 'player' | 'spectator'): void {
     if (!this.socket?.connected) return;
     this.socket.emit('user:mode', { mode });
+  }
+
+  private buildSpaceChannel(channel?: string): string {
+    const storeSpace = useStore.getState().spaceId;
+    const space = (storeSpace || this.spaceId || 'global').trim().toLowerCase();
+    const raw = (channel || 'global').trim();
+    if (raw.startsWith('space:')) return raw;
+    if (raw.startsWith('vessel:')) {
+      const [, rest] = raw.split(':');
+      const [id] = rest.split('_');
+      return `space:${space}:vessel:${id}`;
+    }
+    return `space:${space}:${raw || 'global'}`;
   }
 
   // Attempt to reconnect to server

@@ -41,6 +41,17 @@ interface NavigationData {
 
 const normalizeChannel = (channel?: string): string => {
   const raw = channel || 'global';
+  if (raw.startsWith('space:')) {
+    const parts = raw.split(':'); // space:<spaceId>:rest...
+    const spaceId = parts[1] || 'global';
+    const remainder = parts.slice(2).join(':') || 'global';
+    if (remainder.startsWith('vessel:')) {
+      const [, rest] = remainder.split(':');
+      const [id] = rest.split('_'); // strip any persisted suffix
+      return `space:${spaceId}:vessel:${id}`;
+    }
+    return `space:${spaceId}:${remainder || 'global'}`;
+  }
   if (raw.startsWith('vessel:')) {
     const [, rest] = raw.split(':');
     const [id] = rest.split('_'); // strip any persisted suffix
