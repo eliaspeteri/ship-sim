@@ -3,6 +3,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Scene from '../components/Scene';
 import Dashboard from '../components/Dashboard';
+import EnvironmentControls from '../components/EnvironmentControls';
 import useStore from '../store';
 import socketManager from '../networking/socket';
 import { initializeSimulation, startSimulation } from '../simulation';
@@ -313,6 +314,9 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
 
       {mode !== 'spectator' ? <Dashboard /> : null}
       <Scene vesselPosition={vesselPosition} mode={mode} />
+      <div className="fixed right-4 top-[calc(var(--nav-height,0px)+76px)] z-30 w-[360px] max-w-[calc(100vw-32px)]">
+        <EnvironmentControls />
+      </div>
       {showJoinChoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="rounded-lg bg-gray-900 p-6 text-white shadow-2xl w-[420px] space-y-4">

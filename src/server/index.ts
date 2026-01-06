@@ -8,7 +8,6 @@ import apiRoutes from './api';
 import jwt from 'jsonwebtoken';
 import {
   getWeatherPattern,
-  transitionWeather,
   getWeatherByCoordinates,
   WeatherPattern,
 } from './weatherSystem';
@@ -27,6 +26,7 @@ import {
   VesselState,
   VesselVelocity,
 } from '../types/vessel.types';
+import { EnvironmentState } from '../types/environment.types';
 import { latLonToXY, xyToLatLon } from '../lib/geo';
 import { prisma } from '../lib/prisma';
 import { RUDDER_STALL_ANGLE_RAD } from '../constants/vessel';
@@ -43,8 +43,10 @@ const PERF_LOGGING_ENABLED = process.env.PERF_LOGGING === 'true' || !PRODUCTION;
 const API_SLOW_WARN_MS = 200;
 const BROADCAST_DRIFT_WARN_FACTOR = 1.5;
 const MIN_PERSIST_INTERVAL_MS = 1000; // Throttle DB writes per vessel
+const ENV_PERSIST_INTERVAL_MS = 30000;
 const AI_GRACE_MS = parseInt(process.env.AI_GRACE_MS || '30000', 10) || 30000; // default 30s
 const CHAT_HISTORY_PAGE_SIZE = 20;
+const GLOBAL_SPACE_ID = 'global';
 
 type VesselMode = 'player' | 'ai';
 type CoreVesselProperties = Pick<
@@ -73,7 +75,21 @@ interface VesselRecord {
   lastUpdate: number;
 }
 
+const WEATHER_AUTO_INTERVAL_MS = 5 * 60 * 1000;
 const vesselPersistAt = new Map<string, number>();
+let environmentPersistAt = 0;
+let nextAutoWeatherAt = Date.now() + WEATHER_AUTO_INTERVAL_MS;
+
+const currentUtcTimeOfDay = () => {
+  const now = new Date();
+  return (
+    (now.getUTCHours() +
+      now.getUTCMinutes() / 60 +
+      now.getUTCSeconds() / 3600 +
+      now.getUTCMilliseconds() / 3_600_000) %
+    24
+  );
+};
 
 async function persistVesselToDb(
   vessel: VesselRecord,
@@ -204,6 +220,95 @@ async function loadVesselsFromDb() {
   console.info(`Loaded ${rows.length} vessel(s) from database`);
 }
 
+async function loadEnvironmentFromDb() {
+  try {
+    const row = await prisma.weatherState.findUnique({
+      where: { id: GLOBAL_SPACE_ID },
+    });
+    if (!row) {
+      globalState.environment.timeOfDay = currentUtcTimeOfDay();
+      return;
+    }
+
+    globalState.environment = {
+      wind: {
+        speed: row.windSpeed,
+        direction: row.windDirection,
+        gusting: row.windGusting,
+        gustFactor: row.windGustFactor,
+      },
+      current: {
+        speed: row.currentSpeed,
+        direction: row.currentDirection,
+        variability: row.currentVariability,
+      },
+      seaState: row.seaState,
+      waterDepth: row.waterDepth ?? undefined,
+      visibility: row.visibility ?? undefined,
+      timeOfDay: row.timeOfDay ?? currentUtcTimeOfDay(),
+      precipitation:
+        (row.precipitation as EnvironmentState['precipitation']) || 'none',
+      precipitationIntensity: row.precipitationIntensity ?? 0,
+      name: row.name || 'Global',
+    };
+    environmentPersistAt = Date.now();
+    console.info(`Loaded weather state for space ${row.spaceId}`);
+  } catch (err) {
+    console.warn('Failed to load weather state; using defaults', err);
+  }
+}
+
+async function persistEnvironmentToDb(opts: { force?: boolean } = {}) {
+  const now = Date.now();
+  if (!opts.force && now - environmentPersistAt < ENV_PERSIST_INTERVAL_MS) {
+    return;
+  }
+  const env = globalState.environment;
+  environmentPersistAt = now;
+  try {
+    await prisma.weatherState.upsert({
+      where: { id: GLOBAL_SPACE_ID },
+      update: {
+        spaceId: GLOBAL_SPACE_ID,
+        name: env.name || 'Global',
+        windSpeed: env.wind.speed,
+        windDirection: env.wind.direction,
+        windGusting: env.wind.gusting,
+        windGustFactor: env.wind.gustFactor,
+        currentSpeed: env.current.speed,
+        currentDirection: env.current.direction,
+        currentVariability: env.current.variability,
+        seaState: Math.round(env.seaState),
+        waterDepth: env.waterDepth ?? null,
+        visibility: env.visibility ?? null,
+        timeOfDay: env.timeOfDay ?? currentUtcTimeOfDay(),
+        precipitation: env.precipitation || 'none',
+        precipitationIntensity: env.precipitationIntensity ?? 0,
+      },
+      create: {
+        id: GLOBAL_SPACE_ID,
+        spaceId: GLOBAL_SPACE_ID,
+        name: env.name || 'Global',
+        windSpeed: env.wind.speed,
+        windDirection: env.wind.direction,
+        windGusting: env.wind.gusting,
+        windGustFactor: env.wind.gustFactor,
+        currentSpeed: env.current.speed,
+        currentDirection: env.current.direction,
+        currentVariability: env.current.variability,
+        seaState: Math.round(env.seaState),
+        waterDepth: env.waterDepth ?? null,
+        visibility: env.visibility ?? null,
+        timeOfDay: env.timeOfDay ?? currentUtcTimeOfDay(),
+        precipitation: env.precipitation || 'none',
+        precipitationIntensity: env.precipitationIntensity ?? 0,
+      },
+    });
+  } catch (err) {
+    console.error('Failed to persist weather state', err);
+  }
+}
+
 function createDefaultAIVessel(id: string, position = { x: 0, y: 0, z: 0 }) {
   const latLon = xyToLatLon({ x: position.x, y: position.y });
   const vessel: VesselRecord = {
@@ -276,25 +381,58 @@ function detachUserFromCurrentVessel(userId: string): void {
   void persistVesselToDb(vessel, { force: true });
 }
 
+const getDefaultEnvironment = (): EnvironmentState => ({
+  wind: {
+    speed: 5,
+    direction: 0,
+    gustFactor: 1.5,
+    gusting: false,
+  },
+  current: {
+    speed: 0.5,
+    direction: Math.PI / 4,
+    variability: 0,
+  },
+  seaState: 3,
+  waterDepth: 100,
+  visibility: 10,
+  timeOfDay: currentUtcTimeOfDay(),
+  precipitation: 'none',
+  precipitationIntensity: 0,
+  name: 'Global',
+});
+
+const applyWeatherPattern = (pattern: WeatherPattern): void => {
+  globalState.environment = {
+    wind: {
+      speed: pattern.wind.speed,
+      direction: pattern.wind.direction,
+      gusting: pattern.wind.gusting,
+      gustFactor: pattern.wind.gustFactor,
+    },
+    current: {
+      speed: pattern.current.speed,
+      direction: pattern.current.direction,
+      variability: pattern.current.variability,
+    },
+    seaState: Math.round(pattern.seaState),
+    waterDepth: pattern.waterDepth,
+    visibility: pattern.visibility,
+    timeOfDay:
+      pattern.timeOfDay ??
+      globalState.environment.timeOfDay ??
+      currentUtcTimeOfDay(),
+    precipitation: pattern.precipitation,
+    precipitationIntensity: pattern.precipitationIntensity,
+    name: pattern.name || 'Weather',
+  };
+};
+
 // Application state
 const globalState = {
   vessels: new Map<string, VesselRecord>(),
   userLastVessel: new Map<string, string>(),
-  environment: {
-    wind: {
-      speed: 5,
-      direction: 0,
-      gustFactor: 1.5,
-      gusting: false,
-    },
-    current: {
-      speed: 0.5,
-      direction: Math.PI / 4,
-      variability: 0,
-    },
-    seaState: 3,
-    timeOfDay: 12, // 12 PM
-  },
+  environment: getDefaultEnvironment(),
 };
 
 const clamp = (val: number, min: number, max: number) =>
@@ -526,8 +664,8 @@ function ensureVesselForUser(userId: string, username: string): VesselRecord {
   return vessel;
 }
 
-let weatherTransitionInterval: NodeJS.Timeout | null = null;
 let targetWeather: WeatherPattern | null = null;
+let weatherMode: 'manual' | 'auto' = 'auto';
 
 const normalizeVesselId = (id?: string | null): string | undefined =>
   id ? id.split('_')[0] : undefined;
@@ -1139,33 +1277,44 @@ io.on('connection', socket => {
       return;
     }
 
-    console.info(`Weather update from ${socket.data.username}:`, data);
+    const mode = data.mode === 'auto' ? 'auto' : 'manual';
 
+    if (mode === 'auto') {
+      weatherMode = 'auto';
+      targetWeather = null;
+      const pattern = getWeatherPattern();
+      pattern.timeOfDay = currentUtcTimeOfDay();
+      applyWeatherPattern(pattern);
+      nextAutoWeatherAt = Date.now() + WEATHER_AUTO_INTERVAL_MS;
+      io.emit('environment:update', globalState.environment);
+      void persistEnvironmentToDb({ force: true });
+      console.info(
+        `Weather set to auto by ${socket.data.username}; next change at ${new Date(nextAutoWeatherAt).toISOString()}`,
+      );
+      return;
+    }
+
+    weatherMode = 'manual';
     if (data.pattern) {
       targetWeather = getWeatherPattern(data.pattern);
-      transitionWeather(
-        globalState.environment as WeatherPattern,
-        targetWeather,
-        0,
-      );
+      applyWeatherPattern(targetWeather);
       io.emit('environment:update', globalState.environment);
+      void persistEnvironmentToDb({ force: true });
+      console.info(
+        `Weather preset '${data.pattern}' applied by ${socket.data.username}`,
+      );
     } else if (data.coordinates) {
       targetWeather = getWeatherByCoordinates(
         data.coordinates.lat,
         data.coordinates.lng,
       );
-      transitionWeather(
-        globalState.environment as WeatherPattern,
-        targetWeather,
-        0,
-      );
+      applyWeatherPattern(targetWeather);
       io.emit('environment:update', globalState.environment);
+      void persistEnvironmentToDb({ force: true });
+      console.info(
+        `Weather from coordinates applied by ${socket.data.username} (${data.coordinates.lat}, ${data.coordinates.lng})`,
+      );
     } else {
-      if (weatherTransitionInterval) {
-        clearInterval(weatherTransitionInterval);
-        weatherTransitionInterval = null;
-      }
-      targetWeather = null;
       io.emit('environment:update', globalState.environment);
     }
   });
@@ -1291,6 +1440,7 @@ async function ensureDefaultVesselExists() {
 async function startServer() {
   try {
     await loadVesselsFromDb();
+    await loadEnvironmentFromDb();
     await ensureDefaultVesselExists();
     server.listen(PORT, () => {
       console.info(`Server listening on port ${PORT}`);
@@ -1320,6 +1470,25 @@ setInterval(() => {
   }
   lastBroadcastAt = now;
   const dt = BROADCAST_INTERVAL_MS / 1000;
+  let environmentChanged = false;
+  const env = globalState.environment;
+  if (weatherMode === 'auto') {
+    const nextTime = currentUtcTimeOfDay();
+    if (Math.abs((env.timeOfDay ?? 0) - nextTime) > 1e-3) {
+      env.timeOfDay = nextTime;
+      environmentChanged = true;
+    }
+    if (now >= nextAutoWeatherAt) {
+      const autoPattern = getWeatherPattern();
+      autoPattern.timeOfDay = currentUtcTimeOfDay();
+      applyWeatherPattern(autoPattern);
+      nextAutoWeatherAt = now + WEATHER_AUTO_INTERVAL_MS;
+      environmentChanged = true;
+      console.info(
+        `Auto weather applied (${autoPattern.name}); next at ${new Date(nextAutoWeatherAt).toISOString()}`,
+      );
+    }
+  }
 
   // Advance AI vessels using substeps for stability
   const targetSubDt = 1 / 60; // ~60 Hz
@@ -1360,6 +1529,11 @@ setInterval(() => {
       toSimpleVesselState(v),
     ]),
   );
+
+  if (environmentChanged) {
+    void persistEnvironmentToDb();
+  }
+
   io.emit('simulation:update', {
     vessels: snapshot,
     environment: globalState.environment,

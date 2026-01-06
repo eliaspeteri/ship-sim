@@ -80,6 +80,7 @@ export type ClientToServerEvents = {
   'admin:weather': (data: {
     pattern?: string;
     coordinates?: { lat: number; lng: number };
+    mode?: 'auto' | 'manual';
   }) => void;
   'chat:message': (data: { message: string; channel?: string }) => void;
   'chat:history': (data: ChatHistoryRequest) => void;

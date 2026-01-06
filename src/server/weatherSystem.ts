@@ -79,7 +79,7 @@ export const weatherPresets: Record<string, WeatherPattern> = {
     seaState: 2,
     waterDepth: 100,
     visibility: 6,
-    timeOfDay: 21,
+    timeOfDay: 23,
     precipitation: 'none',
     precipitationIntensity: 0,
   },

@@ -1,364 +1,369 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import useStore from '../store';
-import { WeatherVisualizer } from './WeatherVisualizer';
 import socketManager from '../networking/socket';
-import WindIndicator from './WindIndicator';
 
 interface EnvironmentControlsProps {
   className?: string;
 }
 
+const PRESETS = [
+  { key: 'calm', label: 'Calm' },
+  { key: 'moderate', label: 'Moderate' },
+  { key: 'stormy', label: 'Storm' },
+  { key: 'hurricane', label: 'Hurricane' },
+  { key: 'foggy', label: 'Fog' },
+  { key: 'night', label: 'Night' },
+];
+
 const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
   className = '',
 }) => {
-  // Get environment state from store
   const environment = useStore(state => state.environment);
+  const roles = useStore(state => state.roles);
+  const { data: session } = useSession();
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [collapsed, setCollapsed] = useState(true);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Check if current user is an admin
-  const isAdmin = socketManager.isAdminUser();
-  const isConnected = socketManager.isConnected();
-
-  // Local state for the form
-  const [windSpeed, setWindSpeed] = useState(environment.wind.speed);
-  const [windDirection, setWindDirection] = useState(
-    environment.wind.direction,
-  );
-  const [windGusting, setWindGusting] = useState(environment.wind.gusting);
-  const [currentSpeed, setCurrentSpeed] = useState(environment.current.speed);
-  const [currentDirection, setCurrentDirection] = useState(
-    environment.current.direction,
-  );
-  const [seaState, setSeaState] = useState(environment.seaState);
-  const [visibility, setVisibility] = useState(environment.visibility || 10);
-  const [timeOfDay, setTimeOfDay] = useState(environment.timeOfDay || 12);
-  const [precipitation, setPrecipitation] = useState<
-    'none' | 'rain' | 'snow' | 'fog'
-  >(environment.precipitation || 'none');
-  const [precipitationIntensity, setPrecipitationIntensity] = useState(
-    environment.precipitationIntensity || 0,
-  );
-  const [selectedPreset, setSelectedPreset] = useState<string>('');
-  const [randomWeather, setRandomWeather] = useState(true);
-
-  // Update local state when environment changes (from server)
   useEffect(() => {
-    setWindSpeed(environment.wind.speed);
-    setWindDirection(environment.wind.direction);
-    setWindGusting(environment.wind.gusting || false);
-    setCurrentSpeed(environment.current.speed);
-    setCurrentDirection(environment.current.direction);
-    setSeaState(environment.seaState);
-    setVisibility(environment.visibility || 10);
-    setTimeOfDay(environment.timeOfDay || 12);
-    setPrecipitation(environment.precipitation || 'none');
-    setPrecipitationIntensity(environment.precipitationIntensity || 0);
+    setLastUpdated(Date.now());
+    return () => {
+      if (feedbackTimer.current) {
+        clearTimeout(feedbackTimer.current);
+      }
+    };
   }, [environment]);
 
-  // Handle applying changes to the environment (admin only)
-  const handleApplyChanges = () => {
+  const isConnected = socketManager.isConnected();
+  const isAdmin =
+    roles.includes('admin') ||
+    (session?.user as { role?: string })?.role === 'admin';
+
+  const metrics = useMemo(() => {
+    const windSpeedMs = environment.wind?.speed ?? 0;
+    const windDeg = normalizeDegrees(environment.wind?.direction ?? 0);
+    const currentSpeed = environment.current?.speed ?? 0;
+    const currentDeg = normalizeDegrees(environment.current?.direction ?? 0);
+    const seaState = normalizeSeaState(
+      environment.seaState ?? seaStateFromWind(windSpeedMs),
+    );
+    const waveHeight = environment.waveHeight ?? calculateWaveHeight(seaState);
+    const visibility = environment.visibility ?? 10;
+    const timeOfDay = environment.timeOfDay ?? 12;
+    const precipitation = environment.precipitation ?? 'none';
+    const precipitationIntensity = environment.precipitationIntensity ?? 0;
+    const waterDepth = environment.waterDepth ?? null;
+
+    return {
+      windSpeedMs,
+      windDeg,
+      currentSpeed,
+      currentDeg,
+      seaState,
+      waveHeight,
+      visibility,
+      timeOfDay,
+      precipitation,
+      precipitationIntensity,
+      waterDepth,
+    };
+  }, [environment]);
+
+  const handlePreset = (pattern: string) => {
     if (!isAdmin) {
+      setFeedback('Only admins can change weather.');
       return;
     }
-
-    // Send weather control command to server
-    socketManager.sendWeatherControl(selectedPreset);
-
-    // Clear selected preset
-    setSelectedPreset('');
-  };
-
-  // Enable or disable random weather changes
-  const toggleRandomWeather = () => {
-    setRandomWeather(!randomWeather);
-
-    if (!randomWeather) {
-      socketManager.enableRandomWeather();
+    if (!isConnected) {
+      setFeedback('Socket offline; cannot send preset.');
+      return;
     }
+    socketManager.sendWeatherControl({ pattern, mode: 'manual' });
+    setFeedback(`Sent ${pattern} preset to server`);
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    feedbackTimer.current = setTimeout(() => setFeedback(null), 3200);
   };
 
-  // Convert radians to degrees for display
-  const radToDeg = (rad: number) => Math.round((rad * 180) / Math.PI);
+  const summaryLines = [
+    `${(metrics.windSpeedMs * 1.94384).toFixed(1)} kt @ ${metrics.windDeg}°`,
+    `${metrics.seaState} sea • ${metrics.waveHeight.toFixed(1)} m waves`,
+    `${metrics.visibility.toFixed(1)} nm vis • ${formatTimeOfDay(metrics.timeOfDay)}`,
+  ];
 
   return (
     <div
-      className={`${className} rounded-lg bg-gray-800 bg-opacity-70 p-4 text-white`}
+      className={`${className} rounded-2xl border border-gray-800 bg-gray-900/80 p-4 text-white shadow-2xl backdrop-blur`}
     >
-      <h2 className="mb-3 text-xl font-bold">Environment Status</h2>
-
-      {/* Environment visualizer */}
-      <WeatherVisualizer />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        {/* Wind Information */}
-        <div className="space-y-2 bg-gray-900 bg-opacity-50 p-3 rounded-lg flex flex-col items-center">
-          <h3 className="font-semibold border-b border-gray-700 pb-1 w-full">
-            Wind
-          </h3>
-
-          {/* Wind Indicator Visual */}
-          <WindIndicator
-            direction={radToDeg(windDirection)}
-            speedKnots={windSpeed * 1.94384} // Convert m/s to knots
-            size={180}
-          />
-
-          <div className="flex flex-col w-full mt-2 space-y-1">
-            <div className="flex items-center">
-              <label className="w-24">Speed:</label>
-              <span className="w-32">
-                {windSpeed.toFixed(1)} m/s ({(windSpeed * 1.94384).toFixed(1)}{' '}
-                kt)
-              </span>
-            </div>
-
-            <div className="flex items-center">
-              <label className="w-24">Direction:</label>
-              <span className="w-32">{radToDeg(windDirection)}°</span>
-            </div>
-
-            <div className="flex items-center">
-              <label className="w-24">Gusting:</label>
-              <span className="w-32">
-                {windGusting ? 'Variable winds' : 'Steady wind'}
-              </span>
-            </div>
-          </div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <p className="text-xs uppercase tracking-wide text-gray-400">
+            Environment
+          </p>
+          <p className="text-lg font-semibold">
+            {environment.name || 'Live weather feed'}
+          </p>
+          <p className="text-xs text-gray-400">
+            {summaryLines.join(' • ')}
+          </p>
+          <p className="text-[11px] text-gray-500">
+            {lastUpdated ? `Updated ${formatRelativeTime(lastUpdated)}` : 'Waiting for server...'}
+          </p>
         </div>
-
-        {/* Current Information */}
-        <div className="space-y-2 bg-gray-900 bg-opacity-50 p-3 rounded-lg">
-          <h3 className="font-semibold border-b border-gray-700 pb-1">
-            Current
-          </h3>
-
-          <div className="flex items-center">
-            <label className="w-24">Speed:</label>
-            <span className="w-32">{currentSpeed.toFixed(1)} m/s</span>
-          </div>
-
-          <div className="flex items-center">
-            <label className="w-24">Direction:</label>
-            <span className="w-32">{radToDeg(currentDirection)}°</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Sea State Information */}
-      <div className="mt-4 bg-gray-900 bg-opacity-50 p-3 rounded-lg">
-        <h3 className="font-semibold border-b border-gray-700 pb-1">
-          Sea Conditions
-        </h3>
-
-        <div className="flex items-center mt-2">
-          <label className="w-24">Sea State:</label>
-          <span className="w-48">
-            {seaState} - {getSeaStateDescription(seaState)}
+        <div className="flex flex-col items-end gap-2">
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold uppercase ${
+              isConnected
+                ? 'bg-emerald-600/80 text-emerald-50'
+                : 'bg-red-700/80 text-red-50'
+            }`}
+          >
+            <span className="h-2 w-2 rounded-full bg-current" />
+            {isConnected ? 'Live' : 'Offline'}
           </span>
-        </div>
-
-        <div className="flex items-center mt-2">
-          <label className="w-24">Wave Height:</label>
-          <span className="w-32">
-            {(environment.waveHeight || calculateWaveHeight(seaState)).toFixed(
-              1,
-            )}{' '}
-            m
-          </span>
+          <button
+            type="button"
+            onClick={() => setCollapsed(prev => !prev)}
+            className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1 text-xs font-semibold text-gray-200 transition-colors hover:border-gray-500"
+          >
+            {collapsed ? 'Expand' : 'Collapse'}
+          </button>
         </div>
       </div>
 
-      {/* Visibility and Time Information */}
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-gray-900 bg-opacity-50 p-3 rounded-lg">
-          <h3 className="font-semibold border-b border-gray-700 pb-1">
-            Visibility & Time
-          </h3>
-
-          <div className="flex items-center mt-2">
-            <label className="w-24">Visibility:</label>
-            <span className="w-20">{visibility?.toFixed(1)} nm</span>
-          </div>
-
-          <div className="flex items-center mt-2">
-            <label className="w-24">Time:</label>
-            <span className="w-20">
-              {Math.floor(timeOfDay || 12)}:
-              {Math.floor(((timeOfDay || 12) % 1) * 60)
-                .toString()
-                .padStart(2, '0')}
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-gray-900 bg-opacity-50 p-3 rounded-lg">
-          <h3 className="font-semibold border-b border-gray-700 pb-1">
-            Precipitation
-          </h3>
-
-          <div className="flex items-center mt-2">
-            <label className="w-24">Type:</label>
-            <span className="w-32">
-              {precipitation.charAt(0).toUpperCase() + precipitation.slice(1)}
-            </span>
-          </div>
-
-          {precipitation !== 'none' && (
-            <div className="flex items-center mt-2">
-              <label className="w-24">Intensity:</label>
-              <span className="w-20">
-                {precipitationIntensity < 0.3
-                  ? 'Light'
-                  : precipitationIntensity < 0.7
-                    ? 'Moderate'
-                    : 'Heavy'}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Admin Controls - only visible to admin users */}
-      {isAdmin && isConnected && (
-        <div className="mt-4 bg-gray-700 bg-opacity-50 p-3 rounded-lg border border-blue-500">
-          <h3 className="font-semibold border-b border-gray-500 pb-1 text-blue-300">
-            Admin Weather Controls
-          </h3>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-            <button
-              className={`py-1 px-2 rounded ${selectedPreset === 'calm' ? 'bg-blue-800' : 'bg-blue-600 hover:bg-blue-700'}`}
-              onClick={() => setSelectedPreset('calm')}
-            >
-              Calm
-            </button>
-
-            <button
-              className={`py-1 px-2 rounded ${selectedPreset === 'moderate' ? 'bg-teal-800' : 'bg-teal-600 hover:bg-teal-700'}`}
-              onClick={() => setSelectedPreset('moderate')}
-            >
-              Moderate
-            </button>
-
-            <button
-              className={`py-1 px-2 rounded ${selectedPreset === 'stormy' ? 'bg-yellow-800' : 'bg-yellow-600 hover:bg-yellow-700'}`}
-              onClick={() => setSelectedPreset('stormy')}
-            >
-              Stormy
-            </button>
-
-            <button
-              className={`py-1 px-2 rounded ${selectedPreset === 'hurricane' ? 'bg-red-800' : 'bg-red-600 hover:bg-red-700'}`}
-              onClick={() => setSelectedPreset('hurricane')}
-            >
-              Hurricane
-            </button>
-
-            <button
-              className={`py-1 px-2 rounded ${selectedPreset === 'night' ? 'bg-blue-900' : 'bg-blue-800 hover:bg-blue-900'}`}
-              onClick={() => setSelectedPreset('night')}
-            >
-              Night
-            </button>
-
-            <button
-              className={`py-1 px-2 rounded ${selectedPreset === 'foggy' ? 'bg-gray-600' : 'bg-gray-500 hover:bg-gray-600'}`}
-              onClick={() => setSelectedPreset('foggy')}
-            >
-              Foggy
-            </button>
-
-            <button
-              className={`py-1 px-2 rounded ${selectedPreset === 'winter' ? 'bg-blue-300 text-gray-800' : 'bg-blue-200 hover:bg-blue-300 text-gray-900'}`}
-              onClick={() => setSelectedPreset('winter')}
-            >
-              Winter
-            </button>
-          </div>
-
-          <div className="flex items-center mt-4">
-            <label className="w-40">Random Weather:</label>
-            <input
-              type="checkbox"
-              checked={randomWeather}
-              onChange={toggleRandomWeather}
-              className="mx-2"
+      {!collapsed && (
+        <div className="mt-4 space-y-4">
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <Metric
+              label="Wind"
+              value={`${(metrics.windSpeedMs * 1.94384).toFixed(1)} kt`}
+              detail={`${metrics.windDeg}° ${degreesToCardinal(metrics.windDeg)}`}
             />
-            <span className="w-40">
-              {randomWeather ? 'Enabled' : 'Disabled'}
-            </span>
+            <Metric
+              label="Current"
+              value={`${metrics.currentSpeed.toFixed(1)} m/s`}
+              detail={`${metrics.currentDeg}° ${degreesToCardinal(metrics.currentDeg)}`}
+            />
+            <Metric
+              label="Sea state"
+              value={`${metrics.seaState} / 12`}
+              detail={`${metrics.waveHeight.toFixed(1)} m • ${getSeaStateDescription(metrics.seaState)}`}
+            />
+            <Metric
+              label="Visibility"
+              value={`${metrics.visibility.toFixed(1)} nm`}
+              detail={`Time ${formatTimeOfDay(metrics.timeOfDay)}`}
+            />
+            <Metric
+              label="Precip"
+              value={describePrecipitation(
+                metrics.precipitation,
+                metrics.precipitationIntensity,
+              )}
+              detail={`Intensity ${(metrics.precipitationIntensity * 100).toFixed(0)}%`}
+            />
+            <Metric
+              label="Depth"
+              value={
+                metrics.waterDepth !== null
+                  ? `${metrics.waterDepth.toFixed(0)} m`
+                  : 'N/A'
+              }
+              detail="Under keel"
+            />
           </div>
 
-          <div className="mt-4 text-right">
-            <button
-              onClick={handleApplyChanges}
-              disabled={!selectedPreset && randomWeather}
-              className={`rounded px-4 py-2 font-bold text-white transition-colors ${
-                !selectedPreset && randomWeather
-                  ? 'bg-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700'
-              }`}
-            >
-              {randomWeather
-                ? 'Enable Random Weather'
-                : 'Apply Selected Weather'}
-            </button>
+          <div className="rounded-xl border border-gray-800 bg-gray-800/60 bg-gray-900/60 p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-400">
+                  Admin presets
+                </p>
+                <p className="text-sm text-gray-200">
+                  Push a pattern to the weather server
+                </p>
+              </div>
+              <span
+                className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${
+                  isAdmin
+                    ? 'bg-blue-600/80 text-white'
+                    : 'bg-gray-800 text-gray-400'
+                }`}
+              >
+                {isAdmin ? 'Admin' : 'View only'}
+              </span>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  socketManager.sendWeatherControl({ mode: 'auto' });
+                  setFeedback('Server is now picking weather + real-time.');
+                  if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+                  feedbackTimer.current = setTimeout(
+                    () => setFeedback(null),
+                    3200,
+                  );
+                }}
+                disabled={!isAdmin}
+                className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                  isAdmin
+                    ? 'bg-emerald-700 text-white hover:bg-emerald-600'
+                    : 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Let server decide (auto)
+              </button>
+              <span className="text-[11px] text-gray-500">
+                Presets lock weather/time until you switch back to auto.
+              </span>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {PRESETS.map(preset => (
+                <button
+                  key={preset.key}
+                  type="button"
+                  onClick={() => handlePreset(preset.key)}
+                  disabled={!isAdmin}
+                  className={`rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${
+                    isAdmin
+                      ? 'bg-gray-800 text-gray-100 hover:bg-blue-600 hover:text-white'
+                      : 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-gray-500">
+              Weather is server-driven; presets send a request and live data will update once the server applies it.
+            </p>
+            {feedback ? (
+              <div className="mt-2 rounded-lg bg-gray-800 px-3 py-2 text-xs text-gray-100">
+                {feedback}
+              </div>
+            ) : null}
           </div>
         </div>
       )}
-
-      {/* Server connection status */}
-      <div className="mt-4 text-center text-xs text-gray-400">
-        {isConnected ? (
-          <span className="flex items-center justify-center">
-            <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-            Connected to weather server
-          </span>
-        ) : (
-          <span className="flex items-center justify-center">
-            <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-2"></span>
-            Disconnected from weather server
-          </span>
-        )}
-        {isAdmin && <span className="ml-2">(Admin Mode)</span>}
-      </div>
-
-      <style>{`
-        @keyframes wave {
-          0% {
-            background-position: 0 0;
-          }
-          100% {
-            background-position: 100px 0;
-          }
-        }
-      `}</style>
     </div>
   );
 };
 
-// Helper function to get sea state description based on Douglas Sea Scale
+export default EnvironmentControls;
+
+const Metric = ({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+}) => (
+  <div className="rounded-lg border border-gray-800 bg-gray-800/60 bg-gray-900/70 p-3">
+    <p className="text-[11px] uppercase tracking-wide text-gray-400">
+      {label}
+    </p>
+    <p className="text-base font-semibold text-white">{value}</p>
+    {detail ? <p className="text-xs text-gray-400">{detail}</p> : null}
+  </div>
+);
+
+function normalizeDegrees(rad: number): number {
+  const deg = (rad * 180) / Math.PI;
+  const normalized = ((deg % 360) + 360) % 360;
+  return Math.round(normalized);
+}
+
+function degreesToCardinal(degrees: number): string {
+  const cardinals = [
+    'N',
+    'NNE',
+    'NE',
+    'ENE',
+    'E',
+    'ESE',
+    'SE',
+    'SSE',
+    'S',
+    'SSW',
+    'SW',
+    'WSW',
+    'W',
+    'WNW',
+    'NW',
+    'NNW',
+  ];
+  const index = Math.round((degrees % 360) / 22.5) % 16;
+  return cardinals[index];
+}
+
+function formatTimeOfDay(time: number): string {
+  const hours = Math.floor(time);
+  const minutes = Math.round((time % 1) * 60);
+  const hh = hours.toString().padStart(2, '0');
+  const mm = minutes.toString().padStart(2, '0');
+  const label =
+    time >= 5 && time < 8
+      ? 'dawn'
+      : time >= 8 && time < 18
+        ? 'day'
+        : time >= 18 && time < 21
+          ? 'dusk'
+          : 'night';
+  return `${hh}:${mm} (${label})`;
+}
+
+function formatRelativeTime(timestamp: number | null): string {
+  if (!timestamp) return 'never';
+  const delta = Date.now() - timestamp;
+  if (delta < 5000) return 'just now';
+  if (delta < 60_000) return `${Math.round(delta / 1000)}s ago`;
+  if (delta < 3_600_000) return `${Math.round(delta / 60_000)}m ago`;
+  return `${Math.round(delta / 3_600_000)}h ago`;
+}
+
 function getSeaStateDescription(state: number): string {
   const descriptions = [
-    'Calm (Glassy)',
-    'Calm (Rippled)',
-    'Smooth',
-    'Slight',
-    'Moderate',
-    'Rough',
-    'Very Rough',
-    'High',
-    'Very High',
-    'Phenomenal',
+    'Calm',
+    'Light air',
+    'Light breeze',
+    'Gentle breeze',
+    'Moderate breeze',
+    'Fresh breeze',
+    'Strong breeze',
+    'Near gale',
+    'Gale',
+    'Strong gale',
+    'Storm',
+    'Violent storm',
+    'Hurricane',
   ];
-
-  return descriptions[Math.min(state, descriptions.length - 1)];
+  return descriptions[Math.min(Math.max(state, 0), descriptions.length - 1)];
 }
 
-// Calculate approximate wave height from sea state
 function calculateWaveHeight(state: number): number {
-  // Douglas Sea Scale approximate wave heights
-  const heights = [0, 0.1, 0.2, 0.6, 1.5, 2.5, 4, 6, 9, 14, 14, 14, 14];
-  return heights[Math.min(state, heights.length - 1)];
+  const waveHeights = [0, 0.1, 0.2, 0.6, 1.5, 2.5, 4, 6, 9, 14, 14, 14, 14];
+  return waveHeights[Math.min(Math.max(Math.round(state), 0), waveHeights.length - 1)];
 }
 
-export default EnvironmentControls;
+function seaStateFromWind(speedMs: number): number {
+  return Math.min(Math.round(speedMs / 2.5), 12);
+}
+
+function normalizeSeaState(value: number): number {
+  if (Number.isNaN(value)) return 0;
+  return Math.min(Math.max(Math.round(value), 0), 12);
+}
+
+function describePrecipitation(
+  type: string,
+  intensity: number,
+): string {
+  if (type === 'none') return 'Clear';
+  const bucket =
+    intensity < 0.3 ? 'Light' : intensity < 0.7 ? 'Moderate' : 'Heavy';
+  return `${bucket} ${type}`;
+}

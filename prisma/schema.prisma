@@ -96,3 +96,24 @@ model ChatMessage {
     channel   String   @default("global") // global or vessel:<id>
     createdAt DateTime @default(now())
 }
+
+model WeatherState {
+    id                     String   @id
+    spaceId                String   @unique
+    name                   String?
+    windSpeed              Float
+    windDirection          Float
+    windGusting            Boolean
+    windGustFactor         Float
+    currentSpeed           Float
+    currentDirection       Float
+    currentVariability     Float
+    seaState               Int
+    waterDepth             Float?
+    visibility             Float?
+    timeOfDay              Float
+    precipitation          String?
+    precipitationIntensity Float?
+    createdAt              DateTime @default(now())
+    updatedAt              DateTime @updatedAt
+}

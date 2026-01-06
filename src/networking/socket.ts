@@ -251,6 +251,9 @@ class SocketManager {
       if (data.self?.roles) {
         store.setRoles(data.self.roles);
       }
+      if (data.environment) {
+        store.updateEnvironment(data.environment);
+      }
       if (data.chatHistory) {
         store.setChatMessages(
           data.chatHistory.map(msg => ({
@@ -554,32 +557,38 @@ class SocketManager {
 
   // Send admin weather control command
   sendWeatherControl(
-    pattern?: string,
-    coordinates?: { lat: number; lng: number },
+    options:
+      | string
+      | {
+          pattern?: string;
+          coordinates?: { lat: number; lng: number };
+          mode?: 'auto' | 'manual';
+        },
   ): void {
     if (!this.socket?.connected) {
       console.warn('Cannot send weather control: not connected');
       return;
     }
 
-    // Check if user is admin from localStorage
-    let isAdmin = false;
-    try {
-      const storedAuth = localStorage.getItem('ship-sim-auth');
-      if (storedAuth) {
-        const auth = JSON.parse(storedAuth);
-        isAdmin = auth.isAdmin || false;
-      }
-    } catch (error) {
-      console.error('Error checking admin status:', error);
-    }
+    const store = useStore.getState();
+    const isAdmin = store.roles.includes('admin');
 
     if (!isAdmin) {
       console.warn('Cannot send weather control: not admin');
       return;
     }
 
-    this.socket.emit('admin:weather', { pattern, coordinates });
+    if (typeof options === 'string') {
+      this.socket.emit('admin:weather', { pattern: options, mode: 'manual' });
+      return;
+    }
+
+    const { pattern, coordinates, mode } = options;
+    this.socket.emit('admin:weather', {
+      pattern,
+      coordinates,
+      mode: mode || 'manual',
+    });
   }
 
   // Enable random weather changes
@@ -589,24 +598,7 @@ class SocketManager {
       return;
     }
 
-    // Check if user is admin from localStorage
-    let isAdmin = false;
-    try {
-      const storedAuth = localStorage.getItem('ship-sim-auth');
-      if (storedAuth) {
-        const auth = JSON.parse(storedAuth);
-        isAdmin = auth.isAdmin || false;
-      }
-    } catch (error) {
-      console.error('Error checking admin status:', error);
-    }
-
-    if (!isAdmin) {
-      console.warn('Cannot enable random weather: not admin');
-      return;
-    }
-
-    this.socket.emit('admin:weather', {});
+    this.sendWeatherControl({ mode: 'auto' });
   }
 }
 

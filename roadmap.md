@@ -20,8 +20,14 @@
   - Shared navbar (home, sim, login, register) with room for future pages such as a 2D tiling map of active vessels.
 - [ ] UI overhaul
   - Replace Tailwind-heavy styling with a custom or alternative styling approach; refresh HUD/layout components for clarity and responsiveness.
+  - Move sim HUD into a docked drawer with topical tabs (navigation, weather, fuel, ballast, load, electrics, etc.) reusing existing weather visuals.
 - [ ] Environment controls
   - Rebuild the EnvironmentControls UI to reflect the current server-driven weather model, admin gating, and live updates; remove obsolete toggles.
+  - Gate weather controls to space creators/hosts (not only admins) once spaces/rooms exist.
+  - Persist weather state per space/session (DB) so private scenarios and global space can keep distinct conditions.
+  - Add a server-driven day/night cycle (sun position over time) and surface to clients.
+  - Infer/display local time zones from vessel lat/lon (fallback to UTC) when rendering environment time.
+  - Timed events can attach environment presets (weather/lighting) and trigger them on schedule.
 - [ ] Controls & ballast
   - Expose ballast control in the UI, wire to physics, and show feedback/state.
   - Expand helm/crew roles (e.g., helm/engine/radio) to avoid control conflicts.

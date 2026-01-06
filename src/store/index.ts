@@ -233,6 +233,11 @@ const defaultEnvironmentState: EnvironmentState = {
   precipitationIntensity: 0,
 };
 
+const normalizeSeaState = (value: number): number => {
+  if (Number.isNaN(value)) return 0;
+  return Math.min(Math.max(Math.round(value), 0), 12);
+};
+
 const defaultMachinerySystemStatus: MachinerySystemStatus = {
   engineHealth: 1.0,
   propulsionEfficiency: 1.0,
@@ -481,7 +486,9 @@ const useStore = create<SimulationState>()((set, get) => ({
           ...state.environment.current,
           ...(environmentUpdate.current || {}),
         },
-        seaState: environmentUpdate.seaState || state.environment.seaState,
+        seaState: normalizeSeaState(
+          environmentUpdate.seaState ?? state.environment.seaState,
+        ),
       },
     })),
 
