@@ -47,6 +47,7 @@ const ENV_PERSIST_INTERVAL_MS = 30000;
 const AI_GRACE_MS = parseInt(process.env.AI_GRACE_MS || '30000', 10) || 30000; // default 30s
 const CHAT_HISTORY_PAGE_SIZE = 20;
 const GLOBAL_SPACE_ID = 'global';
+const DEFAULT_SPACE_ID = process.env.DEFAULT_SPACE_ID || GLOBAL_SPACE_ID;
 
 type VesselMode = 'player' | 'ai';
 type CoreVesselProperties = Pick<
@@ -220,10 +221,10 @@ async function loadVesselsFromDb() {
   console.info(`Loaded ${rows.length} vessel(s) from database`);
 }
 
-async function loadEnvironmentFromDb() {
+async function loadEnvironmentFromDb(spaceId = DEFAULT_SPACE_ID) {
   try {
     const row = await prisma.weatherState.findUnique({
-      where: { id: GLOBAL_SPACE_ID },
+      where: { id: spaceId },
     });
     if (!row) {
       globalState.environment.timeOfDay = currentUtcTimeOfDay();
@@ -249,7 +250,7 @@ async function loadEnvironmentFromDb() {
       precipitation:
         (row.precipitation as EnvironmentState['precipitation']) || 'none',
       precipitationIntensity: row.precipitationIntensity ?? 0,
-      name: row.name || 'Global',
+      name: row.name || spaceId,
     };
     environmentPersistAt = Date.now();
     console.info(`Loaded weather state for space ${row.spaceId}`);
@@ -258,19 +259,22 @@ async function loadEnvironmentFromDb() {
   }
 }
 
-async function persistEnvironmentToDb(opts: { force?: boolean } = {}) {
+async function persistEnvironmentToDb(
+  opts: { force?: boolean; spaceId?: string } = {},
+) {
   const now = Date.now();
   if (!opts.force && now - environmentPersistAt < ENV_PERSIST_INTERVAL_MS) {
     return;
   }
   const env = globalState.environment;
+  const spaceId = opts.spaceId || DEFAULT_SPACE_ID;
   environmentPersistAt = now;
   try {
     await prisma.weatherState.upsert({
-      where: { id: GLOBAL_SPACE_ID },
+      where: { id: spaceId },
       update: {
-        spaceId: GLOBAL_SPACE_ID,
-        name: env.name || 'Global',
+        spaceId,
+        name: env.name || spaceId,
         windSpeed: env.wind.speed,
         windDirection: env.wind.direction,
         windGusting: env.wind.gusting,
@@ -286,9 +290,9 @@ async function persistEnvironmentToDb(opts: { force?: boolean } = {}) {
         precipitationIntensity: env.precipitationIntensity ?? 0,
       },
       create: {
-        id: GLOBAL_SPACE_ID,
-        spaceId: GLOBAL_SPACE_ID,
-        name: env.name || 'Global',
+        id: spaceId,
+        spaceId,
+        name: env.name || spaceId,
         windSpeed: env.wind.speed,
         windDirection: env.wind.direction,
         windGusting: env.wind.gusting,
@@ -381,7 +385,7 @@ function detachUserFromCurrentVessel(userId: string): void {
   void persistVesselToDb(vessel, { force: true });
 }
 
-const getDefaultEnvironment = (): EnvironmentState => ({
+const getDefaultEnvironment = (name = 'Global'): EnvironmentState => ({
   wind: {
     speed: 5,
     direction: 0,
@@ -399,7 +403,7 @@ const getDefaultEnvironment = (): EnvironmentState => ({
   timeOfDay: currentUtcTimeOfDay(),
   precipitation: 'none',
   precipitationIntensity: 0,
-  name: 'Global',
+  name,
 });
 
 const applyWeatherPattern = (pattern: WeatherPattern): void => {
@@ -675,6 +679,10 @@ const getVesselIdForUser = (userId: string): string | undefined => {
   return stored || userId || undefined;
 };
 
+const getSpaceIdForSocket = (
+  socket: import('socket.io').Socket,
+): string => socket.data.spaceId || DEFAULT_SPACE_ID;
+
 const withLatLon = (pos: VesselPose['position']) => {
   const hasLatLon = pos.lat !== undefined && pos.lon !== undefined;
   // If we already have lat/lon but they are still zero while x/y moved, recompute.
@@ -862,13 +870,14 @@ io.use((socket, next) => {
     cookies['next-auth.session-token'] ||
     cookies['__Secure-next-auth.session-token'];
   const authPayload = socket.handshake.auth as
-    | { token?: string; socketToken?: string; accessToken?: string }
+    | { token?: string; socketToken?: string; accessToken?: string; spaceId?: string }
     | undefined;
   const rawToken =
     authPayload?.socketToken ||
     authPayload?.token ||
     authPayload?.accessToken ||
     cookieToken;
+  const spaceIdFromHandshake = authPayload?.spaceId;
 
   if (!NEXTAUTH_SECRET) {
     console.warn('NEXTAUTH_SECRET is missing; treating socket as guest');
@@ -901,7 +910,8 @@ io.use((socket, next) => {
         ) as Role[],
       );
       const permissions = permissionsForRoles(roles);
-      socket.data = { userId, username, roles, permissions };
+      const spaceId = spaceIdFromHandshake || DEFAULT_SPACE_ID;
+      socket.data = { userId, username, roles, permissions, spaceId };
       return next();
     } catch (err) {
       console.warn(
@@ -914,17 +924,20 @@ io.use((socket, next) => {
   const tempUserId = `guest_${Math.random().toString(36).substring(2, 9)}`;
   const guestRoles = expandRoles(['guest']);
   const guestPermissions = permissionsForRoles(guestRoles);
+  const spaceId = spaceIdFromHandshake || DEFAULT_SPACE_ID;
   socket.data = {
     userId: tempUserId,
     username: 'Guest',
     roles: guestRoles,
     permissions: guestPermissions,
+    spaceId,
   };
   next();
 });
 
 io.on('connection', socket => {
-  const { userId, username, roles } = socket.data;
+  const { userId, username, roles, spaceId: socketSpaceId } = socket.data;
+  const spaceId = socketSpaceId || DEFAULT_SPACE_ID;
   const effectiveUserId =
     userId || `guest_${Math.random().toString(36).substring(2, 9)}`;
   const effectiveUsername = username || 'Guest';
@@ -939,12 +952,13 @@ io.on('connection', socket => {
   }
 
   console.info(
-    `Socket connected: ${effectiveUsername} (${effectiveUserId}) role=${isPlayerOrHigher ? 'player' : isSpectatorOnly ? 'spectator' : 'guest'}`,
+    `Socket connected: ${effectiveUsername} (${effectiveUserId}) role=${isPlayerOrHigher ? 'player' : isSpectatorOnly ? 'spectator' : 'guest'} space=${spaceId}`,
   );
 
   const normalizedVesselId = normalizeVesselId(vessel?.id);
   socket.data.vesselId = normalizedVesselId || vessel?.id;
   socket.join('chat:global');
+  socket.join(`space:${spaceId}`);
   if (normalizedVesselId) {
     socket.join(`vessel:${normalizedVesselId}`);
   }
@@ -1005,7 +1019,7 @@ io.on('connection', socket => {
       ),
       environment: globalState.environment,
       timestamp: Date.now(),
-      self: { userId: effectiveUserId, roles: roles || ['guest'] },
+      self: { userId: effectiveUserId, roles: roles || ['guest'], spaceId },
       chatHistory,
     });
   })();
@@ -1278,6 +1292,7 @@ io.on('connection', socket => {
     }
 
     const mode = data.mode === 'auto' ? 'auto' : 'manual';
+    const spaceId = getSpaceIdForSocket(socket);
 
     if (mode === 'auto') {
       weatherMode = 'auto';
@@ -1287,7 +1302,7 @@ io.on('connection', socket => {
       applyWeatherPattern(pattern);
       nextAutoWeatherAt = Date.now() + WEATHER_AUTO_INTERVAL_MS;
       io.emit('environment:update', globalState.environment);
-      void persistEnvironmentToDb({ force: true });
+      void persistEnvironmentToDb({ force: true, spaceId });
       console.info(
         `Weather set to auto by ${socket.data.username}; next change at ${new Date(nextAutoWeatherAt).toISOString()}`,
       );
@@ -1299,7 +1314,7 @@ io.on('connection', socket => {
       targetWeather = getWeatherPattern(data.pattern);
       applyWeatherPattern(targetWeather);
       io.emit('environment:update', globalState.environment);
-      void persistEnvironmentToDb({ force: true });
+      void persistEnvironmentToDb({ force: true, spaceId });
       console.info(
         `Weather preset '${data.pattern}' applied by ${socket.data.username}`,
       );
@@ -1310,7 +1325,7 @@ io.on('connection', socket => {
       );
       applyWeatherPattern(targetWeather);
       io.emit('environment:update', globalState.environment);
-      void persistEnvironmentToDb({ force: true });
+      void persistEnvironmentToDb({ force: true, spaceId });
       console.info(
         `Weather from coordinates applied by ${socket.data.username} (${data.coordinates.lat}, ${data.coordinates.lng})`,
       );
@@ -1440,7 +1455,7 @@ async function ensureDefaultVesselExists() {
 async function startServer() {
   try {
     await loadVesselsFromDb();
-    await loadEnvironmentFromDb();
+    await loadEnvironmentFromDb(DEFAULT_SPACE_ID);
     await ensureDefaultVesselExists();
     server.listen(PORT, () => {
       console.info(`Server listening on port ${PORT}`);
@@ -1538,6 +1553,7 @@ setInterval(() => {
     vessels: snapshot,
     environment: globalState.environment,
     timestamp: Date.now(),
+    spaceId: DEFAULT_SPACE_ID,
   });
 }, BROADCAST_INTERVAL_MS);
 

@@ -16,7 +16,8 @@ export interface SimulationUpdateData {
   environment?: EnvironmentState;
   partial?: boolean;
   timestamp?: number;
-  self?: { userId: string; roles: Role[] };
+  spaceId?: string;
+  self?: { userId: string; roles: Role[]; spaceId?: string };
   chatHistory?: ChatMessageData[];
 }
 export interface VesselJoinedData {
@@ -95,6 +96,7 @@ export interface InterServerEvents {
 export interface SocketData extends AuthenticatedUser {
   // Additional socket data properties would go here if needed
   vesselId?: string;
+  spaceId?: string;
   _socketSpecific?: boolean; // Placeholder to make TypeScript happy
 }
 
