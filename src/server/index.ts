@@ -98,6 +98,8 @@ const userSpaceKey = (userId: string, spaceId: string) =>
 
 const normalizeVesselId = (id?: string | null): string | undefined =>
   id || undefined;
+const vesselChannelId = (id?: string | null): string | undefined =>
+  id ? id.split('_')[0] || id : undefined;
 
 const getVesselIdForUser = (
   userId: string,
@@ -750,7 +752,7 @@ const resolveChatChannel = (
     }
     return requestedChannel;
   }
-  const normalizedVesselId = normalizeVesselId(vesselId);
+  const normalizedVesselId = vesselChannelId(vesselId);
   const vesselChannel = normalizedVesselId
     ? `space:${space}:vessel:${normalizedVesselId}`
     : null;
@@ -1000,7 +1002,7 @@ io.on('connection', socket => {
     `Socket connected: ${effectiveUsername} (${effectiveUserId}) role=${isPlayerOrHigher ? 'player' : isSpectatorOnly ? 'spectator' : 'guest'} space=${spaceId}`,
   );
 
-  const normalizedVesselId = normalizeVesselId(vessel?.id);
+  const normalizedVesselId = vesselChannelId(vessel?.id);
   socket.data.vesselId = normalizedVesselId || vessel?.id;
   socket.join(`space:${spaceId}`);
   socket.join(`space:${spaceId}:global`);
@@ -1030,7 +1032,7 @@ io.on('connection', socket => {
     }[] = [];
     try {
       const channelsToLoad = [`space:${spaceId}:global`];
-      const vesselIdForChat = socket.data.vesselId || vessel?.id;
+      const vesselIdForChat = socket.data.vesselId || vesselChannelId(vessel?.id);
       if (vesselIdForChat) {
         channelsToLoad.push(`space:${spaceId}:vessel:${vesselIdForChat}`);
       }
@@ -1173,8 +1175,7 @@ io.on('connection', socket => {
     if (!target || (target.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
 
     if (data.mode === 'spectator') {
-      target.crewIds.delete(currentUserId);
-      // Leave desired/mode as-is; AI_GRACE_MS will swap to AI if needed without killing controls immediately.
+      // Keep crew membership/controls; AI_GRACE_MS will handle idle vessels.
     } else {
       target.crewIds.add(currentUserId);
       target.desiredMode = 'player';
