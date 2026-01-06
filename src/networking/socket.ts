@@ -29,6 +29,7 @@ type ClientConnectOpts = Partial<SocketIOClient.ConnectOpts> & {
     userId?: string | null;
     username?: string | null;
     token?: string | null;
+    spaceId?: string | null;
   };
 };
 
@@ -75,6 +76,7 @@ class SocketManager {
   private connectionAttempts = 0;
   private maxReconnectAttempts = 5;
   private authToken: string | null = null;
+  private spaceId: string = 'global';
   private hasHydratedSelf = false;
   private lastSelfSnapshot: SimpleVesselState | null = null;
   private selfHydrateResolvers: Array<(vessel: SimpleVesselState) => void> = [];
@@ -113,6 +115,7 @@ class SocketManager {
         userId: this.userId,
         username: this.username,
         token: this.authToken || undefined,
+        spaceId: this.spaceId,
       },
     };
 
@@ -250,6 +253,13 @@ class SocketManager {
       const store = useStore.getState();
       if (data.self?.roles) {
         store.setRoles(data.self.roles);
+      }
+      if (data.self?.spaceId) {
+        store.setSpaceId(data.self.spaceId);
+        this.setSpaceId(data.self.spaceId);
+      } else if (data.spaceId) {
+        store.setSpaceId(data.spaceId);
+        this.setSpaceId(data.spaceId);
       }
       if (data.environment) {
         store.updateEnvironment(data.environment);
@@ -525,11 +535,24 @@ class SocketManager {
     this.authToken = token;
     this.userId = userId || this.userId;
     this.username = username || this.username;
+    const store = useStore.getState();
+    this.spaceId = store.spaceId || this.spaceId;
     if (this.socket) {
       this.socket.auth = {
         token: this.authToken,
         userId: this.userId,
         username: this.username,
+        spaceId: this.spaceId,
+      };
+    }
+  }
+
+  setSpaceId(spaceId: string): void {
+    this.spaceId = spaceId || 'global';
+    if (this.socket) {
+      this.socket.auth = {
+        ...(this.socket.auth || {}),
+        spaceId: this.spaceId,
       };
     }
   }

@@ -27,6 +27,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const vessel = useStore(state => state.vessel);
   const mode = useStore(state => state.mode);
   const setMode = useStore(state => state.setMode);
+  const setSpaceId = useStore(state => state.setSpaceId);
   const roles = useStore(state => state.roles);
   const notice = useStore(state => state.notice);
   const setNotice = useStore(state => state.setNotice);
@@ -47,6 +48,17 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   useEffect(() => {
     if (userId) setSessionUserId(userId);
   }, [userId, setSessionUserId]);
+
+  useEffect(() => {
+    const querySpace =
+      typeof router.query.space === 'string'
+        ? router.query.space.trim().toLowerCase()
+        : null;
+    if (querySpace) {
+      setSpaceId(querySpace);
+      socketManager.setSpaceId(querySpace);
+    }
+  }, [router.query.space, setSpaceId]);
 
   useEffect(() => {
     if (status !== 'authenticated') return;

@@ -16,6 +16,7 @@
   - Keep global chat open for everyone; add vessel-local channels with history pagination (implemented).
   - Add private spaces/namespaces so friends can sail in invite-only sessions or solo with AI traffic.
   - Build scenario/tutorial spaces that gate rank progression and enforce collision/COLREGs rules with penalties.
+  - Support public vs private spaces: public spaces appear in a join list; private spaces require invite link + password, can be saved by returning users, and can generate invite links.
 - [ ] Layout component
   - Shared navbar (home, sim, login, register) with room for future pages such as a 2D tiling map of active vessels.
 - [ ] UI overhaul

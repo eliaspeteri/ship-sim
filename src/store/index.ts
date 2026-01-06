@@ -81,6 +81,8 @@ interface SimulationState {
   setMode: (mode: 'player' | 'spectator') => void;
   roles: Role[];
   setRoles: (roles: Role[]) => void;
+  spaceId: string;
+  setSpaceId: (spaceId: string) => void;
   notice: { type: 'info' | 'error'; message: string } | null;
   setNotice: (notice: SimulationState['notice']) => void;
   sessionUserId: string | null;
@@ -271,6 +273,8 @@ const useStore = create<SimulationState>()((set, get) => ({
   setMode: mode => set({ mode }),
   roles: ['guest'],
   setRoles: roles => set({ roles }),
+  spaceId: 'global',
+  setSpaceId: spaceId => set({ spaceId: spaceId || 'global' }),
   notice: null,
   setNotice: notice => set({ notice }),
   sessionUserId: null,
