@@ -2,6 +2,11 @@
 
 :root {
   --nav-height: 64px;
+  --marine-navy: #071426;
+  --marine-deep: #0b1f36;
+  --marine-teal: #1b9aaa;
+  --marine-brass: #c3a76b;
+  --marine-foam: #a8d8e4;
 }
 
 html,
@@ -19,7 +24,7 @@ body {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-  background-color: #0c1a2b;
+  background: radial-gradient(120% 120% at 20% 20%, #11263d 0%, #081425 50%, #050e19 100%);
   color: #e5e7eb;
 }
 

@@ -42,7 +42,7 @@ export default function RadarControls({
 }: RadarControlsProps) {
   return (
     <div className="mt-4 bg-gray-900 p-4 rounded-lg text-gray-100">
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {/* Band and Range Controls */}
         <div className="space-y-4">
           <h3 className="font-semibold text-center border-b border-gray-700 pb-1">

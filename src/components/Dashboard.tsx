@@ -18,6 +18,10 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   const sessionUserId = useStore(state => state.sessionUserId);
 
   const { position, orientation, velocity, engineState, alarms } = vessel || {};
+  const headingRad = orientation?.heading || 0;
+  const headingDeg = ((headingRad * 180) / Math.PI + 360) % 360;
+  const compassHeadingDeg = ((90 - headingDeg) % 360 + 360) % 360;
+  const compassHeadingRad = (compassHeadingDeg * Math.PI) / 180;
 
   const navOffset = 'calc(var(--nav-height, 0px) + 1rem)';
   const panelMaxHeight = 'calc(92vh - var(--nav-height, 0px))';
@@ -88,7 +92,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
         </div>
 
         <div className="flex justify-center">
-          <CompassRose heading={orientation?.heading || 0} />
+          <CompassRose heading={compassHeadingRad} />
         </div>
 
         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -132,9 +136,14 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
             <div className="text-gray-400 text-xs">Course</div>
             <div className="font-mono">
               {(() => {
-                const deg = ((orientation?.heading || 0) * 180) / Math.PI;
-                const normalized = ((deg % 360) + 360) % 360;
-                return Math.round(normalized);
+                const heading = orientation?.heading || 0;
+                const surge = velocity?.surge || 0;
+                const sway = velocity?.sway || 0;
+                const worldX = surge * Math.cos(heading) - sway * Math.sin(heading);
+                const worldY = surge * Math.sin(heading) + sway * Math.cos(heading);
+                const bearing =
+                  ((Math.atan2(worldX, worldY) * 180) / Math.PI + 360) % 360;
+                return Math.round(bearing);
               })()}
               °
             </div>
@@ -142,9 +151,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           <div className="bg-gray-800/70 p-2 rounded">
             <div className="text-gray-400 text-xs">Yaw rate</div>
             <div className="font-mono">
-              {Math.round(
-                (((vessel.angularVelocity?.yaw || 0) * 180) / Math.PI) % 360,
-              )}
+              {(((vessel.angularVelocity?.yaw || 0) * 180) / Math.PI).toFixed(2)}
               °/s
             </div>
           </div>

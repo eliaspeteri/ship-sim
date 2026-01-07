@@ -36,6 +36,7 @@ interface RadarDisplayProps {
   initialSettings?: Partial<RadarSettings>;
   initialTargets?: RadarTarget[];
   environment?: RadarEnvironment;
+  liveTargets?: RadarTarget[];
   onSettingsChange?: (settings: RadarSettings) => void;
   className?: string;
   ownShipData?: OwnShipData;
@@ -78,6 +79,7 @@ export default function RadarDisplay({
   initialSettings,
   initialTargets = [],
   environment = DEFAULT_ENVIRONMENT,
+  liveTargets = [],
   onSettingsChange,
   className = '',
   ownShipData = DEFAULT_OWN_SHIP,
@@ -88,7 +90,12 @@ export default function RadarDisplay({
     ...initialSettings,
   });
 
-  const [targets, setTargets] = useState<RadarTarget[]>(initialTargets);
+  const [manualTargets, setManualTargets] =
+    useState<RadarTarget[]>(initialTargets);
+  const [targets, setTargets] = useState<RadarTarget[]>([
+    ...liveTargets,
+    ...initialTargets,
+  ]);
   const [ebl, setEbl] = useState<EBL>({ active: false, angle: 0 });
   const [vrm, setVrm] = useState<VRM>({ active: false, distance: 0 });
   const [guardZone, setGuardZone] = useState<GuardZone>({
@@ -133,6 +140,14 @@ export default function RadarDisplay({
   useEffect(() => {
     targetsRef.current = targets;
   }, [targets]);
+
+  useEffect(() => {
+    const merged = new Map<string, RadarTarget>();
+    [...liveTargets, ...manualTargets].forEach(t => {
+      merged.set(t.id, t);
+    });
+    setTargets(Array.from(merged.values()));
+  }, [liveTargets, manualTargets]);
 
   useEffect(() => {
     arpaSettingsRef.current = arpaSettings;
@@ -703,7 +718,7 @@ export default function RadarDisplay({
       isTracked: Math.random() > 0.5,
     };
 
-    setTargets(prev => [...prev, newTarget]);
+    setManualTargets(prev => [...prev, newTarget]);
   };
 
   const handleArpaSettingChange = (
@@ -744,7 +759,7 @@ export default function RadarDisplay({
   return (
     <div className={`flex flex-col ${className}`}>
       <div
-        className="relative"
+        className="relative mx-auto"
         style={{
           width: size,
           height: size,
@@ -771,7 +786,7 @@ export default function RadarDisplay({
         />
       </div>
 
-      <div className="flex mt-4">
+      <div className="flex flex-col lg:flex-row gap-4 mt-4 w-full">
         <div className="flex-1">
           <RadarControls
             settings={settings}
@@ -792,7 +807,7 @@ export default function RadarDisplay({
         </div>
 
         {showArpaPanel && (
-          <div className="w-72 ml-4">
+          <div className="w-full lg:w-72 lg:ml-4">
             <ARPAPanel
               arpaTargets={arpaTargets}
               selectedTargetId={selectedTargetId}

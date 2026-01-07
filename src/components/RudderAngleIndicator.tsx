@@ -62,65 +62,84 @@ const RudderAngleIndicator: React.FC<RudderAngleIndicatorProps> = ({
 
   // Generate tick marks
   const tickMarks: JSX.Element[] = [];
-  const tickStep = 5; // 5 degree increments
+  const tickStep = 5;
+  const majorStep = 10;
+  const maxTick = Math.floor(maxAngle / tickStep) * tickStep;
+  const tickValues = new Set<number>();
 
-  for (let i = -maxAngle; i <= maxAngle; i += tickStep) {
-    const isMajor = i % 10 === 0; // Major tick every 10 degrees
-    const isHardOver = Math.abs(i) === maxAngle; // Hard over position
-    const tickLength = isHardOver ? 15 : isMajor ? 10 : 5;
-    const tickWidth = isHardOver ? 2 : isMajor ? 1.5 : 1;
+  for (let value = -maxTick; value <= maxTick; value += tickStep) {
+    tickValues.add(Number(value.toFixed(3)));
+  }
 
-    // Calculate angle along the arc
-    const tickAngle = startAngle + (i / maxAngle) * (sweepAngle / 2);
+  if (Math.abs(maxAngle - maxTick) > 0.01) {
+    tickValues.add(Number((-maxAngle).toFixed(3)));
+    tickValues.add(Number(maxAngle.toFixed(3)));
+  }
 
-    const outerPoint = getPointOnCircle(center, center, innerRadius, tickAngle);
-    const innerPoint = getPointOnCircle(
-      center,
-      center,
-      innerRadius - tickLength,
-      tickAngle,
-    );
+  const formatLabel = (value: number) => {
+    const abs = Math.abs(value);
+    return Number.isInteger(abs) ? abs.toFixed(0) : abs.toFixed(1);
+  };
 
-    // Determine color based on side (port = red, starboard = green)
-    const tickColor = i < 0 ? '#e53935' : i > 0 ? '#43a047' : '#ffffff';
+  Array.from(tickValues)
+    .sort((a, b) => a - b)
+    .forEach(value => {
+      const isHardOver = Math.abs(Math.abs(value) - maxAngle) < 0.01;
+      const isMajor = Math.abs(value) % majorStep < 0.01;
+      const tickLength = isHardOver ? 15 : isMajor ? 10 : 5;
+      const tickWidth = isHardOver ? 2 : isMajor ? 1.5 : 1;
 
-    tickMarks.push(
-      <line
-        key={`tick-${i}`}
-        x1={outerPoint.x}
-        y1={outerPoint.y}
-        x2={innerPoint.x}
-        y2={innerPoint.y}
-        stroke={tickColor}
-        strokeWidth={tickWidth}
-      />,
-    );
-
-    // Add labels for major ticks
-    if (isMajor || isHardOver) {
-      const labelPoint = getPointOnCircle(
+      const tickAngle = startAngle + (value / maxAngle) * (sweepAngle / 2);
+      const outerPoint = getPointOnCircle(
         center,
         center,
-        innerRadius - tickLength - 12,
+        innerRadius,
         tickAngle,
       );
+      const innerPoint = getPointOnCircle(
+        center,
+        center,
+        innerRadius - tickLength,
+        tickAngle,
+      );
+      const tickColor = value < 0 ? '#e53935' : value > 0 ? '#43a047' : '#ffffff';
 
       tickMarks.push(
-        <text
-          key={`label-${i}`}
-          x={labelPoint.x}
-          y={labelPoint.y}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize={isHardOver ? size * 0.05 : size * 0.04}
-          fontWeight={isHardOver ? 'bold' : 'normal'}
-          fill={tickColor}
-        >
-          {Math.abs(i)}°
-        </text>,
+        <line
+          key={`tick-${value}`}
+          x1={outerPoint.x}
+          y1={outerPoint.y}
+          x2={innerPoint.x}
+          y2={innerPoint.y}
+          stroke={tickColor}
+          strokeWidth={tickWidth}
+        />,
       );
-    }
-  }
+
+      if (isMajor || isHardOver) {
+        const labelPoint = getPointOnCircle(
+          center,
+          center,
+          innerRadius - tickLength - 12,
+          tickAngle,
+        );
+
+        tickMarks.push(
+          <text
+            key={`label-${value}`}
+            x={labelPoint.x}
+            y={labelPoint.y}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize={isHardOver ? size * 0.05 : size * 0.04}
+            fontWeight={isHardOver ? 'bold' : 'normal'}
+            fill={tickColor}
+          >
+            {formatLabel(value)}°
+          </text>,
+        );
+      }
+    });
 
   // Calculate points for the needle
   const needlePoint = getPointOnCircle(

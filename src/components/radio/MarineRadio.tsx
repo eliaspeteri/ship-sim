@@ -554,6 +554,7 @@ export function MarineRadio({
         opacity: disabled ? 0.7 : 1,
         position: 'relative',
         overflow: 'hidden',
+        boxSizing: 'border-box',
       }}
     >
       {/* Ventilation grill (top left) */}
