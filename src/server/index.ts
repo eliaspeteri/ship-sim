@@ -744,7 +744,6 @@ function ensureVesselForUser(
 let targetWeather: WeatherPattern | null = null;
 let weatherMode: 'manual' | 'auto' = 'auto';
 
-
 const resolveChatChannel = (
   requestedChannel: string | undefined,
   vesselId: string | undefined,

@@ -478,7 +478,8 @@ router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
 
     const updates: Record<string, unknown> = {};
     if (name) updates.name = name;
-    if (nextVisibility !== space.visibility) updates.visibility = nextVisibility;
+    if (nextVisibility !== space.visibility)
+      updates.visibility = nextVisibility;
     if (regenerateInvite) updates.inviteToken = randomUUID();
     if (password && password.trim().length > 0) {
       updates.passwordHash = await bcrypt.hash(password, 10);

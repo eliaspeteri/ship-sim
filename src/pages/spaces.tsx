@@ -24,7 +24,9 @@ type SpaceDraft = {
 
 const getApiBase = () => {
   const envBase =
-    process.env.NEXT_PUBLIC_SERVER_URL || process.env.NEXT_PUBLIC_SOCKET_URL || '';
+    process.env.NEXT_PUBLIC_SERVER_URL ||
+    process.env.NEXT_PUBLIC_SOCKET_URL ||
+    '';
   if (envBase) return envBase.replace(/\/$/, '');
   if (typeof window !== 'undefined') {
     const { protocol, hostname } = window.location;
@@ -117,7 +119,9 @@ const SpacesPage: React.FC = () => {
         }
         const updated = await res.json();
         setSpaces(prev =>
-          prev.map(space => (space.id === spaceId ? { ...space, ...updated } : space)),
+          prev.map(space =>
+            space.id === spaceId ? { ...space, ...updated } : space,
+          ),
         );
         updateDraft(spaceId, { password: '' });
         setNotice(successMessage);
@@ -151,7 +155,11 @@ const SpacesPage: React.FC = () => {
 
   const handleRegenerateInvite = useCallback(
     async (spaceId: string) => {
-      await updateSpace(spaceId, { regenerateInvite: true }, 'Invite regenerated.');
+      await updateSpace(
+        spaceId,
+        { regenerateInvite: true },
+        'Invite regenerated.',
+      );
     },
     [updateSpace],
   );
