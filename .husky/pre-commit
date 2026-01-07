@@ -3,3 +3,5 @@
 # Run eslint with ESM flat config support
 export NODE_OPTIONS=--experimental-vm-modules
 npx eslint . --fix
+# Run prettier to format code
+npx prettier --write .
