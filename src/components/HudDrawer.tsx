@@ -3,7 +3,18 @@ import EnvironmentControls from './EnvironmentControls';
 import useStore from '../store';
 import { getSimulationLoop } from '../simulation';
 import socketManager from '../networking/socket';
-import { RadarDisplay, RadarSettings, RadarTarget } from './radar';
+import {
+  AISTarget,
+  ARPASettings,
+  ARPATarget,
+  DEFAULT_ARPA_SETTINGS,
+  EBL,
+  GuardZone,
+  RadarDisplay,
+  RadarSettings,
+  RadarTarget,
+  VRM,
+} from './radar';
 import { TelegraphLever } from './TelegraphLever';
 import { HelmControl } from './HelmControl';
 import RudderAngleIndicator from './RudderAngleIndicator';
@@ -13,6 +24,7 @@ import EventLog from './EventLog';
 import { MarineRadio } from './radio/index';
 import { ConningDisplay } from './bridge/ConningDisplay';
 import { AlarmIndicator } from './alarms/AlarmIndicator';
+import { positionToXY } from '../lib/position';
 
 type HudTab =
   | 'navigation'
@@ -89,17 +101,48 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     trailDuration: 30,
     nightMode: false,
   });
+  const [radarEbl, setRadarEbl] = useState<EBL>({ active: false, angle: 0 });
+  const [radarVrm, setRadarVrm] = useState<VRM>({
+    active: false,
+    distance: 0,
+  });
+  const [radarGuardZone, setRadarGuardZone] = useState<GuardZone>({
+    active: false,
+    startAngle: 320,
+    endAngle: 40,
+    innerRange: 0.5,
+    outerRange: 3,
+  });
+  const [radarArpaSettings, setRadarArpaSettings] = useState<ARPASettings>(
+    DEFAULT_ARPA_SETTINGS,
+  );
+  const [radarArpaEnabled, setRadarArpaEnabled] = useState(false);
+  const [radarArpaTargets, setRadarArpaTargets] = useState<ARPATarget[]>([]);
   const [throttleLocal, setThrottleLocal] = useState(controls?.throttle || 0);
   const [rudderAngleLocal, setRudderAngleLocal] = useState(
     controls?.rudderAngle || 0,
   );
   const [ballastLocal, setBallastLocal] = useState(controls?.ballast ?? 0.5);
   const [adminTargetId, setAdminTargetId] = useState<string>('');
-  const [adminMoveMode, setAdminMoveMode] = useState<'xy' | 'latlon'>('xy');
-  const [adminX, setAdminX] = useState('');
-  const [adminY, setAdminY] = useState('');
   const [adminLat, setAdminLat] = useState('');
   const [adminLon, setAdminLon] = useState('');
+  const shortId = React.useCallback(
+    (id: string) => (id.length > 10 ? `${id.slice(0, 10)}…` : id),
+    [],
+  );
+  const toWorldVelocity = React.useCallback(
+    (v: typeof vessel | (typeof otherVessels)[string]) => {
+      const h = v?.orientation?.heading ?? 0;
+      const surge = v?.velocity?.surge ?? 0;
+      const sway = v?.velocity?.sway ?? 0;
+      const wx = surge * Math.cos(h) - sway * Math.sin(h);
+      const wy = surge * Math.sin(h) + sway * Math.cos(h);
+      const speed = Math.sqrt(wx ** 2 + wy ** 2);
+      const course = ((Math.atan2(wx, wy) * 180) / Math.PI + 360) % 360;
+      return { wx, wy, speed, course };
+    },
+    [],
+  );
   const ownShipData = useMemo(() => {
     const headingRad = vessel.orientation.heading || 0;
     const headingDeg = ((toDegrees(headingRad) % 360) + 360) % 360;
@@ -149,21 +192,10 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
 
   const radarTargets: RadarTarget[] = useMemo(() => {
     const results: RadarTarget[] = [];
-    const ownX = vessel.position.x ?? 0;
-    const ownY = vessel.position.y ?? 0;
-
-    const toWorldVelocity = (
-      v: typeof vessel | (typeof otherVessels)[string],
-    ) => {
-      const h = v?.orientation?.heading ?? 0;
-      const surge = v?.velocity?.surge ?? 0;
-      const sway = v?.velocity?.sway ?? 0;
-      const wx = surge * Math.cos(h) - sway * Math.sin(h);
-      const wy = surge * Math.sin(h) + sway * Math.cos(h);
-      const speed = Math.sqrt(wx ** 2 + wy ** 2);
-      const course = ((Math.atan2(wx, wy) * 180) / Math.PI + 360) % 360;
-      return { wx, wy, speed, course };
-    };
+    const ownXY = positionToXY({
+      lat: vessel.position.lat,
+      lon: vessel.position.lon,
+    });
 
     Object.entries(otherVessels || {}).forEach(([id, other]) => {
       if (!other) return;
@@ -176,33 +208,12 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
         other as { properties?: { length?: number; beam?: number } }
       ).properties;
 
-      const dx = (other.position?.x ?? ownX) - ownX;
-      const dy = (other.position?.y ?? ownY) - ownY;
-
-      let deltaX = dx;
-      let deltaY = dy;
-
-      if (
-        deltaX === 0 &&
-        deltaY === 0 &&
-        other.position?.lat !== undefined &&
-        vessel.position.lat !== undefined &&
-        other.position?.lon !== undefined &&
-        vessel.position.lon !== undefined
-      ) {
-        const meanLat =
-          ((other.position.lat ?? 0) + (vessel.position.lat ?? 0)) / 2;
-        const metersPerDegLat = 111_320;
-        const metersPerDegLon =
-          metersPerDegLat * Math.cos((meanLat * Math.PI) / 180);
-        deltaY =
-          ((other.position.lat ?? 0) - (vessel.position.lat ?? 0)) *
-          metersPerDegLat;
-        deltaX =
-          ((other.position.lon ?? 0) - (vessel.position.lon ?? 0)) *
-          metersPerDegLon;
-      }
-
+      const otherXY = positionToXY({
+        lat: other.position?.lat ?? vessel.position.lat,
+        lon: other.position?.lon ?? vessel.position.lon,
+      });
+      const deltaX = otherXY.x - ownXY.x;
+      const deltaY = otherXY.y - ownXY.y;
       const distanceMeters = Math.sqrt(deltaX ** 2 + deltaY ** 2);
       if (!Number.isFinite(distanceMeters) || distanceMeters < 1) return;
 
@@ -235,11 +246,68 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     currentVesselId,
     otherVessels,
     spaceId,
+    toWorldVelocity,
     vessel.orientation.heading,
     vessel.position.lat,
     vessel.position.lon,
-    vessel.position.x,
-    vessel.position.y,
+  ]);
+
+  const aisTargets: AISTarget[] = useMemo(() => {
+    const results: AISTarget[] = [];
+    const ownXY = positionToXY({
+      lat: vessel.position.lat,
+      lon: vessel.position.lon,
+    });
+
+    Object.entries(otherVessels || {}).forEach(([id, other]) => {
+      if (!other) return;
+      if (id === currentVesselId) return;
+      const targetSpace =
+        (other as { spaceId?: string }).spaceId || spaceId || 'global';
+      if (targetSpace !== (spaceId || 'global')) return;
+
+      const otherXY = positionToXY({
+        lat: other.position?.lat ?? vessel.position.lat,
+        lon: other.position?.lon ?? vessel.position.lon,
+      });
+      const deltaX = otherXY.x - ownXY.x;
+      const deltaY = otherXY.y - ownXY.y;
+      const distanceMeters = Math.sqrt(deltaX ** 2 + deltaY ** 2);
+      if (!Number.isFinite(distanceMeters) || distanceMeters < 1) return;
+
+      const distanceNm = distanceMeters / 1852;
+      const bearingDeg =
+        ((Math.atan2(deltaX, deltaY) * 180) / Math.PI + 360) % 360;
+      const { speed, course } = toWorldVelocity(other);
+      const headingDeg =
+        ((toDegrees(other.orientation?.heading ?? 0) % 360) + 360) % 360;
+      const headingCompass = (((90 - headingDeg) % 360) + 360) % 360;
+      const label =
+        other.helm?.username ||
+        (other as { properties?: { name?: string } }).properties?.name ||
+        `Vessel ${shortId(id)}`;
+
+      results.push({
+        mmsi: id,
+        name: label,
+        distance: distanceNm,
+        bearing: bearingDeg,
+        course,
+        speed: speed * 1.94384,
+        heading: headingCompass,
+        vesselType: 'ship',
+      });
+    });
+
+    return results;
+  }, [
+    currentVesselId,
+    otherVessels,
+    shortId,
+    spaceId,
+    toWorldVelocity,
+    vessel.position.lat,
+    vessel.position.lon,
   ]);
 
   const conningData = useMemo(() => {
@@ -372,16 +440,17 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       };
     }> = [];
 
-    const shortId = (id: string) =>
-      id.length > 10 ? `${id.slice(0, 10)}…` : id;
-
     if (currentVesselId) {
+      const ownXY = positionToXY({
+        lat: vessel.position.lat,
+        lon: vessel.position.lon,
+      });
       targets.push({
         id: currentVesselId,
         label: `My vessel (${shortId(currentVesselId)})`,
         position: {
-          x: vessel.position.x,
-          y: vessel.position.y,
+          x: ownXY.x,
+          y: ownXY.y,
           lat: vessel.position.lat,
           lon: vessel.position.lon,
         },
@@ -393,12 +462,16 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       const targetSpace =
         (other as { spaceId?: string }).spaceId || spaceId || 'global';
       if (targetSpace !== (spaceId || 'global')) return;
+      const otherXY = positionToXY({
+        lat: other.position?.lat ?? vessel.position.lat,
+        lon: other.position?.lon ?? vessel.position.lon,
+      });
       targets.push({
         id,
         label: `Vessel ${shortId(id)}`,
         position: {
-          x: other.position?.x,
-          y: other.position?.y,
+          x: otherXY.x,
+          y: otherXY.y,
           lat: other.position?.lat,
           lon: other.position?.lon,
         },
@@ -412,8 +485,6 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     spaceId,
     vessel.position.lat,
     vessel.position.lon,
-    vessel.position.x,
-    vessel.position.y,
   ]);
 
   const selectedAdminTarget = useMemo(
@@ -438,8 +509,6 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     if (!adminTargetId) return;
     if (adminTargetRef.current === adminTargetId) return;
     adminTargetRef.current = adminTargetId;
-    setAdminX('');
-    setAdminY('');
     setAdminLat('');
     setAdminLon('');
   }, [adminTargetId, isAdmin]);
@@ -501,25 +570,11 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       },
       {
         label: 'Lat',
-        value:
-          vessel.position.lat !== undefined
-            ? vessel.position.lat.toFixed(6)
-            : '—',
+        value: vessel.position.lat.toFixed(6),
       },
       {
         label: 'Lon',
-        value:
-          vessel.position.lon !== undefined
-            ? vessel.position.lon.toFixed(6)
-            : '—',
-      },
-      {
-        label: 'Pos X',
-        value: `${vessel.position.x?.toFixed(1) ?? '0.0'} m`,
-      },
-      {
-        label: 'Pos Y',
-        value: `${vessel.position.y?.toFixed(1) ?? '0.0'} m`,
+        value: vessel.position.lon.toFixed(6),
       },
       {
         label: 'Yaw rate',
@@ -552,6 +607,8 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       vessel.controls.rudderAngle,
       vessel.controls.throttle,
       vessel.orientation.heading,
+      vessel.position.lat,
+      vessel.position.lon,
       vessel.velocity.surge,
     ],
   );
@@ -572,10 +629,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
 
   const handleAdminMove = () => {
     if (!adminTargetId) return;
-    const hasEmpty =
-      adminMoveMode === 'latlon'
-        ? adminLat.trim() === '' || adminLon.trim() === ''
-        : adminX.trim() === '' || adminY.trim() === '';
+    const hasEmpty = adminLat.trim() === '' || adminLon.trim() === '';
     if (hasEmpty) {
       setNotice({
         type: 'error',
@@ -583,16 +637,10 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       });
       return;
     }
-    const payload =
-      adminMoveMode === 'latlon'
-        ? {
-            lat: Number(adminLat),
-            lon: Number(adminLon),
-          }
-        : {
-            x: Number(adminX),
-            y: Number(adminY),
-          };
+    const payload = {
+      lat: Number(adminLat),
+      lon: Number(adminLon),
+    };
     const values = Object.values(payload);
     if (values.some(val => Number.isNaN(val))) {
       setNotice({
@@ -606,23 +654,9 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
 
   const handleAdminMoveToSelf = () => {
     if (!adminTargetId) return;
-    if (adminMoveMode === 'latlon') {
-      if (
-        vessel.position.lat === undefined ||
-        vessel.position.lon === undefined
-      ) {
-        setNotice({ type: 'error', message: 'Lat/lon not available yet.' });
-        return;
-      }
-      socketManager.sendAdminVesselMove(adminTargetId, {
-        lat: vessel.position.lat,
-        lon: vessel.position.lon,
-      });
-      return;
-    }
     socketManager.sendAdminVesselMove(adminTargetId, {
-      x: vessel.position.x,
-      y: vessel.position.y,
+      lat: vessel.position.lat,
+      lon: vessel.position.lon,
     });
   };
 
@@ -749,7 +783,20 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                   className="max-w-[860px] mx-auto"
                   initialSettings={radarSettings}
                   onSettingsChange={setRadarSettings}
+                  ebl={radarEbl}
+                  onEblChange={setRadarEbl}
+                  vrm={radarVrm}
+                  onVrmChange={setRadarVrm}
+                  guardZone={radarGuardZone}
+                  onGuardZoneChange={setRadarGuardZone}
+                  arpaSettings={radarArpaSettings}
+                  onArpaSettingsChange={setRadarArpaSettings}
+                  arpaEnabled={radarArpaEnabled}
+                  onArpaEnabledChange={setRadarArpaEnabled}
+                  arpaTargets={radarArpaTargets}
+                  onArpaTargetsChange={setRadarArpaTargets}
                   liveTargets={radarTargets}
+                  aisTargets={aisTargets}
                   environment={radarEnvironment}
                   ownShipData={ownShipData}
                 />
@@ -795,107 +842,40 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                   </select>
                 </div>
 
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-gray-400">
-                    Move Mode
-                  </div>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setAdminMoveMode('xy')}
-                      className={`rounded-md px-3 py-2 text-xs font-semibold ${
-                        adminMoveMode === 'xy'
-                          ? 'bg-teal-600 text-white'
-                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                      }`}
-                    >
-                      X / Y (meters)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAdminMoveMode('latlon')}
-                      className={`rounded-md px-3 py-2 text-xs font-semibold ${
-                        adminMoveMode === 'latlon'
-                          ? 'bg-teal-600 text-white'
-                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                      }`}
-                    >
-                      Lat / Lon (deg)
-                    </button>
-                  </div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <label className="text-xs text-gray-300">
+                    Latitude
+                    <input
+                      className="mt-1 w-full rounded-md bg-gray-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+                      value={adminLat}
+                      onChange={e => setAdminLat(e.target.value)}
+                      placeholder={formatCoord(
+                        selectedAdminTarget?.position.lat,
+                        6,
+                      )}
+                    />
+                    <div className="mt-1 text-[11px] text-gray-500">
+                      Current:{' '}
+                      {formatCoord(selectedAdminTarget?.position.lat, 6)}
+                    </div>
+                  </label>
+                  <label className="text-xs text-gray-300">
+                    Longitude
+                    <input
+                      className="mt-1 w-full rounded-md bg-gray-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+                      value={adminLon}
+                      onChange={e => setAdminLon(e.target.value)}
+                      placeholder={formatCoord(
+                        selectedAdminTarget?.position.lon,
+                        6,
+                      )}
+                    />
+                    <div className="mt-1 text-[11px] text-gray-500">
+                      Current:{' '}
+                      {formatCoord(selectedAdminTarget?.position.lon, 6)}
+                    </div>
+                  </label>
                 </div>
-
-                {adminMoveMode === 'xy' ? (
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <label className="text-xs text-gray-300">
-                      X (meters)
-                      <input
-                        className="mt-1 w-full rounded-md bg-gray-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
-                        value={adminX}
-                        onChange={e => setAdminX(e.target.value)}
-                        placeholder={formatCoord(
-                          selectedAdminTarget?.position.x,
-                          1,
-                        )}
-                      />
-                      <div className="mt-1 text-[11px] text-gray-500">
-                        Current:{' '}
-                        {formatCoord(selectedAdminTarget?.position.x, 1)} m
-                      </div>
-                    </label>
-                    <label className="text-xs text-gray-300">
-                      Y (meters)
-                      <input
-                        className="mt-1 w-full rounded-md bg-gray-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
-                        value={adminY}
-                        onChange={e => setAdminY(e.target.value)}
-                        placeholder={formatCoord(
-                          selectedAdminTarget?.position.y,
-                          1,
-                        )}
-                      />
-                      <div className="mt-1 text-[11px] text-gray-500">
-                        Current:{' '}
-                        {formatCoord(selectedAdminTarget?.position.y, 1)} m
-                      </div>
-                    </label>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <label className="text-xs text-gray-300">
-                      Latitude
-                      <input
-                        className="mt-1 w-full rounded-md bg-gray-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
-                        value={adminLat}
-                        onChange={e => setAdminLat(e.target.value)}
-                        placeholder={formatCoord(
-                          selectedAdminTarget?.position.lat,
-                          6,
-                        )}
-                      />
-                      <div className="mt-1 text-[11px] text-gray-500">
-                        Current:{' '}
-                        {formatCoord(selectedAdminTarget?.position.lat, 6)}
-                      </div>
-                    </label>
-                    <label className="text-xs text-gray-300">
-                      Longitude
-                      <input
-                        className="mt-1 w-full rounded-md bg-gray-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
-                        value={adminLon}
-                        onChange={e => setAdminLon(e.target.value)}
-                        placeholder={formatCoord(
-                          selectedAdminTarget?.position.lon,
-                          6,
-                        )}
-                      />
-                      <div className="mt-1 text-[11px] text-gray-500">
-                        Current:{' '}
-                        {formatCoord(selectedAdminTarget?.position.lon, 6)}
-                      </div>
-                    </label>
-                  </div>
-                )}
 
                 <div className="flex flex-wrap gap-2">
                   <button

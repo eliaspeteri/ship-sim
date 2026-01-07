@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   EBL,
   GuardZone,
@@ -38,6 +38,18 @@ interface RadarDisplayProps {
   environment?: RadarEnvironment;
   liveTargets?: RadarTarget[];
   onSettingsChange?: (settings: RadarSettings) => void;
+  ebl?: EBL;
+  onEblChange?: (ebl: EBL) => void;
+  vrm?: VRM;
+  onVrmChange?: (vrm: VRM) => void;
+  guardZone?: GuardZone;
+  onGuardZoneChange?: (guardZone: GuardZone) => void;
+  arpaSettings?: ARPASettings;
+  onArpaSettingsChange?: (settings: ARPASettings) => void;
+  arpaEnabled?: boolean;
+  onArpaEnabledChange?: (enabled: boolean) => void;
+  arpaTargets?: ARPATarget[];
+  onArpaTargetsChange?: (targets: ARPATarget[]) => void;
   className?: string;
   ownShipData?: OwnShipData;
   /**
@@ -74,6 +86,16 @@ const DEFAULT_OWN_SHIP: OwnShipData = {
 
 const RANGE_OPTIONS = [0.5, 1.5, 3, 6, 12, 24, 48];
 
+const DEFAULT_EBL: EBL = { active: false, angle: 0 };
+const DEFAULT_VRM: VRM = { active: false, distance: 0 };
+const DEFAULT_GUARD_ZONE: GuardZone = {
+  active: false,
+  startAngle: 320,
+  endAngle: 40,
+  innerRange: 0.5,
+  outerRange: 3,
+};
+
 export default function RadarDisplay({
   size = 500,
   initialSettings,
@@ -81,6 +103,18 @@ export default function RadarDisplay({
   environment = DEFAULT_ENVIRONMENT,
   liveTargets = [],
   onSettingsChange,
+  ebl,
+  onEblChange,
+  vrm,
+  onVrmChange,
+  guardZone,
+  onGuardZoneChange,
+  arpaSettings,
+  onArpaSettingsChange,
+  arpaEnabled,
+  onArpaEnabledChange,
+  arpaTargets,
+  onArpaTargetsChange,
   className = '',
   ownShipData = DEFAULT_OWN_SHIP,
   aisTargets = [],
@@ -90,28 +124,30 @@ export default function RadarDisplay({
     ...initialSettings,
   });
 
-  const [manualTargets, setManualTargets] =
-    useState<RadarTarget[]>(initialTargets);
-  const [targets, setTargets] = useState<RadarTarget[]>([
-    ...liveTargets,
-    ...initialTargets,
-  ]);
-  const [ebl, setEbl] = useState<EBL>({ active: false, angle: 0 });
-  const [vrm, setVrm] = useState<VRM>({ active: false, distance: 0 });
-  const [guardZone, setGuardZone] = useState<GuardZone>({
-    active: false,
-    startAngle: 320,
-    endAngle: 40,
-    innerRange: 0.5,
-    outerRange: 3,
-  });
-
-  const [arpaSettings, setArpaSettings] = useState<ARPASettings>(
-    DEFAULT_ARPA_SETTINGS,
+  const [internalEbl, setInternalEbl] = useState<EBL>(DEFAULT_EBL);
+  const [internalVrm, setInternalVrm] = useState<VRM>(DEFAULT_VRM);
+  const [internalGuardZone, setInternalGuardZone] =
+    useState<GuardZone>(DEFAULT_GUARD_ZONE);
+  const [internalArpaSettings, setInternalArpaSettings] =
+    useState<ARPASettings>(DEFAULT_ARPA_SETTINGS);
+  const [internalArpaEnabled, setInternalArpaEnabled] = useState(false);
+  const [internalArpaTargets, setInternalArpaTargets] = useState<ARPATarget[]>(
+    [],
   );
-  const [arpaTargets, setArpaTargets] = useState<ARPATarget[]>([]);
+  const mergedTargets = useMemo(() => {
+    const merged = new Map<string, RadarTarget>();
+    [...liveTargets, ...initialTargets].forEach(target => {
+      merged.set(target.id, target);
+    });
+    return Array.from(merged.values());
+  }, [liveTargets, initialTargets]);
+  const eblState = ebl ?? internalEbl;
+  const vrmState = vrm ?? internalVrm;
+  const guardZoneState = guardZone ?? internalGuardZone;
+  const arpaSettingsState = arpaSettings ?? internalArpaSettings;
+  const arpaEnabledState = arpaEnabled ?? internalArpaEnabled;
+  const arpaTargetsState = arpaTargets ?? internalArpaTargets;
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
-  const [showArpaPanel, setShowArpaPanel] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const radarSweepRef = useRef<HTMLDivElement>(null);
@@ -121,10 +157,27 @@ export default function RadarDisplay({
 
   const settingsRef = useRef(settings);
   const environmentRef = useRef(environment);
-  const targetsRef = useRef(targets);
-  const arpaSettingsRef = useRef(arpaSettings);
-  const arpaTargetsRef = useRef(arpaTargets);
+  const targetsRef = useRef(mergedTargets);
+  const arpaSettingsRef = useRef(arpaSettingsState);
+  const arpaTargetsRef = useRef(arpaTargetsState);
   const ownShipRef = useRef(ownShipData);
+  const eblRef = useRef(eblState);
+  const vrmRef = useRef(vrmState);
+  const guardZoneRef = useRef(guardZoneState);
+  const arpaEnabledRef = useRef(arpaEnabledState);
+  const aisTargetsRef = useRef(aisTargets);
+  const updateArpaTargets = (
+    updater: ARPATarget[] | ((prev: ARPATarget[]) => ARPATarget[]),
+  ) => {
+    const next =
+      typeof updater === 'function' ? updater(arpaTargetsRef.current) : updater;
+    arpaTargetsRef.current = next;
+    if (onArpaTargetsChange) {
+      onArpaTargetsChange(next);
+    } else {
+      setInternalArpaTargets(next);
+    }
+  };
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -138,28 +191,40 @@ export default function RadarDisplay({
   }, [environment]);
 
   useEffect(() => {
-    targetsRef.current = targets;
-  }, [targets]);
+    targetsRef.current = mergedTargets;
+  }, [mergedTargets]);
 
   useEffect(() => {
-    const merged = new Map<string, RadarTarget>();
-    [...liveTargets, ...manualTargets].forEach(t => {
-      merged.set(t.id, t);
-    });
-    setTargets(Array.from(merged.values()));
-  }, [liveTargets, manualTargets]);
+    arpaSettingsRef.current = arpaSettingsState;
+  }, [arpaSettingsState]);
 
   useEffect(() => {
-    arpaSettingsRef.current = arpaSettings;
-  }, [arpaSettings]);
-
-  useEffect(() => {
-    arpaTargetsRef.current = arpaTargets;
-  }, [arpaTargets]);
+    arpaTargetsRef.current = arpaTargetsState;
+  }, [arpaTargetsState]);
 
   useEffect(() => {
     ownShipRef.current = ownShipData;
   }, [ownShipData]);
+
+  useEffect(() => {
+    eblRef.current = eblState;
+  }, [eblState]);
+
+  useEffect(() => {
+    vrmRef.current = vrmState;
+  }, [vrmState]);
+
+  useEffect(() => {
+    guardZoneRef.current = guardZoneState;
+  }, [guardZoneState]);
+
+  useEffect(() => {
+    arpaEnabledRef.current = arpaEnabledState;
+  }, [arpaEnabledState]);
+
+  useEffect(() => {
+    aisTargetsRef.current = aisTargets;
+  }, [aisTargets]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -188,12 +253,12 @@ export default function RadarDisplay({
 
   useEffect(() => {
     if (radarSweepRef.current) {
-      radarSweepRef.current.style.transform = `rotate(${sweepAngle}deg)`;
+      radarSweepRef.current.style.transform = `translateY(-50%) rotate(${sweepAngle}deg)`;
     }
   }, [sweepAngle]);
 
   useEffect(() => {
-    if (!showArpaPanel) return;
+    if (!arpaEnabledState) return;
 
     const intervalId = setInterval(() => {
       const updatedArpaTargets = processRadarTargets(
@@ -203,7 +268,7 @@ export default function RadarDisplay({
         ownShipRef.current,
       );
 
-      setArpaTargets(updatedArpaTargets);
+      updateArpaTargets(updatedArpaTargets);
 
       if (selectedTargetId) {
         const targetExists = updatedArpaTargets.some(
@@ -216,7 +281,7 @@ export default function RadarDisplay({
     }, 2000);
 
     return () => clearInterval(intervalId);
-  }, [showArpaPanel, selectedTargetId]);
+  }, [arpaEnabledState, selectedTargetId]);
 
   const drawRadar = () => {
     const canvas = canvasRef.current;
@@ -230,6 +295,11 @@ export default function RadarDisplay({
     const currTargets = targetsRef.current;
     const currArpaSettings = arpaSettingsRef.current;
     const currArpaTargets = arpaTargetsRef.current;
+    const currEbl = eblRef.current;
+    const currVrm = vrmRef.current;
+    const currGuardZone = guardZoneRef.current;
+    const currArpaEnabled = arpaEnabledRef.current;
+    const currAisTargets = aisTargetsRef.current;
 
     const {
       band,
@@ -237,7 +307,6 @@ export default function RadarDisplay({
       gain,
       seaClutter,
       rainClutter,
-      heading,
       orientation,
       nightMode,
     } = currSettings;
@@ -274,15 +343,15 @@ export default function RadarDisplay({
     }
 
     let rotationAngle = 0;
-    if (orientation === 'north-up') {
-      rotationAngle = 0;
-    } else if (orientation === 'head-up') {
-      rotationAngle = heading;
+    if (orientation === 'head-up') {
+      rotationAngle = ownShipRef.current.heading ?? 0;
+    } else if (orientation === 'course-up') {
+      rotationAngle = ownShipRef.current.course ?? 0;
     }
 
-    if (ebl.active) {
+    if (currEbl.active) {
       const angleRad =
-        ((ebl.angle - rotationAngle + 360) % 360) * (Math.PI / 180);
+        ((currEbl.angle - rotationAngle + 360) % 360) * (Math.PI / 180);
 
       ctx.beginPath();
       ctx.moveTo(radius, radius);
@@ -298,11 +367,11 @@ export default function RadarDisplay({
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
-      ctx.fillText(`EBL: ${ebl.angle.toFixed(1)}°`, 10, size - 10);
+      ctx.fillText(`EBL: ${currEbl.angle.toFixed(1)}°`, 10, size - 10);
     }
 
-    if (vrm.active) {
-      const vrmRadius = (vrm.distance / range) * (radius - 2);
+    if (currVrm.active) {
+      const vrmRadius = (currVrm.distance / range) * (radius - 2);
 
       ctx.beginPath();
       ctx.arc(radius, radius, vrmRadius, 0, Math.PI * 2);
@@ -314,16 +383,18 @@ export default function RadarDisplay({
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText(`VRM: ${vrm.distance.toFixed(1)} NM`, 10, 10);
+      ctx.fillText(`VRM: ${currVrm.distance.toFixed(1)} NM`, 10, 10);
     }
 
-    if (guardZone.active) {
-      const innerRadius = (guardZone.innerRange / range) * (radius - 2);
-      const outerRadius = (guardZone.outerRange / range) * (radius - 2);
+    if (currGuardZone.active) {
+      const innerRadius = (currGuardZone.innerRange / range) * (radius - 2);
+      const outerRadius = (currGuardZone.outerRange / range) * (radius - 2);
       const startAngle =
-        ((guardZone.startAngle - rotationAngle + 360) % 360) * (Math.PI / 180);
+        ((currGuardZone.startAngle - rotationAngle + 360) % 360) *
+        (Math.PI / 180);
       const endAngle =
-        ((guardZone.endAngle - rotationAngle + 360) % 360) * (Math.PI / 180);
+        ((currGuardZone.endAngle - rotationAngle + 360) % 360) *
+        (Math.PI / 180);
 
       ctx.beginPath();
       ctx.arc(radius, radius, outerRadius, startAngle, endAngle);
@@ -354,9 +425,9 @@ export default function RadarDisplay({
     ctx.globalAlpha = 1.0;
 
     const isTargetInGuardZone = (target: RadarTarget): boolean => {
-      if (!guardZone.active) return false;
-      let start = guardZone.startAngle % 360;
-      let end = guardZone.endAngle % 360;
+      if (!currGuardZone.active) return false;
+      let start = currGuardZone.startAngle % 360;
+      let end = currGuardZone.endAngle % 360;
       let bearing = target.bearing % 360;
       if (start < 0) start += 360;
       if (end < 0) end += 360;
@@ -366,8 +437,8 @@ export default function RadarDisplay({
           ? bearing >= start && bearing <= end
           : bearing >= start || bearing <= end;
       const inRange =
-        target.distance >= guardZone.innerRange &&
-        target.distance <= guardZone.outerRange;
+        target.distance >= currGuardZone.innerRange &&
+        target.distance <= currGuardZone.outerRange;
       return inAngle && inRange;
     };
 
@@ -417,7 +488,7 @@ export default function RadarDisplay({
         ctx.arc(x, y, targetSize, 0, Math.PI * 2);
         ctx.fill();
 
-        if (target.isTracked && showArpaPanel) {
+        if (target.isTracked && currArpaEnabled) {
           const arpaTarget = currArpaTargets.find(at => at.id === target.id);
 
           if (arpaTarget) {
@@ -532,7 +603,7 @@ export default function RadarDisplay({
     });
 
     // Draw AIS targets
-    aisTargets.forEach(ais => {
+    currAisTargets.forEach(ais => {
       if (ais.distance > range) return;
       const { x, y } = polarToCartesian(
         ais.distance,
@@ -655,9 +726,13 @@ export default function RadarDisplay({
 
     ctx.fillText(`SEA: ${seaClutter}% RAIN: ${rainClutter}%`, 10, size - 50);
 
-    if (showArpaPanel) {
+    if (currArpaEnabled) {
       ctx.textAlign = 'right';
-      ctx.fillText(`ARPA: ${arpaTargets.length} TARGETS`, size - 10, size - 30);
+      ctx.fillText(
+        `ARPA: ${arpaTargetsState.length} TARGETS`,
+        size - 10,
+        size - 30,
+      );
     }
   };
 
@@ -684,68 +759,86 @@ export default function RadarDisplay({
   };
 
   const handleEblToggle = () => {
-    setEbl(prev => ({ ...prev, active: !prev.active }));
+    const next = { ...eblState, active: !eblState.active };
+    if (onEblChange) {
+      onEblChange(next);
+    } else {
+      setInternalEbl(next);
+    }
   };
 
   const handleEblAngleChange = (angle: number) => {
-    setEbl(prev => ({ ...prev, angle }));
+    const next = { ...eblState, angle };
+    if (onEblChange) {
+      onEblChange(next);
+    } else {
+      setInternalEbl(next);
+    }
   };
 
   const handleVrmToggle = () => {
-    setVrm(prev => ({ ...prev, active: !prev.active }));
+    const next = { ...vrmState, active: !vrmState.active };
+    if (onVrmChange) {
+      onVrmChange(next);
+    } else {
+      setInternalVrm(next);
+    }
   };
 
   const handleVrmDistanceChange = (distance: number) => {
-    setVrm(prev => ({ ...prev, distance: Math.min(distance, settings.range) }));
+    const next = {
+      ...vrmState,
+      distance: Math.min(distance, settings.range),
+    };
+    if (onVrmChange) {
+      onVrmChange(next);
+    } else {
+      setInternalVrm(next);
+    }
   };
 
   const handleGuardZoneChange = (
     field: keyof GuardZone,
     value: number | boolean,
   ) => {
-    setGuardZone(prev => ({ ...prev, [field]: value }));
-  };
-
-  const addRandomTarget = () => {
-    const newTarget: RadarTarget = {
-      id: `target-${Date.now()}`,
-      distance: Math.random() * settings.range * 0.9,
-      bearing: Math.random() * 360,
-      size: 0.3 + Math.random() * 0.7,
-      speed: Math.random() * 20,
-      course: Math.random() * 360,
-      type: Math.random() > 0.7 ? 'land' : 'ship',
-      isTracked: Math.random() > 0.5,
-    };
-
-    setManualTargets(prev => [...prev, newTarget]);
+    const next = { ...guardZoneState, [field]: value };
+    if (onGuardZoneChange) {
+      onGuardZoneChange(next);
+    } else {
+      setInternalGuardZone(next);
+    }
   };
 
   const handleArpaSettingChange = (
     setting: keyof ARPASettings,
     value: boolean | number,
   ) => {
-    setArpaSettings(prev => ({ ...prev, [setting]: value }));
+    const next = { ...arpaSettingsState, [setting]: value };
+    if (onArpaSettingsChange) {
+      onArpaSettingsChange(next);
+    } else {
+      setInternalArpaSettings(next);
+    }
   };
 
   const handleAcquireTarget = () => {
-    const untracked = targets.filter(
+    const untracked = targetsRef.current.filter(
       t =>
-        !arpaTargets.some(at => at.id === t.id) &&
+        !arpaTargetsState.some(at => at.id === t.id) &&
         t.type !== 'land' &&
-        t.distance <= arpaSettings.autoAcquisitionRange,
+        t.distance <= arpaSettingsState.autoAcquisitionRange,
     );
 
     if (untracked.length > 0) {
       const closest = [...untracked].sort((a, b) => a.distance - b.distance)[0];
       const newArpaTarget = convertToARPATarget(closest, ownShipData);
-      setArpaTargets(prev => [...prev, newArpaTarget]);
+      updateArpaTargets(prev => [...prev, newArpaTarget]);
       setSelectedTargetId(closest.id);
     }
   };
 
   const handleCancelTarget = (targetId: string) => {
-    setArpaTargets(prev => prev.filter(t => t.id !== targetId));
+    updateArpaTargets(prev => prev.filter(t => t.id !== targetId));
 
     if (selectedTargetId === targetId) {
       setSelectedTargetId(null);
@@ -753,7 +846,12 @@ export default function RadarDisplay({
   };
 
   const toggleArpaPanel = () => {
-    setShowArpaPanel(prev => !prev);
+    const next = !arpaEnabledState;
+    if (onArpaEnabledChange) {
+      onArpaEnabledChange(next);
+    } else {
+      setInternalArpaEnabled(next);
+    }
   };
 
   return (
@@ -777,11 +875,9 @@ export default function RadarDisplay({
         />
         <div
           ref={radarSweepRef}
-          className="absolute top-0 left-0 w-1/2 h-0.5 bg-green-400 opacity-70 origin-left"
+          className="absolute left-1/2 top-1/2 h-0.5 w-1/2 bg-green-400 opacity-70"
           style={{
-            transformOrigin: '50% 50%',
-            left: '50%',
-            top: '50%',
+            transformOrigin: '0% 50%',
           }}
         />
       </div>
@@ -792,27 +888,26 @@ export default function RadarDisplay({
             settings={settings}
             onSettingChange={handleSettingChange}
             onRangeChange={handleRangeChange}
-            ebl={ebl}
-            vrm={vrm}
+            ebl={eblState}
+            vrm={vrmState}
             onEblToggle={handleEblToggle}
             onEblAngleChange={handleEblAngleChange}
             onVrmToggle={handleVrmToggle}
             onVrmDistanceChange={handleVrmDistanceChange}
-            onAddTarget={addRandomTarget}
             onToggleArpa={toggleArpaPanel}
-            arpaEnabled={showArpaPanel}
-            guardZone={guardZone}
+            arpaEnabled={arpaEnabledState}
+            guardZone={guardZoneState}
             onGuardZoneChange={handleGuardZoneChange}
           />
         </div>
 
-        {showArpaPanel && (
+        {arpaEnabledState && (
           <div className="w-full lg:w-72 lg:ml-4">
             <ARPAPanel
-              arpaTargets={arpaTargets}
+              arpaTargets={arpaTargetsState}
               selectedTargetId={selectedTargetId}
               onSelectTarget={setSelectedTargetId}
-              arpaSettings={arpaSettings}
+              arpaSettings={arpaSettingsState}
               onSettingChange={handleArpaSettingChange}
               onAcquireTarget={handleAcquireTarget}
               onCancelTarget={handleCancelTarget}

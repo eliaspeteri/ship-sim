@@ -8,7 +8,7 @@ export const polarToCartesian = (
   radius: number,
 ): { x: number; y: number } => {
   // Convert bearing to radians (0° = up, clockwise)
-  const bearingRad = ((360 - bearing + 270) % 360) * (Math.PI / 180);
+  const bearingRad = ((bearing - 90) * Math.PI) / 180;
 
   // Scale distance according to maximum range
   const scaledDistance = (distance / maxRange) * radius;

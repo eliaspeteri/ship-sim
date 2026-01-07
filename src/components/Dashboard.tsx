@@ -97,18 +97,6 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
 
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="bg-gray-800/70 p-2 rounded">
-            <div className="text-gray-400 text-xs">Position X</div>
-            <div className="font-mono">
-              {position?.x?.toFixed(1) || '0.0'} m
-            </div>
-          </div>
-          <div className="bg-gray-800/70 p-2 rounded">
-            <div className="text-gray-400 text-xs">Position Y</div>
-            <div className="font-mono">
-              {position?.y?.toFixed(1) || '0.0'} m
-            </div>
-          </div>
-          <div className="bg-gray-800/70 p-2 rounded">
             <div className="text-gray-400 text-xs">Lat</div>
             <div className="font-mono">
               {position?.lat !== undefined ? position.lat.toFixed(6) : '—'}°

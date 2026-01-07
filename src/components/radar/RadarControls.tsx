@@ -17,7 +17,6 @@ interface RadarControlsProps {
   onEblAngleChange: (angle: number) => void;
   onVrmToggle: () => void;
   onVrmDistanceChange: (distance: number) => void;
-  onAddTarget?: () => void; // Optional for testing purposes
   onToggleArpa?: () => void; // New prop for ARPA toggle
   arpaEnabled?: boolean; // New prop to show ARPA status
   guardZone?: GuardZone;
@@ -34,7 +33,6 @@ export default function RadarControls({
   onEblAngleChange,
   onVrmToggle,
   onVrmDistanceChange,
-  onAddTarget,
   onToggleArpa,
   arpaEnabled = false,
   guardZone,
@@ -309,17 +307,6 @@ export default function RadarControls({
                   onClick={onToggleArpa}
                   color={arpaEnabled ? 'secondary' : 'primary'}
                   size="small"
-                />
-              </div>
-            )}
-
-            {/* Test Controls (only for development) */}
-            {onAddTarget && (
-              <div className="pt-4 border-t border-gray-700">
-                <PushButton
-                  label="Add Random Target"
-                  onClick={onAddTarget}
-                  color="secondary"
                 />
               </div>
             )}
