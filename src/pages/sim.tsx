@@ -41,6 +41,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const crewIds = useStore(state => state.crewIds);
   const setSessionUserId = useStore(state => state.setSessionUserId);
   const setChatMessages = useStore(state => state.setChatMessages);
+  const currentVesselId = useStore(state => state.currentVesselId);
   const hasStartedRef = useRef(false);
   const navHeightVar = 'var(--nav-height, 0px)';
   const sessionRole = (session?.user as { role?: string })?.role;
@@ -65,6 +66,8 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const [newSpacePassword, setNewSpacePassword] = React.useState('');
   const [spaceModalOpen, setSpaceModalOpen] = React.useState(false);
   const [hasChosenSpace, setHasChosenSpace] = React.useState(false);
+  const [spaceSelectionHydrated, setSpaceSelectionHydrated] =
+    React.useState(false);
   const [knownSpaces, setKnownSpaces] = React.useState<SpaceSummary[]>([]);
   const [spaceFlow, setSpaceFlow] = React.useState<
     'choice' | 'join' | 'create'
@@ -272,6 +275,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       setSpaceModalOpen(true);
       setSpaceFlow('choice');
     }
+    setSpaceSelectionHydrated(true);
   }, [setSpaceId]);
 
   useEffect(() => {
@@ -297,13 +301,35 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
 
   useEffect(() => {
     if (status !== 'authenticated') return;
+    if (!hasChosenSpace) return;
     const seen =
       typeof window !== 'undefined' &&
       sessionStorage.getItem('ship-sim-join-choice');
-    if (!seen) {
-      setShowJoinChoice(true);
-    }
-  }, [status]);
+    if (seen || showJoinChoice) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        await socketManager.waitForSelfSnapshot();
+      } catch {
+        return;
+      }
+      if (cancelled) return;
+      const assignedVessel = useStore.getState().currentVesselId;
+      if (!assignedVessel) {
+        setShowJoinChoice(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasChosenSpace, showJoinChoice, status]);
+
+  useEffect(() => {
+    if (!currentVesselId) return;
+    setShowJoinChoice(false);
+  }, [currentVesselId]);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -322,6 +348,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   // Start simulation after hydrating from the first self snapshot over the socket
   useEffect(() => {
     if (status !== 'authenticated' || !session) return;
+    if (!spaceSelectionHydrated) return;
     if (!hasChosenSpace) {
       setSpaceModalOpen(true);
       return;
@@ -370,7 +397,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         hasStartedRef.current = false;
       }
     };
-  }, [session, status]);
+  }, [hasChosenSpace, session, spaceSelectionHydrated, status]);
 
   // If the user role cannot drive, keep them in spectator mode.
   useEffect(() => {
@@ -873,6 +900,23 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                 }}
               >
                 Create my own vessel
+              </button>
+              <button
+                className="rounded bg-gray-700 px-4 py-2 text-left font-semibold hover:bg-gray-600"
+                onClick={() => {
+                  setMode('spectator');
+                  socketManager.notifyModeChange('spectator');
+                  setShowJoinChoice(false);
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.setItem('ship-sim-join-choice', 'spectate');
+                  }
+                  setNotice({
+                    type: 'info',
+                    message: 'Spectator mode enabled.',
+                  });
+                }}
+              >
+                Spectate the world
               </button>
             </div>
           </div>
