@@ -18,7 +18,7 @@
   - [x] Add private spaces/namespaces so friends can sail in invite-only sessions or solo with AI traffic.
   - Build scenario/tutorial spaces that gate rank progression and enforce collision/COLREGs rules with penalties.
   - [x] Support public vs private spaces: public spaces appear in a join list; private spaces require invite link + password, can be saved by returning users, and can generate invite links.
-  - Add a “Manage my spaces” view/page for creators (list/edit visibility/password/regenerate invite or delete).
+  - [x] Add a “Manage my spaces” view/page for creators (list/edit visibility/password/regenerate invite or delete).
 - [ ] Layout component
   - Shared navbar (home, sim, login, register) with room for future pages such as a 2D tiling map of active vessels.
 - [ ] UI overhaul
@@ -44,8 +44,8 @@
   - Add dual-band radar views (X-band + S-band) in the HUD layout.
 - [ ] Instrumentation & observability
   - Add basic metrics (loop timing, socket/API latency) and central log aggregation for server and sim loops.
-- [ ] Default vessels
-  - On server boot, load saved vessels; if none, spawn an AI-controlled vessel at a default lat/long/heading and publish to clients.
+- [x] Default vessels
+  - [x] On server boot, load saved vessels; if none, spawn an AI-controlled vessel at a default lat/long/heading and publish to clients.
 - [x] Position data
   - [x] Refactor x/y to lat/long; keep height/depth; update physics, rendering, and network schemas.
 - [ ] Auth review
