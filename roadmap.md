@@ -7,32 +7,40 @@
 - [ ] Modes
   - Spectator mode: elevated free camera with WASD/arrow movement and rotation; water plane follows user with larger radius; can view vessels and join if role allows; does not send vessel updates.
   - Player mode: current sim for joining/creating vessels, crew visibility, and chat readiness; robust mode switching for vessel membership.
+  - Add a spectate-only option in the vessel join/create prompt.
 - [ ] Vessel join/create UX
-  - Prompt new users to choose between creating their own vessel or joining an available crew slot (respect max crew), instead of auto-assigning.
+  - [x] Prompt new users to choose between creating their own vessel or joining an available crew slot (respect max crew), instead of auto-assigning.
   - Surface crew list for the active vessel in the HUD; add a basic vessel-local chat.
-  - Add spawn picker (ports/anchors) when creating a vessel.
-  - Persist chat history (global + vessel channels) in the database and replay/paginate messages on join.
+  - [x] Add spawn picker (ports/anchors) when creating a vessel.
+  - [x] Persist chat history (global + vessel channels) in the database and replay/paginate messages on join.
 - [ ] Chat & spaces
-  - Keep global chat open for everyone; add vessel-local channels with history pagination (implemented).
-  - Add private spaces/namespaces so friends can sail in invite-only sessions or solo with AI traffic.
+  - [x] Keep global chat open for everyone; add vessel-local channels with history pagination.
+  - [x] Add private spaces/namespaces so friends can sail in invite-only sessions or solo with AI traffic.
   - Build scenario/tutorial spaces that gate rank progression and enforce collision/COLREGs rules with penalties.
-  - Support public vs private spaces: public spaces appear in a join list; private spaces require invite link + password, can be saved by returning users, and can generate invite links.
+  - [x] Support public vs private spaces: public spaces appear in a join list; private spaces require invite link + password, can be saved by returning users, and can generate invite links.
   - Add a “Manage my spaces” view/page for creators (list/edit visibility/password/regenerate invite or delete).
 - [ ] Layout component
   - Shared navbar (home, sim, login, register) with room for future pages such as a 2D tiling map of active vessels.
 - [ ] UI overhaul
   - Replace Tailwind-heavy styling with a custom or alternative styling approach; refresh HUD/layout components for clarity and responsiveness.
-  - Move sim HUD into a docked drawer with topical tabs (navigation, weather, fuel, ballast, load, electrics, etc.) reusing existing weather visuals.
+  - [x] Move sim HUD into a docked drawer with topical tabs (navigation, weather, fuel, ballast, load, electrics, etc.) reusing existing weather visuals.
+  - [x] Add Conning display tab in the HUD with core navigation readouts.
+  - [x] Add Alarms tab in the HUD with engine/safety alerts.
 - [ ] Environment controls
   - Rebuild the EnvironmentControls UI to reflect the current server-driven weather model, admin gating, and live updates; remove obsolete toggles.
   - Gate weather controls to space creators/hosts (not only admins) once spaces/rooms exist.
-  - Persist weather state per space/session (DB) so private scenarios and global space can keep distinct conditions.
-  - Add a server-driven day/night cycle (sun position over time) and surface to clients.
+  - [x] Persist weather state per space/session (DB) so private scenarios and global space can keep distinct conditions.
+  - [x] Add a server-driven day/night cycle (sun position over time) and surface to clients.
   - Infer/display local time zones from vessel lat/lon (fallback to UTC) when rendering environment time.
   - Timed events can attach environment presets (weather/lighting) and trigger them on schedule.
 - [ ] Controls & ballast
-  - Expose ballast control in the UI, wire to physics, and show feedback/state.
+  - [x] Expose ballast control in the UI, wire to physics, and show feedback/state.
   - Expand helm/crew roles (e.g., helm/engine/radio) to avoid control conflicts.
+- [ ] Admin tools
+  - Add admin ship repositioning tools (spectator drag/teleport, separate admin view).
+- [ ] Bridge systems
+  - Add AIS receiver/overlay with labeled AIS targets alongside radar returns.
+  - Add dual-band radar views (X-band + S-band) in the HUD layout.
 - [ ] Instrumentation & observability
   - Add basic metrics (loop timing, socket/API latency) and central log aggregation for server and sim loops.
 - [ ] Default vessels

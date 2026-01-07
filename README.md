@@ -1,41 +1,43 @@
-# Ship Simulator (Lean MVP)
+# Ship Simulator
 
-Single-player ship controls in the browser. Minimal scope: 2D water plane with Gerstner waves, stable 3-DOF physics (surge/sway/yaw), simple HUD and controls, in-memory auth (JWT, HttpOnly cookies), no database, no Docker, no tile server, no AI traffic.
+Multiplayer ship simulation in the browser with a WASM physics core, realtime sockets, and a docked HUD for navigation, weather, and bridge systems.
 
 ## What Works
 
 - AssemblyScript + WASM physics core with fixed timestep integration.
-- React/Next.js UI with HUD and basic controls (helm, throttle, rudder).
-- In-memory auth (register/login) with JWT access/refresh cookies.
-- Simple environment state (wind/current/sea state) stored in memory.
+- Next.js UI with a HUD drawer for navigation, weather, chat, and bridge stubs.
+- NextAuth credentials auth backed by Prisma/Postgres.
+- Spaces (public/private) with invite tokens and per-space weather persistence.
+- Server-driven day/night cycle with per-space environment updates.
+- Chat with global + vessel channels and paginated history.
 
 ## What’s Not Included (Deferred)
 
-- Globe or tiling server (sticking to a 2D plane for now).
-- Database persistence.
-- Docker.
-- AI traffic or multiplayer.
-- Advanced bridge systems (radar/ECDIS/GMDSS/conning), missions, or complex weather ingestion.
+- Globe/tiling server (sticking to a 2D plane for now).
+- Live weather ingestion, scenarios, and missions/economy loops.
+- Full bridge systems (AIS/ECDIS/GMDSS/conning/radar) beyond current stubs.
 
 ## Quickstart
 
 ```sh
 npm install
+
+# Start Postgres + run migrations (Docker)
+npm run db:start
+
 # Start backend API (port 3001)
 npm run server
-# In a second terminal, start frontend + wasm build
+
+# In a second terminal, start frontend + WASM build (port 3000)
 npm run dev
 ```
 
 - Login/register at `http://localhost:3000/login` (defaults: admin/admin).
-- Simulation runs continuously at a fixed timestep.
+- The socket server listens on `http://localhost:3001`.
 
 ## Configuration
 
-- `.env` (already provided):
-  - `PORT=3001`
-  - `AUTH_SECRET`, `NEXTAUTH_SECRET` (JWT signing)
-  - `ADMIN_USERNAME`, `ADMIN_PASSWORD` (seeded admin user)
+- See `.env.example` for environment variables (database URL, NextAuth secrets, server URLs).
 
 ## Testing & Quality
 
