@@ -13,6 +13,7 @@ const NAV_HEIGHT = 72;
 const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/sim', label: 'Simulator' },
+  { href: '/spaces', label: 'Spaces' },
   { href: '/globe', label: 'Map', tag: 'beta' },
   { href: '/system-schematics', label: 'Systems' },
 ];

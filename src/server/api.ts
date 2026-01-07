@@ -119,6 +119,7 @@ interface InMemoryEnvironmentState extends EnvironmentState {
 }
 
 const router = express.Router();
+const DEFAULT_SPACE_ID = process.env.DEFAULT_SPACE_ID || 'global';
 
 const vesselStates: Record<string, DBVesselState> = {};
 const userSettingsStore: Record<string, UserSettings> = {};
@@ -408,6 +409,132 @@ router.post('/spaces/known', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Failed to save known space', err);
     res.status(500).json({ error: 'Failed to save known space' });
+  }
+});
+
+// GET /api/spaces/mine - list spaces created by the current user
+router.get('/spaces/mine', requireAuth, async (req, res) => {
+  try {
+    const spaces = await prisma.space.findMany({
+      where: { createdBy: req.user!.userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({
+      spaces: spaces.map(space => ({
+        ...serializeSpace(space),
+        createdAt: space.createdAt,
+        updatedAt: space.updatedAt,
+        passwordProtected: Boolean(space.passwordHash),
+      })),
+    });
+  } catch (err) {
+    console.error('Failed to fetch user spaces', err);
+    res.status(500).json({ error: 'Failed to fetch user spaces' });
+  }
+});
+
+// PATCH /api/spaces/:spaceId - update a space (owner only)
+router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
+  const { spaceId } = req.params;
+  try {
+    const space = await prisma.space.findUnique({ where: { id: spaceId } });
+    if (!space) {
+      res.status(404).json({ error: 'Space not found' });
+      return;
+    }
+    if (space.createdBy !== req.user!.userId) {
+      res.status(403).json({ error: 'Not authorized to edit this space' });
+      return;
+    }
+
+    const name =
+      typeof req.body?.name === 'string' ? req.body.name.trim() : undefined;
+    const visibility =
+      req.body?.visibility === 'private' ? 'private' : req.body?.visibility;
+    const password =
+      typeof req.body?.password === 'string' ? req.body.password : undefined;
+    const clearPassword = req.body?.clearPassword === true;
+    const regenerateInvite = req.body?.regenerateInvite === true;
+
+    const nextVisibility =
+      visibility === 'public' || visibility === 'private'
+        ? visibility
+        : space.visibility;
+    const nextName = name || space.name;
+
+    if (nextVisibility === 'public') {
+      const existing = await prisma.space.findFirst({
+        where: {
+          visibility: 'public',
+          name: nextName,
+          NOT: { id: spaceId },
+        },
+      });
+      if (existing) {
+        res.status(409).json({ error: 'Public space name must be unique' });
+        return;
+      }
+    }
+
+    const updates: Record<string, unknown> = {};
+    if (name) updates.name = name;
+    if (nextVisibility !== space.visibility) updates.visibility = nextVisibility;
+    if (regenerateInvite) updates.inviteToken = randomUUID();
+    if (password && password.trim().length > 0) {
+      updates.passwordHash = await bcrypt.hash(password, 10);
+    } else if (clearPassword) {
+      updates.passwordHash = null;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.json(serializeSpace(space));
+      return;
+    }
+
+    const updated = await prisma.space.update({
+      where: { id: spaceId },
+      data: updates,
+    });
+    res.json(serializeSpace(updated));
+  } catch (err) {
+    console.error('Failed to update space', err);
+    res.status(500).json({ error: 'Failed to update space' });
+  }
+});
+
+// DELETE /api/spaces/:spaceId - delete a space (owner only)
+router.delete('/spaces/:spaceId', requireAuth, async (req, res) => {
+  const { spaceId } = req.params;
+  if (spaceId === DEFAULT_SPACE_ID) {
+    res.status(400).json({ error: 'Default space cannot be deleted' });
+    return;
+  }
+  try {
+    const space = await prisma.space.findUnique({ where: { id: spaceId } });
+    if (!space) {
+      res.status(404).json({ error: 'Space not found' });
+      return;
+    }
+    if (space.createdBy !== req.user!.userId) {
+      res.status(403).json({ error: 'Not authorized to delete this space' });
+      return;
+    }
+    const vesselCount = await prisma.vessel.count({
+      where: { spaceId },
+    });
+    if (vesselCount > 0) {
+      res
+        .status(409)
+        .json({ error: 'Space has vessels; remove them before deleting' });
+      return;
+    }
+    await prisma.spaceAccess.deleteMany({ where: { spaceId } });
+    await prisma.weatherState.deleteMany({ where: { spaceId } });
+    await prisma.space.delete({ where: { id: spaceId } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Failed to delete space', err);
+    res.status(500).json({ error: 'Failed to delete space' });
   }
 });
 
