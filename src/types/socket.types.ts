@@ -44,6 +44,17 @@ export interface VesselControlData {
   ballast?: number;
 } // Type definitions for Socket.IO
 
+export interface AdminVesselMoveData {
+  vesselId: string;
+  position: Partial<VesselPose['position']>;
+}
+
+export interface VesselTeleportData {
+  vesselId: string;
+  position: VesselPose['position'];
+  reset?: boolean;
+}
+
 export interface ChatHistoryRequest {
   channel?: string;
   before?: number;
@@ -61,6 +72,7 @@ export type ServerToClientEvents = {
   'simulation:update': (data: SimulationUpdateData) => void;
   'vessel:joined': (data: VesselJoinedData) => void;
   'vessel:left': (data: VesselLeftData) => void;
+  'vessel:teleport': (data: VesselTeleportData) => void;
   'environment:update': (data: EnvironmentState) => void;
   'chat:message': (data: {
     userId: string;
@@ -83,6 +95,7 @@ export type ClientToServerEvents = {
     coordinates?: { lat: number; lng: number };
     mode?: 'auto' | 'manual';
   }) => void;
+  'admin:vessel:move': (data: AdminVesselMoveData) => void;
   'chat:message': (data: { message: string; channel?: string }) => void;
   'chat:history': (data: ChatHistoryRequest) => void;
   'admin:vesselMode': (data: { vesselId: string; mode: 'player' | 'ai' }) => void;

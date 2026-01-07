@@ -7,6 +7,7 @@ import {
   ChatHistoryResponse,
   ChatMessageData,
   SimulationUpdateData,
+  VesselTeleportData,
   VesselControlData,
   VesselJoinedData,
   VesselLeftData,
@@ -167,6 +168,10 @@ class SocketManager {
     // Simulation events
     this.socket.on('simulation:update', (data: SimulationUpdateData) => {
       this.handleSimulationUpdate(data);
+    });
+
+    this.socket.on('vessel:teleport', (data: VesselTeleportData) => {
+      this.handleVesselTeleport(data);
     });
 
     this.socket.on('vessel:joined', (data: VesselJoinedData) => {
@@ -394,6 +399,26 @@ class SocketManager {
     }
   }
 
+  private handleVesselTeleport(data: VesselTeleportData): void {
+    if (!data?.vesselId || !data.position) return;
+    const store = useStore.getState();
+    const currentId = store.currentVesselId;
+    if (!currentId) return;
+    const normalized = data.vesselId.split('_')[0];
+    if (normalized !== currentId) return;
+    void import('../simulation')
+      .then(({ getSimulationLoop }) => {
+        getSimulationLoop().teleportVessel({
+          x: data.position.x,
+          y: data.position.y,
+          z: data.position.z,
+        });
+      })
+      .catch(error => {
+        console.error('Failed to teleport vessel:', error);
+      });
+  }
+
   // Await the first self snapshot after connect; resolves immediately if already hydrated
   waitForSelfSnapshot(): Promise<SimpleVesselState> {
     if (this.lastSelfSnapshot) return Promise.resolve(this.lastSelfSnapshot);
@@ -494,6 +519,14 @@ class SocketManager {
   notifyModeChange(mode: 'player' | 'spectator'): void {
     if (!this.socket?.connected) return;
     this.socket.emit('user:mode', { mode });
+  }
+
+  sendAdminVesselMove(
+    vesselId: string,
+    position: { x?: number; y?: number; lat?: number; lon?: number },
+  ): void {
+    if (!this.socket?.connected) return;
+    this.socket.emit('admin:vessel:move', { vesselId, position });
   }
 
   private buildSpaceChannel(channel?: string): string {

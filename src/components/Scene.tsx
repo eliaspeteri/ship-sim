@@ -1,14 +1,15 @@
 // Scene with orbit camera, Environment lighting, and a Water plane that follows the vessel.
 'use client';
 
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Canvas, ThreeEvent, useFrame, useThree } from '@react-three/fiber';
 import { Environment, OrbitControls, Sky } from '@react-three/drei';
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import useStore from '../store';
 import Ship from './Ship';
+import socketManager from '../networking/socket';
 
 interface SceneProps {
   vesselPosition: {
@@ -191,7 +192,10 @@ function SpectatorController({
     distanceVec.current.set(focusRef.current.x, 0, focusRef.current.y);
     const distance = camera.position.distanceTo(distanceVec.current);
     const speedScale = THREE.MathUtils.clamp(distance / 200, 0.3, 6);
-    const moveSpeed = (keys.current['shift'] ? 180 : 120) * delta * speedScale;
+    const baseSpeed = 130;
+    const boostSpeed = 320;
+    const moveSpeed =
+      (keys.current['shift'] ? boostSpeed : baseSpeed) * delta * speedScale;
 
     // Derive forward from camera orientation so mouse orbit still works
     camera.getWorldDirection(forwardRef.current).setY(0);
@@ -264,6 +268,155 @@ function LightTracker({
   return null;
 }
 
+function AdminDragHandles({
+  enabled,
+  targets,
+  previewPositions,
+  onPreview,
+  onPreviewEnd,
+  onDrop,
+  onDragStateChange,
+}: {
+  enabled: boolean;
+  targets: Array<{ id: string; x: number; y: number }>;
+  previewPositions: Record<string, { x: number; y: number }>;
+  onPreview: (id: string, x: number, y: number) => void;
+  onPreviewEnd: (id: string) => void;
+  onDrop: (id: string, x: number, y: number) => void;
+  onDragStateChange: (dragging: boolean) => void;
+}) {
+  const { camera, gl } = useThree();
+  const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), []);
+  const dragRef = useRef<{ id: string | null }>({ id: null });
+  const hitPoint = useRef(new THREE.Vector3());
+  const pointer = useRef(new THREE.Vector2());
+  const raycaster = useRef(new THREE.Raycaster());
+  const activePointerIdRef = useRef<number | null>(null);
+  const lastPosRef = useRef<{ x: number; y: number } | null>(null);
+  const moveListenerRef = useRef<((event: PointerEvent) => void) | null>(null);
+  const upListenerRef = useRef<((event: PointerEvent) => void) | null>(null);
+
+  const updateDragPosition = useCallback(
+    (clientX: number, clientY: number) => {
+      const id = dragRef.current.id;
+      if (!id) return;
+      const rect = gl.domElement.getBoundingClientRect();
+      const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      pointer.current.set(x, y);
+      raycaster.current.setFromCamera(pointer.current, camera);
+      if (!raycaster.current.ray.intersectPlane(plane, hitPoint.current)) {
+        return;
+      }
+      lastPosRef.current = {
+        x: hitPoint.current.x,
+        y: hitPoint.current.z,
+      };
+      onPreview(id, hitPoint.current.x, hitPoint.current.z);
+    },
+    [camera, gl, onPreview, plane],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (moveListenerRef.current) {
+        window.removeEventListener('pointermove', moveListenerRef.current);
+      }
+      if (upListenerRef.current) {
+        window.removeEventListener('pointerup', upListenerRef.current);
+        window.removeEventListener('pointercancel', upListenerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (enabled || !dragRef.current.id) return;
+    const dropId = dragRef.current.id;
+    dragRef.current.id = null;
+    activePointerIdRef.current = null;
+    lastPosRef.current = null;
+    onPreviewEnd(dropId);
+    onDragStateChange(false);
+    if (moveListenerRef.current) {
+      window.removeEventListener('pointermove', moveListenerRef.current);
+    }
+    if (upListenerRef.current) {
+      window.removeEventListener('pointerup', upListenerRef.current);
+      window.removeEventListener('pointercancel', upListenerRef.current);
+    }
+  }, [enabled, onDragStateChange, onPreviewEnd]);
+
+  const handlePointerDown = useCallback(
+    (id: string) => (event: ThreeEvent<PointerEvent>) => {
+      if (!enabled) return;
+      event.stopPropagation();
+      dragRef.current.id = id;
+      activePointerIdRef.current = event.pointerId;
+      onDragStateChange(true);
+      updateDragPosition(event.clientX, event.clientY);
+
+      const handleMove = (moveEvent: PointerEvent) => {
+        if (activePointerIdRef.current !== moveEvent.pointerId) return;
+        updateDragPosition(moveEvent.clientX, moveEvent.clientY);
+      };
+      const handleUp = (upEvent: PointerEvent) => {
+        if (activePointerIdRef.current !== upEvent.pointerId) return;
+        const dropId = dragRef.current.id;
+        if (dropId && lastPosRef.current) {
+          onDrop(dropId, lastPosRef.current.x, lastPosRef.current.y);
+        }
+        if (dropId) {
+          onPreviewEnd(dropId);
+        }
+        dragRef.current.id = null;
+        activePointerIdRef.current = null;
+        lastPosRef.current = null;
+        onDragStateChange(false);
+        if (moveListenerRef.current) {
+          window.removeEventListener('pointermove', moveListenerRef.current);
+        }
+        if (upListenerRef.current) {
+          window.removeEventListener('pointerup', upListenerRef.current);
+          window.removeEventListener('pointercancel', upListenerRef.current);
+        }
+      };
+
+      moveListenerRef.current = handleMove;
+      upListenerRef.current = handleUp;
+      window.addEventListener('pointermove', handleMove);
+      window.addEventListener('pointerup', handleUp);
+      window.addEventListener('pointercancel', handleUp);
+    },
+    [enabled, onDragStateChange, onDrop, onPreviewEnd, updateDragPosition],
+  );
+
+  if (!enabled || targets.length === 0) return null;
+
+  return (
+    <>
+      {targets.map(target => (
+        <mesh
+          key={target.id}
+          position={[
+            previewPositions[target.id]?.x ?? target.x,
+            2,
+            previewPositions[target.id]?.y ?? target.y,
+          ]}
+          onPointerDown={handlePointerDown(target.id)}
+        >
+          <sphereGeometry args={[20, 20, 20]} />
+          <meshBasicMaterial
+            color="#1b9aaa"
+            transparent
+            opacity={0.2}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
 export default function Scene({ vesselPosition, mode }: SceneProps) {
   const isSpectator = mode === 'spectator';
   const vesselProperties = useStore(state => state.vessel.properties);
@@ -271,6 +424,13 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
   const vesselOrientation = useStore(state => state.vessel.orientation);
   const otherVessels = useStore(state => state.otherVessels);
   const envTime = useStore(state => state.environment.timeOfDay);
+  const roles = useStore(state => state.roles);
+  const currentVesselId = useStore(state => state.currentVesselId);
+  const isAdmin = roles.includes('admin');
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragPreviewPositions, setDragPreviewPositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({});
   const directionalLightRef = useRef<THREE.DirectionalLight | null>(null);
   const focusRef = useRef<{ x: number; y: number }>({
     x: vesselPosition.x,
@@ -303,6 +463,57 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
     };
     return { sunDirection: dir, daylight, lightIntensity };
   }, [envTime]);
+
+  const dragTargets = useMemo(() => {
+    if (!isAdmin || !isSpectator) return [];
+    const targets: Array<{ id: string; x: number; y: number }> = [];
+    if (currentVesselId) {
+      targets.push({
+        id: currentVesselId,
+        x: vesselPosition.x,
+        y: vesselPosition.y,
+      });
+    }
+    Object.entries(otherVessels || {}).forEach(([id, vessel]) => {
+      if (!vessel?.position) return;
+      targets.push({
+        id,
+        x: vessel.position.x,
+        y: vessel.position.y,
+      });
+    });
+    return targets;
+  }, [currentVesselId, isAdmin, isSpectator, otherVessels, vesselPosition.x, vesselPosition.y]);
+
+  const handleAdminMove = useCallback((id: string, x: number, y: number) => {
+    socketManager.sendAdminVesselMove(id, { x, y });
+  }, []);
+
+  const handleDragPreview = useCallback((id: string, x: number, y: number) => {
+    setDragPreviewPositions(prev => {
+      const existing = prev[id];
+      if (existing && Math.hypot(existing.x - x, existing.y - y) < 0.2) {
+        return prev;
+      }
+      return { ...prev, [id]: { x, y } };
+    });
+  }, []);
+
+  const handleDragPreviewEnd = useCallback((id: string) => {
+    setDragPreviewPositions(prev => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
+  const handleDragStateChange = useCallback((dragging: boolean) => {
+    setIsDragging(dragging);
+    if (orbitRef.current) {
+      orbitRef.current.enabled = !dragging;
+    }
+  }, []);
 
   useEffect(() => {
     if (!isSpectator) {
@@ -371,9 +582,9 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
         />
         <Ship
           position={{
-            x: vesselPosition.x,
+            x: dragPreviewPositions[currentVesselId || '']?.x ?? vesselPosition.x,
             y: vesselPosition.z,
-            z: vesselPosition.y,
+            z: dragPreviewPositions[currentVesselId || '']?.y ?? vesselPosition.y,
           }}
           heading={vesselPosition.heading}
           shipType={vesselProperties.type}
@@ -385,13 +596,26 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
         {Object.entries(otherVessels || {}).map(([id, v]) => (
           <Ship
             key={id}
-            position={{ x: v.position.x, y: v.position.z ?? 0, z: v.position.y }}
+            position={{
+              x: dragPreviewPositions[id]?.x ?? v.position.x,
+              y: v.position.z ?? 0,
+              z: dragPreviewPositions[id]?.y ?? v.position.y,
+            }}
             heading={v.orientation.heading}
             shipType={vesselProperties.type}
             ballast={v.controls?.ballast ?? 0.5}
             draft={vesselProperties.draft}
           />
         ))}
+        <AdminDragHandles
+          enabled={isSpectator && isAdmin}
+          targets={dragTargets}
+          previewPositions={dragPreviewPositions}
+          onPreview={handleDragPreview}
+          onPreviewEnd={handleDragPreviewEnd}
+          onDrop={handleAdminMove}
+          onDragStateChange={handleDragStateChange}
+        />
         <OrbitControls
           ref={orbitRef}
           target={
@@ -399,6 +623,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
               ? [focusRef.current.x, 0, focusRef.current.y]
               : [vesselPosition.x, 0, vesselPosition.y]
           }
+          enabled={!isDragging}
           enablePan={false}
           minDistance={isSpectator ? 50 : vesselProperties.length * 0.8}
           maxDistance={

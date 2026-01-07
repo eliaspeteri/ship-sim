@@ -351,6 +351,64 @@ export class SimulationLoop {
   }
 
   /**
+   * Teleport the local vessel to a new position and reset motion.
+   */
+  teleportVessel(position: { x: number; y: number; z?: number }): void {
+    if (!this.wasmBridge) return;
+
+    const state = useStore.getState();
+    const { vessel } = state;
+    const nextZ = position.z ?? vessel.position.z ?? 0;
+    const blockCoeff = Number.isFinite(vessel.properties.blockCoefficient)
+      ? vessel.properties.blockCoefficient
+      : 0.8;
+    const nextPtr = this.wasmBridge.createVessel(
+      safe(position.x, 0),
+      safe(position.y, 0),
+      safe(nextZ, 0),
+      safe(vessel.orientation.heading, 0),
+      safe(vessel.orientation.roll, 0),
+      safe(vessel.orientation.pitch, 0),
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      clampRudderAngle(0),
+      safe(vessel.properties.mass, 14950000),
+      safe(vessel.properties.length, 212),
+      safe(vessel.properties.beam, 28),
+      safe(vessel.properties.draft, 9.1),
+      blockCoeff,
+    );
+
+    if (state.wasmVesselPtr) {
+      this.wasmBridge.destroyVessel(state.wasmVesselPtr);
+    }
+    state.setWasmVesselPtr(nextPtr);
+    const ll = xyToLatLon({ x: position.x, y: position.y });
+    state.updateVessel({
+      position: {
+        x: position.x,
+        y: position.y,
+        z: nextZ,
+        lat: ll.lat,
+        lon: ll.lon,
+      },
+      velocity: { surge: 0, sway: 0, heave: 0 },
+      angularVelocity: { yaw: 0, roll: 0, pitch: 0 },
+      controls: {
+        throttle: 0,
+        rudderAngle: 0,
+        ballast: vessel.controls.ballast ?? 0.5,
+        bowThruster: 0,
+      },
+    });
+  }
+
+  /**
    * Update wave properties in the store based on physics calculations
    * Exports the wave data needed for the ocean renderer
    */

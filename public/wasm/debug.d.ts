@@ -27,6 +27,11 @@ export declare const table: WebAssembly.Table;
  */
 export declare function createVessel(x: number, y: number, z: number, psi: number, _phi: number, _theta: number, u: number, v: number, w: number, r: number, _p: number, _q: number, throttle: number, rudderAngle: number, mass: number, length: number, beam: number, draft: number, blockCoefficient?: number): number;
 /**
+ * assembly/index/destroyVessel
+ * @param _vesselPtr `usize`
+ */
+export declare function destroyVessel(_vesselPtr: number): void;
+/**
  * assembly/index/updateVesselState
  * @param vesselPtr `usize`
  * @param dt `f64`

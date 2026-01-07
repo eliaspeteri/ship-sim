@@ -73,6 +73,14 @@ export class WasmBridge {
     );
   }
 
+  destroyVessel(vesselPtr: number): void {
+    if (this.wasmModule.destroyVessel) {
+      this.wasmModule.destroyVessel(vesselPtr);
+      return;
+    }
+    this.wasmModule.resetGlobalVessel?.();
+  }
+
   setThrottle(vesselPtr: number, throttle: number): void {
     this.wasmModule.setThrottle(vesselPtr, throttle);
   }

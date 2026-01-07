@@ -197,6 +197,7 @@ export async function loadWasmModule(): Promise<WasmModule> {
       seaState: number,
     ) => number,
     resetGlobalVessel: exports.resetGlobalVessel as () => void,
+    destroyVessel: exports.destroyVessel as ((vesselPtr: number) => void) | undefined,
   };
 
   wasmInstance = wrapper;

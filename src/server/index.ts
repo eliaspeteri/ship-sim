@@ -848,6 +848,25 @@ const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => ({
   angularVelocity: { yaw: v.yawRate ?? 0 },
 });
 
+const findVesselInSpace = (
+  vesselId: string,
+  spaceId: string,
+): VesselRecord | null => {
+  const direct = globalState.vessels.get(vesselId);
+  if (direct && (direct.spaceId || DEFAULT_SPACE_ID) === spaceId) {
+    return direct;
+  }
+  const normalized = vesselChannelId(vesselId);
+  if (!normalized) return null;
+  return (
+    Array.from(globalState.vessels.values()).find(
+      v =>
+        vesselChannelId(v.id) === normalized &&
+        (v.spaceId || DEFAULT_SPACE_ID) === spaceId,
+    ) || null
+  );
+};
+
 // Create Express app
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -1371,6 +1390,71 @@ io.on('connection', async socket => {
     }
     target.lastUpdate = Date.now();
     void persistVesselToDb(target, { force: true });
+  });
+
+  socket.on('admin:vessel:move', data => {
+    if (!hasAdminRole(socket)) {
+      socket.emit('error', 'Not authorized to move vessels');
+      return;
+    }
+    if (!data?.vesselId) {
+      socket.emit('error', 'Missing vessel id');
+      return;
+    }
+    const spaceId = getSpaceIdForSocket(socket);
+    const target = findVesselInSpace(data.vesselId, spaceId);
+    if (!target) {
+      socket.emit('error', 'Vessel not found');
+      return;
+    }
+    console.info(
+      `Admin move request from ${socket.data.username || 'unknown'} for vessel ${data.vesselId}`,
+      data.position,
+    );
+
+    const next = data.position || {};
+    if (next.lat !== undefined && next.lon !== undefined) {
+      const xy = latLonToXY({ lat: next.lat, lon: next.lon });
+      target.position = {
+        ...target.position,
+        x: xy.x,
+        y: xy.y,
+        lat: next.lat,
+        lon: next.lon,
+      };
+    } else if (next.x !== undefined || next.y !== undefined) {
+      const updated = {
+        ...target.position,
+        ...(next.x !== undefined ? { x: next.x } : {}),
+        ...(next.y !== undefined ? { y: next.y } : {}),
+      };
+      const ll = xyToLatLon({ x: updated.x, y: updated.y });
+      target.position = { ...updated, lat: ll.lat, lon: ll.lon };
+    } else {
+      socket.emit('error', 'Missing position data');
+      return;
+    }
+
+    target.velocity = { surge: 0, sway: 0, heave: 0 };
+    target.yawRate = 0;
+    target.controls = {
+      ...target.controls,
+      throttle: 0,
+      rudderAngle: 0,
+      bowThruster: 0,
+    };
+    target.lastUpdate = Date.now();
+    void persistVesselToDb(target, { force: true });
+    io.to(`space:${spaceId}`).emit('vessel:teleport', {
+      vesselId: target.id,
+      position: target.position,
+      reset: true,
+    });
+    io.to(`space:${spaceId}`).emit('simulation:update', {
+      vessels: { [target.id]: toSimpleVesselState(target) },
+      partial: true,
+      timestamp: Date.now(),
+    });
   });
 
   // Handle admin weather control

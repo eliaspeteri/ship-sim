@@ -174,6 +174,10 @@ export function createVessel(
   return changetype<usize>(globalVessel);
 }
 
+export function destroyVessel(_vesselPtr: usize): void {
+  globalVessel = null;
+}
+
 export function updateVesselState(
   vesselPtr: usize,
   dt: f64,

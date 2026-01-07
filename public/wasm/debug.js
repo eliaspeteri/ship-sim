@@ -44,6 +44,7 @@ export const {
   memory,
   table,
   createVessel,
+  destroyVessel,
   updateVesselState,
   setThrottle,
   setRudderAngle,

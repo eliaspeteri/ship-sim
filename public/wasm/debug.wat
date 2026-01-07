@@ -3,8 +3,8 @@
  (type $1 (func (param i32 f64)))
  (type $2 (func (param f64) (result f64)))
  (type $3 (func (param i32 i32)))
- (type $4 (func (param f64 f64) (result f64)))
- (type $5 (func (param i32)))
+ (type $4 (func (param i32)))
+ (type $5 (func (param f64 f64) (result f64)))
  (type $6 (func (param i32) (result i32)))
  (type $7 (func (param f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64) (result i32)))
  (type $8 (func))
@@ -60,6 +60,7 @@
  (table $0 1 funcref)
  (elem $0 (i32.const 1))
  (export "createVessel" (func $assembly/index/createVessel@varargs))
+ (export "destroyVessel" (func $assembly/index/destroyVessel))
  (export "updateVesselState" (func $assembly/index/updateVesselState))
  (export "setThrottle" (func $assembly/index/setThrottle))
  (export "setRudderAngle" (func $assembly/index/setRudderAngle))
@@ -649,6 +650,10 @@
   local.get $draft
   local.get $blockCoefficient
   call $assembly/index/createVessel
+ )
+ (func $assembly/index/destroyVessel (param $_vesselPtr i32)
+  i32.const 0
+  global.set $assembly/index/globalVessel
  )
  (func $assembly/index/ensureVessel (param $vesselPtr i32) (result i32)
   local.get $vesselPtr
