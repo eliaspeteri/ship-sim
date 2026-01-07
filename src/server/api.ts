@@ -7,6 +7,7 @@ import { VesselState, ShipType } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
 import { prisma } from '../lib/prisma';
 import { ensurePosition, positionFromXY } from '../lib/position';
+import { recordMetric, serverMetrics } from './metrics';
 
 // First, define proper types for the database models
 interface DBVesselState {
@@ -133,6 +134,13 @@ let environmentState: InMemoryEnvironmentState = {
 
 // Apply authentication middleware to all routes
 router.use(authenticateRequest);
+router.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    recordMetric('api', Date.now() - start);
+  });
+  next();
+});
 
 // GET /api/vessels
 router.get(
@@ -537,6 +545,11 @@ router.delete('/spaces/:spaceId', requireAuth, async (req, res) => {
     console.error('Failed to delete space', err);
     res.status(500).json({ error: 'Failed to delete space' });
   }
+});
+
+// GET /api/metrics - basic server metrics (auth required)
+router.get('/metrics', requireAuth, (_req, res) => {
+  res.json(serverMetrics);
 });
 
 // GET /api/settings/:userId

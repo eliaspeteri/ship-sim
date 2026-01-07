@@ -35,6 +35,7 @@ import {
 } from '../lib/position';
 import { prisma } from '../lib/prisma';
 import { RUDDER_STALL_ANGLE_RAD } from '../constants/vessel';
+import { recordMetric, setConnectedClients } from './metrics';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
@@ -1024,6 +1025,8 @@ io.on('connection', async socket => {
   const isSpectatorOnly = roleSet.has('spectator') && !isPlayerOrHigher;
   const isGuest = !isPlayerOrHigher && !roleSet.has('spectator');
 
+  setConnectedClients(io.engine.clientsCount);
+
   let vessel: VesselRecord | null = null;
   if (isPlayerOrHigher) {
     vessel = ensureVesselForUser(effectiveUserId, effectiveUsername, spaceId);
@@ -1540,6 +1543,7 @@ io.on('connection', async socket => {
     const currentUserId = socket.data.userId || effectiveUserId;
     const currentUsername = socket.data.username || effectiveUsername;
     console.info(`Socket disconnected: ${currentUsername} (${currentUserId})`);
+    setConnectedClients(io.engine.clientsCount);
 
     if (!isGuest) {
       const vesselId =
@@ -1613,6 +1617,7 @@ const BROADCAST_INTERVAL_MS = 200;
 let lastBroadcastAt = Date.now();
 setInterval(() => {
   if (!io) return;
+  const broadcastStart = Date.now();
   const now = Date.now();
   const drift = now - lastBroadcastAt;
   if (
@@ -1646,6 +1651,7 @@ setInterval(() => {
   }
 
   // Advance AI vessels using substeps for stability
+  const aiStart = Date.now();
   const targetSubDt = 1 / 60; // ~60 Hz
   const steps = Math.max(1, Math.round(dt / targetSubDt));
   const subDt = dt / steps;
@@ -1677,6 +1683,7 @@ setInterval(() => {
       void persistVesselToDb(v, { force: true });
     }
   }
+  recordMetric('ai', Date.now() - aiStart);
 
   // Broadcast per space
   const vesselsBySpace = new Map<
@@ -1704,6 +1711,7 @@ setInterval(() => {
       void persistEnvironmentToDb({ spaceId: sid });
     }
   }
+  recordMetric('broadcast', Date.now() - broadcastStart);
 }, BROADCAST_INTERVAL_MS);
 
 // Export the app and io for potential testing or extension
