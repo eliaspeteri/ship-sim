@@ -26,6 +26,7 @@
   - [x] Move sim HUD into a docked drawer with topical tabs (navigation, weather, fuel, ballast, load, electrics, etc.) reusing existing weather visuals.
   - [x] Add Conning display tab in the HUD with core navigation readouts.
   - [x] Add Alarms tab in the HUD with engine/safety alerts.
+  - Add a mobile landscape mode (rotated/condensed HUD) once the desktop flow is stable.
 - [ ] Environment controls
   - Rebuild the EnvironmentControls UI to reflect the current server-driven weather model, admin gating, and live updates; remove obsolete toggles.
   - Gate weather controls to space creators/hosts (not only admins) once spaces/rooms exist.
@@ -39,14 +40,14 @@
 - [ ] Admin tools
   - Add admin ship repositioning tools (spectator drag/teleport, separate admin view).
 - [ ] Bridge systems
-  - Add AIS receiver/overlay with labeled AIS targets alongside radar returns.
+  - [x] Add AIS receiver/overlay with labeled AIS targets alongside radar returns.
   - Add dual-band radar views (X-band + S-band) in the HUD layout.
 - [ ] Instrumentation & observability
   - Add basic metrics (loop timing, socket/API latency) and central log aggregation for server and sim loops.
 - [ ] Default vessels
   - On server boot, load saved vessels; if none, spawn an AI-controlled vessel at a default lat/long/heading and publish to clients.
-- [ ] Position data
-  - Refactor x/y to lat/long; keep height/depth; update physics, rendering, and network schemas.
+- [x] Position data
+  - [x] Refactor x/y to lat/long; keep height/depth; update physics, rendering, and network schemas.
 - [ ] Auth review
   - Audit NextAuth flow so the server receives auth/role on every request; align JWT/cookie handling and role mapping.
 - [ ] Auth hardening
