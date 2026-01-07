@@ -35,7 +35,9 @@ export const recordMetric = (bucket: keyof ServerMetrics, ms: number) => {
   metric.lastMs = ms;
   metric.maxMs = Math.max(metric.maxMs, ms);
   metric.avgMs =
-    metric.count === 0 ? ms : metric.avgMs + (ms - metric.avgMs) / (metric.count + 1);
+    metric.count === 0
+      ? ms
+      : metric.avgMs + (ms - metric.avgMs) / (metric.count + 1);
   metric.count += 1;
   serverMetrics.updatedAt = Date.now();
 };
