@@ -31,13 +31,17 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     setError(null);
     const res = await signIn('credentials', {
-      redirect: true,
+      redirect: false,
       username,
       password,
+      callbackUrl: '/sim',
     });
     if (res?.error) {
       setError(res.error);
+      setLoading(false);
+      return;
     }
+    await router.replace(res?.url || '/sim');
     setLoading(false);
   };
 
