@@ -76,8 +76,7 @@ const Ship: React.FC<ShipProps> = ({
     const obj = shipRef.current;
     if (obj) {
       const sink = -draft * (0.4 + 0.4 * ballast); // simple visual offset
-      const yPos =
-        position.y !== undefined ? position.y + sink : sink;
+      const yPos = position.y !== undefined ? position.y + sink : sink;
       // Position from props and physics state (use heave in y plus sink offset)
       obj.position.set(position.x, yPos, position.z);
 

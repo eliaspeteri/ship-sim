@@ -28,20 +28,25 @@ export async function loadWasmModule(): Promise<WasmModule> {
     env: {
       memory,
       // AssemblyScript abort signature: (msg?: usize, file?: usize, line?: i32, col?: i32)
-      abort: (msgPtr: number, filePtr: number, line: number, column: number) => {
+      abort: (
+        msgPtr: number,
+        filePtr: number,
+        line: number,
+        column: number,
+      ) => {
         let message = 'abort';
         let file = '';
         try {
           if (msgPtr) {
             const buffer = new Uint16Array(memory.buffer);
-            const len = buffer[msgPtr - 2 >>> 1];
+            const len = buffer[(msgPtr - 2) >>> 1];
             message = textDecoder.decode(
               new Uint8Array(memory.buffer, msgPtr, len << 1),
             );
           }
           if (filePtr) {
             const buffer = new Uint16Array(memory.buffer);
-            const len = buffer[filePtr - 2 >>> 1];
+            const len = buffer[(filePtr - 2) >>> 1];
             file = textDecoder.decode(
               new Uint8Array(memory.buffer, filePtr, len << 1),
             );
@@ -61,9 +66,11 @@ export async function loadWasmModule(): Promise<WasmModule> {
   const exports = instance.exports as WebAssembly.Exports;
 
   const setArgs = (len: number) => {
-    const maybeSetter = (exports as {
-      __setArgumentsLength?: (len: number) => void;
-    }).__setArgumentsLength;
+    const maybeSetter = (
+      exports as {
+        __setArgumentsLength?: (len: number) => void;
+      }
+    ).__setArgumentsLength;
     if (typeof maybeSetter === 'function') {
       maybeSetter(len);
     }
@@ -197,7 +204,9 @@ export async function loadWasmModule(): Promise<WasmModule> {
       seaState: number,
     ) => number,
     resetGlobalVessel: exports.resetGlobalVessel as () => void,
-    destroyVessel: exports.destroyVessel as ((vesselPtr: number) => void) | undefined,
+    destroyVessel: exports.destroyVessel as
+      | ((vesselPtr: number) => void)
+      | undefined,
   };
 
   wasmInstance = wrapper;

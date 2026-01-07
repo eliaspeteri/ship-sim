@@ -189,16 +189,14 @@ class SocketManager {
     });
 
     this.socket.on('chat:message', (data: ChatMessageData) => {
-      useStore
-        .getState()
-        .addChatMessage({
-          id: data.id,
-          userId: data.userId,
-          username: data.username,
-          message: data.message,
-          timestamp: data.timestamp || Date.now(),
-          channel: data.channel || 'global',
-        });
+      useStore.getState().addChatMessage({
+        id: data.id,
+        userId: data.userId,
+        username: data.username,
+        message: data.message,
+        timestamp: data.timestamp || Date.now(),
+        channel: data.channel || 'global',
+      });
       if (data.userId === 'system') {
         useStore.getState().addEvent({
           category: 'system',
@@ -264,54 +262,54 @@ class SocketManager {
 
   // Handle simulation updates from server
   private handleSimulationUpdate(data: SimulationUpdateData): void {
-      const store = useStore.getState();
-      if (data.self?.roles) {
-        store.setRoles(data.self.roles);
-      }
-      if (data.self?.spaceId) {
-        store.setSpaceId(data.self.spaceId);
-        this.setSpaceId(data.self.spaceId);
-      } else if (data.spaceId) {
-        store.setSpaceId(data.spaceId);
-        this.setSpaceId(data.spaceId);
-      }
-      if (data.environment) {
-        store.updateEnvironment(data.environment);
-      }
-      if (data.chatHistory) {
-        store.setChatMessages(
-          data.chatHistory.map(msg => ({
-            userId: msg.userId,
-            username: msg.username,
-            message: msg.message,
-            timestamp: msg.timestamp || Date.now(),
-            channel: msg.channel || 'global',
-          })),
-        );
-        const perChannel = new Map<string, number>();
-        data.chatHistory.forEach(msg => {
-          const channel = msg.channel || 'global';
-          perChannel.set(channel, (perChannel.get(channel) || 0) + 1);
+    const store = useStore.getState();
+    if (data.self?.roles) {
+      store.setRoles(data.self.roles);
+    }
+    if (data.self?.spaceId) {
+      store.setSpaceId(data.self.spaceId);
+      this.setSpaceId(data.self.spaceId);
+    } else if (data.spaceId) {
+      store.setSpaceId(data.spaceId);
+      this.setSpaceId(data.spaceId);
+    }
+    if (data.environment) {
+      store.updateEnvironment(data.environment);
+    }
+    if (data.chatHistory) {
+      store.setChatMessages(
+        data.chatHistory.map(msg => ({
+          userId: msg.userId,
+          username: msg.username,
+          message: msg.message,
+          timestamp: msg.timestamp || Date.now(),
+          channel: msg.channel || 'global',
+        })),
+      );
+      const perChannel = new Map<string, number>();
+      data.chatHistory.forEach(msg => {
+        const channel = msg.channel || 'global';
+        perChannel.set(channel, (perChannel.get(channel) || 0) + 1);
+      });
+      perChannel.forEach((count, channel) => {
+        store.setChatHistoryMeta(channel, {
+          hasMore: count >= CHAT_HISTORY_PAGE_SIZE,
+          loaded: true,
         });
-        perChannel.forEach((count, channel) => {
-          store.setChatHistoryMeta(channel, {
-            hasMore: count >= CHAT_HISTORY_PAGE_SIZE,
-            loaded: true,
-          });
-        });
-      }
+      });
+    }
     const currentOthers = store.otherVessels || {};
     const nextOthers = data.partial ? { ...currentOthers } : {};
     let changed = false;
 
     Object.entries(data.vessels).forEach(([id, vesselData]) => {
-        const isSelf =
-          id === this.userId ||
-          id === store.currentVesselId ||
-          vesselData.ownerId === this.userId ||
-          (Array.isArray(vesselData.crewIds) &&
-            vesselData.crewIds.includes(this.userId));
-        if (isSelf) {
+      const isSelf =
+        id === this.userId ||
+        id === store.currentVesselId ||
+        vesselData.ownerId === this.userId ||
+        (Array.isArray(vesselData.crewIds) &&
+          vesselData.crewIds.includes(this.userId));
+      if (isSelf) {
         if (store.currentVesselId !== id) {
           store.setCurrentVesselId(id);
         }
@@ -451,7 +449,11 @@ class SocketManager {
   }
 
   // Send vessel control update to server
-  sendControlUpdate(throttle: number, rudderAngle: number, ballast?: number): void {
+  sendControlUpdate(
+    throttle: number,
+    rudderAngle: number,
+    ballast?: number,
+  ): void {
     if (!this.socket?.connected) return;
 
     const controlData: VesselControlData = {
@@ -464,7 +466,12 @@ class SocketManager {
     this.socket.emit('vessel:control', controlData);
   }
 
-  requestNewVessel(position?: { x?: number; y?: number; lat?: number; lon?: number }): void {
+  requestNewVessel(position?: {
+    x?: number;
+    y?: number;
+    lat?: number;
+    lon?: number;
+  }): void {
     if (!this.socket?.connected) return;
     this.socket.emit('vessel:create', position);
   }
@@ -504,7 +511,11 @@ class SocketManager {
       }
       this.chatHistoryLoading.add(normalizedChannel || channel);
     }
-    this.socket.emit('chat:history', { channel: normalizedChannel || channel, before, limit });
+    this.socket.emit('chat:history', {
+      channel: normalizedChannel || channel,
+      before,
+      limit,
+    });
   }
 
   // Update vessel position

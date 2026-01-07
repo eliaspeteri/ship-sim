@@ -27,9 +27,12 @@ const getTokenFromRequest = (req: Request): string | undefined => {
   );
 };
 
-const toAuthenticatedUser = (
-  token: { sub?: string; name?: string; email?: string; role?: Role },
-): AuthenticatedUser => {
+const toAuthenticatedUser = (token: {
+  sub?: string;
+  name?: string;
+  email?: string;
+  role?: Role;
+}): AuthenticatedUser => {
   const baseRole: Role = token.role || 'player';
   const roles = expandRoles([baseRole]);
   const permissions = permissionsForRoles(roles);
@@ -41,7 +44,9 @@ const toAuthenticatedUser = (
   };
 };
 
-const decodeNextAuthToken = async (req: Request): Promise<AuthenticatedUser | null> => {
+const decodeNextAuthToken = async (
+  req: Request,
+): Promise<AuthenticatedUser | null> => {
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) return null;
 
@@ -53,7 +58,9 @@ const decodeNextAuthToken = async (req: Request): Promise<AuthenticatedUser | nu
       secureCookie: false,
     });
     if (token) {
-      return toAuthenticatedUser(token as { sub?: string; name?: string; email?: string; role?: Role });
+      return toAuthenticatedUser(
+        token as { sub?: string; name?: string; email?: string; role?: Role },
+      );
     }
   } catch (err) {
     console.warn('Failed to decode NextAuth token via getToken:', err);

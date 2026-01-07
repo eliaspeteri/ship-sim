@@ -102,7 +102,8 @@ const RudderAngleIndicator: React.FC<RudderAngleIndicatorProps> = ({
         innerRadius - tickLength,
         tickAngle,
       );
-      const tickColor = value < 0 ? '#e53935' : value > 0 ? '#43a047' : '#ffffff';
+      const tickColor =
+        value < 0 ? '#e53935' : value > 0 ? '#43a047' : '#ffffff';
 
       tickMarks.push(
         <line

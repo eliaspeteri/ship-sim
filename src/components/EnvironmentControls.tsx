@@ -109,11 +109,11 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
           <p className="text-lg font-semibold">
             {environment.name || 'Live weather feed'}
           </p>
-          <p className="text-xs text-gray-400">
-            {summaryLines.join(' • ')}
-          </p>
+          <p className="text-xs text-gray-400">{summaryLines.join(' • ')}</p>
           <p className="text-[11px] text-gray-500">
-            {lastUpdated ? `Updated ${formatRelativeTime(lastUpdated)}` : 'Waiting for server...'}
+            {lastUpdated
+              ? `Updated ${formatRelativeTime(lastUpdated)}`
+              : 'Waiting for server...'}
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
@@ -208,7 +208,8 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
                 onClick={() => {
                   socketManager.sendWeatherControl({ mode: 'auto' });
                   setFeedback('Server is now picking weather + real-time.');
-                  if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+                  if (feedbackTimer.current)
+                    clearTimeout(feedbackTimer.current);
                   feedbackTimer.current = setTimeout(
                     () => setFeedback(null),
                     3200,
@@ -245,7 +246,8 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
               ))}
             </div>
             <p className="mt-2 text-[11px] text-gray-500">
-              Weather is server-driven; presets send a request and live data will update once the server applies it.
+              Weather is server-driven; presets send a request and live data
+              will update once the server applies it.
             </p>
             {feedback ? (
               <div className="mt-2 rounded-lg bg-gray-800 px-3 py-2 text-xs text-gray-100">
@@ -271,9 +273,7 @@ const Metric = ({
   detail?: string;
 }) => (
   <div className="rounded-lg border border-gray-800 bg-gray-800/60 bg-gray-900/70 p-3">
-    <p className="text-[11px] uppercase tracking-wide text-gray-400">
-      {label}
-    </p>
+    <p className="text-[11px] uppercase tracking-wide text-gray-400">{label}</p>
     <p className="text-base font-semibold text-white">{value}</p>
     {detail ? <p className="text-xs text-gray-400">{detail}</p> : null}
   </div>
@@ -354,7 +354,9 @@ function getSeaStateDescription(state: number): string {
 
 function calculateWaveHeight(state: number): number {
   const waveHeights = [0, 0.1, 0.2, 0.6, 1.5, 2.5, 4, 6, 9, 14, 14, 14, 14];
-  return waveHeights[Math.min(Math.max(Math.round(state), 0), waveHeights.length - 1)];
+  return waveHeights[
+    Math.min(Math.max(Math.round(state), 0), waveHeights.length - 1)
+  ];
 }
 
 function seaStateFromWind(speedMs: number): number {
@@ -366,10 +368,7 @@ function normalizeSeaState(value: number): number {
   return Math.min(Math.max(Math.round(value), 0), 12);
 }
 
-function describePrecipitation(
-  type: string,
-  intensity: number,
-): string {
+function describePrecipitation(type: string, intensity: number): string {
   if (type === 'none') return 'Clear';
   const bucket =
     intensity < 0.3 ? 'Light' : intensity < 0.7 ? 'Moderate' : 'Heavy';

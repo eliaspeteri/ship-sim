@@ -1,7 +1,13 @@
 // Scene with orbit camera, Environment lighting, and a Water plane that follows the vessel.
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Canvas, ThreeEvent, useFrame, useThree } from '@react-three/fiber';
 import { Environment, OrbitControls, Sky } from '@react-three/drei';
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
@@ -165,7 +171,9 @@ function SpectatorController({
       controlsRef.current.target.set(focusRef.current.x, 0, focusRef.current.y);
       controlsRef.current.update();
     } else {
-      camera.lookAt(tmpVec.current.set(focusRef.current.x, 0, focusRef.current.y));
+      camera.lookAt(
+        tmpVec.current.set(focusRef.current.x, 0, focusRef.current.y),
+      );
     }
   }, [mode, camera, focusRef, controlsRef, entryTargetRef]);
 
@@ -238,8 +246,11 @@ function SpectatorController({
       controlsRef.current.update();
       positionRef.current.copy(camera.position);
     } else {
-      const lookAt = tmpVec.current
-        .set(focusRef.current.x, 0, focusRef.current.y);
+      const lookAt = tmpVec.current.set(
+        focusRef.current.x,
+        0,
+        focusRef.current.y,
+      );
       camera.lookAt(lookAt);
       positionRef.current.copy(camera.position);
     }
@@ -286,7 +297,10 @@ function AdminDragHandles({
   onDragStateChange: (dragging: boolean) => void;
 }) {
   const { camera, gl } = useThree();
-  const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), []);
+  const plane = useMemo(
+    () => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0),
+    [],
+  );
   const dragRef = useRef<{ id: string | null }>({ id: null });
   const hitPoint = useRef(new THREE.Vector3());
   const pointer = useRef(new THREE.Vector2());
@@ -449,7 +463,10 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
     // Simple solar model: elevation crosses horizon at ~06:00/18:00, peaks at noon, negative at night.
     const elevation = Math.sin((normalized - 0.25) * Math.PI * 2);
     const azimuth = normalized * Math.PI * 2;
-    const horizontalMag = Math.max(0, Math.sqrt(Math.max(0, 1 - elevation ** 2)));
+    const horizontalMag = Math.max(
+      0,
+      Math.sqrt(Math.max(0, 1 - elevation ** 2)),
+    );
     const dir = new THREE.Vector3(
       Math.cos(azimuth) * horizontalMag,
       elevation,
@@ -483,7 +500,14 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
       });
     });
     return targets;
-  }, [currentVesselId, isAdmin, isSpectator, otherVessels, vesselPosition.x, vesselPosition.y]);
+  }, [
+    currentVesselId,
+    isAdmin,
+    isSpectator,
+    otherVessels,
+    vesselPosition.x,
+    vesselPosition.y,
+  ]);
 
   const handleAdminMove = useCallback((id: string, x: number, y: number) => {
     socketManager.sendAdminVesselMove(id, { x, y });
@@ -562,9 +586,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
         />
         <Environment preset="sunset" />
         <ambientLight intensity={lightIntensity.ambient} />
-        <hemisphereLight
-          args={['#6fa6ff', '#0b1e2d', lightIntensity.hemi]}
-        />
+        <hemisphereLight args={['#6fa6ff', '#0b1e2d', lightIntensity.hemi]} />
         <directionalLight
           ref={directionalLightRef}
           intensity={lightIntensity.directional}
@@ -582,9 +604,13 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
         />
         <Ship
           position={{
-            x: dragPreviewPositions[currentVesselId || '']?.x ?? vesselPosition.x,
+            x:
+              dragPreviewPositions[currentVesselId || '']?.x ??
+              vesselPosition.x,
             y: vesselPosition.z,
-            z: dragPreviewPositions[currentVesselId || '']?.y ?? vesselPosition.y,
+            z:
+              dragPreviewPositions[currentVesselId || '']?.y ??
+              vesselPosition.y,
           }}
           heading={vesselPosition.heading}
           shipType={vesselProperties.type}

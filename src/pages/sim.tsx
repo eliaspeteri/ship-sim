@@ -845,11 +845,13 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
 
       {mode !== 'spectator' ? <Dashboard /> : null}
       <Scene vesselPosition={vesselPosition} mode={mode} />
-      <HudDrawer onOpenSpaces={() => {
-        setSpaceModalOpen(true);
-        setSpaceError(null);
-        setSpaceFlow('choice');
-      }} />
+      <HudDrawer
+        onOpenSpaces={() => {
+          setSpaceModalOpen(true);
+          setSpaceError(null);
+          setSpaceFlow('choice');
+        }}
+      />
       {showJoinChoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="rounded-lg bg-gray-900 p-6 text-white shadow-2xl w-[420px] space-y-4">

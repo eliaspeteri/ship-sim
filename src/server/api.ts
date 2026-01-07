@@ -286,9 +286,8 @@ router.get('/spaces', async (req, res) => {
       orderBy: { createdAt: 'asc' },
     });
 
-    const collected: ReturnType<typeof serializeSpace>[] = publicSpaces.map(
-      serializeSpace,
-    );
+    const collected: ReturnType<typeof serializeSpace>[] =
+      publicSpaces.map(serializeSpace);
 
     // Include known spaces for the current user
     if (includeKnown && req.user?.userId) {
@@ -346,8 +345,7 @@ router.post('/spaces', requireAuth, async (req, res) => {
     res.status(400).json({ error: 'Space name is required' });
     return;
   }
-  const visibility =
-    req.body?.visibility === 'private' ? 'private' : 'public';
+  const visibility = req.body?.visibility === 'private' ? 'private' : 'public';
   const password =
     typeof req.body?.password === 'string' ? req.body.password : undefined;
   const inviteToken =

@@ -5,9 +5,7 @@ import { VesselState } from '../types/vessel.types';
 import { safe } from '../lib/safe';
 import socketManager from '../networking/socket';
 import { xyToLatLon } from '../lib/geo';
-import {
-  clampRudderAngle,
-} from '../constants/vessel';
+import { clampRudderAngle } from '../constants/vessel';
 
 // Singleton for simulation instance
 let simulationInstance: SimulationLoop | null = null;
@@ -191,9 +189,7 @@ export class SimulationLoop {
       currentTime - this.lastPerfLogMs > SimulationLoop.perfLogIntervalMs
     ) {
       const avgMs =
-        this.frameCounter > 0
-          ? this.accumulatedFrameMs / this.frameCounter
-          : 0;
+        this.frameCounter > 0 ? this.accumulatedFrameMs / this.frameCounter : 0;
       if (
         avgMs > SimulationLoop.perfAvgWarnMs ||
         this.maxFrameMs > SimulationLoop.perfMaxWarnMs

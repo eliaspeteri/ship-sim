@@ -22,7 +22,8 @@ const Layout: React.FC<LayoutProps> = ({ children, fullBleed = false }) => {
   const { status, data: session } = useSession();
   const isAuthed = status === 'authenticated';
   const role = (session?.user as { role?: string })?.role || 'guest';
-  const username = session?.user?.name || (session?.user as { id?: string })?.id;
+  const username =
+    session?.user?.name || (session?.user as { id?: string })?.id;
 
   const handleLogout = async () => {
     try {

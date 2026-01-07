@@ -87,7 +87,12 @@ export type ServerToClientEvents = {
 export type ClientToServerEvents = {
   'vessel:update': (data: VesselUpdateData) => void;
   'vessel:control': (data: VesselControlData) => void;
-  'vessel:create': (data?: { x?: number; y?: number; lat?: number; lon?: number }) => void;
+  'vessel:create': (data?: {
+    x?: number;
+    y?: number;
+    lat?: number;
+    lon?: number;
+  }) => void;
   'vessel:helm': (data: { action: 'claim' | 'release' }) => void;
   'simulation:state': (data: { isRunning: boolean }) => void;
   'admin:weather': (data: {
@@ -98,7 +103,10 @@ export type ClientToServerEvents = {
   'admin:vessel:move': (data: AdminVesselMoveData) => void;
   'chat:message': (data: { message: string; channel?: string }) => void;
   'chat:history': (data: ChatHistoryRequest) => void;
-  'admin:vesselMode': (data: { vesselId: string; mode: 'player' | 'ai' }) => void;
+  'admin:vesselMode': (data: {
+    vesselId: string;
+    mode: 'player' | 'ai';
+  }) => void;
   'user:mode': (data: { mode: 'player' | 'spectator' }) => void;
 };
 // Define Socket.IO interface

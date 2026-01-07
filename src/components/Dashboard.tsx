@@ -20,7 +20,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   const { position, orientation, velocity, engineState, alarms } = vessel || {};
   const headingRad = orientation?.heading || 0;
   const headingDeg = ((headingRad * 180) / Math.PI + 360) % 360;
-  const compassHeadingDeg = ((90 - headingDeg) % 360 + 360) % 360;
+  const compassHeadingDeg = (((90 - headingDeg) % 360) + 360) % 360;
   const compassHeadingRad = (compassHeadingDeg * Math.PI) / 180;
 
   const navOffset = 'calc(var(--nav-height, 0px) + 1rem)';
@@ -139,8 +139,10 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
                 const heading = orientation?.heading || 0;
                 const surge = velocity?.surge || 0;
                 const sway = velocity?.sway || 0;
-                const worldX = surge * Math.cos(heading) - sway * Math.sin(heading);
-                const worldY = surge * Math.sin(heading) + sway * Math.cos(heading);
+                const worldX =
+                  surge * Math.cos(heading) - sway * Math.sin(heading);
+                const worldY =
+                  surge * Math.sin(heading) + sway * Math.cos(heading);
                 const bearing =
                   ((Math.atan2(worldX, worldY) * 180) / Math.PI + 360) % 360;
                 return Math.round(bearing);
@@ -151,7 +153,9 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           <div className="bg-gray-800/70 p-2 rounded">
             <div className="text-gray-400 text-xs">Yaw rate</div>
             <div className="font-mono">
-              {(((vessel.angularVelocity?.yaw || 0) * 180) / Math.PI).toFixed(2)}
+              {(((vessel.angularVelocity?.yaw || 0) * 180) / Math.PI).toFixed(
+                2,
+              )}
               °/s
             </div>
           </div>

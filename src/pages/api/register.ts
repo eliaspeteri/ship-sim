@@ -9,7 +9,9 @@ export default async function handler(
 ) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
-    return res.status(405).json({ success: false, error: 'Method not allowed' });
+    return res
+      .status(405)
+      .json({ success: false, error: 'Method not allowed' });
   }
 
   const { username, password } = req.body as {

@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { getSimulationLoop } from '../simulation/simulationLoop';
-import { VesselState, ShipType, SimpleVesselState } from '../types/vessel.types';
+import {
+  VesselState,
+  ShipType,
+  SimpleVesselState,
+} from '../types/vessel.types';
 import { WasmModule } from '../types/wasm';
 import { EventLogEntry } from '../types/events.types';
 import { EnvironmentState } from '../types/environment.types';
@@ -327,7 +331,8 @@ const useStore = create<SimulationState>()((set, get) => ({
         ...state.chatHistoryMeta,
         [channel]: {
           hasMore: meta.hasMore,
-          loaded: meta.loaded ?? state.chatHistoryMeta[channel]?.loaded ?? false,
+          loaded:
+            meta.loaded ?? state.chatHistoryMeta[channel]?.loaded ?? false,
         },
       },
     })),
@@ -337,7 +342,8 @@ const useStore = create<SimulationState>()((set, get) => ({
   currentVesselId: null,
   otherVessels: {},
   resetVessel: () => set({ vessel: defaultVesselState }),
-  setCurrentVesselId: id => set({ currentVesselId: id ? id.split('_')[0] : null }),
+  setCurrentVesselId: id =>
+    set({ currentVesselId: id ? id.split('_')[0] : null }),
   setOtherVessels: vessels => set({ otherVessels: vessels }),
   updateVessel: vesselUpdate =>
     set(state => {

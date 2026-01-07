@@ -103,7 +103,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const ownShipData = useMemo(() => {
     const headingRad = vessel.orientation.heading || 0;
     const headingDeg = ((toDegrees(headingRad) % 360) + 360) % 360;
-    const headingCompass = ((90 - headingDeg) % 360 + 360) % 360;
+    const headingCompass = (((90 - headingDeg) % 360) + 360) % 360;
     const surge = vessel.velocity.surge || 0;
     const sway = vessel.velocity.sway || 0;
     const worldX = surge * Math.cos(headingRad) - sway * Math.sin(headingRad);
@@ -248,9 +248,9 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       environment.timeOfDay ?? now.getUTCHours() + now.getUTCMinutes() / 60;
     const headingDeg =
       ((toDegrees(vessel.orientation.heading) % 360) + 360) % 360;
-    const headingCompass = ((90 - headingDeg) % 360 + 360) % 360;
+    const headingCompass = (((90 - headingDeg) % 360) + 360) % 360;
     const windDeg = ((toDegrees(environment.wind.direction) % 360) + 360) % 360;
-    const windCompass = ((90 - windDeg) % 360 + 360) % 360;
+    const windCompass = (((90 - windDeg) % 360) + 360) % 360;
     const surge = vessel.velocity.surge ?? 0;
     const sway = vessel.velocity.sway ?? 0;
     const speedMs = Math.sqrt(surge ** 2 + sway ** 2);
@@ -372,7 +372,8 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       };
     }> = [];
 
-    const shortId = (id: string) => (id.length > 10 ? `${id.slice(0, 10)}…` : id);
+    const shortId = (id: string) =>
+      id.length > 10 ? `${id.slice(0, 10)}…` : id;
 
     if (currentVesselId) {
       targets.push({
@@ -606,7 +607,10 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const handleAdminMoveToSelf = () => {
     if (!adminTargetId) return;
     if (adminMoveMode === 'latlon') {
-      if (vessel.position.lat === undefined || vessel.position.lon === undefined) {
+      if (
+        vessel.position.lat === undefined ||
+        vessel.position.lon === undefined
+      ) {
         setNotice({ type: 'error', message: 'Lat/lon not available yet.' });
         return;
       }
@@ -835,7 +839,8 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                         )}
                       />
                       <div className="mt-1 text-[11px] text-gray-500">
-                        Current: {formatCoord(selectedAdminTarget?.position.x, 1)} m
+                        Current:{' '}
+                        {formatCoord(selectedAdminTarget?.position.x, 1)} m
                       </div>
                     </label>
                     <label className="text-xs text-gray-300">
@@ -850,7 +855,8 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                         )}
                       />
                       <div className="mt-1 text-[11px] text-gray-500">
-                        Current: {formatCoord(selectedAdminTarget?.position.y, 1)} m
+                        Current:{' '}
+                        {formatCoord(selectedAdminTarget?.position.y, 1)} m
                       </div>
                     </label>
                   </div>
@@ -868,7 +874,8 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                         )}
                       />
                       <div className="mt-1 text-[11px] text-gray-500">
-                        Current: {formatCoord(selectedAdminTarget?.position.lat, 6)}
+                        Current:{' '}
+                        {formatCoord(selectedAdminTarget?.position.lat, 6)}
                       </div>
                     </label>
                     <label className="text-xs text-gray-300">
@@ -883,7 +890,8 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                         )}
                       />
                       <div className="mt-1 text-[11px] text-gray-500">
-                        Current: {formatCoord(selectedAdminTarget?.position.lon, 6)}
+                        Current:{' '}
+                        {formatCoord(selectedAdminTarget?.position.lon, 6)}
                       </div>
                     </label>
                   </div>

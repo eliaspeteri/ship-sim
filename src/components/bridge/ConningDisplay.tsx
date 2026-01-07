@@ -56,7 +56,8 @@ export const ConningDisplay: React.FC<ConningDisplayProps> = ({ data }) => {
         minHeight: 600,
         minWidth: 800,
         width: '100%',
-        background: 'linear-gradient(135deg, #0b1627 0%, #0d2238 55%, #0b1f36 100%)',
+        background:
+          'linear-gradient(135deg, #0b1627 0%, #0d2238 55%, #0b1f36 100%)',
         color: '#e7edf6',
         borderRadius: 12,
         padding: 16,
@@ -373,7 +374,9 @@ export const ConningDisplay: React.FC<ConningDisplayProps> = ({ data }) => {
                 color: brass,
               }}
             >
-              <span style={{ fontSize: 30, fontVariantNumeric: 'tabular-nums' }}>
+              <span
+                style={{ fontSize: 30, fontVariantNumeric: 'tabular-nums' }}
+              >
                 {data.dopplerLog.toFixed(1)}
               </span>
               <span style={{ fontSize: 12, letterSpacing: 1 }}>KN</span>

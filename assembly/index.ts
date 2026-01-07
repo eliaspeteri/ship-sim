@@ -210,10 +210,8 @@ export function updateVesselState(
   // Rudder force proportional to speed^2 and angle
   const speedMag = Math.sqrt(vessel.u * vessel.u + vessel.v * vessel.v);
   // Rudder force with simple stall curve and lever arm toward stern
-  const stallFactor = 1.0 - Math.min(
-    1.0,
-    Math.abs(vessel.rudderAngle) / RUDDER_STALL_ANGLE,
-  ) ** 2;
+  const stallFactor =
+    1.0 - Math.min(1.0, Math.abs(vessel.rudderAngle) / RUDDER_STALL_ANGLE) ** 2;
   const rudderForce =
     RUDDER_FORCE_COEFFICIENT *
     vessel.rudderAngle *
@@ -238,19 +236,26 @@ export function updateVesselState(
   const vDot =
     (-dragSway - SWAY_DAMPING * vessel.v + currentSway + rudderForce) / mass;
   const rDot =
-    (rudderMoment - windYaw - YAW_DAMPING * vessel.r -
+    (rudderMoment -
+      windYaw -
+      YAW_DAMPING * vessel.r -
       YAW_DAMPING_QUAD * vessel.r * Math.abs(vessel.r)) /
     Izz;
 
   // Wave height as a crude function of wind
-  const targetWave = Math.min(MAX_WAVE_HEIGHT, windSpeed * WAVE_HEIGHT_PER_WIND);
+  const targetWave = Math.min(
+    MAX_WAVE_HEIGHT,
+    windSpeed * WAVE_HEIGHT_PER_WIND,
+  );
   vessel.waveHeight = targetWave;
   vessel.wavePhase += safeDt * 2.0; // arbitrary speed for phase change
   const waveSample = targetWave * Math.sin(vessel.wavePhase);
 
   // Buoyancy / heave toward target draft (includes ballast and wave surface)
   const neutralDraft =
-    effectiveMass / (WATER_DENSITY * vessel.length * vessel.beam * vessel.blockCoefficient + 1e-6);
+    effectiveMass /
+    (WATER_DENSITY * vessel.length * vessel.beam * vessel.blockCoefficient +
+      1e-6);
   const targetDraft = neutralDraft * (0.7 + ballastFactor * 0.5);
   const targetZ = -(targetDraft + waveSample);
   const heaveAccel =
@@ -262,11 +267,10 @@ export function updateVesselState(
   const waveSlopeRoll = targetWave * 0.02 * Math.sin(vessel.wavePhase + 1.0);
   const waveSlopePitch = targetWave * 0.02 * Math.cos(vessel.wavePhase);
   const gmRoll =
-    vessel.beam * vessel.beam * vessel.blockCoefficient /
+    (vessel.beam * vessel.beam * vessel.blockCoefficient) /
     (12.0 * (vessel.draft + 0.1));
   const gmPitch =
-    vessel.length * vessel.blockCoefficient /
-    (12.0 * (vessel.draft + 0.1));
+    (vessel.length * vessel.blockCoefficient) / (12.0 * (vessel.draft + 0.1));
 
   const rollRestoring =
     -GRAVITY * gmRoll * mass * (vessel.rollAngle - waveSlopeRoll);
