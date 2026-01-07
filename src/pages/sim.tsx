@@ -9,12 +9,13 @@ import socketManager from '../networking/socket';
 import { initializeSimulation, startSimulation } from '../simulation';
 import { getSimulationLoop } from '../simulation';
 import { RUDDER_STALL_ANGLE_RAD } from '../constants/vessel';
+import { positionFromXY, positionToXY } from '../lib/position';
 
 const PORTS = [
-  { name: 'Harbor Alpha', position: { x: 0, y: 0 } },
-  { name: 'Bay Delta', position: { x: 2000, y: -1500 } },
-  { name: 'Island Anchorage', position: { x: -2500, y: 1200 } },
-  { name: 'Channel Gate', position: { x: 800, y: 2400 } },
+  { name: 'Harbor Alpha', position: positionFromXY({ x: 0, y: 0 }) },
+  { name: 'Bay Delta', position: positionFromXY({ x: 2000, y: -1500 }) },
+  { name: 'Island Anchorage', position: positionFromXY({ x: -2500, y: 1200 }) },
+  { name: 'Channel Gate', position: positionFromXY({ x: 800, y: 2400 }) },
 ];
 
 /**
@@ -511,11 +512,15 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     );
   }
 
+  const vesselXY = positionToXY({
+    lat: vessel.position.lat,
+    lon: vessel.position.lon,
+  });
   const vesselPosition = {
-    x: vessel?.position?.x || 0,
-    y: vessel?.position?.y || 0,
-    z: vessel?.position?.z || 0,
-    heading: vessel?.orientation?.heading || 0,
+    x: vesselXY.x,
+    y: vesselXY.y,
+    z: vessel.position.z || 0,
+    heading: vessel.orientation.heading || 0,
   };
 
   return (
@@ -892,8 +897,9 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                   const port =
                     PORTS.find(p => p.name === selectedPort) || PORTS[0];
                   socketManager.requestNewVessel({
-                    x: port.position.x,
-                    y: port.position.y,
+                    lat: port.position.lat,
+                    lon: port.position.lon,
+                    z: port.position.z ?? 0,
                   });
                   setShowJoinChoice(false);
                   if (typeof window !== 'undefined') {

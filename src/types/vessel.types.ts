@@ -15,11 +15,11 @@ export enum ShipType {
 export interface VesselState {
   // Basic position and orientation
   position: {
-    x: number;
-    y: number;
+    lat: number; // decimal degrees
+    lon: number; // decimal degrees
     z: number;
-    lat?: number; // decimal degrees
-    lon?: number; // decimal degrees
+    x?: number; // derived meters (east)
+    y?: number; // derived meters (north)
   };
   orientation: { heading: number; roll: number; pitch: number };
   velocity: { surge: number; sway: number; heave: number };

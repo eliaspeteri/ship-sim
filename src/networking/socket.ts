@@ -3,6 +3,7 @@ import type * as SocketIOClient from 'socket.io-client';
 import useStore from '../store';
 import { SimpleVesselState } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
+import { ensurePosition, positionToLatLon } from '../lib/position';
 import {
   ChatHistoryResponse,
   ChatMessageData,
@@ -21,6 +22,7 @@ type ClientSocket = ReturnType<typeof io> & {
     token?: string | null;
     userId?: string | null;
     username?: string | null;
+    spaceId?: string | null;
   };
 };
 
@@ -41,11 +43,11 @@ const hasVesselChanged = (
   if (!prev) return true;
 
   const posChanged =
-    prev.position.x !== next.position.x ||
-    prev.position.y !== next.position.y ||
-    prev.position.z !== next.position.z ||
     prev.position.lat !== next.position.lat ||
-    prev.position.lon !== next.position.lon;
+    prev.position.lon !== next.position.lon ||
+    prev.position.z !== next.position.z ||
+    prev.position.x !== next.position.x ||
+    prev.position.y !== next.position.y;
   const orientationChanged =
     prev.orientation.heading !== next.orientation.heading ||
     prev.orientation.roll !== next.orientation.roll ||
@@ -303,12 +305,16 @@ class SocketManager {
     let changed = false;
 
     Object.entries(data.vessels).forEach(([id, vesselData]) => {
+      const normalized = {
+        ...vesselData,
+        position: ensurePosition(vesselData.position),
+      };
       const isSelf =
         id === this.userId ||
         id === store.currentVesselId ||
-        vesselData.ownerId === this.userId ||
-        (Array.isArray(vesselData.crewIds) &&
-          vesselData.crewIds.includes(this.userId));
+        normalized.ownerId === this.userId ||
+        (Array.isArray(normalized.crewIds) &&
+          normalized.crewIds.includes(this.userId));
       if (isSelf) {
         if (store.currentVesselId !== id) {
           store.setCurrentVesselId(id);
@@ -316,50 +322,50 @@ class SocketManager {
         if (!this.hasHydratedSelf) {
           this.hasHydratedSelf = true;
           store.setCurrentVesselId(id);
-          this.lastSelfSnapshot = vesselData;
-          this.selfHydrateResolvers.forEach(resolve => resolve(vesselData));
+          this.lastSelfSnapshot = normalized;
+          this.selfHydrateResolvers.forEach(resolve => resolve(normalized));
           this.selfHydrateResolvers = [];
         }
-        if (vesselData.crewIds || vesselData.crewNames) {
+        if (normalized.crewIds || normalized.crewNames) {
           store.setCrew({
-            ids: vesselData.crewIds,
-            names: vesselData.crewNames,
+            ids: normalized.crewIds,
+            names: normalized.crewNames,
           });
         }
         store.updateVessel({
-          position: vesselData.position,
-          orientation: vesselData.orientation,
-          velocity: vesselData.velocity,
-          angularVelocity: vesselData.angularVelocity
+          position: normalized.position,
+          orientation: normalized.orientation,
+          velocity: normalized.velocity,
+          angularVelocity: normalized.angularVelocity
             ? {
                 ...store.vessel.angularVelocity,
-                ...vesselData.angularVelocity,
+                ...normalized.angularVelocity,
               }
             : undefined,
-          controls: vesselData.controls
+          controls: normalized.controls
             ? {
                 ...store.vessel.controls,
                 throttle:
-                  vesselData.controls.throttle ??
+                  normalized.controls.throttle ??
                   store.vessel.controls?.throttle ??
                   0,
                 rudderAngle:
-                  vesselData.controls.rudderAngle ??
+                  normalized.controls.rudderAngle ??
                   store.vessel.controls?.rudderAngle ??
                   0,
                 ballast:
-                  vesselData.controls.ballast ??
+                  normalized.controls.ballast ??
                   store.vessel.controls?.ballast ??
                   0.5,
                 bowThruster:
-                  vesselData.controls.bowThruster ??
+                  normalized.controls.bowThruster ??
                   store.vessel.controls?.bowThruster ??
                   0,
               }
             : store.vessel.controls,
-          helm: vesselData.helm,
+          helm: normalized.helm,
         });
-        const desired = vesselData.desiredMode || vesselData.mode;
+        const desired = normalized.desiredMode || normalized.mode;
         if (desired === 'ai') {
           store.setMode('spectator');
         }
@@ -367,19 +373,19 @@ class SocketManager {
       }
 
       const prev = nextOthers[id];
-      if (hasVesselChanged(prev, vesselData)) {
-        nextOthers[id] = vesselData;
+      if (hasVesselChanged(prev, normalized)) {
+        nextOthers[id] = normalized;
         changed = true;
         if (
           id === store.currentVesselId &&
-          (vesselData.crewIds || vesselData.crewNames || vesselData.helm)
+          (normalized.crewIds || normalized.crewNames || normalized.helm)
         ) {
           store.setCrew({
-            ids: vesselData.crewIds,
-            names: vesselData.crewNames,
+            ids: normalized.crewIds,
+            names: normalized.crewNames,
           });
-          if (vesselData.helm) {
-            store.updateVessel({ helm: vesselData.helm });
+          if (normalized.helm) {
+            store.updateVessel({ helm: normalized.helm });
           }
         }
       }
@@ -406,10 +412,11 @@ class SocketManager {
     if (normalized !== currentId) return;
     void import('../simulation')
       .then(({ getSimulationLoop }) => {
+        const normalized = ensurePosition(data.position);
         getSimulationLoop().teleportVessel({
-          x: data.position.x,
-          y: data.position.y,
-          z: data.position.z,
+          x: normalized.x ?? 0,
+          y: normalized.y ?? 0,
+          z: normalized.z,
         });
       })
       .catch(error => {
@@ -473,7 +480,23 @@ class SocketManager {
     lon?: number;
   }): void {
     if (!this.socket?.connected) return;
-    this.socket.emit('vessel:create', position);
+    let payload = position;
+    if (
+      position &&
+      (position.x !== undefined || position.y !== undefined) &&
+      (position.lat === undefined || position.lon === undefined)
+    ) {
+      const ll = positionToLatLon({
+        x: position.x ?? 0,
+        y: position.y ?? 0,
+      });
+      payload = {
+        ...position,
+        lat: position.lat ?? ll.lat,
+        lon: position.lon ?? ll.lon,
+      };
+    }
+    this.socket.emit('vessel:create', payload);
   }
 
   requestHelm(action: 'claim' | 'release'): void {
@@ -537,7 +560,22 @@ class SocketManager {
     position: { x?: number; y?: number; lat?: number; lon?: number },
   ): void {
     if (!this.socket?.connected) return;
-    this.socket.emit('admin:vessel:move', { vesselId, position });
+    let nextPosition = { ...position };
+    if (
+      (position.x !== undefined || position.y !== undefined) &&
+      (position.lat === undefined || position.lon === undefined)
+    ) {
+      const ll = positionToLatLon({
+        x: position.x ?? 0,
+        y: position.y ?? 0,
+      });
+      nextPosition = {
+        ...nextPosition,
+        lat: nextPosition.lat ?? ll.lat,
+        lon: nextPosition.lon ?? ll.lon,
+      };
+    }
+    this.socket.emit('admin:vessel:move', { vesselId, position: nextPosition });
   }
 
   private buildSpaceChannel(channel?: string): string {

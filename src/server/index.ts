@@ -27,7 +27,12 @@ import {
   VesselVelocity,
 } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
-import { latLonToXY, xyToLatLon } from '../lib/geo';
+import {
+  ensurePosition,
+  mergePosition,
+  positionFromLatLon,
+  positionFromXY,
+} from '../lib/position';
 import { prisma } from '../lib/prisma';
 import { RUDDER_STALL_ANGLE_RAD } from '../constants/vessel';
 
@@ -121,7 +126,7 @@ async function persistVesselToDb(
   if (!opts.force && now - lastPersist < MIN_PERSIST_INTERVAL_MS) return;
   vesselPersistAt.set(vessel.id, now);
 
-  const pos = withLatLon(vessel.position);
+  const pos = mergePosition(vessel.position);
   try {
     await prisma.vessel.upsert({
       where: { id: vessel.id },
@@ -191,7 +196,6 @@ async function loadVesselsFromDb() {
   if (!rows.length) return;
 
   rows.forEach(row => {
-    const xy = latLonToXY({ lat: row.lat, lon: row.lon });
     const vessel: VesselRecord = {
       id: row.id,
       spaceId:
@@ -202,13 +206,7 @@ async function loadVesselsFromDb() {
       mode: (row.mode as VesselMode) || 'ai',
       desiredMode: (row.desiredMode as VesselMode) || 'player',
       lastCrewAt: row.lastCrewAt?.getTime() || Date.now(),
-      position: {
-        x: xy.x,
-        y: xy.y,
-        z: row.z,
-        lat: row.lat,
-        lon: row.lon,
-      },
+      position: positionFromLatLon({ lat: row.lat, lon: row.lon, z: row.z }),
       orientation: {
         heading: row.heading,
         roll: row.roll,
@@ -347,8 +345,11 @@ async function persistEnvironmentToDb(
   }
 }
 
-function createDefaultAIVessel(id: string, position = { x: 0, y: 0, z: 0 }) {
-  const latLon = xyToLatLon({ x: position.x, y: position.y });
+function createDefaultAIVessel(
+  id: string,
+  position: Partial<VesselPose['position']> = {},
+) {
+  const nextPosition = ensurePosition(position);
   const vessel: VesselRecord = {
     id,
     spaceId: DEFAULT_SPACE_ID,
@@ -359,7 +360,7 @@ function createDefaultAIVessel(id: string, position = { x: 0, y: 0, z: 0 }) {
     desiredMode: 'ai',
     lastCrewAt: Date.now(),
     yawRate: 0,
-    position: { ...position, lat: latLon.lat, lon: latLon.lon },
+    position: nextPosition,
     orientation: { heading: 0, roll: 0, pitch: 0 },
     velocity: { surge: 0, sway: 0, heave: 0 },
     properties: {
@@ -377,10 +378,10 @@ function createDefaultAIVessel(id: string, position = { x: 0, y: 0, z: 0 }) {
 function createNewVesselForUser(
   userId: string,
   username: string,
-  position = { x: 0, y: 0, z: 0 },
+  position: Partial<VesselPose['position']> = {},
   spaceId: string = DEFAULT_SPACE_ID,
 ): VesselRecord {
-  const latLon = xyToLatLon({ x: position.x, y: position.y });
+  const nextPosition = ensurePosition(position);
   const vessel: VesselRecord = {
     id: `${userId}_${Date.now()}`,
     spaceId,
@@ -392,7 +393,7 @@ function createNewVesselForUser(
     mode: 'player',
     desiredMode: 'player',
     lastCrewAt: Date.now(),
-    position: { ...position, lat: latLon.lat, lon: latLon.lon },
+    position: nextPosition,
     orientation: { heading: 0, roll: 0, pitch: 0 },
     velocity: { surge: 0, sway: 0, heave: 0 },
     properties: {
@@ -508,6 +509,11 @@ function stepAIVessel(v: VesselRecord, dt: number) {
   const throttle = clamp(v.controls.throttle, -1, 1);
   const mass = v.properties.mass || 1_000_000;
   const length = v.properties.length || 120;
+  const position = positionFromLatLon({
+    lat: v.position.lat,
+    lon: v.position.lon,
+    z: v.position.z,
+  });
   const speedMag = Math.sqrt(v.velocity.surge ** 2 + v.velocity.sway ** 2);
 
   const thrust = SERVER_MAX_THRUST * throttle;
@@ -556,13 +562,10 @@ function stepAIVessel(v: VesselRecord, dt: number) {
   const worldU = v.velocity.surge * cosH - v.velocity.sway * sinH;
   const worldV = v.velocity.surge * sinH + v.velocity.sway * cosH;
 
-  v.position.x += worldU * dt;
-  v.position.y += worldV * dt;
+  const nextX = (position.x ?? 0) + worldU * dt;
+  const nextY = (position.y ?? 0) + worldV * dt;
 
-  // Keep lat/lon in sync
-  const ll = xyToLatLon({ x: v.position.x, y: v.position.y });
-  v.position.lat = ll.lat;
-  v.position.lon = ll.lon;
+  v.position = positionFromXY({ x: nextX, y: nextY, z: position.z });
 }
 
 // Simple server-side integrator for AI/abandoned vessels
@@ -720,7 +723,7 @@ function ensureVesselForUser(
     desiredMode: 'player',
     lastCrewAt: Date.now(),
     yawRate: 0,
-    position: { x: 0, y: 0, z: 0 },
+    position: ensurePosition({ lat: 0, lon: 0, z: 0 }),
     orientation: { heading: 0, roll: 0, pitch: 0 },
     velocity: { surge: 0, sway: 0, heave: 0 },
     properties: {
@@ -741,22 +744,6 @@ function ensureVesselForUser(
 let targetWeather: WeatherPattern | null = null;
 let weatherMode: 'manual' | 'auto' = 'auto';
 
-const withLatLon = (pos: VesselPose['position']) => {
-  const hasLatLon = pos.lat !== undefined && pos.lon !== undefined;
-  // If we already have lat/lon but they are still zero while x/y moved, recompute.
-  if (
-    hasLatLon &&
-    (pos.x !== 0 || pos.y !== 0) &&
-    pos.lat === 0 &&
-    pos.lon === 0
-  ) {
-    const ll = xyToLatLon({ x: pos.x, y: pos.y });
-    return { ...pos, lat: ll.lat, lon: ll.lon };
-  }
-  if (hasLatLon) return pos;
-  const ll = xyToLatLon({ x: pos.x, y: pos.y });
-  return { ...pos, lat: ll.lat, lon: ll.lon };
-};
 
 const resolveChatChannel = (
   requestedChannel: string | undefined,
@@ -841,7 +828,7 @@ const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => ({
   desiredMode: v.desiredMode,
   mode: v.mode,
   lastCrewAt: v.lastCrewAt,
-  position: withLatLon(v.position),
+  position: mergePosition(v.position),
   orientation: v.orientation,
   velocity: v.velocity,
   controls: v.controls,
@@ -1064,7 +1051,7 @@ io.on('connection', async socket => {
     socket.to(`space:${spaceId}`).emit('vessel:joined', {
       userId: vessel.id,
       username: effectiveUsername,
-      position: withLatLon(vessel.position),
+      position: mergePosition(vessel.position),
       orientation: vessel.orientation,
     });
   }
@@ -1154,33 +1141,7 @@ io.on('connection', async socket => {
     if (!target || (target.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
 
     if (data.position) {
-      const nextPosition: VesselPose['position'] = {
-        ...target.position,
-        ...data.position,
-      };
-
-      if (data.position.lat !== undefined && data.position.lon !== undefined) {
-        const xy = latLonToXY({
-          lat: data.position.lat,
-          lon: data.position.lon,
-        });
-        nextPosition.x = xy.x;
-        nextPosition.y = xy.y;
-        nextPosition.lat = data.position.lat;
-        nextPosition.lon = data.position.lon;
-      } else if (
-        data.position.x !== undefined ||
-        data.position.y !== undefined
-      ) {
-        const ll = xyToLatLon({
-          x: nextPosition.x ?? 0,
-          y: nextPosition.y ?? 0,
-        });
-        nextPosition.lat = ll.lat;
-        nextPosition.lon = ll.lon;
-      }
-
-      target.position = nextPosition;
+      target.position = mergePosition(target.position, data.position);
     }
     if (data.orientation) {
       target.orientation = {
@@ -1197,7 +1158,7 @@ io.on('connection', async socket => {
     }
     target.lastUpdate = Date.now();
     console.info(
-      `Vessel update from ${username}: pos=(${target.position.x.toFixed(1)},${target.position.y.toFixed(1)}) heading=${target.orientation.heading.toFixed(2)}`,
+      `Vessel update from ${username}: pos=(${(target.position.x ?? 0).toFixed(1)},${(target.position.y ?? 0).toFixed(1)}) heading=${target.orientation.heading.toFixed(2)}`,
     );
     void persistVesselToDb(target);
 
@@ -1313,18 +1274,10 @@ io.on('connection', async socket => {
       return;
     }
     detachUserFromCurrentVessel(currentUserId, spaceId);
-    let position = { x: 0, y: 0, z: 0 };
-    if (data?.lat !== undefined && data?.lon !== undefined) {
-      const xy = latLonToXY({ lat: data.lat, lon: data.lon });
-      position = { x: xy.x, y: xy.y, z: 0 };
-    } else if (data?.x !== undefined && data?.y !== undefined) {
-      position = { x: data.x, y: data.y, z: 0 };
-    }
-
     const newVessel = createNewVesselForUser(
       currentUserId,
       currentUsername,
-      position,
+      data || {},
       spaceId,
     );
     globalState.vessels.set(newVessel.id, newVessel);
@@ -1412,28 +1365,19 @@ io.on('connection', async socket => {
       data.position,
     );
 
-    const next = data.position || {};
-    if (next.lat !== undefined && next.lon !== undefined) {
-      const xy = latLonToXY({ lat: next.lat, lon: next.lon });
-      target.position = {
-        ...target.position,
-        x: xy.x,
-        y: xy.y,
-        lat: next.lat,
-        lon: next.lon,
-      };
-    } else if (next.x !== undefined || next.y !== undefined) {
-      const updated = {
-        ...target.position,
-        ...(next.x !== undefined ? { x: next.x } : {}),
-        ...(next.y !== undefined ? { y: next.y } : {}),
-      };
-      const ll = xyToLatLon({ x: updated.x, y: updated.y });
-      target.position = { ...updated, lat: ll.lat, lon: ll.lon };
-    } else {
+    const next = data.position;
+    if (
+      !next ||
+      (next.lat === undefined &&
+        next.lon === undefined &&
+        next.x === undefined &&
+        next.y === undefined)
+    ) {
       socket.emit('error', 'Missing position data');
       return;
     }
+
+    target.position = mergePosition(target.position, next);
 
     target.velocity = { surge: 0, sway: 0, heave: 0 };
     target.yawRate = 0;
@@ -1644,7 +1588,7 @@ async function ensureDefaultVesselExists() {
   globalState.vessels.set(aiVessel.id, aiVessel);
   await persistVesselToDb(aiVessel);
   console.info(
-    `Seeded default AI vessel ${aiVessel.id} at (${aiVessel.position.x}, ${aiVessel.position.y})`,
+    `Seeded default AI vessel ${aiVessel.id} at (${aiVessel.position.x ?? 0}, ${aiVessel.position.y ?? 0})`,
   );
 }
 

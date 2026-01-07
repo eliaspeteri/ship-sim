@@ -4,7 +4,7 @@ import { WasmBridge } from '../lib/wasmBridge';
 import { VesselState } from '../types/vessel.types';
 import { safe } from '../lib/safe';
 import socketManager from '../networking/socket';
-import { xyToLatLon } from '../lib/geo';
+import { positionFromXY, positionToXY } from '../lib/position';
 import { clampRudderAngle } from '../constants/vessel';
 
 // Singleton for simulation instance
@@ -73,9 +73,13 @@ export class SimulationLoop {
       const initialHeave = safe(velocity.heave, 0);
       const initialThrottle = safe(controls.throttle, 0);
       // If not restoring from a running state, force all to zero
+      const { x: initialX, y: initialY } = positionToXY({
+        lat: position.lat,
+        lon: position.lon,
+      });
       const isRestoring = !!(
-        position?.x ||
-        position?.y ||
+        initialX ||
+        initialY ||
         position?.z ||
         initialSurge ||
         initialSway ||
@@ -90,8 +94,8 @@ export class SimulationLoop {
         ? properties.blockCoefficient
         : 0.8;
       const vesselPtr = this.wasmBridge.createVessel(
-        safe(position.x, 0),
-        safe(position.y, 0),
+        safe(initialX, 0),
+        safe(initialY, 0),
         safe(position.z, 0),
         safe(orientation.heading, 0),
         safe(orientation.roll, 0),
@@ -122,12 +126,11 @@ export class SimulationLoop {
         const surge = this.wasmBridge.getVesselSurgeVelocity(vesselPtr);
         const sway = this.wasmBridge.getVesselSwayVelocity(vesselPtr);
         const heave = this.wasmBridge.getVesselHeaveVelocity(vesselPtr);
-        const ll = xyToLatLon({ x, y });
         // Update store with initial state (no advanced stability checks)
         state.updateVessel({
           orientation: { roll, pitch, heading: 0 },
           velocity: { sway, heave, surge },
-          position: { x, y, z, lat: ll.lat, lon: ll.lon },
+          position: positionFromXY({ x, y, z }),
         });
       }
 
@@ -234,6 +237,10 @@ export class SimulationLoop {
 
     const { wind, current } = state.environment;
     const prevVesselPos = state.vessel.position;
+    const prevXY = positionToXY({
+      lat: prevVesselPos.lat,
+      lon: prevVesselPos.lon,
+    });
 
     // Calculate the actual sea state based on wind speed
     const calculatedSeaState = this.wasmBridge.calculateSeaState(wind.speed);
@@ -259,14 +266,11 @@ export class SimulationLoop {
       const pitch = this.wasmBridge.getVesselPitchAngle(updatedVesselPtr);
 
       // Check for NaN values - use previous or default values if needed
-      const positionUpdate = {
-        x: isNaN(x) ? prevVesselPos?.x || 0 : x,
-        y: isNaN(y) ? prevVesselPos?.y || 0 : y,
+      const positionUpdate = positionFromXY({
+        x: isNaN(x) ? prevXY.x : x,
+        y: isNaN(y) ? prevXY.y : y,
         z: isNaN(z) ? prevVesselPos?.z || 0 : z,
-      };
-      const ll = xyToLatLon({ x: positionUpdate.x, y: positionUpdate.y });
-      positionUpdate.lat = ll.lat;
-      positionUpdate.lon = ll.lon;
+      });
 
       // Log if any values were NaN
       if (isNaN(x) || isNaN(y) || isNaN(z)) {
@@ -384,15 +388,8 @@ export class SimulationLoop {
       this.wasmBridge.destroyVessel(state.wasmVesselPtr);
     }
     state.setWasmVesselPtr(nextPtr);
-    const ll = xyToLatLon({ x: position.x, y: position.y });
     state.updateVessel({
-      position: {
-        x: position.x,
-        y: position.y,
-        z: nextZ,
-        lat: ll.lat,
-        lon: ll.lon,
-      },
+      position: positionFromXY({ x: position.x, y: position.y, z: nextZ }),
       velocity: { surge: 0, sway: 0, heave: 0 },
       angularVelocity: { yaw: 0, roll: 0, pitch: 0 },
       controls: {
@@ -424,14 +421,11 @@ export class SimulationLoop {
       const vesselUpdate: Partial<VesselState> = {};
 
       // Position and orientation updates
-      const positionUpdate = {
+      const positionUpdate = positionFromXY({
         x: this.wasmBridge.getVesselX(vesselPtr),
         y: this.wasmBridge.getVesselY(vesselPtr),
         z: this.wasmBridge.getVesselZ(vesselPtr),
-      };
-      const ll = xyToLatLon({ x: positionUpdate.x, y: positionUpdate.y });
-      positionUpdate.lat = ll.lat;
-      positionUpdate.lon = ll.lon;
+      });
       vesselUpdate.position = positionUpdate;
 
       // Get vessel orientation including roll and pitch from physics

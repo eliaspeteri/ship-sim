@@ -10,6 +10,7 @@ import { EventLogEntry } from '../types/events.types';
 import { EnvironmentState } from '../types/environment.types';
 import type { Role } from '../server/roles';
 import { ChatMessageData } from '../types/socket.types';
+import { ensurePosition, mergePosition } from '../lib/position';
 
 // Machinery failures for more realistic simulation
 interface MachinerySystemStatus {
@@ -170,7 +171,7 @@ interface SimulationState {
 
 // Default states
 const defaultVesselState: VesselState = {
-  position: { x: 0, y: 0, z: 0 },
+  position: ensurePosition({ lat: 0, lon: 0, z: 0 }),
   orientation: { heading: 0, roll: 0, pitch: 0 },
   velocity: { surge: 0, sway: 0, heave: 0 },
   angularVelocity: { yaw: 0, roll: 0, pitch: 0 },
@@ -353,10 +354,10 @@ const useStore = create<SimulationState>()((set, get) => ({
 
         // Handle top-level properties first
         if (vesselUpdate.position) {
-          updatedVessel.position = {
-            ...updatedVessel.position,
-            ...vesselUpdate.position,
-          };
+          updatedVessel.position = mergePosition(
+            updatedVessel.position,
+            vesselUpdate.position,
+          );
         }
 
         if (vesselUpdate.orientation) {

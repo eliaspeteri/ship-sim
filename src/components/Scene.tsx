@@ -495,8 +495,8 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
       if (!vessel?.position) return;
       targets.push({
         id,
-        x: vessel.position.x,
-        y: vessel.position.y,
+        x: vessel.position.x ?? 0,
+        y: vessel.position.y ?? 0,
       });
     });
     return targets;
@@ -623,9 +623,9 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           <Ship
             key={id}
             position={{
-              x: dragPreviewPositions[id]?.x ?? v.position.x,
+              x: dragPreviewPositions[id]?.x ?? v.position.x ?? 0,
               y: v.position.z ?? 0,
-              z: dragPreviewPositions[id]?.y ?? v.position.y,
+              z: dragPreviewPositions[id]?.y ?? v.position.y ?? 0,
             }}
             heading={v.orientation.heading}
             shipType={vesselProperties.type}

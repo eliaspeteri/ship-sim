@@ -88,10 +88,11 @@ export type ClientToServerEvents = {
   'vessel:update': (data: VesselUpdateData) => void;
   'vessel:control': (data: VesselControlData) => void;
   'vessel:create': (data?: {
-    x?: number;
-    y?: number;
     lat?: number;
     lon?: number;
+    z?: number;
+    x?: number;
+    y?: number;
   }) => void;
   'vessel:helm': (data: { action: 'claim' | 'release' }) => void;
   'simulation:state': (data: { isRunning: boolean }) => void;

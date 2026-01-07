@@ -6,6 +6,7 @@ import { requirePermission, requireRole } from './middleware/authorization';
 import { VesselState, ShipType } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
 import { prisma } from '../lib/prisma';
+import { ensurePosition, positionFromXY } from '../lib/position';
 
 // First, define proper types for the database models
 interface DBVesselState {
@@ -34,11 +35,11 @@ interface DBVesselState {
 // Conversion helpers for transforming between DB and unified models
 function dbVesselStateToUnified(dbState: DBVesselState): VesselState {
   return {
-    position: {
+    position: positionFromXY({
       x: dbState.positionX,
       y: dbState.positionY,
       z: dbState.positionZ,
-    },
+    }),
     orientation: {
       heading: dbState.heading,
       roll: dbState.roll,
@@ -163,14 +164,15 @@ router.post(
   function (req, res) {
     const { userId } = req.params;
     const { position, orientation, velocity, properties } = req.body;
+    const nextPosition = ensurePosition(position);
 
     const nextState: DBVesselState = {
       id: vesselStates[userId]?.id ?? Date.now(),
       userId,
       vesselId: null,
-      positionX: position?.x ?? 0,
-      positionY: position?.y ?? 0,
-      positionZ: position?.z ?? 0,
+      positionX: nextPosition.x ?? 0,
+      positionY: nextPosition.y ?? 0,
+      positionZ: nextPosition.z ?? 0,
       heading: orientation?.heading ?? 0,
       roll: orientation?.roll ?? 0,
       pitch: orientation?.pitch ?? 0,
