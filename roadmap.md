@@ -43,7 +43,8 @@
   - [x] Add AIS receiver/overlay with labeled AIS targets alongside radar returns.
   - Add dual-band radar views (X-band + S-band) in the HUD layout.
 - [ ] Instrumentation & observability
-  - Add basic metrics (loop timing, socket/API latency) and central log aggregation for server and sim loops.
+  - [x] Track broadcast/AI loop timing and API latency via `/api/metrics`.
+  - Add socket latency sampling and central log aggregation for server and sim loops.
 - [x] Default vessels
   - [x] On server boot, load saved vessels; if none, spawn an AI-controlled vessel at a default lat/long/heading and publish to clients.
 - [x] Position data
