@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Head from 'next/head';
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
+import styles from './Auth.module.css';
 
 /**
  * Login page for Ship Simulator using NextAuth.js
@@ -52,20 +53,15 @@ const LoginPage: React.FC = () => {
         <meta name="description" content="Login to Ship Simulator" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      <main className="min-h-full flex items-center justify-center bg-gray-900">
-        <div className="w-full max-w-md p-6">
-          <h1 className="text-3xl font-bold text-white text-center mb-8">
-            Ship Simulator
-          </h1>
-          <form
-            onSubmit={handleSubmit}
-            className="bg-gray-800 bg-opacity-70 rounded-lg p-6 text-white"
-          >
-            <div className="mb-4">
-              <label
-                htmlFor="username"
-                className="block mb-1 text-sm font-medium"
-              >
+      <main className={styles.page}>
+        <div className={styles.card}>
+          <div className={styles.title}>Ship Simulator</div>
+          <div className={styles.subtitle}>
+            Sign in to access the live bridge and crew tools.
+          </div>
+          <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.field}>
+              <label htmlFor="username" className={styles.label}>
                 Username
               </label>
               <input
@@ -73,16 +69,13 @@ const LoginPage: React.FC = () => {
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                className="w-full p-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className={styles.input}
                 required
                 autoComplete="username"
               />
             </div>
-            <div className="mb-4">
-              <label
-                htmlFor="password"
-                className="block mb-1 text-sm font-medium"
-              >
+            <div className={styles.field}>
+              <label htmlFor="password" className={styles.label}>
                 Password
               </label>
               <input
@@ -90,27 +83,25 @@ const LoginPage: React.FC = () => {
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full p-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className={styles.input}
                 required
                 autoComplete="current-password"
               />
             </div>
-            {error && (
-              <div className="mb-3 bg-red-800 p-2 rounded text-sm">{error}</div>
-            )}
+            {error ? <div className={styles.error}>{error}</div> : null}
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
+              className={styles.buttonPrimary}
               disabled={loading}
             >
               {loading ? 'Logging in...' : 'Login'}
             </button>
           </form>
-          <div className="mt-6 text-center text-gray-400 text-sm">
+          <div className={styles.footer}>
             <p>Access the simulation environment</p>
             <button
               type="button"
-              className="mt-4 w-full bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded transition-colors"
+              className={styles.buttonSecondary}
               onClick={() => router.push('/register')}
             >
               Register New Account

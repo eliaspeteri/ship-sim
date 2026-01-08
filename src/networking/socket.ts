@@ -1,6 +1,6 @@
 import io from 'socket.io-client';
 import type * as SocketIOClient from 'socket.io-client';
-import useStore from '../store';
+import useStore, { AccountState } from '../store';
 import { SimpleVesselState } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
 import { ensurePosition, positionToLatLon } from '../lib/position';
@@ -14,6 +14,7 @@ import {
   VesselLeftData,
   VesselUpdateData,
 } from '../types/socket.types';
+import { MissionAssignmentData } from '../types/mission.types';
 
 const CHAT_HISTORY_PAGE_SIZE = 20;
 
@@ -23,6 +24,8 @@ type ClientSocket = ReturnType<typeof io> & {
     userId?: string | null;
     username?: string | null;
     spaceId?: string | null;
+    mode?: 'player' | 'spectator';
+    autoJoin?: boolean;
   };
 };
 
@@ -33,6 +36,8 @@ type ClientConnectOpts = Partial<SocketIOClient.ConnectOpts> & {
     username?: string | null;
     token?: string | null;
     spaceId?: string | null;
+    mode?: 'player' | 'spectator';
+    autoJoin?: boolean;
   };
 };
 
@@ -41,6 +46,21 @@ const hasVesselChanged = (
   next: SimpleVesselState,
 ): boolean => {
   if (!prev) return true;
+
+  const stationsEqual = (
+    a?: SimpleVesselState['stations'],
+    b?: SimpleVesselState['stations'],
+  ) => {
+    const keys = ['helm', 'engine', 'radio'] as const;
+    return keys.every(key => {
+      const aStation = a?.[key];
+      const bStation = b?.[key];
+      return (
+        (aStation?.userId || null) === (bStation?.userId || null) &&
+        (aStation?.username || null) === (bStation?.username || null)
+      );
+    });
+  };
 
   const posChanged =
     prev.position.lat !== next.position.lat ||
@@ -59,6 +79,10 @@ const hasVesselChanged = (
   const controlsChanged =
     (prev.controls?.throttle ?? 0) !== (next.controls?.throttle ?? 0) ||
     (prev.controls?.rudderAngle ?? 0) !== (next.controls?.rudderAngle ?? 0);
+  const helmChanged =
+    prev.helm?.userId !== next.helm?.userId ||
+    prev.helm?.username !== next.helm?.username;
+  const stationsChanged = !stationsEqual(prev.stations, next.stations);
 
   return (
     prev.id !== next.id ||
@@ -66,7 +90,9 @@ const hasVesselChanged = (
     posChanged ||
     orientationChanged ||
     velocityChanged ||
-    controlsChanged
+    controlsChanged ||
+    helmChanged ||
+    stationsChanged
   );
 };
 
@@ -81,10 +107,14 @@ class SocketManager {
   private authToken: string | null = null;
   private lastUrl: string = 'http://localhost:3001';
   private spaceId: string = 'global';
+  private initialMode: 'player' | 'spectator' = 'player';
+  private autoJoin: boolean = true;
   private hasHydratedSelf = false;
   private lastSelfSnapshot: SimpleVesselState | null = null;
   private selfHydrateResolvers: Array<(vessel: SimpleVesselState) => void> = [];
   private chatHistoryLoading: Set<string> = new Set();
+  private latencyTimer: NodeJS.Timeout | null = null;
+  private connectResolvers: Array<() => void> = [];
 
   constructor() {
     this.userId = this.generateUserId();
@@ -121,6 +151,8 @@ class SocketManager {
         username: this.username,
         token: this.authToken || undefined,
         spaceId: this.spaceId,
+        mode: this.initialMode,
+        autoJoin: this.autoJoin,
       },
     };
 
@@ -150,10 +182,14 @@ class SocketManager {
         this.reconnectTimer = null;
       }
       this.requestChatHistory('global');
+      this.startLatencySampling();
+      const resolvers = this.connectResolvers.splice(0);
+      resolvers.forEach(resolve => resolve());
     });
 
     this.socket.on('disconnect', (reason: string) => {
       console.info(`Socket.IO disconnected: ${reason}`);
+      this.stopLatencySampling();
 
       // Handle reconnection for certain disconnect reasons
       if (reason === 'io server disconnect') {
@@ -188,6 +224,26 @@ class SocketManager {
 
     this.socket.on('environment:update', (data: EnvironmentState) => {
       this.handleEnvironmentUpdate(data);
+    });
+
+    this.socket.on('latency:pong', (data: { sentAt: number }) => {
+      if (!data || typeof data.sentAt !== 'number') return;
+      const rtt = Date.now() - data.sentAt;
+      useStore.getState().setSocketLatencyMs(rtt);
+    });
+
+    this.socket.on('mission:update', (data: MissionAssignmentData) => {
+      const store = useStore.getState();
+      if (data) {
+        store.upsertMissionAssignment(data);
+      }
+    });
+
+    this.socket.on('economy:update', (data: AccountState) => {
+      const store = useStore.getState();
+      if (data) {
+        store.setAccount(data);
+      }
     });
 
     this.socket.on('chat:message', (data: ChatMessageData) => {
@@ -262,11 +318,47 @@ class SocketManager {
     });
   }
 
+  private startLatencySampling(): void {
+    if (!this.socket || this.latencyTimer) return;
+    this.latencyTimer = setInterval(() => {
+      if (!this.socket?.connected) return;
+      this.socket.emit('latency:ping', { sentAt: Date.now() });
+    }, 5000);
+  }
+
+  private stopLatencySampling(): void {
+    if (this.latencyTimer) {
+      clearInterval(this.latencyTimer);
+      this.latencyTimer = null;
+    }
+  }
+
   // Handle simulation updates from server
   private handleSimulationUpdate(data: SimulationUpdateData): void {
     const store = useStore.getState();
     if (data.self?.roles) {
       store.setRoles(data.self.roles);
+    }
+    if (data.self) {
+      const nextAccount: Record<string, number> = {};
+      if (typeof data.self.rank === 'number') {
+        nextAccount.rank = data.self.rank;
+      }
+      if (typeof data.self.credits === 'number') {
+        nextAccount.credits = data.self.credits;
+      }
+      if (typeof data.self.experience === 'number') {
+        nextAccount.experience = data.self.experience;
+      }
+      if (typeof data.self.safetyScore === 'number') {
+        nextAccount.safetyScore = data.self.safetyScore;
+      }
+      if (Object.keys(nextAccount).length > 0) {
+        store.setAccount(nextAccount);
+      }
+    }
+    if (data.self?.mode) {
+      store.setMode(data.self.mode);
     }
     if (data.self?.spaceId) {
       store.setSpaceId(data.self.spaceId);
@@ -274,6 +366,9 @@ class SocketManager {
     } else if (data.spaceId) {
       store.setSpaceId(data.spaceId);
       this.setSpaceId(data.spaceId);
+    }
+    if (data.spaceInfo) {
+      store.setSpaceInfo(data.spaceInfo);
     }
     if (data.environment) {
       store.updateEnvironment(data.environment);
@@ -303,6 +398,7 @@ class SocketManager {
     const currentOthers = store.otherVessels || {};
     const nextOthers = data.partial ? { ...currentOthers } : {};
     let changed = false;
+    let foundSelf = false;
 
     Object.entries(data.vessels).forEach(([id, vesselData]) => {
       const normalized = {
@@ -316,6 +412,7 @@ class SocketManager {
         (Array.isArray(normalized.crewIds) &&
           normalized.crewIds.includes(this.userId));
       if (isSelf) {
+        foundSelf = true;
         if (store.currentVesselId !== id) {
           store.setCurrentVesselId(id);
         }
@@ -342,6 +439,7 @@ class SocketManager {
                 ...normalized.angularVelocity,
               }
             : undefined,
+          waterDepth: normalized.waterDepth,
           controls: normalized.controls
             ? {
                 ...store.vessel.controls,
@@ -364,6 +462,7 @@ class SocketManager {
               }
             : store.vessel.controls,
           helm: normalized.helm,
+          stations: normalized.stations,
         });
         const desired = normalized.desiredMode || normalized.mode;
         if (desired === 'ai') {
@@ -378,7 +477,10 @@ class SocketManager {
         changed = true;
         if (
           id === store.currentVesselId &&
-          (normalized.crewIds || normalized.crewNames || normalized.helm)
+          (normalized.crewIds ||
+            normalized.crewNames ||
+            normalized.helm ||
+            normalized.stations)
         ) {
           store.setCrew({
             ids: normalized.crewIds,
@@ -386,6 +488,9 @@ class SocketManager {
           });
           if (normalized.helm) {
             store.updateVessel({ helm: normalized.helm });
+          }
+          if (normalized.stations) {
+            store.updateVessel({ stations: normalized.stations });
           }
         }
       }
@@ -400,6 +505,20 @@ class SocketManager {
 
     if (changed || !data.partial) {
       store.setOtherVessels(nextOthers);
+    }
+
+    if (!foundSelf && !this.hasHydratedSelf && data.self) {
+      const fallback: SimpleVesselState = {
+        id: this.userId,
+        position: store.vessel.position,
+        orientation: store.vessel.orientation,
+        velocity: store.vessel.velocity,
+        controls: store.vessel.controls,
+      };
+      this.hasHydratedSelf = true;
+      this.lastSelfSnapshot = fallback;
+      this.selfHydrateResolvers.forEach(resolve => resolve(fallback));
+      this.selfHydrateResolvers = [];
     }
   }
 
@@ -457,18 +576,18 @@ class SocketManager {
 
   // Send vessel control update to server
   sendControlUpdate(
-    throttle: number,
-    rudderAngle: number,
+    throttle?: number,
+    rudderAngle?: number,
     ballast?: number,
   ): void {
     if (!this.socket?.connected) return;
 
     const controlData: VesselControlData = {
       userId: this.userId,
-      throttle,
-      rudderAngle,
-      ballast,
     };
+    if (throttle !== undefined) controlData.throttle = throttle;
+    if (rudderAngle !== undefined) controlData.rudderAngle = rudderAngle;
+    if (ballast !== undefined) controlData.ballast = ballast;
 
     this.socket.emit('vessel:control', controlData);
   }
@@ -499,9 +618,22 @@ class SocketManager {
     this.socket.emit('vessel:create', payload);
   }
 
+  requestJoinVessel(vesselId?: string): void {
+    if (!this.socket?.connected) return;
+    this.socket.emit('vessel:join', vesselId ? { vesselId } : undefined);
+  }
+
   requestHelm(action: 'claim' | 'release'): void {
     if (!this.socket?.connected) return;
     this.socket.emit('vessel:helm', { action });
+  }
+
+  requestStation(
+    station: 'helm' | 'engine' | 'radio',
+    action: 'claim' | 'release',
+  ): void {
+    if (!this.socket?.connected) return;
+    this.socket.emit('vessel:station', { station, action });
   }
 
   sendChatMessage(message: string, channel = 'global'): void {
@@ -541,6 +673,16 @@ class SocketManager {
     });
   }
 
+  sendClientLog(entry: {
+    level: 'info' | 'warn' | 'error';
+    source: string;
+    message: string;
+    meta?: Record<string, unknown>;
+  }): void {
+    if (!this.socket?.connected) return;
+    this.socket.emit('client:log', entry);
+  }
+
   // Update vessel position
   updateVesselPosition(
     _position: { x: number; y: number; z: number },
@@ -576,6 +718,11 @@ class SocketManager {
       };
     }
     this.socket.emit('admin:vessel:move', { vesselId, position: nextPosition });
+  }
+
+  sendAdminKick(userId: string, reason?: string): void {
+    if (!this.socket?.connected) return;
+    this.socket.emit('admin:kick', { userId, reason });
   }
 
   private buildSpaceChannel(channel?: string): string {
@@ -620,6 +767,7 @@ class SocketManager {
       this.socket.disconnect();
       this.socket = null;
     }
+    this.stopLatencySampling();
 
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -645,6 +793,8 @@ class SocketManager {
         userId: this.userId,
         username: this.username,
         spaceId: this.spaceId,
+        mode: this.initialMode,
+        autoJoin: this.autoJoin,
       };
     }
   }
@@ -659,9 +809,30 @@ class SocketManager {
     }
   }
 
+  setJoinPreference(mode: 'player' | 'spectator', autoJoin = true): void {
+    this.initialMode = mode;
+    this.autoJoin = autoJoin;
+    if (this.socket) {
+      this.socket.auth = {
+        ...(this.socket.auth || {}),
+        mode: this.initialMode,
+        autoJoin: this.autoJoin,
+      };
+    }
+  }
+
   // Check if we're connected to the server
   isConnected(): boolean {
     return this.socket?.connected || false;
+  }
+
+  waitForConnection(): Promise<void> {
+    if (this.socket?.connected) {
+      return Promise.resolve();
+    }
+    return new Promise(resolve => {
+      this.connectResolvers.push(resolve);
+    });
   }
 
   // Get current username from localStorage

@@ -78,6 +78,8 @@ interface HelmControlProps {
   size?: number;
   /** Optional label */
   label?: string;
+  /** Disable interaction */
+  disabled?: boolean;
 }
 
 /**
@@ -95,6 +97,7 @@ export const HelmControl: React.FC<HelmControlProps> = ({
   numTicks = 9, // e.g., -40, -30, -20, -10, 0, 10, 20, 30, 40
   size = 200,
   label = 'Rudder Angle',
+  disabled = false,
 }) => {
   // --- Geometry & Styling ---
   const centerX = size / 2;
@@ -143,7 +146,7 @@ export const HelmControl: React.FC<HelmControlProps> = ({
     initialValue: valueToNormalized(initialValue),
     min: 0, // Corresponds to minAngle (-40)
     max: 1, // Corresponds to maxAngle (+40)
-    onChange: norm => onChange(normalizedToValue(norm)),
+    onChange: disabled ? () => {} : norm => onChange(normalizedToValue(norm)),
     dragAxis: 'horizontal', // Horizontal drag controls the normalized value 0-1
     dragSensitivity: 300, // Adjust sensitivity for desired rotation feel
     resetOnDoubleClick: true,
@@ -190,10 +193,10 @@ export const HelmControl: React.FC<HelmControlProps> = ({
         height={size} // Square aspect ratio
         viewBox={`0 0 ${size} ${size}`} // Square viewBox
         className="cursor-grab select-none overflow-hidden rounded" // Added rounding
-        onMouseDown={handleMouseDown}
-        onDoubleClick={handleDoubleClick}
+        onMouseDown={disabled ? undefined : handleMouseDown}
+        onDoubleClick={disabled ? undefined : handleDoubleClick}
         style={{
-          cursor: isDragging ? 'grabbing' : 'grab',
+          cursor: disabled ? 'not-allowed' : isDragging ? 'grabbing' : 'grab',
           backgroundColor: bgColor,
         }} // Use SVG background
       >

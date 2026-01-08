@@ -25,12 +25,21 @@ import { MarineRadio } from './radio/index';
 import { ConningDisplay } from './bridge/ConningDisplay';
 import { AlarmIndicator } from './alarms/AlarmIndicator';
 import { positionToXY } from '../lib/position';
+import { getApiBase } from '../lib/api';
+import {
+  applyOffsetToTimeOfDay,
+  estimateTimeZoneOffsetHours,
+  formatTimeOfDay,
+} from '../lib/time';
+import styles from './HudDrawer.module.css';
 
 type HudTab =
   | 'navigation'
   | 'conning'
   | 'weather'
   | 'systems'
+  | 'missions'
+  | 'replay'
   | 'spaces'
   | 'chat'
   | 'events'
@@ -44,6 +53,8 @@ const tabs: { id: HudTab; label: string }[] = [
   { id: 'conning', label: 'Conning' },
   { id: 'weather', label: 'Weather' },
   { id: 'systems', label: 'Systems' },
+  { id: 'missions', label: 'Missions' },
+  { id: 'replay', label: 'Replay' },
   { id: 'spaces', label: 'Spaces' },
   { id: 'chat', label: 'Chat' },
   { id: 'events', label: 'Events' },
@@ -71,6 +82,8 @@ const formatBearing = (deg?: number) => {
 const formatKnots = (val?: number) =>
   `${((val || 0) * 1.94384).toFixed(1)} kts`;
 
+const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+
 interface HudDrawerProps {
   onOpenSpaces?: () => void;
 }
@@ -82,42 +95,86 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const environment = useStore(state => state.environment);
   const mode = useStore(state => state.mode);
   const roles = useStore(state => state.roles);
+  const sessionUserId = useStore(state => state.sessionUserId);
+  const crewIds = useStore(state => state.crewIds);
+  const crewNames = useStore(state => state.crewNames);
   const setNotice = useStore(state => state.setNotice);
+  const account = useStore(state => state.account);
+  const missions = useStore(state => state.missions);
+  const missionAssignments = useStore(state => state.missionAssignments);
+  const upsertMissionAssignment = useStore(
+    state => state.upsertMissionAssignment,
+  );
+  const socketLatencyMs = useStore(state => state.socketLatencyMs);
+  const replay = useStore(state => state.replay);
+  const startReplayRecording = useStore(state => state.startReplayRecording);
+  const stopReplayRecording = useStore(state => state.stopReplayRecording);
+  const startReplayPlayback = useStore(state => state.startReplayPlayback);
+  const stopReplayPlayback = useStore(state => state.stopReplayPlayback);
+  const clearReplay = useStore(state => state.clearReplay);
   const otherVessels = useStore(state => state.otherVessels);
   const currentVesselId = useStore(state => state.currentVesselId);
   const spaceId = useStore(state => state.spaceId);
   const isAdmin = roles.includes('admin');
   const helm = vessel.helm;
+  const stations = vessel.stations;
   const controls = useStore(state => state.vessel.controls);
-  const [radarSettings, setRadarSettings] = useState<RadarSettings>({
+  const baseRadarSettings = useMemo(
+    () => ({
+      range: 6,
+      gain: 70,
+      seaClutter: 50,
+      rainClutter: 50,
+      heading: 0,
+      orientation: 'head-up' as const,
+      trails: true,
+      trailDuration: 30,
+      nightMode: false,
+    }),
+    [],
+  );
+  const [radarSettingsX, setRadarSettingsX] = useState<RadarSettings>({
+    ...baseRadarSettings,
     band: 'X',
-    range: 6,
-    gain: 70,
-    seaClutter: 50,
-    rainClutter: 50,
-    heading: 0,
-    orientation: 'head-up',
-    trails: true,
-    trailDuration: 30,
-    nightMode: false,
   });
-  const [radarEbl, setRadarEbl] = useState<EBL>({ active: false, angle: 0 });
-  const [radarVrm, setRadarVrm] = useState<VRM>({
+  const [radarSettingsS, setRadarSettingsS] = useState<RadarSettings>({
+    ...baseRadarSettings,
+    band: 'S',
+  });
+  const [radarEblX, setRadarEblX] = useState<EBL>({ active: false, angle: 0 });
+  const [radarEblS, setRadarEblS] = useState<EBL>({ active: false, angle: 0 });
+  const [radarVrmX, setRadarVrmX] = useState<VRM>({
     active: false,
     distance: 0,
   });
-  const [radarGuardZone, setRadarGuardZone] = useState<GuardZone>({
+  const [radarVrmS, setRadarVrmS] = useState<VRM>({
+    active: false,
+    distance: 0,
+  });
+  const [radarGuardZoneX, setRadarGuardZoneX] = useState<GuardZone>({
     active: false,
     startAngle: 320,
     endAngle: 40,
     innerRange: 0.5,
     outerRange: 3,
   });
-  const [radarArpaSettings, setRadarArpaSettings] = useState<ARPASettings>(
+  const [radarGuardZoneS, setRadarGuardZoneS] = useState<GuardZone>({
+    active: false,
+    startAngle: 320,
+    endAngle: 40,
+    innerRange: 0.5,
+    outerRange: 3,
+  });
+  const [radarArpaSettingsX, setRadarArpaSettingsX] = useState<ARPASettings>(
     DEFAULT_ARPA_SETTINGS,
   );
-  const [radarArpaEnabled, setRadarArpaEnabled] = useState(false);
-  const [radarArpaTargets, setRadarArpaTargets] = useState<ARPATarget[]>([]);
+  const [radarArpaSettingsS, setRadarArpaSettingsS] = useState<ARPASettings>(
+    DEFAULT_ARPA_SETTINGS,
+  );
+  const [radarArpaEnabledX, setRadarArpaEnabledX] = useState(false);
+  const [radarArpaEnabledS, setRadarArpaEnabledS] = useState(false);
+  const [radarArpaTargetsX, setRadarArpaTargetsX] = useState<ARPATarget[]>([]);
+  const [radarArpaTargetsS, setRadarArpaTargetsS] = useState<ARPATarget[]>([]);
   const [throttleLocal, setThrottleLocal] = useState(controls?.throttle || 0);
   const [rudderAngleLocal, setRudderAngleLocal] = useState(
     controls?.rudderAngle || 0,
@@ -126,10 +183,64 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const [adminTargetId, setAdminTargetId] = useState<string>('');
   const [adminLat, setAdminLat] = useState('');
   const [adminLon, setAdminLon] = useState('');
+  const [missionError, setMissionError] = useState<string | null>(null);
+  const [missionBusyId, setMissionBusyId] = useState<string | null>(null);
+  const apiBase = useMemo(() => getApiBase(), []);
   const shortId = React.useCallback(
     (id: string) => (id.length > 10 ? `${id.slice(0, 10)}…` : id),
     [],
   );
+  const helmStation = stations?.helm || helm;
+  const engineStation = stations?.engine;
+  const radioStation = stations?.radio;
+  const isHelm = Boolean(
+    sessionUserId && (helmStation?.userId || null) === sessionUserId,
+  );
+  const isEngine = Boolean(
+    sessionUserId && (engineStation?.userId || null) === sessionUserId,
+  );
+  /*   const isRadio = Boolean(
+    sessionUserId && (radioStation?.userId || null) === sessionUserId,
+  ); */
+  const canAdjustThrottle = isEngine || (!engineStation?.userId && isHelm);
+  const canAdjustRudder = isHelm;
+  const canAcceptMissions = roles.includes('player') || roles.includes('admin');
+  const engineState = vessel.engineState;
+  const electrical = vessel.electricalSystem;
+  const stability = vessel.stability;
+  const fuelPercent = clamp01(engineState?.fuelLevel ?? 0);
+  const loadPercent = clamp01(engineState?.load ?? 0);
+  const batteryPercent = clamp01(electrical?.batteryLevel ?? 0);
+  const ballastPercent = clamp01(ballastLocal);
+  const waterDepth = vessel.waterDepth ?? environment.waterDepth;
+  const underKeel =
+    waterDepth !== undefined
+      ? waterDepth - (vessel.properties.draft ?? 0)
+      : undefined;
+  const engineRunning =
+    Boolean(engineState?.running) || (vessel.controls.throttle ?? 0) > 0.05;
+  const generatorOnline = Boolean(electrical?.generatorRunning);
+  const powerBalance =
+    (electrical?.generatorOutput ?? 0) - (electrical?.powerConsumption ?? 0);
+  const crewRoster = useMemo(() => {
+    return (crewIds || []).map(id => ({
+      id,
+      name: crewNames?.[id] || id,
+    }));
+  }, [crewIds, crewNames]);
+  const stationByUser = useMemo(() => {
+    const map = new Map<string, string[]>();
+    const register = (userId: string | null | undefined, label: string) => {
+      if (!userId) return;
+      const existing = map.get(userId) || [];
+      existing.push(label);
+      map.set(userId, existing);
+    };
+    register(helmStation?.userId, 'Helm');
+    register(engineStation?.userId, 'Engine');
+    register(radioStation?.userId, 'Radio');
+    return map;
+  }, [engineStation?.userId, helmStation?.userId, radioStation?.userId]);
   const toWorldVelocity = React.useCallback(
     (v: typeof vessel | (typeof otherVessels)[string]) => {
       const h = v?.orientation?.heading ?? 0;
@@ -143,6 +254,17 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     },
     [],
   );
+
+  const timeZone = useMemo(
+    () => estimateTimeZoneOffsetHours(vessel.position.lon),
+    [vessel.position.lon],
+  );
+  const localTimeOfDay = useMemo(() => {
+    const base = environment.timeOfDay ?? 12;
+    if (!timeZone) return base;
+    return applyOffsetToTimeOfDay(base, timeZone.offsetHours);
+  }, [environment.timeOfDay, timeZone]);
+  const timeZoneLabel = timeZone?.label || 'UTC';
   const ownShipData = useMemo(() => {
     const headingRad = vessel.orientation.heading || 0;
     const headingDeg = ((toDegrees(headingRad) % 360) + 360) % 360;
@@ -334,7 +456,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
 
     return {
       date: now.toISOString().slice(0, 10),
-      time: formatTime(timeOfDay),
+      time: formatTimeOfDay(timeOfDay),
       latitude: vessel.position.lat ?? 0,
       longitude: vessel.position.lon ?? 0,
       heading: Math.round(headingCompass),
@@ -525,23 +647,40 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   React.useEffect(() => {
     if (mode === 'spectator') return;
     if (!controls) return;
+    if (!canAdjustThrottle && !canAdjustRudder) return;
     const simulationLoop = getSimulationLoop();
     try {
       const clampedRudder = clampRudderAngle(rudderAngleLocal);
-      simulationLoop.applyControls({
-        throttle: throttleLocal,
-        rudderAngle: clampedRudder,
-        ballast: ballastLocal,
-      });
+      const nextControls: {
+        throttle?: number;
+        rudderAngle?: number;
+        ballast?: number;
+      } = {};
+      if (canAdjustThrottle) {
+        nextControls.throttle = throttleLocal;
+        nextControls.ballast = ballastLocal;
+      }
+      if (canAdjustRudder) {
+        nextControls.rudderAngle = clampedRudder;
+      }
+      simulationLoop.applyControls(nextControls);
       socketManager.sendControlUpdate(
-        throttleLocal,
-        clampedRudder,
-        ballastLocal,
+        nextControls.throttle,
+        nextControls.rudderAngle,
+        nextControls.ballast,
       );
     } catch (error) {
       console.error('Error applying controls from HUD:', error);
     }
-  }, [throttleLocal, rudderAngleLocal, ballastLocal, controls, mode]);
+  }, [
+    ballastLocal,
+    canAdjustRudder,
+    canAdjustThrottle,
+    controls,
+    mode,
+    rudderAngleLocal,
+    throttleLocal,
+  ]);
 
   const navStats = useMemo(
     () => [
@@ -587,8 +726,8 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       },
       {
         label: 'Time',
-        value: formatTime(environment.timeOfDay ?? 12),
-        detail: 'UTC',
+        value: formatTimeOfDay(localTimeOfDay),
+        detail: timeZoneLabel,
       },
       {
         label: 'Wind',
@@ -601,6 +740,8 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       environment.waveHeight,
       environment.wind.direction,
       environment.wind.speed,
+      localTimeOfDay,
+      timeZoneLabel,
       ownShipData.course,
       vessel.angularVelocity?.yaw,
       vessel.controls.ballast,
@@ -612,6 +753,29 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       vessel.velocity.surge,
     ],
   );
+
+  const assignmentsByMission = useMemo(() => {
+    const map = new Map<string, (typeof missionAssignments)[number]>();
+    missionAssignments.forEach(assignment => {
+      map.set(assignment.missionId, assignment);
+    });
+    return map;
+  }, [missionAssignments]);
+
+  const activeAssignments = useMemo(
+    () =>
+      missionAssignments.filter(assignment =>
+        ['assigned', 'in_progress', 'completed'].includes(assignment.status),
+      ),
+    [missionAssignments],
+  );
+
+  const replayDuration = useMemo(() => {
+    if (replay.frames.length < 2) return 0;
+    const start = replay.frames[0]?.timestamp ?? 0;
+    const end = replay.frames[replay.frames.length - 1]?.timestamp ?? 0;
+    return Math.max(0, end - start);
+  }, [replay.frames]);
 
   const handleTabClick = (id: HudTab) => {
     if (id === 'spaces' && onOpenSpaces) {
@@ -626,6 +790,39 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     () => (isAdmin ? tabs : tabs.filter(t => t.id !== 'admin')),
     [isAdmin],
   );
+
+  const handleAssignMission = async (missionId: string) => {
+    if (!missionId) return;
+    setMissionError(null);
+    setMissionBusyId(missionId);
+    try {
+      const res = await fetch(`${apiBase}/api/missions/${missionId}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ vesselId: currentVesselId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `Request failed: ${res.status}`);
+      }
+      const data = await res.json();
+      if (data?.assignment) {
+        upsertMissionAssignment(data.assignment);
+      }
+      setNotice({
+        type: 'info',
+        message: 'Mission assignment updated.',
+      });
+    } catch (err) {
+      console.error('Failed to assign mission', err);
+      setMissionError(
+        err instanceof Error ? err.message : 'Failed to assign mission.',
+      );
+    } finally {
+      setMissionBusyId(null);
+    }
+  };
 
   const handleAdminMove = () => {
     if (!adminTargetId) return;
@@ -661,80 +858,192 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   };
 
   return (
-    <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 text-white">
+    <div className={styles.hudRoot}>
       {tab ? (
-        <div className="mx-auto mb-3 w-[95vw] max-w-6xl rounded-2xl border border-teal-900/40 bg-gradient-to-br from-[#0b1627]/95 via-[#0d2238]/92 to-[#0b1f36]/92 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur pointer-events-auto max-h-[85vh] overflow-y-auto">
+        <div className={styles.hudPanel}>
           {tab === 'navigation' ? (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                {navStats.map(stat => (
-                  <div
-                    key={stat.label}
-                    className="rounded-lg border border-teal-900/40 bg-[#10233a]/70 px-3 py-2 transition-colors hover:border-teal-700/60"
-                  >
-                    <div className="text-[11px] uppercase tracking-wide text-gray-400">
-                      {stat.label}
+            <div className={styles.sectionGrid}>
+              <div className={`${styles.sectionGrid} ${styles.twoCol}`}>
+                <div className={styles.statGrid}>
+                  {navStats.map(stat => (
+                    <div key={stat.label} className={styles.statCard}>
+                      <div className={styles.statLabel}>{stat.label}</div>
+                      <div className={styles.statValue}>{stat.value}</div>
+                      {stat.detail ? (
+                        <div className={styles.statDetail}>{stat.detail}</div>
+                      ) : null}
                     </div>
-                    <div className="text-base font-semibold">{stat.value}</div>
-                    {stat.detail ? (
-                      <div className="text-xs text-gray-400">{stat.detail}</div>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-start gap-4 rounded-xl border border-teal-900/40 bg-[#0f1f33]/70 p-3">
-                <TelegraphLever
-                  label="Throttle"
-                  value={throttleLocal}
-                  min={-1}
-                  max={1}
-                  onChange={setThrottleLocal}
-                  scale={[
-                    { label: 'F.Astern', value: -1, major: true },
-                    { label: 'H.Astern', value: -0.5 },
-                    { label: 'S.Astern', value: -0.25 },
-                    { label: 'Stop', value: 0, major: true },
-                    { label: 'S.Ahead', value: 0.25 },
-                    { label: 'H.Ahead', value: 0.5 },
-                    { label: 'F.Ahead', value: 1, major: true },
-                  ]}
-                />
-                <HelmControl
-                  value={(rudderAngleLocal * 180) / Math.PI}
-                  minAngle={-RUDDER_STALL_ANGLE_DEG}
-                  maxAngle={RUDDER_STALL_ANGLE_DEG}
-                  onChange={deg =>
-                    setRudderAngleLocal(clampRudderAngle((deg * Math.PI) / 180))
-                  }
-                />
-                <RudderAngleIndicator
-                  angle={(rudderAngleLocal * 180) / Math.PI}
-                  maxAngle={RUDDER_STALL_ANGLE_DEG}
-                  size={160}
-                />
-                <div className="flex flex-col space-y-1">
-                  <div className="text-gray-400 text-xs">Ballast</div>
-                  <input
-                    type="range"
-                    min={0}
+                  ))}
+                </div>
+                <div className={styles.controlCluster}>
+                  <TelegraphLever
+                    label="Throttle"
+                    value={throttleLocal}
+                    min={-1}
                     max={1}
-                    step={0.01}
-                    value={ballastLocal}
-                    onChange={e => {
-                      const next = parseFloat(e.target.value);
-                      setBallastLocal(Number.isNaN(next) ? 0.5 : next);
-                    }}
-                    className="w-40 accent-blue-500"
+                    onChange={setThrottleLocal}
+                    disabled={!canAdjustThrottle}
+                    scale={[
+                      { label: 'F.Astern', value: -1, major: true },
+                      { label: 'H.Astern', value: -0.5 },
+                      { label: 'S.Astern', value: -0.25 },
+                      { label: 'Stop', value: 0, major: true },
+                      { label: 'S.Ahead', value: 0.25 },
+                      { label: 'H.Ahead', value: 0.5 },
+                      { label: 'F.Ahead', value: 1, major: true },
+                    ]}
                   />
-                  <div className="text-xs text-gray-300">
-                    {(ballastLocal * 100).toFixed(0)}%
+                  <HelmControl
+                    value={(rudderAngleLocal * 180) / Math.PI}
+                    minAngle={-RUDDER_STALL_ANGLE_DEG}
+                    maxAngle={RUDDER_STALL_ANGLE_DEG}
+                    onChange={deg =>
+                      setRudderAngleLocal(
+                        clampRudderAngle((deg * Math.PI) / 180),
+                      )
+                    }
+                    disabled={!canAdjustRudder}
+                  />
+                  <RudderAngleIndicator
+                    angle={(rudderAngleLocal * 180) / Math.PI}
+                    maxAngle={RUDDER_STALL_ANGLE_DEG}
+                    size={160}
+                  />
+                  <div className="flex flex-col space-y-1">
+                    <div className="text-gray-400 text-xs">Ballast</div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={ballastLocal}
+                      disabled={!canAdjustThrottle}
+                      onChange={e => {
+                        const next = parseFloat(e.target.value);
+                        setBallastLocal(Number.isNaN(next) ? 0.5 : next);
+                      }}
+                      className={`w-40 accent-blue-500 ${!canAdjustThrottle ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    />
+                    <div className="text-xs text-gray-300">
+                      {(ballastLocal * 100).toFixed(0)}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className={styles.sectionCard}>
+                <div className="flex items-center justify-between">
+                  <div className={styles.sectionTitle}>Crew & stations</div>
+                  <div className={styles.sectionSub}>
+                    {crewRoster.length || 0} aboard
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <div className={styles.sectionTitle}>Roster</div>
+                    <div className="mt-2 space-y-2">
+                      {crewRoster.length === 0 ? (
+                        <div className="text-xs text-gray-500">
+                          Awaiting crew assignments.
+                        </div>
+                      ) : (
+                        crewRoster.map(member => (
+                          <div key={member.id} className={styles.crewRow}>
+                            <div className="text-sm font-semibold text-white">
+                              {member.name}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {(stationByUser.get(member.id) || []).map(
+                                station => (
+                                  <span
+                                    key={`${member.id}-${station}`}
+                                    className={styles.badge}
+                                  >
+                                    {station}
+                                  </span>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div className={styles.sectionTitle}>Stations</div>
+                    <div className="mt-2 space-y-2">
+                      {[
+                        {
+                          key: 'helm',
+                          label: 'Helm',
+                          station: helmStation,
+                        },
+                        {
+                          key: 'engine',
+                          label: 'Engine',
+                          station: engineStation,
+                        },
+                        {
+                          key: 'radio',
+                          label: 'Radio',
+                          station: radioStation,
+                        },
+                      ].map(item => {
+                        const holderId = item.station?.userId || null;
+                        const holderName =
+                          item.station?.username || holderId || 'Unassigned';
+                        const isSelf =
+                          sessionUserId && holderId === sessionUserId;
+                        const canClaim =
+                          (sessionUserId && crewIds.includes(sessionUserId)) ||
+                          isAdmin;
+                        const isHeldByOther = Boolean(
+                          holderId &&
+                            sessionUserId &&
+                            holderId !== sessionUserId,
+                        );
+                        const action: 'claim' | 'release' = isSelf
+                          ? 'release'
+                          : 'claim';
+                        const disabled =
+                          !canClaim || (isHeldByOther && !isAdmin);
+                        return (
+                          <div key={item.key} className={styles.crewRow}>
+                            <div>
+                              <div className="text-sm font-semibold text-white">
+                                {item.label}
+                              </div>
+                              <div className="text-[11px] text-gray-400">
+                                {holderId
+                                  ? `Held by ${holderName}`
+                                  : 'Unassigned'}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={disabled}
+                              onClick={() =>
+                                socketManager.requestStation(
+                                  item.key as 'helm' | 'engine' | 'radio',
+                                  action,
+                                )
+                              }
+                              className={`${styles.stationButton} ${
+                                disabled ? styles.stationButtonDisabled : ''
+                              }`}
+                            >
+                              {isSelf ? 'Release' : 'Claim'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           ) : null}
           {tab === 'conning' ? (
-            <div className="rounded-lg border border-teal-900/40 bg-[#0f1f33]/70 p-3 text-sm text-gray-300">
+            <div className={styles.sectionCard}>
               <div className="overflow-x-auto">
                 <div className="min-w-[820px]">
                   <ConningDisplay data={conningData} />
@@ -744,13 +1053,326 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
           ) : null}
           {tab === 'weather' ? <EnvironmentControls /> : null}
           {tab === 'systems' ? (
-            <div className="rounded-lg border border-teal-900/40 bg-[#0f1f33]/70 p-3 text-sm text-gray-300">
-              Systems, fuel, ballast, and electrics panels will live here. For
-              now, use the dashboard controls while this drawer is built out.
+            <div className={styles.sectionGrid}>
+              <div className={styles.sectionCard}>
+                <div className={styles.sectionHeader}>
+                  <div className={styles.sectionTitle}>Propulsion & fuel</div>
+                  <span className={styles.badge}>
+                    {engineRunning ? 'Engine online' : 'Engine idle'}
+                  </span>
+                </div>
+                <div className={styles.systemGrid}>
+                  <SystemMeter
+                    label="Fuel"
+                    value={`${(fuelPercent * 100).toFixed(0)}%`}
+                    detail={`${engineState.fuelConsumption.toFixed(1)} kg/h`}
+                    percent={fuelPercent}
+                  />
+                  <SystemMeter
+                    label="Engine load"
+                    value={`${(loadPercent * 100).toFixed(0)}%`}
+                    detail={`${engineState.rpm.toFixed(0)} rpm`}
+                    percent={loadPercent}
+                  />
+                  <SystemMeter
+                    label="Temperature"
+                    value={`${engineState.temperature.toFixed(0)}°C`}
+                    detail={`Oil ${engineState.oilPressure.toFixed(1)} bar`}
+                  />
+                  <div className={styles.systemCard}>
+                    <div className={styles.systemLabel}>Ballast</div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={ballastPercent}
+                      disabled={!canAdjustThrottle}
+                      onChange={e => {
+                        const next = parseFloat(e.target.value);
+                        setBallastLocal(Number.isNaN(next) ? 0.5 : next);
+                      }}
+                      className={styles.systemRange}
+                    />
+                    <div className={styles.systemMeta}>
+                      {(ballastPercent * 100).toFixed(0)}% ballast
+                    </div>
+                  </div>
+                </div>
+                {!canAdjustThrottle ? (
+                  <div className={styles.sectionSub}>
+                    Claim the engine station to adjust ballast and throttle.
+                  </div>
+                ) : null}
+              </div>
+              <div className={styles.sectionCard}>
+                <div className={styles.sectionHeader}>
+                  <div className={styles.sectionTitle}>Electrical</div>
+                  <span className={styles.badge}>
+                    {generatorOnline ? 'Generator online' : 'Generator offline'}
+                  </span>
+                </div>
+                <div className={styles.systemGrid}>
+                  <SystemMeter
+                    label="Battery"
+                    value={`${(batteryPercent * 100).toFixed(0)}%`}
+                    detail={`${electrical.mainBusVoltage.toFixed(0)} V bus`}
+                    percent={batteryPercent}
+                  />
+                  <SystemMeter
+                    label="Generation"
+                    value={`${electrical.generatorOutput.toFixed(0)} kW`}
+                    detail={`Load ${electrical.powerConsumption.toFixed(0)} kW`}
+                  />
+                  <SystemMeter
+                    label="Balance"
+                    value={`${powerBalance.toFixed(0)} kW`}
+                    detail={
+                      powerBalance >= 0 ? 'Surplus power' : 'Power deficit'
+                    }
+                  />
+                </div>
+              </div>
+              <div className={styles.sectionCard}>
+                <div className={styles.sectionHeader}>
+                  <div className={styles.sectionTitle}>Stability & load</div>
+                  <span className={styles.badge}>
+                    Draft {vessel.properties.draft.toFixed(1)} m
+                  </span>
+                </div>
+                <div className={styles.statGrid}>
+                  {[
+                    {
+                      label: 'GM',
+                      value: `${stability.metacentricHeight.toFixed(2)} m`,
+                    },
+                    {
+                      label: 'Trim',
+                      value: `${stability.trim.toFixed(2)}°`,
+                    },
+                    {
+                      label: 'List',
+                      value: `${stability.list.toFixed(2)}°`,
+                    },
+                    {
+                      label: 'Displacement',
+                      value: `${(vessel.properties.mass / 1000).toFixed(0)} t`,
+                    },
+                    {
+                      label: 'Block coeff',
+                      value: vessel.properties.blockCoefficient.toFixed(2),
+                    },
+                    {
+                      label: 'Depth',
+                      value:
+                        waterDepth !== undefined
+                          ? `${waterDepth.toFixed(1)} m`
+                          : '—',
+                    },
+                    {
+                      label: 'Under keel',
+                      value:
+                        underKeel !== undefined
+                          ? `${underKeel.toFixed(1)} m`
+                          : '—',
+                    },
+                    {
+                      label: 'Beam',
+                      value: `${vessel.properties.beam.toFixed(1)} m`,
+                    },
+                  ].map(stat => (
+                    <div key={stat.label} className={styles.statCard}>
+                      <div className={styles.statLabel}>{stat.label}</div>
+                      <div className={styles.statValue}>{stat.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {tab === 'missions' ? (
+            <div className={styles.sectionGrid}>
+              <div className={styles.sectionCard}>
+                <div className={styles.sectionTitle}>Account snapshot</div>
+                <div className={styles.accountGrid}>
+                  <div className={styles.accountCard}>
+                    <div className={styles.accountLabel}>Rank</div>
+                    <div className={styles.accountValue}>{account.rank}</div>
+                  </div>
+                  <div className={styles.accountCard}>
+                    <div className={styles.accountLabel}>Credits</div>
+                    <div className={styles.accountValue}>
+                      {account.credits.toFixed(0)}
+                    </div>
+                  </div>
+                  <div className={styles.accountCard}>
+                    <div className={styles.accountLabel}>Experience</div>
+                    <div className={styles.accountValue}>
+                      {account.experience.toFixed(0)}
+                    </div>
+                  </div>
+                  <div className={styles.accountCard}>
+                    <div className={styles.accountLabel}>Safety</div>
+                    <div className={styles.accountValue}>
+                      {account.safetyScore.toFixed(2)}
+                    </div>
+                  </div>
+                  <div className={styles.accountCard}>
+                    <div className={styles.accountLabel}>Latency</div>
+                    <div className={styles.accountValue}>
+                      {socketLatencyMs !== null
+                        ? `${Math.round(socketLatencyMs)} ms`
+                        : '—'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className={styles.sectionCard}>
+                <div className={styles.sectionTitle}>Active assignments</div>
+                {activeAssignments.length === 0 ? (
+                  <div className={styles.sectionSub}>
+                    No active missions. Accept a contract to start.
+                  </div>
+                ) : (
+                  <div className={styles.assignmentList}>
+                    {activeAssignments.map(assignment => {
+                      const mission =
+                        assignment.mission ||
+                        missions.find(m => m.id === assignment.missionId);
+                      return (
+                        <div
+                          key={assignment.id}
+                          className={styles.assignmentCard}
+                        >
+                          <div>
+                            <div className={styles.assignmentTitle}>
+                              {mission?.name || 'Mission'}
+                            </div>
+                            <div className={styles.assignmentMeta}>
+                              Status: {assignment.status.replace('_', ' ')}
+                            </div>
+                          </div>
+                          <div className={styles.assignmentMeta}>
+                            Reward: {mission?.rewardCredits ?? 0} cr
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className={styles.sectionCard}>
+                <div className={styles.sectionTitle}>Available missions</div>
+                {missionError ? (
+                  <div className={styles.sectionSub}>{missionError}</div>
+                ) : null}
+                {missions.length === 0 ? (
+                  <div className={styles.sectionSub}>
+                    No contracts published for this space yet.
+                  </div>
+                ) : (
+                  <div className={styles.missionList}>
+                    {missions.map(mission => {
+                      const assignment = assignmentsByMission.get(mission.id);
+                      const locked = account.rank < mission.requiredRank;
+                      const disabled =
+                        !canAcceptMissions ||
+                        locked ||
+                        Boolean(assignment) ||
+                        missionBusyId === mission.id;
+                      return (
+                        <div key={mission.id} className={styles.missionCard}>
+                          <div className={styles.missionHeader}>
+                            <div>
+                              <div className={styles.missionTitle}>
+                                {mission.name}
+                              </div>
+                              <div className={styles.missionMeta}>
+                                {mission.description || '—'}
+                              </div>
+                            </div>
+                            <div className={styles.missionMeta}>
+                              Rank {mission.requiredRank}
+                            </div>
+                          </div>
+                          <div className={styles.missionFooter}>
+                            <div className={styles.missionMeta}>
+                              Reward {mission.rewardCredits} cr
+                            </div>
+                            <button
+                              type="button"
+                              className={styles.missionButton}
+                              disabled={disabled}
+                              onClick={() =>
+                                void handleAssignMission(mission.id)
+                              }
+                            >
+                              {assignment
+                                ? 'Assigned'
+                                : locked
+                                  ? 'Locked'
+                                  : missionBusyId === mission.id
+                                    ? 'Assigning…'
+                                    : 'Accept'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
+          {tab === 'replay' ? (
+            <div className={styles.sectionGrid}>
+              <div className={styles.sectionCard}>
+                <div className={styles.sectionTitle}>Replay console</div>
+                <div className={styles.replayMeta}>
+                  {replay.frames.length} frames •{' '}
+                  {(replayDuration / 1000).toFixed(1)}s recorded
+                </div>
+                <div className={styles.replayControls}>
+                  <button
+                    type="button"
+                    className={styles.replayButton}
+                    onClick={
+                      replay.recording
+                        ? stopReplayRecording
+                        : startReplayRecording
+                    }
+                    disabled={replay.playing}
+                  >
+                    {replay.recording ? 'Stop recording' : 'Start recording'}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.replayButtonSecondary}
+                    onClick={
+                      replay.playing ? stopReplayPlayback : startReplayPlayback
+                    }
+                    disabled={replay.frames.length < 2 || replay.recording}
+                  >
+                    {replay.playing ? 'Stop playback' : 'Play ghost'}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.replayButtonDanger}
+                    onClick={clearReplay}
+                    disabled={replay.recording || replay.frames.length === 0}
+                  >
+                    Clear recording
+                  </button>
+                </div>
+                <div className={styles.sectionSub}>
+                  Ghost playback overlays the last run. Recordings pause vessel
+                  control updates while active.
+                </div>
+              </div>
             </div>
           ) : null}
           {tab === 'chat' ? (
-            <div className="rounded-lg border border-teal-900/40 bg-[#0f1f33]/70 p-2 text-sm">
+            <div className={styles.sectionCard}>
               <ChatPanel
                 spaceId={useStore.getState().spaceId}
                 vesselChannel={
@@ -764,47 +1386,77 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
             </div>
           ) : null}
           {tab === 'events' ? (
-            <div className="rounded-lg border border-teal-900/40 bg-[#0f1f33]/70 p-3 text-sm text-gray-300">
+            <div className={styles.sectionCard}>
               <EventLog />
             </div>
           ) : null}
           {tab === 'radio' ? (
-            <div className="rounded-lg border border-teal-900/40 bg-[#0f1f33]/70 p-3 text-sm text-gray-300 flex justify-center">
-              <div className="scale-90 md:scale-95 origin-top">
-                <MarineRadio width={440} height={320} />
+            <div className={styles.sectionCard}>
+              <div className="flex justify-center">
+                <div className="scale-90 md:scale-95 origin-top">
+                  <MarineRadio width={440} height={320} />
+                </div>
               </div>
             </div>
           ) : null}
           {tab === 'radar' ? (
-            <div className="space-y-3 rounded-lg border border-teal-900/40 bg-[#0f1f33]/70 p-3 text-sm text-gray-300">
-              <div className="flex flex-col items-center gap-3">
-                <RadarDisplay
-                  size={320}
-                  className="max-w-[860px] mx-auto"
-                  initialSettings={radarSettings}
-                  onSettingsChange={setRadarSettings}
-                  ebl={radarEbl}
-                  onEblChange={setRadarEbl}
-                  vrm={radarVrm}
-                  onVrmChange={setRadarVrm}
-                  guardZone={radarGuardZone}
-                  onGuardZoneChange={setRadarGuardZone}
-                  arpaSettings={radarArpaSettings}
-                  onArpaSettingsChange={setRadarArpaSettings}
-                  arpaEnabled={radarArpaEnabled}
-                  onArpaEnabledChange={setRadarArpaEnabled}
-                  arpaTargets={radarArpaTargets}
-                  onArpaTargetsChange={setRadarArpaTargets}
-                  liveTargets={radarTargets}
-                  aisTargets={aisTargets}
-                  environment={radarEnvironment}
-                  ownShipData={ownShipData}
-                />
+            <div className={styles.sectionCard}>
+              <div className={styles.radarGrid}>
+                <div className="space-y-2">
+                  <div className={styles.radarTitle}>X-band</div>
+                  <RadarDisplay
+                    size={320}
+                    className="max-w-[860px] mx-auto"
+                    initialSettings={radarSettingsX}
+                    onSettingsChange={setRadarSettingsX}
+                    ebl={radarEblX}
+                    onEblChange={setRadarEblX}
+                    vrm={radarVrmX}
+                    onVrmChange={setRadarVrmX}
+                    guardZone={radarGuardZoneX}
+                    onGuardZoneChange={setRadarGuardZoneX}
+                    arpaSettings={radarArpaSettingsX}
+                    onArpaSettingsChange={setRadarArpaSettingsX}
+                    arpaEnabled={radarArpaEnabledX}
+                    onArpaEnabledChange={setRadarArpaEnabledX}
+                    arpaTargets={radarArpaTargetsX}
+                    onArpaTargetsChange={setRadarArpaTargetsX}
+                    liveTargets={radarTargets}
+                    aisTargets={aisTargets}
+                    environment={radarEnvironment}
+                    ownShipData={ownShipData}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className={styles.radarTitle}>S-band</div>
+                  <RadarDisplay
+                    size={320}
+                    className="max-w-[860px] mx-auto"
+                    initialSettings={radarSettingsS}
+                    onSettingsChange={setRadarSettingsS}
+                    ebl={radarEblS}
+                    onEblChange={setRadarEblS}
+                    vrm={radarVrmS}
+                    onVrmChange={setRadarVrmS}
+                    guardZone={radarGuardZoneS}
+                    onGuardZoneChange={setRadarGuardZoneS}
+                    arpaSettings={radarArpaSettingsS}
+                    onArpaSettingsChange={setRadarArpaSettingsS}
+                    arpaEnabled={radarArpaEnabledS}
+                    onArpaEnabledChange={setRadarArpaEnabledS}
+                    arpaTargets={radarArpaTargetsS}
+                    onArpaTargetsChange={setRadarArpaTargetsS}
+                    liveTargets={radarTargets}
+                    aisTargets={aisTargets}
+                    environment={radarEnvironment}
+                    ownShipData={ownShipData}
+                  />
+                </div>
               </div>
             </div>
           ) : null}
           {tab === 'alarms' ? (
-            <div className="rounded-lg border border-teal-900/40 bg-[#0f1f33]/70 p-4 text-sm text-gray-300">
+            <div className={styles.sectionCard}>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {alarmItems.map(item => (
                   <div
@@ -823,14 +1475,12 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
             </div>
           ) : null}
           {tab === 'admin' && isAdmin ? (
-            <div className="rounded-lg border border-teal-900/40 bg-[#0f1f33]/70 p-4 text-sm text-gray-300">
-              <div className="flex flex-col gap-4">
+            <div className={styles.sectionCard}>
+              <div className={styles.adminPanel}>
                 <div>
-                  <div className="text-xs uppercase tracking-wide text-gray-400">
-                    Vessel Selection
-                  </div>
+                  <div className={styles.sectionTitle}>Vessel Selection</div>
                   <select
-                    className="mt-2 w-full rounded-md bg-gray-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    className={styles.adminSelect}
                     value={adminTargetId}
                     onChange={e => setAdminTargetId(e.target.value)}
                   >
@@ -842,11 +1492,11 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                   </select>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <label className="text-xs text-gray-300">
+                <div className={styles.adminGrid}>
+                  <label className={styles.adminLabel}>
                     Latitude
                     <input
-                      className="mt-1 w-full rounded-md bg-gray-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+                      className={styles.adminInput}
                       value={adminLat}
                       onChange={e => setAdminLat(e.target.value)}
                       placeholder={formatCoord(
@@ -854,15 +1504,15 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                         6,
                       )}
                     />
-                    <div className="mt-1 text-[11px] text-gray-500">
+                    <div className={styles.adminHint}>
                       Current:{' '}
                       {formatCoord(selectedAdminTarget?.position.lat, 6)}
                     </div>
                   </label>
-                  <label className="text-xs text-gray-300">
+                  <label className={styles.adminLabel}>
                     Longitude
                     <input
-                      className="mt-1 w-full rounded-md bg-gray-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+                      className={styles.adminInput}
                       value={adminLon}
                       onChange={e => setAdminLon(e.target.value)}
                       placeholder={formatCoord(
@@ -870,31 +1520,31 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                         6,
                       )}
                     />
-                    <div className="mt-1 text-[11px] text-gray-500">
+                    <div className={styles.adminHint}>
                       Current:{' '}
                       {formatCoord(selectedAdminTarget?.position.lon, 6)}
                     </div>
                   </label>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className={styles.adminActions}>
                   <button
                     type="button"
-                    className="rounded-md bg-emerald-600 px-4 py-2 text-xs font-semibold hover:bg-emerald-700"
+                    className={styles.adminButton}
                     onClick={handleAdminMove}
                   >
                     Move vessel
                   </button>
                   <button
                     type="button"
-                    className="rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold text-gray-200 hover:bg-gray-700"
+                    className={styles.adminButtonSecondary}
                     onClick={handleAdminMoveToSelf}
                   >
                     Move to my position
                   </button>
                 </div>
 
-                <div className="text-xs text-gray-400">
+                <div className={styles.sectionSub}>
                   Drag-and-drop moves for spectator mode are planned; this panel
                   is the temporary admin move tool.
                 </div>
@@ -903,13 +1553,15 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
           ) : null}
         </div>
       ) : null}
-      <div className="pointer-events-auto bg-gradient-to-r from-[#0b1627]/95 via-[#0b1c30]/94 to-[#0a2238]/95 backdrop-blur border-t border-teal-900/40 px-6 py-3 flex items-center justify-between">
-        <div className="text-xs uppercase tracking-wide text-gray-400">
+      <div className={styles.hudFooter}>
+        <div className={styles.footerMeta}>
           HUD • {mode === 'spectator' ? 'Spectator' : 'Player'} mode
-          {helm?.userId ? ` • Helm: ${helm.username || helm.userId}` : ''}
+          {helmStation?.userId
+            ? ` • Helm: ${helmStation.username || helmStation.userId}`
+            : ''}
           {spaceId ? ` • Space: ${spaceId}` : ''}
         </div>
-        <div className="flex gap-3">
+        <div className={styles.tabRow}>
           {visibleTabs.map(t => (
             <button
               key={t.id}
@@ -917,10 +1569,10 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
               onMouseDown={() => setPressedTab(t.id)}
               onMouseUp={() => setPressedTab(null)}
               onClick={() => handleTabClick(t.id)}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors border ${
+              className={`${styles.tabButton} ${
                 tab === t.id || pressedTab === t.id
-                  ? 'bg-gradient-to-b from-[#1b9aaa] to-[#0f7c8a] text-white shadow-md shadow-teal-900/40 border-teal-700/70'
-                  : 'bg-slate-800/90 text-gray-200 hover:bg-slate-700/80 border-slate-700/70'
+                  ? styles.tabButtonActive
+                  : ''
               }`}
             >
               {t.label}
@@ -932,10 +1584,40 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   );
 }
 
-function formatTime(time: number): string {
-  const hours = Math.floor(time);
-  const minutes = Math.round((time % 1) * 60);
-  return `${hours.toString().padStart(2, '0')}:${minutes
-    .toString()
-    .padStart(2, '0')}`;
-}
+const SystemMeter = ({
+  label,
+  value,
+  detail,
+  percent,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+  percent?: number;
+}) => {
+  const clamped = percent !== undefined ? clamp01(percent) : undefined;
+  const tone =
+    clamped !== undefined
+      ? clamped <= 0.15
+        ? styles.meterFillDanger
+        : clamped <= 0.35
+          ? styles.meterFillWarn
+          : styles.meterFillOk
+      : undefined;
+
+  return (
+    <div className={styles.systemCard}>
+      <div className={styles.systemLabel}>{label}</div>
+      <div className={styles.systemValue}>{value}</div>
+      {clamped !== undefined ? (
+        <div className={styles.meter}>
+          <div
+            className={`${styles.meterFill} ${tone || ''}`}
+            style={{ width: `${Math.round(clamped * 100)}%` }}
+          />
+        </div>
+      ) : null}
+      {detail ? <div className={styles.systemMeta}>{detail}</div> : null}
+    </div>
+  );
+};

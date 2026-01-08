@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { signIn } from 'next-auth/react';
+import styles from './Auth.module.css';
 
 /**
  * Register page for Ship Simulator.
@@ -64,20 +65,15 @@ const RegisterPage: React.FC = () => {
         <meta name="description" content="Register for Ship Simulator" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      <main className="min-h-full flex items-center justify-center bg-gray-900">
-        <div className="w-full max-w-md p-6">
-          <h1 className="text-3xl font-bold text-white text-center mb-8">
-            Register
-          </h1>
-          <form
-            onSubmit={handleSubmit}
-            className="bg-gray-800 bg-opacity-70 rounded-lg p-6 text-white"
-          >
-            <div className="mb-4">
-              <label
-                htmlFor="username"
-                className="block mb-1 text-sm font-medium"
-              >
+      <main className={styles.page}>
+        <div className={styles.card}>
+          <div className={styles.title}>Register</div>
+          <div className={styles.subtitle}>
+            Create your pilot profile and enter the simulator.
+          </div>
+          <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.field}>
+              <label htmlFor="username" className={styles.label}>
                 Username
               </label>
               <input
@@ -85,16 +81,13 @@ const RegisterPage: React.FC = () => {
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                className="w-full p-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className={styles.input}
                 required
                 autoComplete="username"
               />
             </div>
-            <div className="mb-4">
-              <label
-                htmlFor="password"
-                className="block mb-1 text-sm font-medium"
-              >
+            <div className={styles.field}>
+              <label htmlFor="password" className={styles.label}>
                 Password
               </label>
               <input
@@ -102,31 +95,29 @@ const RegisterPage: React.FC = () => {
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full p-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className={styles.input}
                 required
                 autoComplete="new-password"
               />
             </div>
-            {error && (
-              <div className="mb-3 bg-red-800 p-2 rounded text-sm">{error}</div>
-            )}
-            {success && (
-              <div className="mb-3 bg-green-800 p-2 rounded text-sm">
+            {error ? <div className={styles.error}>{error}</div> : null}
+            {success ? (
+              <div className={styles.success}>
                 Registration successful! Signing you in...
               </div>
-            )}
+            ) : null}
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
+              className={styles.buttonPrimary}
               disabled={loading}
             >
               {loading ? 'Registering...' : 'Register'}
             </button>
           </form>
-          <div className="mt-6 text-center text-gray-400 text-sm">
+          <div className={styles.footer}>
             <p>
               Already have an account?{' '}
-              <a href="/login" className="text-blue-400 hover:underline">
+              <a href="/login" className={styles.buttonSecondary}>
                 Login
               </a>
             </p>

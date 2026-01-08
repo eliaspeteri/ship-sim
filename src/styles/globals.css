@@ -7,6 +7,21 @@
   --marine-teal: #1b9aaa;
   --marine-brass: #c3a76b;
   --marine-foam: #a8d8e4;
+  --ink: #e9f1f4;
+  --muted: rgba(170, 192, 202, 0.7);
+  --accent: #25b2a6;
+  --accent-strong: #1b8f8a;
+  --app-bg:
+    radial-gradient(
+      120% 160% at 10% 10%,
+      rgba(38, 91, 130, 0.35) 0%,
+      rgba(9, 22, 38, 0.95) 45%,
+      rgba(6, 13, 24, 0.98) 100%
+    ),
+    linear-gradient(135deg, rgba(13, 26, 42, 0.92), rgba(4, 10, 18, 0.98));
+  --font-sans:
+    'Space Grotesk', 'Sora', 'Manrope', 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  --font-mono: 'Space Mono', 'IBM Plex Mono', 'SFMono-Regular', monospace;
 }
 
 html,
@@ -17,20 +32,9 @@ body,
 
 body {
   margin: 0;
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
-  background: radial-gradient(
-    120% 120% at 20% 20%,
-    #11263d 0%,
-    #081425 50%,
-    #050e19 100%
-  );
-  color: #e5e7eb;
+  font-family: var(--font-sans);
+  background: var(--app-bg);
+  color: var(--ink);
 }
 
 button {

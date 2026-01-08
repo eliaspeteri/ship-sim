@@ -3,6 +3,7 @@ import useStore from '../store';
 import { AlarmIndicator } from './alarms/AlarmIndicator';
 import { CompassRose } from './CompassRose';
 import { CircularGauge } from './CircularGauge';
+import styles from './Dashboard.module.css';
 
 interface DashboardProps {
   className?: string;
@@ -27,62 +28,60 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   const panelMaxHeight = 'calc(92vh - var(--nav-height, 0px))';
 
   return (
-    <div className={`${className} pointer-events-none text-white`}>
+    <div className={`${styles.root} ${className}`}>
       <div
-        className="fixed left-4 z-30 w-96 space-y-4 rounded-xl bg-gray-900/85 p-4 backdrop-blur pointer-events-auto shadow-lg overflow-y-auto"
+        className={styles.panel}
         style={{ top: navOffset, maxHeight: panelMaxHeight }}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            {alarms &&
-              Object.entries(alarms).map(
-                ([key, active]) =>
-                  typeof active === 'boolean' &&
-                  active && (
-                    <AlarmIndicator
-                      key={key}
-                      active={active}
-                      label={
-                        key === 'engineOverheat'
-                          ? 'ENGINE TEMP'
-                          : key === 'lowOilPressure'
-                            ? 'OIL PRESSURE'
-                            : key === 'propulsionFailure'
-                              ? 'PROPULSION'
-                              : key
-                      }
-                      severity={
-                        key === 'engineOverheat' || key === 'lowOilPressure'
-                          ? 'critical'
-                          : 'warning'
-                      }
-                    />
-                  ),
-              )}
-          </div>
+        <div className={styles.alarmRow}>
+          {alarms &&
+            Object.entries(alarms).map(
+              ([key, active]) =>
+                typeof active === 'boolean' &&
+                active && (
+                  <AlarmIndicator
+                    key={key}
+                    active={active}
+                    label={
+                      key === 'engineOverheat'
+                        ? 'ENGINE TEMP'
+                        : key === 'lowOilPressure'
+                          ? 'OIL PRESSURE'
+                          : key === 'propulsionFailure'
+                            ? 'PROPULSION'
+                            : key
+                    }
+                    severity={
+                      key === 'engineOverheat' || key === 'lowOilPressure'
+                        ? 'critical'
+                        : 'warning'
+                    }
+                  />
+                ),
+            )}
         </div>
 
-        <div className="bg-gray-800/70 p-2 rounded">
-          <div className="text-gray-400 text-xs mb-1">Crew</div>
+        <div className={styles.crewCard}>
+          <div className={styles.crewTitle}>Crew</div>
           {helm?.userId && (
-            <div className="text-[11px] text-amber-300 mb-1">
+            <div className={styles.crewHint}>
               Helm: {helm.username || helm.userId}
             </div>
           )}
           {crewIds.length === 0 ? (
-            <div className="text-sm text-gray-300">
+            <div className={styles.crewHint}>
               You are alone on this vessel
             </div>
           ) : (
-            <ul className="text-sm space-y-1">
+            <ul className={styles.crewList}>
               {crewIds.map(id => (
-                <li key={id} className="flex items-center justify-between">
-                  <span className="font-mono text-gray-200">
+                <li key={id} className={styles.crewRow}>
+                  <span className={styles.crewName}>
                     {crewNames[id] || id}
                     {id === helm?.userId ? ' (helm)' : ''}
                     {id === sessionUserId ? ' (you)' : ''}
                   </span>
-                  <span className="text-[10px] uppercase text-gray-500">
+                  <span className={styles.crewRole}>
                     {helm?.userId === id ? 'Helm' : 'Crew'}
                   </span>
                 </li>
@@ -91,38 +90,38 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           )}
         </div>
 
-        <div className="flex justify-center">
+        <div className={styles.compassWrap}>
           <CompassRose heading={compassHeadingRad} />
         </div>
 
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="bg-gray-800/70 p-2 rounded">
-            <div className="text-gray-400 text-xs">Lat</div>
-            <div className="font-mono">
+        <div className={styles.statGrid}>
+          <div className={styles.statCard}>
+            <div className={styles.statLabel}>Lat</div>
+            <div className={styles.statValue}>
               {position?.lat !== undefined ? position.lat.toFixed(6) : '—'}°
             </div>
           </div>
-          <div className="bg-gray-800/70 p-2 rounded">
-            <div className="text-gray-400 text-xs">Lon</div>
-            <div className="font-mono">
+          <div className={styles.statCard}>
+            <div className={styles.statLabel}>Lon</div>
+            <div className={styles.statValue}>
               {position?.lon !== undefined ? position.lon.toFixed(6) : '—'}°
             </div>
           </div>
-          <div className="bg-gray-800/70 p-2 rounded">
-            <div className="text-gray-400 text-xs">Speed</div>
-            <div className="font-mono">
+          <div className={styles.statCard}>
+            <div className={styles.statLabel}>Speed</div>
+            <div className={styles.statValue}>
               {((velocity?.surge || 0) * 1.94384).toFixed(1)} kts
             </div>
           </div>
-          <div className="bg-gray-800/70 p-2 rounded">
-            <div className="text-gray-400 text-xs">Sway</div>
-            <div className="font-mono">
+          <div className={styles.statCard}>
+            <div className={styles.statLabel}>Sway</div>
+            <div className={styles.statValue}>
               {((velocity?.sway || 0) * 1.94384).toFixed(1)} kts
             </div>
           </div>
-          <div className="bg-gray-800/70 p-2 rounded">
-            <div className="text-gray-400 text-xs">Course</div>
-            <div className="font-mono">
+          <div className={styles.statCard}>
+            <div className={styles.statLabel}>Course</div>
+            <div className={styles.statValue}>
               {(() => {
                 const heading = orientation?.heading || 0;
                 const surge = velocity?.surge || 0;
@@ -138,18 +137,18 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
               °
             </div>
           </div>
-          <div className="bg-gray-800/70 p-2 rounded">
-            <div className="text-gray-400 text-xs">Yaw rate</div>
-            <div className="font-mono">
+          <div className={styles.statCard}>
+            <div className={styles.statLabel}>Yaw rate</div>
+            <div className={styles.statValue}>
               {(((vessel.angularVelocity?.yaw || 0) * 180) / Math.PI).toFixed(
                 2,
               )}
               °/s
             </div>
           </div>
-          <div className="bg-gray-800/70 p-2 rounded">
-            <div className="text-gray-400 text-xs">Wind</div>
-            <div className="font-mono">
+          <div className={styles.statCard}>
+            <div className={styles.statLabel}>Wind</div>
+            <div className={styles.statValue}>
               {environment.wind.speed?.toFixed(1) || '0.0'} m/s @{' '}
               {(((environment.wind.direction || 0) * 180) / Math.PI).toFixed(0)}
               °
@@ -157,7 +156,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className={styles.gaugeGrid}>
           <CircularGauge
             label="Speed"
             value={(velocity?.surge || 0) * 1.94384}

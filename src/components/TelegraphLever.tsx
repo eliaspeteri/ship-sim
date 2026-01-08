@@ -17,6 +17,7 @@ interface TelegraphLeverProps {
   label: string;
   /** Array of scale markings for the telegraph */
   scale: TelegraphMark[];
+  disabled?: boolean;
 }
 
 // Helper to convert polar coordinates to Cartesian for SVG
@@ -95,6 +96,7 @@ export const TelegraphLever: React.FC<TelegraphLeverProps> = ({
   onChange,
   label,
   scale,
+  disabled = false,
 }) => {
   // --- Geometry and Styling ---
   const bodyOuterRadius = 90; // Outer radius of the EOT body
@@ -130,7 +132,7 @@ export const TelegraphLever: React.FC<TelegraphLeverProps> = ({
       initialValue,
       min,
       max,
-      onChange,
+      onChange: disabled ? () => {} : onChange,
       dragAxis: 'horizontal',
       dragSensitivity: 150,
       resetOnDoubleClick: true,
@@ -160,9 +162,11 @@ export const TelegraphLever: React.FC<TelegraphLeverProps> = ({
         height="140" // Increased height slightly for labels
         viewBox="0 0 200 140"
         className="cursor-grab select-none" // Prevent text selection during drag
-        onMouseDown={handleMouseDown}
-        onDoubleClick={handleDoubleClick}
-        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+        onMouseDown={disabled ? undefined : handleMouseDown}
+        onDoubleClick={disabled ? undefined : handleDoubleClick}
+        style={{
+          cursor: disabled ? 'not-allowed' : isDragging ? 'grabbing' : 'grab',
+        }}
       >
         {/* EOT Body Background */}
         <path d={bodyPath} fill={bodyColor} />

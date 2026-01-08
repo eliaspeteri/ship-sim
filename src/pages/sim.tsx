@@ -8,8 +8,11 @@ import useStore from '../store';
 import socketManager from '../networking/socket';
 import { initializeSimulation, startSimulation } from '../simulation';
 import { getSimulationLoop } from '../simulation';
-import { RUDDER_STALL_ANGLE_RAD } from '../constants/vessel';
+import { MAX_CREW, RUDDER_MAX_ANGLE_RAD } from '../constants/vessel';
 import { positionFromXY, positionToXY } from '../lib/position';
+import { getScenarios, ScenarioDefinition } from '../lib/scenarios';
+import { getApiBase } from '../lib/api';
+import styles from './SimPage.module.css';
 
 const PORTS = [
   { name: 'Harbor Alpha', position: positionFromXY({ x: 0, y: 0 }) },
@@ -40,11 +43,14 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const notice = useStore(state => state.notice);
   const setNotice = useStore(state => state.setNotice);
   const crewIds = useStore(state => state.crewIds);
+  const otherVessels = useStore(state => state.otherVessels);
   const setSessionUserId = useStore(state => state.setSessionUserId);
   const setChatMessages = useStore(state => state.setChatMessages);
   const currentVesselId = useStore(state => state.currentVesselId);
+  const account = useStore(state => state.account);
+  const setMissions = useStore(state => state.setMissions);
+  const setMissionAssignments = useStore(state => state.setMissionAssignments);
   const hasStartedRef = useRef(false);
-  const navHeightVar = 'var(--nav-height, 0px)';
   const sessionRole = (session?.user as { role?: string })?.role;
   const canEnterPlayerMode =
     sessionRole === 'admin' ||
@@ -73,6 +79,28 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const [spaceFlow, setSpaceFlow] = React.useState<
     'choice' | 'join' | 'create'
   >('choice');
+  const scenarios = React.useMemo(() => getScenarios(), []);
+  const [scenarioLoadingId, setScenarioLoadingId] = React.useState<
+    string | null
+  >(null);
+  const [scenarioError, setScenarioError] = React.useState<string | null>(null);
+  const joinableVessels = React.useMemo(() => {
+    return Object.entries(otherVessels || {})
+      .filter(([, vessel]) => {
+        if (!vessel) return false;
+        const crewCount = vessel.crewCount ?? vessel.crewIds?.length ?? 0;
+        return (
+          vessel.mode === 'player' && crewCount > 0 && crewCount < MAX_CREW
+        );
+      })
+      .map(([id, vessel]) => {
+        const crewCount = vessel.crewCount ?? vessel.crewIds?.length ?? 0;
+        const label =
+          vessel.helm?.username || vessel.helm?.userId || vessel.ownerId || id;
+        return { id, crewCount, label };
+      })
+      .sort((a, b) => a.crewCount - b.crewCount);
+  }, [otherVessels]);
 
   const joinSpace = React.useCallback(
     (next: string) => {
@@ -100,6 +128,56 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     [router, setChatMessages, setSpaceId],
   );
 
+  const startScenario = React.useCallback(
+    async (scenario: ScenarioDefinition) => {
+      setScenarioError(null);
+      setScenarioLoadingId(scenario.id);
+      try {
+        const apiBase = getApiBase();
+        const res = await fetch(
+          `${apiBase}/api/scenarios/${scenario.id}/start`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+          },
+        );
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.error || `Request failed: ${res.status}`);
+        }
+        const data = await res.json();
+        if (!data?.space?.id) {
+          throw new Error('Scenario space missing from response');
+        }
+        socketManager.setJoinPreference('player', true);
+        setMode('player');
+        joinSpace(data.space.id);
+        await socketManager.waitForConnection();
+        socketManager.requestNewVessel({
+          lat: scenario.spawn.lat,
+          lon: scenario.spawn.lon,
+        });
+        setShowJoinChoice(false);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('ship-sim-join-choice', 'create');
+        }
+        setNotice({
+          type: 'info',
+          message: `Scenario "${scenario.name}" started.`,
+        });
+      } catch (err) {
+        console.error('Failed to start scenario', err);
+        setScenarioError(
+          err instanceof Error ? err.message : 'Failed to start scenario',
+        );
+      } finally {
+        setScenarioLoadingId(null);
+      }
+    },
+    [joinSpace, setMode, setNotice],
+  );
+
   const mergeSpaceLists = React.useCallback(
     (prev: SpaceSummary[], incoming: SpaceSummary[]): SpaceSummary[] => {
       const map = new Map<string, SpaceSummary>();
@@ -123,20 +201,6 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     [mergeSpaceLists],
   );
 
-  const getApiBase = React.useCallback(() => {
-    const envBase =
-      process.env.NEXT_PUBLIC_SERVER_URL ||
-      process.env.NEXT_PUBLIC_SOCKET_URL ||
-      '';
-    if (envBase) return envBase.replace(/\/$/, '');
-    if (typeof window !== 'undefined') {
-      const { protocol, hostname } = window.location;
-      const port = process.env.NEXT_PUBLIC_SERVER_PORT || '3001';
-      return `${protocol}//${hostname}:${port}`;
-    }
-    return 'http://localhost:3001';
-  }, []);
-
   const saveKnownSpace = React.useCallback(
     async (spaceId: string, inviteToken?: string) => {
       try {
@@ -151,7 +215,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         console.warn('Failed to save known space', err);
       }
     },
-    [getApiBase],
+    [],
   );
 
   const fetchSpaces = React.useCallback(
@@ -193,7 +257,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         setSpacesLoading(false);
       }
     },
-    [getApiBase, mergeSpaces, saveKnownSpace],
+    [mergeSpaces, saveKnownSpace],
   );
 
   const handleCreateSpace = React.useCallback(async () => {
@@ -245,7 +309,6 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       setSpaceError('Failed to create space');
     }
   }, [
-    getApiBase,
     joinSpace,
     mergeSpaces,
     saveKnownSpace,
@@ -302,6 +365,42 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
 
   useEffect(() => {
     if (status !== 'authenticated') return;
+    if (!spaceId) return;
+    const controller = new AbortController();
+    const loadMissions = async () => {
+      try {
+        const apiBase = getApiBase();
+        const [missionsRes, assignmentsRes] = await Promise.all([
+          fetch(`${apiBase}/api/missions?spaceId=${spaceId}`, {
+            credentials: 'include',
+            signal: controller.signal,
+          }),
+          fetch(`${apiBase}/api/missions/assignments`, {
+            credentials: 'include',
+            signal: controller.signal,
+          }),
+        ]);
+        if (missionsRes.ok) {
+          const data = await missionsRes.json();
+          setMissions(Array.isArray(data?.missions) ? data.missions : []);
+        }
+        if (assignmentsRes.ok) {
+          const data = await assignmentsRes.json();
+          setMissionAssignments(
+            Array.isArray(data?.assignments) ? data.assignments : [],
+          );
+        }
+      } catch (error) {
+        if ((error as { name?: string })?.name === 'AbortError') return;
+        console.error('Failed to load missions', error);
+      }
+    };
+    void loadMissions();
+    return () => controller.abort();
+  }, [setMissions, setMissionAssignments, spaceId, status]);
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
     if (!hasChosenSpace) return;
     const seen =
       typeof window !== 'undefined' &&
@@ -319,13 +418,17 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       const assignedVessel = useStore.getState().currentVesselId;
       if (!assignedVessel) {
         setShowJoinChoice(true);
+        if (canEnterPlayerMode) {
+          setMode('spectator');
+          socketManager.setJoinPreference('spectator', false);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [hasChosenSpace, showJoinChoice, status]);
+  }, [canEnterPlayerMode, hasChosenSpace, setMode, showJoinChoice, status]);
 
   useEffect(() => {
     if (!currentVesselId) return;
@@ -369,6 +472,16 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     if (socketToken) {
       socketManager.setAuthToken(socketToken, userId, username);
     }
+    if (typeof window !== 'undefined') {
+      const joinChoice = sessionStorage.getItem('ship-sim-join-choice');
+      if (!joinChoice) {
+        socketManager.setJoinPreference('spectator', false);
+      } else if (joinChoice === 'spectate') {
+        socketManager.setJoinPreference('spectator', false);
+      } else {
+        socketManager.setJoinPreference('player', true);
+      }
+    }
     socketManager.connect(process.env.NEXT_PUBLIC_SOCKET_URL || '');
 
     (async () => {
@@ -405,6 +518,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     if (status === 'loading') return;
     if (!canEnterPlayerMode && mode !== 'spectator') {
       setMode('spectator');
+      socketManager.setJoinPreference('spectator', false);
       socketManager.notifyModeChange('spectator');
     }
   }, [canEnterPlayerMode, mode, setMode, status]);
@@ -433,39 +547,56 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       const throttleStep = 0.05;
       const rudderStep = 0.05;
       let changed = false;
+      const sessionUserId = state.sessionUserId;
+      const helmStation = state.vessel.stations?.helm || state.vessel.helm;
+      const engineStation = state.vessel.stations?.engine;
+      const isHelm =
+        sessionUserId && (helmStation?.userId || null) === sessionUserId;
+      const isEngine =
+        sessionUserId && (engineStation?.userId || null) === sessionUserId;
+      const canAdjustThrottle = isEngine || (!engineStation?.userId && isHelm);
+      const canAdjustRudder = isHelm;
 
       switch (event.key) {
         case 'w':
         case 'W':
         case 'ArrowUp':
-          throttle = clamp(throttle + throttleStep, -1, 1);
-          changed = true;
+          if (canAdjustThrottle) {
+            throttle = clamp(throttle + throttleStep, -1, 1);
+            changed = true;
+          }
           break;
         case 's':
         case 'S':
         case 'ArrowDown':
-          throttle = clamp(throttle - throttleStep, -1, 1);
-          changed = true;
+          if (canAdjustThrottle) {
+            throttle = clamp(throttle - throttleStep, -1, 1);
+            changed = true;
+          }
           break;
         case 'a':
         case 'A':
         case 'ArrowLeft':
-          rudder = clamp(
-            rudder - rudderStep,
-            -RUDDER_STALL_ANGLE_RAD,
-            RUDDER_STALL_ANGLE_RAD,
-          );
-          changed = true;
+          if (canAdjustRudder) {
+            rudder = clamp(
+              rudder - rudderStep,
+              -RUDDER_MAX_ANGLE_RAD,
+              RUDDER_MAX_ANGLE_RAD,
+            );
+            changed = true;
+          }
           break;
         case 'd':
         case 'D':
         case 'ArrowRight':
-          rudder = clamp(
-            rudder + rudderStep,
-            -RUDDER_STALL_ANGLE_RAD,
-            RUDDER_STALL_ANGLE_RAD,
-          );
-          changed = true;
+          if (canAdjustRudder) {
+            rudder = clamp(
+              rudder + rudderStep,
+              -RUDDER_MAX_ANGLE_RAD,
+              RUDDER_MAX_ANGLE_RAD,
+            );
+            changed = true;
+          }
           break;
         default:
           break;
@@ -476,19 +607,31 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       state.updateVessel({
         controls: {
           ...controls,
-          throttle,
-          rudderAngle: rudder,
+          throttle: canAdjustThrottle ? throttle : controls.throttle,
+          rudderAngle: canAdjustRudder ? rudder : controls.rudderAngle,
         },
       });
 
       try {
         const simulationLoop = getSimulationLoop();
-        simulationLoop.applyControls({
-          throttle,
-          rudderAngle: rudder,
-          ballast: controls.ballast,
-        });
-        socketManager.sendControlUpdate(throttle, rudder, controls.ballast);
+        const nextControls: {
+          throttle?: number;
+          rudderAngle?: number;
+          ballast?: number;
+        } = {};
+        if (canAdjustThrottle) {
+          nextControls.throttle = throttle;
+          nextControls.ballast = controls.ballast;
+        }
+        if (canAdjustRudder) {
+          nextControls.rudderAngle = rudder;
+        }
+        simulationLoop.applyControls(nextControls);
+        socketManager.sendControlUpdate(
+          nextControls.throttle,
+          nextControls.rudderAngle,
+          nextControls.ballast,
+        );
       } catch (error) {
         console.error('Error applying keyboard controls:', error);
       }
@@ -524,17 +667,13 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   };
 
   return (
-    <div
-      className="w-full"
-      style={{
-        minHeight: `calc(100vh - ${navHeightVar})`,
-        height: `calc(100vh - ${navHeightVar})`,
-      }}
-    >
-      <div className="fixed right-4 top-[calc(var(--nav-height,0px)+8px)] z-40 flex items-center gap-2 rounded-lg bg-gray-900/80 px-3 py-2 text-sm text-white shadow-lg backdrop-blur">
+    <div className={styles.page}>
+      <div className={styles.topBar}>
         {notice ? (
           <div
-            className={`mr-3 rounded px-2 py-1 text-xs ${notice.type === 'error' ? 'bg-red-700' : 'bg-blue-700'}`}
+            className={`${styles.notice} ${
+              notice.type === 'error' ? styles.noticeError : styles.noticeInfo
+            }`}
           >
             {notice.message}
           </div>
@@ -542,7 +681,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         {userId && crewIds.includes(userId) && (
           <button
             type="button"
-            className="rounded bg-amber-600 px-3 py-1 text-xs font-semibold hover:bg-amber-700"
+            className={`${styles.topButton} ${styles.topButtonWarn}`}
             onClick={() =>
               socketManager.requestHelm(
                 vessel.helm?.userId === userId ? 'release' : 'claim',
@@ -556,8 +695,10 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         )}
         <button
           type="button"
-          className="rounded bg-indigo-600 px-3 py-1 text-xs font-semibold hover:bg-indigo-700"
+          disabled={!canEnterPlayerMode}
+          className={`${styles.topButton} ${styles.topButtonPrimary}`}
           onClick={() => {
+            socketManager.setJoinPreference('player', true);
             socketManager.requestNewVessel();
             setNotice({
               type: 'info',
@@ -567,9 +708,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         >
           Create My Vessel
         </button>
-        <span className="text-xs uppercase tracking-wide text-gray-300">
-          Mode
-        </span>
+        <span className={styles.modeLabel}>Mode</span>
         <button
           type="button"
           disabled={!canEnterPlayerMode && mode !== 'player'}
@@ -583,13 +722,12 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
               return;
             }
             setMode(nextMode);
+            socketManager.setJoinPreference(nextMode, nextMode === 'player');
             socketManager.notifyModeChange(nextMode);
           }}
-          className={`rounded px-3 py-1 text-xs font-semibold transition-colors ${
-            mode === 'player'
-              ? 'bg-blue-600 text-white'
-              : 'bg-emerald-600 text-white'
-          } ${!canEnterPlayerMode && mode !== 'player' ? 'opacity-60 cursor-not-allowed' : ''}`}
+          className={`${styles.modeToggle} ${
+            mode === 'player' ? styles.modeToggleActive : ''
+          }`}
           title={
             !canEnterPlayerMode && mode !== 'player'
               ? 'Spectator-only role'
@@ -601,22 +739,19 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       </div>
       {spaceModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          className={styles.modalOverlay}
           onClick={() => {
             setSpaceModalOpen(false);
             setSpaceFlow('choice');
             setSpaceError(null);
           }}
         >
-          <div
-            className="relative w-[560px] max-w-[90vw] rounded-lg bg-gray-900 p-4 text-white shadow-2xl"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+          <div className={styles.modalCard} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div className={styles.modalHeaderLeft}>
                 {spaceFlow !== 'choice' ? (
                   <button
-                    className="flex items-center gap-1 rounded-md bg-gray-800 px-4 py-2 text-sm font-semibold hover:bg-gray-700"
+                    className={styles.modalBack}
                     onClick={() => {
                       setSpaceFlow('choice');
                       setSpaceError(null);
@@ -626,12 +761,12 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                     Back
                   </button>
                 ) : (
-                  <div className="w-[68px]" />
+                  <div className={styles.modalSpacer} />
                 )}
-                <div className="text-lg font-semibold">Choose a space</div>
+                <div className={styles.modalTitle}>Choose a space</div>
               </div>
               <button
-                className="rounded-md bg-red-700 px-4 py-2 text-xs font-semibold hover:bg-red-600"
+                className={styles.modalClose}
                 onClick={() => {
                   setSpaceModalOpen(false);
                   setSpaceFlow('choice');
@@ -642,9 +777,9 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
               </button>
             </div>
             {spaceFlow === 'choice' ? (
-              <div className="mb-6 flex gap-3">
+              <div className={styles.choiceGrid}>
                 <button
-                  className="flex-1 rounded-md bg-blue-700 px-4 py-6 text-center text-sm font-semibold hover:bg-blue-600"
+                  className={`${styles.choiceButton} ${styles.choiceButtonPrimary}`}
                   onClick={() => {
                     setSpaceFlow('join');
                     setSpaceError(null);
@@ -653,7 +788,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                   Join space
                 </button>
                 <button
-                  className="flex-1 rounded-md bg-emerald-700 px-4 py-6 text-center text-sm font-semibold hover:bg-emerald-600"
+                  className={styles.choiceButton}
                   onClick={() => {
                     setSpaceFlow('create');
                     setSpaceError(null);
@@ -666,17 +801,17 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
 
             {spaceFlow === 'join' ? (
               <>
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-xs uppercase text-gray-300">Space</span>
+                <div className={styles.formRow}>
+                  <span className={styles.modeLabel}>Space</span>
                   <input
-                    className="w-32 rounded-md bg-gray-800 px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={styles.input}
                     value={spaceInput}
                     onChange={e => setSpaceInput(e.target.value)}
                     placeholder="global"
                   />
                   <button
                     type="button"
-                    className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold hover:bg-blue-700"
+                    className={`${styles.button} ${styles.buttonPrimary}`}
                     onClick={() => {
                       setSpaceError(null);
                       joinSpace(spaceInput);
@@ -685,7 +820,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                     Join
                   </button>
                   <button
-                    className="rounded-md bg-gray-800 px-3 py-1 text-xs hover:bg-gray-700"
+                    className={`${styles.button} ${styles.buttonNeutral}`}
                     onClick={() => {
                       setSpaceFlow('choice');
                       setSpaceError(null);
@@ -694,15 +829,13 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                     Back
                   </button>
                 </div>
-                <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-gray-300">
+                <div className={styles.pillRow}>
                   {spacesLoading ? <span>Loading spaces...</span> : null}
                   {spaces.map(space => (
                     <button
                       key={space.id}
-                      className={`rounded-full border px-3 py-1 text-white hover:border-blue-500 hover:text-blue-200 ${
-                        space.visibility === 'private'
-                          ? 'border-pink-700 bg-pink-900/60'
-                          : 'border-gray-700 bg-gray-800'
+                      className={`${styles.pill} ${
+                        space.visibility === 'private' ? styles.pillPrivate : ''
                       }`}
                       onClick={() => joinSpace(space.id)}
                       title={
@@ -718,23 +851,25 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                     </button>
                   ))}
                   {!spacesLoading && spaces.length === 0 ? (
-                    <span className="text-gray-400">No public spaces yet</span>
+                    <span className={styles.helperText}>
+                      No public spaces yet
+                    </span>
                   ) : null}
                   {(knownSpaces?.length || 0) > 0 ? (
-                    <span className="rounded-full border border-indigo-700 bg-indigo-900/60 px-2 py-1 text-[11px] text-indigo-100">
+                    <span className={styles.helperText}>
                       Known spaces: {knownSpaces.length}
                     </span>
                   ) : null}
                 </div>
                 {spaces.length > 0 ? (
-                  <div className="mb-3 rounded-md border border-gray-800 bg-gray-800 px-3 py-2 text-xs text-gray-200">
-                    <div className="flex items-center justify-between">
+                  <div className={styles.detailsCard}>
+                    <div className={styles.detailsHeader}>
                       <span>
                         Details for: <strong>{spaceInput || '—'}</strong>
                       </span>
                       {spaces.find(s => s.id === spaceInput)?.inviteToken ? (
                         <button
-                          className="rounded bg-gray-700 px-2 py-1 text-xs hover:bg-gray-600"
+                          className={`${styles.button} ${styles.buttonSecondary}`}
                           onClick={async () => {
                             const invite = spaces.find(
                               s => s.id === spaceInput,
@@ -753,22 +888,22 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                         </button>
                       ) : null}
                     </div>
-                    <div className="text-gray-400">
+                    <div className={styles.helperText}>
                       Invite token:{' '}
                       {spaces.find(s => s.id === spaceInput)?.inviteToken ||
                         '—'}
                     </div>
                   </div>
                 ) : null}
-                <div className="mb-3 flex flex-wrap items-center gap-2">
+                <div className={styles.formRow}>
                   <input
-                    className="w-32 rounded-md bg-gray-800 px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={styles.input}
                     value={inviteToken}
                     onChange={e => setInviteToken(e.target.value)}
                     placeholder="Invite code"
                   />
                   <input
-                    className="w-32 rounded-md bg-gray-800 px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={styles.input}
                     value={invitePassword}
                     onChange={e => setInvitePassword(e.target.value)}
                     type="password"
@@ -776,7 +911,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                   />
                   <button
                     type="button"
-                    className="rounded-md bg-gray-700 px-3 py-1 text-xs font-semibold hover:bg-gray-600"
+                    className={`${styles.button} ${styles.buttonSecondary}`}
                     onClick={() => {
                       setSpaceError(null);
                       fetchSpaces({ inviteToken, password: invitePassword });
@@ -790,12 +925,10 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
 
             {spaceFlow === 'create' ? (
               <>
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs uppercase text-gray-300">
-                    Create a new space
-                  </span>
+                <div className={styles.formRow}>
+                  <span className={styles.modeLabel}>Create a new space</span>
                   <button
-                    className="rounded-md bg-gray-800 px-3 py-1 text-xs hover:bg-gray-700"
+                    className={`${styles.button} ${styles.buttonNeutral}`}
                     onClick={() => {
                       setSpaceFlow('choice');
                       setSpaceError(null);
@@ -804,15 +937,15 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                     Back
                   </button>
                 </div>
-                <div className="mb-3 flex flex-wrap items-center gap-2">
+                <div className={styles.formRow}>
                   <input
-                    className="w-32 flex-1 rounded-md bg-gray-800 px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={`${styles.input}`}
                     value={newSpaceName}
                     onChange={e => setNewSpaceName(e.target.value)}
                     placeholder="New space name"
                   />
                   <select
-                    className="rounded-md bg-gray-800 px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={styles.select}
                     value={newSpaceVisibility}
                     onChange={e =>
                       setNewSpaceVisibility(
@@ -824,7 +957,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                     <option value="private">Private</option>
                   </select>
                   <input
-                    className="w-32 rounded-md bg-gray-800 px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={styles.input}
                     value={newSpacePassword}
                     onChange={e => setNewSpacePassword(e.target.value)}
                     type="password"
@@ -832,7 +965,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                   />
                   <button
                     type="button"
-                    className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold hover:bg-emerald-700"
+                    className={`${styles.button} ${styles.buttonPrimary}`}
                     onClick={() => void handleCreateSpace()}
                   >
                     Create
@@ -842,7 +975,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
             ) : null}
 
             {spaceError ? (
-              <div className="text-xs text-red-400">{spaceError}</div>
+              <div className={styles.errorText}>{spaceError}</div>
             ) : null}
           </div>
         </div>
@@ -858,18 +991,18 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         }}
       />
       {showJoinChoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="rounded-lg bg-gray-900 p-6 text-white shadow-2xl w-[420px] space-y-4">
-            <h2 className="text-xl font-bold">Choose how to join</h2>
-            <p className="text-sm text-gray-300">
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalCard}>
+            <h2 className={styles.modalTitle}>Choose how to join</h2>
+            <p className={styles.helperText}>
               You can join an available vessel with open crew slots or start
               your own.
             </p>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm text-gray-300">
+            <div className="flex flex-col gap-3">
+              <label className={styles.helperText}>
                 Spawn location
                 <select
-                  className="mt-1 w-full rounded bg-gray-800 px-2 py-1 text-white"
+                  className={styles.select}
                   value={selectedPort}
                   onChange={e => setSelectedPort(e.target.value)}
                 >
@@ -880,39 +1013,90 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                   ))}
                 </select>
               </label>
+              {canEnterPlayerMode ? (
+                <>
+                  <div className={styles.detailsCard}>
+                    <div className={styles.modeLabel}>Join an active crew</div>
+                    <div className="flex max-h-40 flex-col gap-2 overflow-y-auto">
+                      {joinableVessels.length === 0 ? (
+                        <div className={styles.helperText}>
+                          No open crews. Create your own vessel instead.
+                        </div>
+                      ) : (
+                        joinableVessels.map(vessel => (
+                          <button
+                            key={vessel.id}
+                            className={`${styles.button} ${styles.buttonPrimary}`}
+                            onClick={() => {
+                              socketManager.setJoinPreference('player', true);
+                              socketManager.requestJoinVessel(vessel.id);
+                              setMode('player');
+                              setShowJoinChoice(false);
+                              if (typeof window !== 'undefined') {
+                                sessionStorage.setItem(
+                                  'ship-sim-join-choice',
+                                  'join',
+                                );
+                              }
+                            }}
+                          >
+                            {vessel.label} • {vessel.crewCount}/{MAX_CREW} crew
+                          </button>
+                        ))
+                      )}
+                    </div>
+                    {joinableVessels.length > 0 ? (
+                      <button
+                        className={`${styles.button} ${styles.buttonSecondary}`}
+                        onClick={() => {
+                          socketManager.setJoinPreference('player', true);
+                          socketManager.requestJoinVessel();
+                          setMode('player');
+                          setShowJoinChoice(false);
+                          if (typeof window !== 'undefined') {
+                            sessionStorage.setItem(
+                              'ship-sim-join-choice',
+                              'join',
+                            );
+                          }
+                        }}
+                      >
+                        Quick join smallest crew
+                      </button>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
+              {canEnterPlayerMode ? (
+                <button
+                  className={`${styles.button} ${styles.buttonPrimary}`}
+                  onClick={() => {
+                    const port =
+                      PORTS.find(p => p.name === selectedPort) || PORTS[0];
+                    socketManager.setJoinPreference('player', true);
+                    socketManager.requestNewVessel({
+                      lat: port.position.lat,
+                      lon: port.position.lon,
+                    });
+                    setMode('player');
+                    setShowJoinChoice(false);
+                    if (typeof window !== 'undefined') {
+                      sessionStorage.setItem('ship-sim-join-choice', 'create');
+                    }
+                  }}
+                >
+                  Create my own vessel
+                </button>
+              ) : (
+                <div className={styles.detailsCard}>
+                  Your role is spectator-only in this space.
+                </div>
+              )}
               <button
-                className="rounded bg-emerald-600 px-4 py-2 text-left font-semibold hover:bg-emerald-700"
-                onClick={() => {
-                  setShowJoinChoice(false);
-                  if (typeof window !== 'undefined') {
-                    sessionStorage.setItem('ship-sim-join-choice', 'join');
-                  }
-                }}
-              >
-                Join existing crew (auto-assign)
-              </button>
-              <button
-                className="rounded bg-indigo-600 px-4 py-2 text-left font-semibold hover:bg-indigo-700"
-                onClick={() => {
-                  const port =
-                    PORTS.find(p => p.name === selectedPort) || PORTS[0];
-                  socketManager.requestNewVessel({
-                    lat: port.position.lat,
-                    lon: port.position.lon,
-                    z: port.position.z ?? 0,
-                  });
-                  setShowJoinChoice(false);
-                  if (typeof window !== 'undefined') {
-                    sessionStorage.setItem('ship-sim-join-choice', 'create');
-                  }
-                }}
-              >
-                Create my own vessel
-              </button>
-              <button
-                className="rounded bg-gray-700 px-4 py-2 text-left font-semibold hover:bg-gray-600"
+                className={`${styles.button} ${styles.buttonNeutral}`}
                 onClick={() => {
                   setMode('spectator');
+                  socketManager.setJoinPreference('spectator', false);
                   socketManager.notifyModeChange('spectator');
                   setShowJoinChoice(false);
                   if (typeof window !== 'undefined') {
@@ -926,6 +1110,46 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
               >
                 Spectate the world
               </button>
+              <div className={styles.detailsCard}>
+                <div className={styles.modeLabel}>Quick-start scenarios</div>
+                {scenarioError ? (
+                  <div className={styles.errorText}>{scenarioError}</div>
+                ) : null}
+                <div className={styles.scenarioGrid}>
+                  {scenarios.map(scenario => {
+                    const locked = account.rank < scenario.rankRequired;
+                    const loading = scenarioLoadingId === scenario.id;
+                    return (
+                      <div key={scenario.id} className={styles.scenarioCard}>
+                        <div className={styles.scenarioHeader}>
+                          <div>
+                            <div className={styles.scenarioTitle}>
+                              {scenario.name}
+                            </div>
+                            <div className={styles.scenarioMeta}>
+                              {scenario.description}
+                            </div>
+                          </div>
+                          <div className={styles.scenarioMeta}>
+                            Rank {scenario.rankRequired}
+                          </div>
+                        </div>
+                        <button
+                          className={`${styles.button} ${styles.buttonPrimary} ${styles.scenarioAction}`}
+                          disabled={locked || loading}
+                          onClick={() => void startScenario(scenario)}
+                        >
+                          {locked
+                            ? 'Locked'
+                            : loading
+                              ? 'Starting…'
+                              : 'Start scenario'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </div>

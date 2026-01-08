@@ -2,6 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import useStore from '../store';
 import socketManager from '../networking/socket';
+import {
+  applyOffsetToTimeOfDay,
+  estimateTimeZoneOffsetHours,
+  formatTimeOfDay as formatClockTime,
+} from '../lib/time';
+import { getApiBase } from '../lib/api';
+import styles from './EnvironmentControls.module.css';
 
 interface EnvironmentControlsProps {
   className?: string;
@@ -16,16 +23,37 @@ const PRESETS = [
   { key: 'night', label: 'Night' },
 ];
 
+type EnvironmentEvent = {
+  id: string;
+  name?: string | null;
+  pattern?: string | null;
+  runAt: string;
+  enabled: boolean;
+  createdBy?: string | null;
+};
+
 const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
   className = '',
 }) => {
   const environment = useStore(state => state.environment);
   const roles = useStore(state => state.roles);
+  const spaceId = useStore(state => state.spaceId);
+  const spaceInfo = useStore(state => state.spaceInfo);
+  const vesselPosition = useStore(state => state.vessel.position);
   const { data: session } = useSession();
+  const apiBase = useMemo(() => getApiBase(), []);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [collapsed, setCollapsed] = useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [events, setEvents] = useState<EnvironmentEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+  const [scheduleName, setScheduleName] = useState('');
+  const [schedulePattern, setSchedulePattern] = useState(PRESETS[0]?.key || '');
+  const [scheduleTime, setScheduleTime] = useState(() =>
+    toLocalInputValue(new Date(Date.now() + 30 * 60 * 1000)),
+  );
 
   useEffect(() => {
     setLastUpdated(Date.now());
@@ -40,6 +68,8 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
   const isAdmin =
     roles.includes('admin') ||
     (session?.user as { role?: string })?.role === 'admin';
+  const isHost = spaceInfo?.role === 'host';
+  const canManageWeather = isAdmin || isHost;
 
   const metrics = useMemo(() => {
     const windSpeedMs = environment.wind?.speed ?? 0;
@@ -71,9 +101,24 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
     };
   }, [environment]);
 
+  const timeZone = useMemo(
+    () => estimateTimeZoneOffsetHours(vesselPosition?.lon),
+    [vesselPosition?.lon],
+  );
+  const localTime = useMemo(() => {
+    const base = environment.timeOfDay ?? 12;
+    if (!timeZone) return base;
+    return applyOffsetToTimeOfDay(base, timeZone.offsetHours);
+  }, [environment.timeOfDay, timeZone]);
+  const timeLabel = useMemo(() => {
+    const part = describeDayPart(localTime);
+    return `${formatClockTime(localTime)} (${part})`;
+  }, [localTime]);
+  const timeZoneLabel = timeZone?.label || 'UTC';
+
   const handlePreset = (pattern: string) => {
-    if (!isAdmin) {
-      setFeedback('Only admins can change weather.');
+    if (!canManageWeather) {
+      setFeedback('Only hosts or admins can change weather.');
       return;
     }
     if (!isConnected) {
@@ -86,10 +131,106 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
     feedbackTimer.current = setTimeout(() => setFeedback(null), 3200);
   };
 
+  const loadEvents = async () => {
+    setEventsLoading(true);
+    setEventsError(null);
+    try {
+      const res = await fetch(
+        `${apiBase}/api/environment/events?spaceId=${spaceId}`,
+        {
+          credentials: 'include',
+        },
+      );
+      if (!res.ok) {
+        throw new Error(`Request failed: ${res.status}`);
+      }
+      const data = await res.json();
+      const nextEvents = Array.isArray(data?.events) ? data.events : [];
+      setEvents(nextEvents);
+    } catch (err) {
+      console.error('Failed to load environment events', err);
+      setEventsError('Unable to load scheduled events.');
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
+  const createEvent = async () => {
+    if (!canManageWeather) {
+      setEventsError('Not authorized to schedule events.');
+      return;
+    }
+    setEventsLoading(true);
+    setEventsError(null);
+    try {
+      const runAt = new Date(scheduleTime);
+      if (Number.isNaN(runAt.getTime())) {
+        setEventsError('Select a valid time for the event.');
+        return;
+      }
+      const res = await fetch(`${apiBase}/api/environment/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          spaceId,
+          name: scheduleName.trim() || null,
+          pattern: schedulePattern || null,
+          runAt: runAt.toISOString(),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `Request failed: ${res.status}`);
+      }
+      const created = await res.json();
+      setEvents(prev => [...prev, created].sort(sortEvents));
+      setScheduleName('');
+      setScheduleTime(toLocalInputValue(new Date(Date.now() + 30 * 60 * 1000)));
+    } catch (err) {
+      console.error('Failed to schedule environment event', err);
+      setEventsError(
+        err instanceof Error ? err.message : 'Unable to schedule event.',
+      );
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
+  const deleteEvent = async (id: string) => {
+    if (!canManageWeather) return;
+    setEventsLoading(true);
+    setEventsError(null);
+    try {
+      const res = await fetch(`${apiBase}/api/environment/events/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `Request failed: ${res.status}`);
+      }
+      setEvents(prev => prev.filter(event => event.id !== id));
+    } catch (err) {
+      console.error('Failed to delete environment event', err);
+      setEventsError(
+        err instanceof Error ? err.message : 'Unable to delete event.',
+      );
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!collapsed && canManageWeather) {
+      void loadEvents();
+    }
+  }, [collapsed, canManageWeather, spaceId]);
+
   const summaryLines = [
     `${(metrics.windSpeedMs * 1.94384).toFixed(1)} kt @ ${metrics.windDeg}°`,
     `${metrics.seaState} sea • ${metrics.waveHeight.toFixed(1)} m waves`,
-    `${metrics.visibility.toFixed(1)} nm vis • ${formatTimeOfDay(metrics.timeOfDay)}`,
+    `${metrics.visibility.toFixed(1)} nm vis • ${timeLabel} ${timeZoneLabel}`,
   ];
 
   const modeBadge =
@@ -98,51 +239,46 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
       : 'Preset';
 
   return (
-    <div
-      className={`${className} rounded-2xl border border-gray-800 bg-gray-900/80 p-4 text-white shadow-2xl backdrop-blur`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="text-xs uppercase tracking-wide text-gray-400">
-            Environment
-          </p>
-          <p className="text-lg font-semibold">
+    <div className={`${styles.panel} ${className}`}>
+      <div className={styles.header}>
+        <div>
+          <div className={styles.eyebrow}>Environment</div>
+          <div className={styles.title}>
             {environment.name || 'Live weather feed'}
-          </p>
-          <p className="text-xs text-gray-400">{summaryLines.join(' • ')}</p>
-          <p className="text-[11px] text-gray-500">
+          </div>
+          <div className={styles.summary}>{summaryLines.join(' • ')}</div>
+          <div className={styles.meta}>
             {lastUpdated
               ? `Updated ${formatRelativeTime(lastUpdated)}`
               : 'Waiting for server...'}
-          </p>
+          </div>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <span
-            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold uppercase ${
-              isConnected
-                ? 'bg-emerald-600/80 text-emerald-50'
-                : 'bg-red-700/80 text-red-50'
+        <div className={styles.headerMeta}>
+          <div
+            className={`${styles.pill} ${
+              isConnected ? styles.pillOk : styles.pillWarn
             }`}
           >
-            <span className="h-2 w-2 rounded-full bg-current" />
+            <span className={styles.pillDot} />
             {isConnected ? 'Connected' : 'Offline'}
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-blue-700/70 px-3 py-1 text-[11px] font-semibold uppercase text-blue-50">
-            {modeBadge}
-          </span>
+          </div>
+          <div className={`${styles.pill} ${styles.pillTag}`}>{modeBadge}</div>
+          <div className={`${styles.pill} ${styles.pillTag}`}>
+            {spaceInfo?.name || spaceId}
+          </div>
           <button
             type="button"
             onClick={() => setCollapsed(prev => !prev)}
-            className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1 text-xs font-semibold text-gray-200 transition-colors hover:border-gray-500"
+            className={styles.collapseButton}
           >
             {collapsed ? 'Expand' : 'Collapse'}
           </button>
         </div>
       </div>
 
-      {!collapsed && (
-        <div className="mt-4 space-y-4">
-          <div className="grid grid-cols-2 gap-3 text-sm">
+      {!collapsed ? (
+        <>
+          <div className={styles.grid}>
             <Metric
               label="Wind"
               value={`${(metrics.windSpeedMs * 1.94384).toFixed(1)} kt`}
@@ -161,7 +297,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
             <Metric
               label="Visibility"
               value={`${metrics.visibility.toFixed(1)} nm`}
-              detail={`Time ${formatTimeOfDay(metrics.timeOfDay)}`}
+              detail={`Time ${timeLabel} ${timeZoneLabel}`}
             />
             <Metric
               label="Precip"
@@ -182,81 +318,158 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
             />
           </div>
 
-          <div className="rounded-xl border border-gray-800 bg-gray-800/60 bg-gray-900/60 p-3">
-            <div className="flex items-center justify-between">
+          <div className={styles.presetPanel}>
+            <div className={styles.presetHeader}>
               <div>
-                <p className="text-xs uppercase tracking-wide text-gray-400">
-                  Admin presets
-                </p>
-                <p className="text-sm text-gray-200">
-                  Push a pattern to the weather server
-                </p>
+                <div className={styles.eyebrow}>Weather presets</div>
+                <div className={styles.summary}>
+                  Push a pattern to the server for this space
+                </div>
               </div>
-              <span
-                className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${
-                  isAdmin
-                    ? 'bg-blue-600/80 text-white'
-                    : 'bg-gray-800 text-gray-400'
-                }`}
-              >
-                {isAdmin ? 'Admin' : 'View only'}
-              </span>
+              <div className={`${styles.pill} ${styles.pillTag}`}>
+                {isAdmin ? 'Admin' : isHost ? 'Host' : 'View only'}
+              </div>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  socketManager.sendWeatherControl({ mode: 'auto' });
-                  setFeedback('Server is now picking weather + real-time.');
-                  if (feedbackTimer.current)
-                    clearTimeout(feedbackTimer.current);
-                  feedbackTimer.current = setTimeout(
-                    () => setFeedback(null),
-                    3200,
-                  );
-                }}
-                disabled={!isAdmin}
-                className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
-                  isAdmin
-                    ? 'bg-emerald-700 text-white hover:bg-emerald-600'
-                    : 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                Let server decide (auto)
-              </button>
-              <span className="text-[11px] text-gray-500">
-                Presets lock weather/time until you switch back to auto.
-              </span>
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className={styles.presetGrid}>
               {PRESETS.map(preset => (
                 <button
                   key={preset.key}
                   type="button"
                   onClick={() => handlePreset(preset.key)}
-                  disabled={!isAdmin}
-                  className={`rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${
-                    isAdmin
-                      ? 'bg-gray-800 text-gray-100 hover:bg-blue-600 hover:text-white'
-                      : 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
-                  }`}
+                  disabled={!canManageWeather}
+                  className={styles.presetButton}
                 >
                   {preset.label}
                 </button>
               ))}
             </div>
-            <p className="mt-2 text-[11px] text-gray-500">
-              Weather is server-driven; presets send a request and live data
-              will update once the server applies it.
-            </p>
+            <div className={styles.inlineNote}>
+              Presets lock weather/time until you switch back to auto.
+            </div>
+            <div className={styles.inlineNote}>
+              {canManageWeather
+                ? 'Controls unlocked for space hosts and admins.'
+                : 'Ask a space host or admin to adjust conditions.'}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (!canManageWeather) {
+                  setFeedback('Only hosts or admins can change weather.');
+                  return;
+                }
+                socketManager.sendWeatherControl({ mode: 'auto' });
+                setFeedback('Server is now picking weather + real-time.');
+                if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+                feedbackTimer.current = setTimeout(
+                  () => setFeedback(null),
+                  3200,
+                );
+              }}
+              disabled={!canManageWeather}
+              className={styles.actionButton}
+            >
+              Return to auto
+            </button>
             {feedback ? (
-              <div className="mt-2 rounded-lg bg-gray-800 px-3 py-2 text-xs text-gray-100">
-                {feedback}
-              </div>
+              <div className={styles.feedback}>{feedback}</div>
             ) : null}
           </div>
-        </div>
-      )}
+
+          <div className={styles.schedulePanel}>
+            <div className={styles.scheduleHeader}>
+              <div>
+                <div className={styles.eyebrow}>Timed events</div>
+                <div className={styles.summary}>
+                  Schedule environment presets by local time
+                </div>
+              </div>
+              <div className={`${styles.pill} ${styles.pillTag}`}>
+                {timeZoneLabel}
+              </div>
+            </div>
+            {eventsLoading ? (
+              <div className={styles.feedback}>Loading schedule…</div>
+            ) : null}
+            {eventsError ? (
+              <div className={styles.feedback}>{eventsError}</div>
+            ) : null}
+            <div className={styles.scheduleList}>
+              {events.length === 0 ? (
+                <div className={styles.feedback}>No scheduled events yet.</div>
+              ) : (
+                events.map(event => (
+                  <div key={event.id} className={styles.scheduleItem}>
+                    <div>
+                      <div className={styles.scheduleMeta}>
+                        {event.name || event.pattern || 'Scheduled preset'}
+                      </div>
+                      <div className={styles.scheduleSub}>
+                        {formatEventTime(event.runAt, timeZone?.offsetHours)}
+                      </div>
+                    </div>
+                    <div>
+                      {canManageWeather ? (
+                        <button
+                          type="button"
+                          onClick={() => void deleteEvent(event.id)}
+                          className={styles.dangerButton}
+                        >
+                          Remove
+                        </button>
+                      ) : (
+                        <span className={`${styles.pill} ${styles.pillTag}`}>
+                          View
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className={styles.scheduleForm}>
+              <input
+                className={styles.input}
+                value={scheduleName}
+                onChange={e => setScheduleName(e.target.value)}
+                placeholder="Event label (optional)"
+                disabled={!canManageWeather}
+              />
+              <select
+                className={styles.input}
+                value={schedulePattern}
+                onChange={e => setSchedulePattern(e.target.value)}
+                disabled={!canManageWeather}
+              >
+                {PRESETS.map(preset => (
+                  <option key={preset.key} value={preset.key}>
+                    {preset.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                className={styles.input}
+                type="datetime-local"
+                value={scheduleTime}
+                onChange={e => setScheduleTime(e.target.value)}
+                disabled={!canManageWeather}
+              />
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={() => void createEvent()}
+                disabled={!canManageWeather}
+              >
+                Schedule
+              </button>
+            </div>
+            <div className={styles.inlineNote}>
+              Times are scheduled in your browser locale; display adapts to the
+              vessel&apos;s inferred time zone.
+            </div>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 };
@@ -272,10 +485,10 @@ const Metric = ({
   value: string;
   detail?: string;
 }) => (
-  <div className="rounded-lg border border-gray-800 bg-gray-800/60 bg-gray-900/70 p-3">
-    <p className="text-[11px] uppercase tracking-wide text-gray-400">{label}</p>
-    <p className="text-base font-semibold text-white">{value}</p>
-    {detail ? <p className="text-xs text-gray-400">{detail}</p> : null}
+  <div className={styles.metricCard}>
+    <div className={styles.metricLabel}>{label}</div>
+    <div className={styles.metricValue}>{value}</div>
+    {detail ? <div className={styles.metricDetail}>{detail}</div> : null}
   </div>
 );
 
@@ -306,22 +519,6 @@ function degreesToCardinal(degrees: number): string {
   ];
   const index = Math.round((degrees % 360) / 22.5) % 16;
   return cardinals[index];
-}
-
-function formatTimeOfDay(time: number): string {
-  const hours = Math.floor(time);
-  const minutes = Math.round((time % 1) * 60);
-  const hh = hours.toString().padStart(2, '0');
-  const mm = minutes.toString().padStart(2, '0');
-  const label =
-    time >= 5 && time < 8
-      ? 'dawn'
-      : time >= 8 && time < 18
-        ? 'day'
-        : time >= 18 && time < 21
-          ? 'dusk'
-          : 'night';
-  return `${hh}:${mm} (${label})`;
 }
 
 function formatRelativeTime(timestamp: number | null): string {
@@ -373,4 +570,33 @@ function describePrecipitation(type: string, intensity: number): string {
   const bucket =
     intensity < 0.3 ? 'Light' : intensity < 0.7 ? 'Moderate' : 'Heavy';
   return `${bucket} ${type}`;
+}
+
+function describeDayPart(time: number): string {
+  if (time >= 5 && time < 8) return 'dawn';
+  if (time >= 8 && time < 18) return 'day';
+  if (time >= 18 && time < 21) return 'dusk';
+  return 'night';
+}
+
+function formatEventTime(runAt: string, offsetHours?: number): string {
+  const base = new Date(runAt).getTime();
+  if (!Number.isFinite(base)) return 'Invalid time';
+  const adjusted =
+    offsetHours !== undefined ? base + offsetHours * 60 * 60 * 1000 : base;
+  return new Date(adjusted).toISOString().replace('T', ' ').slice(0, 16);
+}
+
+function toLocalInputValue(date: Date): string {
+  const pad = (value: number) => value.toString().padStart(2, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function sortEvents(a: EnvironmentEvent, b: EnvironmentEvent): number {
+  return new Date(a.runAt).getTime() - new Date(b.runAt).getTime();
 }

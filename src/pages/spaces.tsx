@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { getApiBase } from '../lib/api';
+import styles from './Spaces.module.css';
 
 type SpaceVisibility = 'public' | 'private';
 
@@ -20,20 +22,6 @@ type SpaceDraft = {
   password: string;
   saving?: boolean;
   error?: string | null;
-};
-
-const getApiBase = () => {
-  const envBase =
-    process.env.NEXT_PUBLIC_SERVER_URL ||
-    process.env.NEXT_PUBLIC_SOCKET_URL ||
-    '';
-  if (envBase) return envBase.replace(/\/$/, '');
-  if (typeof window !== 'undefined') {
-    const { protocol, hostname } = window.location;
-    const port = process.env.NEXT_PUBLIC_SERVER_PORT || '3001';
-    return `${protocol}//${hostname}:${port}`;
-  }
-  return 'http://localhost:3001';
 };
 
 const SpacesPage: React.FC = () => {
@@ -209,18 +197,14 @@ const SpacesPage: React.FC = () => {
   );
 
   if (status === 'loading') {
-    return (
-      <div className="mx-auto max-w-5xl px-4 py-10 text-gray-200">
-        Loading your spaces…
-      </div>
-    );
+    return <div className={styles.page}>Loading your spaces…</div>;
   }
 
   if (status !== 'authenticated') {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-10 text-gray-200">
-        <h1 className="text-2xl font-semibold text-white">Manage spaces</h1>
-        <p className="mt-2 text-sm text-gray-400">
+      <div className={styles.page}>
+        <div className={styles.title}>Manage spaces</div>
+        <p className={styles.subtitle}>
           Sign in to view and manage your spaces.
         </p>
       </div>
@@ -228,11 +212,11 @@ const SpacesPage: React.FC = () => {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className={styles.page}>
+      <div className={styles.header}>
         <div>
-          <h1 className="text-2xl font-semibold text-white">Manage spaces</h1>
-          <p className="mt-1 text-sm text-gray-400">
+          <div className={styles.title}>Manage spaces</div>
+          <p className={styles.subtitle}>
             {spaceCountLabel} created by you. Update visibility, share invites,
             or rotate passwords.
           </p>
@@ -240,7 +224,7 @@ const SpacesPage: React.FC = () => {
         <button
           type="button"
           onClick={() => void fetchSpaces()}
-          className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-100 hover:bg-gray-700"
+          className={`${styles.button} ${styles.buttonSecondary}`}
           disabled={loading}
         >
           Refresh
@@ -248,63 +232,54 @@ const SpacesPage: React.FC = () => {
       </div>
 
       {notice ? (
-        <div className="mt-4 rounded-lg border border-emerald-700/40 bg-emerald-900/30 px-4 py-3 text-sm text-emerald-200">
-          {notice}
-        </div>
+        <div className={`${styles.notice} ${styles.noticeInfo}`}>{notice}</div>
       ) : null}
 
       {error ? (
-        <div className="mt-4 rounded-lg border border-red-700/40 bg-red-900/30 px-4 py-3 text-sm text-red-200">
-          {error}
-        </div>
+        <div className={`${styles.notice} ${styles.noticeError}`}>{error}</div>
       ) : null}
 
-      {loading ? (
-        <div className="mt-6 text-sm text-gray-400">Loading spaces…</div>
-      ) : null}
+      {loading ? <div className={styles.status}>Loading spaces…</div> : null}
 
       {!loading && spaces.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-6 text-sm text-gray-400">
+        <div className={styles.notice}>
           You have not created any spaces yet. Create one from the simulator
           modal to manage it here.
         </div>
       ) : null}
 
-      <div className="mt-6 space-y-4">
+      <div className={styles.spaceGrid}>
         {spaces.map(space => {
           const draft = drafts[space.id];
           const inviteToken = space.inviteToken || '—';
           return (
-            <div
-              key={space.id}
-              className="rounded-xl border border-gray-800 bg-gray-900/40 p-5 text-sm text-gray-200 shadow-lg shadow-black/20"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
+            <div key={space.id} className={styles.spaceCard}>
+              <div className={styles.cardHeader}>
                 <div>
-                  <div className="text-xs uppercase tracking-wide text-gray-500">
-                    Space ID
-                  </div>
-                  <div className="font-mono text-xs text-gray-300">
+                  <div className={styles.cardMeta}>Space ID</div>
+                  <div className={`${styles.cardMeta} ${styles.mono}`}>
                     {space.id}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full border border-blue-500/40 bg-blue-500/10 px-3 py-1 text-xs uppercase tracking-wide text-blue-200">
+                <div className={styles.actionsRow}>
+                  <span
+                    className={`${styles.tag} ${
+                      space.visibility === 'private' ? styles.tagPrivate : ''
+                    }`}
+                  >
                     {space.visibility}
                   </span>
                   {space.passwordProtected ? (
-                    <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs uppercase tracking-wide text-amber-200">
-                      Password
-                    </span>
+                    <span className={styles.tag}>Password</span>
                   ) : null}
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-4 md:grid-cols-3">
-                <label className="text-xs text-gray-400">
+              <div className={styles.formGrid}>
+                <label className={styles.cardMeta}>
                   Name
                   <input
-                    className="mt-2 w-full rounded-md bg-gray-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={styles.input}
                     value={draft?.name || space.name}
                     onChange={e =>
                       updateDraft(space.id, { name: e.target.value })
@@ -312,10 +287,10 @@ const SpacesPage: React.FC = () => {
                   />
                 </label>
 
-                <label className="text-xs text-gray-400">
+                <label className={styles.cardMeta}>
                   Visibility
                   <select
-                    className="mt-2 w-full rounded-md bg-gray-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={styles.select}
                     value={draft?.visibility || space.visibility}
                     onChange={e =>
                       updateDraft(space.id, {
@@ -328,10 +303,10 @@ const SpacesPage: React.FC = () => {
                   </select>
                 </label>
 
-                <label className="text-xs text-gray-400">
+                <label className={styles.cardMeta}>
                   New password
                   <input
-                    className="mt-2 w-full rounded-md bg-gray-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={styles.input}
                     value={draft?.password || ''}
                     onChange={e =>
                       updateDraft(space.id, { password: e.target.value })
@@ -342,15 +317,17 @@ const SpacesPage: React.FC = () => {
                 </label>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="text-xs text-gray-400">
+              <div className={styles.formRow}>
+                <div className={styles.cardMeta}>
                   Invite token:{' '}
-                  <span className="font-mono text-gray-200">{inviteToken}</span>
+                  <span className={`${styles.mono} ${styles.cardMeta}`}>
+                    {inviteToken}
+                  </span>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className={styles.actionsRow}>
                   <button
                     type="button"
-                    className="rounded-md bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-gray-700"
+                    className={`${styles.button} ${styles.buttonSecondary}`}
                     onClick={() => {
                       if (typeof navigator !== 'undefined') {
                         void navigator.clipboard.writeText(inviteToken);
@@ -362,7 +339,7 @@ const SpacesPage: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    className="rounded-md bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-gray-700"
+                    className={`${styles.button} ${styles.buttonSecondary}`}
                     onClick={() => void handleRegenerateInvite(space.id)}
                     disabled={draft?.saving}
                   >
@@ -370,7 +347,7 @@ const SpacesPage: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    className="rounded-md bg-gray-800 px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-gray-700"
+                    className={`${styles.button} ${styles.buttonSecondary}`}
                     onClick={() => void handleClearPassword(space.id)}
                     disabled={draft?.saving}
                   >
@@ -378,7 +355,7 @@ const SpacesPage: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    className="rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+                    className={`${styles.button} ${styles.buttonPrimary}`}
                     onClick={() => void handleSave(space.id)}
                     disabled={draft?.saving}
                   >
@@ -386,7 +363,7 @@ const SpacesPage: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    className="rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
+                    className={`${styles.button} ${styles.buttonDanger}`}
                     onClick={() => void handleDelete(space.id)}
                     disabled={draft?.saving}
                   >
@@ -396,7 +373,9 @@ const SpacesPage: React.FC = () => {
               </div>
 
               {draft?.error ? (
-                <div className="mt-3 text-xs text-red-300">{draft.error}</div>
+                <div className={`${styles.notice} ${styles.noticeError}`}>
+                  {draft.error}
+                </div>
               ) : null}
             </div>
           );

@@ -9,8 +9,13 @@ import { WasmModule } from '../types/wasm';
 import { EventLogEntry } from '../types/events.types';
 import { EnvironmentState } from '../types/environment.types';
 import type { Role } from '../server/roles';
+import type {
+  MissionAssignmentData,
+  MissionDefinition,
+} from '../types/mission.types';
 import { ChatMessageData } from '../types/socket.types';
 import { ensurePosition, mergePosition } from '../lib/position';
+import { DEFAULT_HYDRO } from '../constants/vessel';
 
 // Machinery failures for more realistic simulation
 interface MachinerySystemStatus {
@@ -43,6 +48,76 @@ interface NavigationData {
   navigationMode: 'manual' | 'autopilot';
   autopilotHeading: number | null;
 }
+
+export interface AccountState {
+  rank: number;
+  experience: number;
+  credits: number;
+  safetyScore: number;
+}
+
+interface ReplayFrame {
+  timestamp: number;
+  position: {
+    x: number;
+    y: number;
+    z: number;
+    lat: number;
+    lon: number;
+  };
+  orientation: {
+    heading: number;
+    roll: number;
+    pitch: number;
+  };
+}
+
+interface ReplayState {
+  recording: boolean;
+  playing: boolean;
+  frames: ReplayFrame[];
+}
+
+interface SpaceInfo {
+  id: string;
+  name: string;
+  visibility?: string;
+  kind?: string;
+  rankRequired?: number;
+  rules?: Record<string, unknown> | null;
+  role?: 'host' | 'member';
+}
+
+const hydrodynamicsForType = (type: ShipType) => {
+  switch (type) {
+    case ShipType.TANKER:
+      return {
+        ...DEFAULT_HYDRO,
+        dragCoefficient: 0.95,
+        yawDamping: 0.7,
+        swayDamping: 0.8,
+        maxThrust: DEFAULT_HYDRO.maxThrust * 1.1,
+      };
+    case ShipType.CARGO:
+      return {
+        ...DEFAULT_HYDRO,
+        dragCoefficient: 0.75,
+        yawDamping: 0.45,
+        swayDamping: 0.55,
+        maxThrust: DEFAULT_HYDRO.maxThrust * 0.95,
+      };
+    case ShipType.CONTAINER:
+      return {
+        ...DEFAULT_HYDRO,
+        dragCoefficient: 0.85,
+        yawDamping: 0.6,
+        swayDamping: 0.65,
+        maxThrust: DEFAULT_HYDRO.maxThrust * 1.05,
+      };
+    default:
+      return { ...DEFAULT_HYDRO };
+  }
+};
 
 const normalizeChannel = (channel?: string): string => {
   const raw = channel || 'global';
@@ -99,6 +174,8 @@ interface SimulationState {
   setRoles: (roles: Role[]) => void;
   spaceId: string;
   setSpaceId: (spaceId: string) => void;
+  spaceInfo: SpaceInfo | null;
+  setSpaceInfo: (info: SpaceInfo | null) => void;
   notice: { type: 'info' | 'error'; message: string } | null;
   setNotice: (notice: SimulationState['notice']) => void;
   sessionUserId: string | null;
@@ -116,6 +193,22 @@ interface SimulationState {
     channel: string,
     meta: { hasMore: boolean; loaded?: boolean },
   ) => void;
+  missions: MissionDefinition[];
+  missionAssignments: MissionAssignmentData[];
+  setMissions: (missions: MissionDefinition[]) => void;
+  setMissionAssignments: (assignments: MissionAssignmentData[]) => void;
+  upsertMissionAssignment: (assignment: MissionAssignmentData) => void;
+  account: AccountState;
+  setAccount: (account: Partial<AccountState>) => void;
+  socketLatencyMs: number | null;
+  setSocketLatencyMs: (ms: number | null) => void;
+  replay: ReplayState;
+  startReplayRecording: () => void;
+  stopReplayRecording: () => void;
+  clearReplay: () => void;
+  addReplayFrame: (frame: ReplayFrame) => void;
+  startReplayPlayback: () => void;
+  stopReplayPlayback: () => void;
 
   // Vessel state
   vessel: VesselState;
@@ -172,6 +265,7 @@ interface SimulationState {
 // Default states
 const defaultVesselState: VesselState = {
   position: ensurePosition({ lat: 0, lon: 0, z: 0 }),
+  waterDepth: undefined,
   orientation: { heading: 0, roll: 0, pitch: 0 },
   velocity: { surge: 0, sway: 0, heave: 0 },
   angularVelocity: { yaw: 0, roll: 0, pitch: 0 },
@@ -182,6 +276,11 @@ const defaultVesselState: VesselState = {
     bowThruster: 0,
   },
   helm: { userId: null, username: null },
+  stations: {
+    helm: { userId: null, username: null },
+    engine: { userId: null, username: null },
+    radio: { userId: null, username: null },
+  },
   properties: {
     name: 'SS Atlantic Conveyor',
     type: ShipType.CONTAINER,
@@ -191,6 +290,9 @@ const defaultVesselState: VesselState = {
     draft: 9.1,
     blockCoefficient: 0.8,
     maxSpeed: 23,
+  },
+  hydrodynamics: {
+    ...hydrodynamicsForType(ShipType.CONTAINER),
   },
   engineState: {
     rpm: 0,
@@ -283,6 +385,15 @@ const defaultNavigationData: NavigationData = {
   autopilotHeading: null,
 };
 
+const defaultAccountState: AccountState = {
+  rank: 1,
+  experience: 0,
+  credits: 0,
+  safetyScore: 1,
+};
+
+const MAX_REPLAY_FRAMES = 1800;
+
 // Create the Zustand store with persistence
 const useStore = create<SimulationState>()((set, get) => ({
   mode: 'player',
@@ -291,6 +402,8 @@ const useStore = create<SimulationState>()((set, get) => ({
   setRoles: roles => set({ roles }),
   spaceId: 'global',
   setSpaceId: spaceId => set({ spaceId: spaceId || 'global' }),
+  spaceInfo: null,
+  setSpaceInfo: info => set({ spaceInfo: info }),
   notice: null,
   setNotice: notice => set({ notice }),
   sessionUserId: null,
@@ -336,6 +449,69 @@ const useStore = create<SimulationState>()((set, get) => ({
             meta.loaded ?? state.chatHistoryMeta[channel]?.loaded ?? false,
         },
       },
+    })),
+  missions: [],
+  missionAssignments: [],
+  setMissions: missions => set({ missions }),
+  setMissionAssignments: assignments =>
+    set({ missionAssignments: assignments }),
+  upsertMissionAssignment: assignment =>
+    set(state => {
+      const existing = state.missionAssignments.find(
+        current => current.id === assignment.id,
+      );
+      if (!existing) {
+        return {
+          missionAssignments: [...state.missionAssignments, assignment],
+        };
+      }
+      return {
+        missionAssignments: state.missionAssignments.map(current =>
+          current.id === assignment.id ? assignment : current,
+        ),
+      };
+    }),
+  account: defaultAccountState,
+  setAccount: account =>
+    set(state => ({
+      account: {
+        ...state.account,
+        ...account,
+      },
+    })),
+  socketLatencyMs: null,
+  setSocketLatencyMs: ms => set({ socketLatencyMs: ms }),
+  replay: { recording: false, playing: false, frames: [] },
+  startReplayRecording: () =>
+    set({
+      replay: { recording: true, playing: false, frames: [] },
+    }),
+  stopReplayRecording: () =>
+    set(state => ({
+      replay: { ...state.replay, recording: false },
+    })),
+  clearReplay: () =>
+    set(state => ({
+      replay: { ...state.replay, frames: [] },
+    })),
+  addReplayFrame: frame =>
+    set(state => {
+      if (!state.replay.recording) return {};
+      const frames = [...state.replay.frames, frame];
+      if (frames.length > MAX_REPLAY_FRAMES) {
+        frames.splice(0, frames.length - MAX_REPLAY_FRAMES);
+      }
+      return {
+        replay: { ...state.replay, frames },
+      };
+    }),
+  startReplayPlayback: () =>
+    set(state => ({
+      replay: { ...state.replay, playing: true },
+    })),
+  stopReplayPlayback: () =>
+    set(state => ({
+      replay: { ...state.replay, playing: false },
     })),
 
   // Vessel state
@@ -388,11 +564,28 @@ const useStore = create<SimulationState>()((set, get) => ({
           };
         }
 
+        if (vesselUpdate.waterDepth !== undefined) {
+          updatedVessel.waterDepth = vesselUpdate.waterDepth;
+        }
+
         if (vesselUpdate.helm) {
           updatedVessel.helm = {
             ...updatedVessel.helm,
             ...vesselUpdate.helm,
           };
+        }
+
+        if (vesselUpdate.stations) {
+          updatedVessel.stations = {
+            ...(updatedVessel.stations || {}),
+            ...vesselUpdate.stations,
+          };
+          if (vesselUpdate.stations.helm) {
+            updatedVessel.helm = {
+              ...updatedVessel.helm,
+              ...vesselUpdate.stations.helm,
+            };
+          }
         }
 
         if (vesselUpdate.properties) {
@@ -490,6 +683,7 @@ const useStore = create<SimulationState>()((set, get) => ({
           ...state.vessel.properties,
           type,
         },
+        hydrodynamics: hydrodynamicsForType(type),
       },
     })),
 

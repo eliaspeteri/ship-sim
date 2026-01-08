@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import useStore from '../store';
 import socketManager from '../networking/socket';
+import styles from './ChatPanel.module.css';
 
 interface ChatPanelProps {
   spaceId: string;
@@ -13,11 +14,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 }) => {
   const chatMessages = useStore(state => state.chatMessages);
   const chatHistoryMeta = useStore(state => state.chatHistoryMeta);
+  const roles = useStore(state => state.roles);
   const [chatChannel, setChatChannel] = useState<string>(
     `space:${spaceId}:global`,
   );
   const [chatInput, setChatInput] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const canChat = roles.includes('player') || roles.includes('admin');
 
   useEffect(() => {
     setChatChannel(`space:${spaceId}:global`);
@@ -81,6 +84,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const sendChat = () => {
     const trimmed = chatInput.trim();
     if (!trimmed) return;
+    if (!canChat) return;
     socketManager.sendChatMessage(trimmed, chatChannel);
     setChatInput('');
   };
@@ -96,26 +100,23 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     chatHistoryMeta[chatChannel]?.loaded ?? mergedChatMessages.length > 0;
 
   return (
-    <div className="rounded-2xl border border-gray-800 bg-gray-900/80 p-3 text-white shadow-lg">
-      <div className="text-gray-400 text-xs">Chat</div>
-      <div
-        ref={chatListRef}
-        className="mt-2 max-h-48 overflow-y-auto space-y-2 rounded bg-gray-950/60 p-2"
-      >
+    <div className={styles.panel}>
+      <div className={styles.title}>Chat</div>
+      <div ref={chatListRef} className={styles.list}>
         {chatLoaded ? (
           mergedChatMessages.length === 0 ? (
-            <div className="text-xs text-gray-400">No messages yet</div>
+            <div className={styles.emptyState}>No messages yet</div>
           ) : (
             mergedChatMessages.map((msg, idx) => (
               <div
                 key={`${msg.id || msg.timestamp}-${idx}`}
-                className="flex items-start gap-2 text-sm text-gray-200"
+                className={styles.messageRow}
               >
-                <span className="mt-[2px] rounded-full bg-gray-800 px-2 py-[2px] text-[10px] uppercase text-gray-100">
+                <span className={styles.channelBadge}>
                   {channelLabel(msg.channel)}
                 </span>
                 <div>
-                  <span className="font-semibold text-gray-100">
+                  <span className={styles.sender}>
                     {msg.username || msg.userId}:
                   </span>{' '}
                   {msg.message}
@@ -124,12 +125,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             ))
           )
         ) : (
-          <div className="text-xs text-gray-400">Loading chat...</div>
+          <div className={styles.emptyState}>Loading chat...</div>
         )}
       </div>
-      <div className="mt-2 flex items-center space-x-2">
+      <div className={styles.inputRow}>
         <select
-          className="rounded bg-gray-800 px-2 py-1 text-xs text-white"
+          className={styles.select}
           value={chatChannel}
           onChange={e => setChatChannel(e.target.value)}
         >
@@ -141,10 +142,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           ) : null}
         </select>
         <input
-          className="flex-1 rounded bg-gray-800 px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className={styles.input}
           placeholder="Message..."
           value={chatInput}
           onChange={e => setChatInput(e.target.value)}
+          disabled={!canChat}
           onKeyDown={e => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -155,11 +157,17 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         <button
           type="button"
           onClick={sendChat}
-          className="rounded bg-blue-600 px-3 py-1 text-sm font-semibold hover:bg-blue-700"
+          disabled={!canChat}
+          className={styles.sendButton}
         >
           Send
         </button>
       </div>
+      {!canChat ? (
+        <div className={styles.disabledHint}>
+          Spectators cannot send chat in this space.
+        </div>
+      ) : null}
     </div>
   );
 };
