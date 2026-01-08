@@ -1,75 +1,75 @@
 # Roadmap TODOs
 
-- [ ] Roles & permissions
+- [x] Roles & permissions
   - Define cumulative roles: Guest (unauth, spectator only), Spectator (auth, spectator only), Player (auth, join/create vessels; default for new users), Admin (kick/ban/demote/promote, update environment/time, mute chat).
   - Enforce role checks across API/server and gate UI access for spectator vs play modes.
   - Seed default roles and assign Player on registration.
-- [ ] Modes
+- [x] Modes
   - Spectator mode: elevated free camera with WASD/arrow movement and rotation; water plane follows user with larger radius; can view vessels and join if role allows; does not send vessel updates.
   - Player mode: current sim for joining/creating vessels, crew visibility, and chat readiness; robust mode switching for vessel membership.
   - Add a spectate-only option in the vessel join/create prompt.
-- [ ] Vessel join/create UX
+- [x] Vessel join/create UX
   - [x] Prompt new users to choose between creating their own vessel or joining an available crew slot (respect max crew), instead of auto-assigning.
   - Surface crew list for the active vessel in the HUD; add a basic vessel-local chat.
   - [x] Add spawn picker (ports/anchors) when creating a vessel.
   - [x] Persist chat history (global + vessel channels) in the database and replay/paginate messages on join.
-- [ ] Chat & spaces
+- [x] Chat & spaces
   - [x] Keep global chat open for everyone; add vessel-local channels with history pagination.
   - [x] Add private spaces/namespaces so friends can sail in invite-only sessions or solo with AI traffic.
-  - Build scenario/tutorial spaces that gate rank progression and enforce collision/COLREGs rules with penalties.
+  - [x] Build scenario/tutorial spaces that gate rank progression and enforce collision/COLREGs rules with penalties.
   - [x] Support public vs private spaces: public spaces appear in a join list; private spaces require invite link + password, can be saved by returning users, and can generate invite links.
   - [x] Add a “Manage my spaces” view/page for creators (list/edit visibility/password/regenerate invite or delete).
-- [ ] Layout component
+- [x] Layout component
   - Shared navbar (home, sim, login, register) with room for future pages such as a 2D tiling map of active vessels.
-- [ ] UI overhaul
-  - Replace Tailwind-heavy styling with a custom or alternative styling approach; refresh HUD/layout components for clarity and responsiveness.
+- [x] UI overhaul
+  - [x] Replace Tailwind-heavy styling with a custom or alternative styling approach; refresh HUD/layout components for clarity and responsiveness.
   - [x] Move sim HUD into a docked drawer with topical tabs (navigation, weather, fuel, ballast, load, electrics, etc.) reusing existing weather visuals.
   - [x] Add Conning display tab in the HUD with core navigation readouts.
   - [x] Add Alarms tab in the HUD with engine/safety alerts.
-  - Add a mobile landscape mode (rotated/condensed HUD) once the desktop flow is stable.
-- [ ] Environment controls
+  - [x] Add a mobile landscape mode (rotated/condensed HUD) once the desktop flow is stable.
+- [x] Environment controls
   - Rebuild the EnvironmentControls UI to reflect the current server-driven weather model, admin gating, and live updates; remove obsolete toggles.
   - Gate weather controls to space creators/hosts (not only admins) once spaces/rooms exist.
   - [x] Persist weather state per space/session (DB) so private scenarios and global space can keep distinct conditions.
   - [x] Add a server-driven day/night cycle (sun position over time) and surface to clients.
-  - Infer/display local time zones from vessel lat/lon (fallback to UTC) when rendering environment time.
-  - Timed events can attach environment presets (weather/lighting) and trigger them on schedule.
-- [ ] Controls & ballast
+  - [x] Infer/display local time zones from vessel lat/lon (fallback to UTC) when rendering environment time.
+  - [x] Timed events can attach environment presets (weather/lighting) and trigger them on schedule.
+- [x] Controls & ballast
   - [x] Expose ballast control in the UI, wire to physics, and show feedback/state.
-  - Expand helm/crew roles (e.g., helm/engine/radio) to avoid control conflicts.
-- [ ] Admin tools
-  - Add admin ship repositioning tools (spectator drag/teleport, separate admin view).
-- [ ] Bridge systems
+  - [x] Expand helm/crew roles (e.g., helm/engine/radio) to avoid control conflicts.
+- [x] Admin tools
+  - [x] Add admin ship repositioning tools (spectator drag/teleport, separate admin view).
+- [x] Bridge systems
   - [x] Add AIS receiver/overlay with labeled AIS targets alongside radar returns.
-  - Add dual-band radar views (X-band + S-band) in the HUD layout.
-- [ ] Instrumentation & observability
+  - [x] Add dual-band radar views (X-band + S-band) in the HUD layout.
+- [x] Instrumentation & observability
   - [x] Track broadcast/AI loop timing and API latency via `/api/metrics`.
-  - Add socket latency sampling and central log aggregation for server and sim loops.
+  - [x] Add socket latency sampling and central log aggregation for server and sim loops.
 - [x] Default vessels
   - [x] On server boot, load saved vessels; if none, spawn an AI-controlled vessel at a default lat/long/heading and publish to clients.
 - [x] Position data
   - [x] Refactor x/y to lat/long; keep height/depth; update physics, rendering, and network schemas.
-- [ ] Auth review
+- [x] Auth review
   - Audit NextAuth flow so the server receives auth/role on every request; align JWT/cookie handling and role mapping.
-- [ ] Auth hardening
+- [x] Auth hardening
   - Add logout endpoint/UI, rate limiting/lockout, and refresh/token rotation audit.
-- [ ] Persistence
+- [x] Persistence
   - Confirm DB choice (Prisma/Postgres vs alternative) and persist users, vessels, environment state, bans/mutes, and chat history.
-- [ ] Persistence polish
+- [x] Persistence polish
   - Add migrations/seed data for default roles/vessels and a backup/restore plan.
-- [ ] Frontend tests
+- [x] Frontend tests
   - Add unit coverage and a smoke e2e (login → start sim → basic movement).
-- [ ] Simulation UX
+- [x] Simulation UX
   - Add replay/ghost mode (record + playback), quick-start scenarios, and AI pilot on loss of control.
-- [ ] Performance budgets
+- [x] Performance budgets
   - Profile WASM/renderer with targets for 60 Hz sim and smooth 3D rendering.
-- [ ] Globe & ocean
+- [x] Globe & ocean
   - Render globe with realistic ocean/land heightmap and bathymetry; ground ships when keel exceeds depth.
-- [ ] Physics realism
+- [x] Physics realism
   - Review AssemblyScript physics and improve hydrodynamics/environment forces without sacrificing stability.
   - Parameterize hydrodynamic constants per vessel (e.g., rudder stall angle/force coefficients) and pass them into WASM `createVessel`.
   - Wire Gerstner wave input (sea state → amplitude/steepness) into physics forces and renderer; ensure waves animate with correct phase and normals.
   - Add basic hull-form differentiation (block coefficient per vessel, draft/beam effects) and buoyancy/heave modeling.
-- [ ] Missions & economy
+- [x] Missions & economy
   - Add mission system (deliveries, towing, harbor entries) with rewards and failure conditions.
   - Implement a simple economy: vessel operating costs, fuel consumption, port fees, and earnings tied to missions or cargo.
