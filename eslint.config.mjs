@@ -198,9 +198,10 @@ export default [
 
   // Test files config
   {
-    files: ['**/tests/**/*.{js,ts}'],
+    files: ['**/tests/**/*.{js,ts,cjs}'],
     rules: {
       'no-console': 'off', // Allow console in test files
+      require: 'off', // Allow require in test files
     },
     languageOptions: {
       globals: {
@@ -220,7 +221,7 @@ export default [
         navigator: 'readonly',
         localStorage: 'readonly',
         sessionStorage: 'readonly',
-        // Add other browser globals as needed
+        AbortController: 'readonly',
       },
     },
   },
@@ -243,7 +244,6 @@ export default [
         clearInterval: 'readonly',
         global: 'readonly',
         NodeJS: 'readonly',
-        // Add other Node.js globals as needed
       },
     },
   },
