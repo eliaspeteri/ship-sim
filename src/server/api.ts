@@ -577,6 +577,13 @@ router.get(
   },
 );
 
+const normalizeRules = (value: unknown): Rules | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Rules;
+};
+
 const serializeSpace = (space: {
   id: string;
   name: string;
@@ -585,7 +592,7 @@ const serializeSpace = (space: {
   passwordHash?: string | null;
   kind?: string | null;
   rankRequired?: number | null;
-  rules?: Rules;
+  rules?: unknown;
   createdBy?: string | null;
 }) => ({
   id: space.id,
@@ -594,7 +601,7 @@ const serializeSpace = (space: {
   inviteToken: space.inviteToken || undefined,
   kind: space.kind || 'free',
   rankRequired: space.rankRequired ?? 1,
-  rules: space.rules ?? null,
+  rules: normalizeRules(space.rules),
   createdBy: space.createdBy || undefined,
 });
 
