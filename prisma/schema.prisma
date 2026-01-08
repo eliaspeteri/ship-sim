@@ -14,6 +14,10 @@ model User {
     emailVerified DateTime?
     image         String?
     role          String    @default("player")
+    rank          Int       @default(1)
+    experience    Int       @default(0)
+    credits       Float     @default(0)
+    safetyScore   Float     @default(1.0)
     passwordHash  String?
     createdAt     DateTime  @default(now())
     updatedAt     DateTime  @updatedAt
@@ -130,6 +134,9 @@ model Space {
     visibility   String   @default("public") // 'public' | 'private'
     inviteToken  String?  @unique
     passwordHash String?
+    kind         String   @default("free") // 'free' | 'tutorial' | 'scenario'
+    rankRequired Int      @default(1)
+    rules        Json?
     createdBy    String?
     createdAt    DateTime @default(now())
     updatedAt    DateTime @updatedAt
@@ -142,9 +149,118 @@ model SpaceAccess {
     userId      String
     spaceId     String
     inviteToken String?
+    role        String   @default("member") // 'member' | 'host'
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 
     @@unique([userId, spaceId])
+    @@index([userId])
+}
+
+model Ban {
+    id        String   @id @default(cuid())
+    userId    String?
+    username  String?
+    spaceId   String   @default("global")
+    reason    String?
+    createdBy String?
+    expiresAt DateTime?
+    createdAt DateTime @default(now())
+
+    @@index([spaceId])
+    @@index([userId])
+    @@index([username])
+}
+
+model Mute {
+    id        String   @id @default(cuid())
+    userId    String?
+    username  String?
+    spaceId   String   @default("global")
+    reason    String?
+    createdBy String?
+    expiresAt DateTime?
+    createdAt DateTime @default(now())
+
+    @@index([spaceId])
+    @@index([userId])
+    @@index([username])
+}
+
+model EnvironmentEvent {
+    id         String   @id @default(cuid())
+    spaceId    String   @default("global")
+    name       String?
+    pattern    String?
+    payload    Json?
+    runAt      DateTime
+    executedAt DateTime?
+    enabled    Boolean  @default(true)
+    createdBy  String?
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    @@index([spaceId, runAt])
+}
+
+model Mission {
+    id             String   @id @default(cuid())
+    spaceId        String   @default("global")
+    name           String
+    description    String?
+    type           String
+    originLat      Float
+    originLon      Float
+    destinationLat Float
+    destinationLon Float
+    rewardCredits  Float
+    requiredRank   Int      @default(1)
+    payload        Json?
+    active         Boolean  @default(true)
+    createdBy      String?
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @updatedAt
+
+    assignments MissionAssignment[]
+
+    @@index([spaceId, active])
+}
+
+model MissionAssignment {
+    id          String   @id @default(cuid())
+    missionId   String
+    userId      String
+    vesselId    String?
+    status      String   @default("assigned") // assigned | in_progress | completed | failed | canceled
+    progress    Json?
+    startedAt   DateTime @default(now())
+    completedAt DateTime?
+    updatedAt   DateTime @updatedAt
+
+    mission Mission @relation(fields: [missionId], references: [id])
+
+    @@index([userId, status])
+    @@index([missionId])
+}
+
+model EconomyTransaction {
+    id        String   @id @default(cuid())
+    userId    String
+    vesselId  String?
+    amount    Float
+    reason    String
+    meta      Json?
+    createdAt DateTime @default(now())
+
+    @@index([userId])
+}
+
+model AuthEvent {
+    id        String   @id @default(cuid())
+    userId    String?
+    event     String
+    detail    Json?
+    createdAt DateTime @default(now())
+
     @@index([userId])
 }
