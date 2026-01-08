@@ -69,9 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
             </div>
           )}
           {crewIds.length === 0 ? (
-            <div className={styles.crewHint}>
-              You are alone on this vessel
-            </div>
+            <div className={styles.crewHint}>You are alone on this vessel</div>
           ) : (
             <ul className={styles.crewList}>
               {crewIds.map(id => (
