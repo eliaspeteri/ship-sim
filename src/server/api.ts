@@ -17,6 +17,7 @@ import type {
 import { seedDefaultMissions } from './missions';
 import { clearLogs, getLogs } from './observability';
 import { getScenarios } from '../lib/scenarios';
+import { Rules } from '../types/rules.types';
 
 // First, define proper types for the database models
 interface DBVesselState {
@@ -584,7 +585,7 @@ const serializeSpace = (space: {
   passwordHash?: string | null;
   kind?: string | null;
   rankRequired?: number | null;
-  rules?: Record<string, unknown> | null;
+  rules?: Rules;
   createdBy?: string | null;
 }) => ({
   id: space.id,
