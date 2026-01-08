@@ -11,6 +11,17 @@ export enum ShipType {
   DEFAULT = 'DEFAULT',
 }
 
+export type CrewStation = 'helm' | 'engine' | 'radio';
+
+export interface CrewStationAssignment {
+  userId: string | null;
+  username?: string | null;
+}
+
+export type VesselStations = Partial<
+  Record<CrewStation, CrewStationAssignment>
+>;
+
 // Unified vessel state interface
 export interface VesselState {
   // Basic position and orientation
@@ -21,6 +32,7 @@ export interface VesselState {
     x?: number; // derived meters (east)
     y?: number; // derived meters (north)
   };
+  waterDepth?: number;
   orientation: { heading: number; roll: number; pitch: number };
   velocity: { surge: number; sway: number; heave: number };
   angularVelocity: { yaw: number; roll: number; pitch: number };
@@ -36,6 +48,7 @@ export interface VesselState {
     userId: string | null;
     username?: string | null;
   };
+  stations?: VesselStations;
 
   // Vessel properties
   properties: {
@@ -47,6 +60,20 @@ export interface VesselState {
     draft: number;
     blockCoefficient: number;
     maxSpeed: number; // Maximum speed in knots
+  };
+  hydrodynamics: {
+    rudderForceCoefficient: number;
+    rudderStallAngle: number;
+    rudderMaxAngle: number;
+    dragCoefficient: number;
+    yawDamping: number;
+    yawDampingQuad: number;
+    swayDamping: number;
+    maxThrust: number;
+    rollDamping: number;
+    pitchDamping: number;
+    heaveStiffness: number;
+    heaveDamping: number;
   };
 
   // Engine state information
@@ -104,10 +131,13 @@ export type VesselSnapshot = VesselPose & {
   crewCount?: number;
   crewNames?: Record<string, string>;
   helm?: VesselState['helm'];
+  stations?: VesselStations;
   angularVelocity?: Partial<VesselState['angularVelocity']>;
+  hydrodynamics?: Partial<VesselState['hydrodynamics']>;
   mode?: 'player' | 'ai';
   desiredMode?: 'player' | 'ai';
   lastCrewAt?: number;
+  waterDepth?: number;
 };
 
 // Simplified vessel state for network transmission

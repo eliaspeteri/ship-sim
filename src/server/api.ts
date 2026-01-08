@@ -3,11 +3,20 @@ import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { authenticateRequest, requireAuth } from './middleware/authentication';
 import { requirePermission, requireRole } from './middleware/authorization';
+import type { Role } from './roles';
 import { VesselState, ShipType } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
 import { prisma } from '../lib/prisma';
 import { ensurePosition, positionFromXY } from '../lib/position';
 import { recordMetric, serverMetrics } from './metrics';
+import { getEconomyProfile } from './economy';
+import type {
+  MissionAssignmentData,
+  MissionDefinition,
+} from '../types/mission.types';
+import { seedDefaultMissions } from './missions';
+import { clearLogs, getLogs } from './observability';
+import { getScenarios } from '../lib/scenarios';
 
 // First, define proper types for the database models
 interface DBVesselState {
@@ -101,6 +110,20 @@ function dbVesselStateToUnified(dbState: DBVesselState): VesselState {
       blackout: false,
       otherAlarms: {},
     },
+    hydrodynamics: {
+      rudderForceCoefficient: 0,
+      rudderStallAngle: 0,
+      rudderMaxAngle: 0,
+      dragCoefficient: 0,
+      yawDamping: 0,
+      yawDampingQuad: 0,
+      swayDamping: 0,
+      maxThrust: 0,
+      rollDamping: 0,
+      pitchDamping: 0,
+      heaveStiffness: 0,
+      heaveDamping: 0,
+    },
   };
 }
 
@@ -121,6 +144,26 @@ interface InMemoryEnvironmentState extends EnvironmentState {
 
 const router = express.Router();
 const DEFAULT_SPACE_ID = process.env.DEFAULT_SPACE_ID || 'global';
+
+const canManageSpace = async (
+  req: { user?: { userId: string; roles: string[] } },
+  spaceId: string,
+) => {
+  if (req.user?.roles?.includes('admin')) return true;
+  if (!req.user?.userId) return false;
+  const space = await prisma.space.findUnique({
+    where: { id: spaceId },
+    select: { createdBy: true },
+  });
+  if (space?.createdBy && space.createdBy === req.user.userId) return true;
+  const access = await prisma.spaceAccess.findUnique({
+    where: {
+      userId_spaceId: { userId: req.user.userId, spaceId },
+    },
+    select: { role: true },
+  });
+  return access?.role === 'host';
+};
 
 const vesselStates: Record<string, DBVesselState> = {};
 const userSettingsStore: Record<string, UserSettings> = {};
@@ -254,18 +297,303 @@ router.post(
   },
 );
 
+// Environment scheduling (space owner or admin)
+router.get('/environment/events', requireAuth, async (req, res) => {
+  const spaceId =
+    typeof req.query.spaceId === 'string'
+      ? req.query.spaceId
+      : DEFAULT_SPACE_ID;
+  if (!(await canManageSpace(req, spaceId))) {
+    res
+      .status(403)
+      .json({ error: 'Not authorized to view environment events' });
+    return;
+  }
+  try {
+    const events = await prisma.environmentEvent.findMany({
+      where: { spaceId },
+      orderBy: { runAt: 'asc' },
+    });
+    res.json({ events });
+  } catch (err) {
+    console.error('Failed to fetch environment events', err);
+    res.status(500).json({ error: 'Failed to fetch environment events' });
+  }
+});
+
+router.post('/environment/events', requireAuth, async (req, res) => {
+  const spaceId =
+    typeof req.body?.spaceId === 'string' ? req.body.spaceId : DEFAULT_SPACE_ID;
+  if (!(await canManageSpace(req, spaceId))) {
+    res
+      .status(403)
+      .json({ error: 'Not authorized to schedule environment events' });
+    return;
+  }
+  const runAt = new Date(req.body?.runAt);
+  if (!runAt || Number.isNaN(runAt.getTime())) {
+    res.status(400).json({ error: 'runAt must be a valid date' });
+    return;
+  }
+  if (!req.body?.pattern && !req.body?.payload) {
+    res.status(400).json({ error: 'pattern or payload is required' });
+    return;
+  }
+  try {
+    const event = await prisma.environmentEvent.create({
+      data: {
+        spaceId,
+        name: req.body?.name || null,
+        pattern: req.body?.pattern || null,
+        payload: req.body?.payload || null,
+        runAt,
+        enabled: req.body?.enabled !== false,
+        createdBy: req.user?.userId || null,
+      },
+    });
+    res.status(201).json(event);
+  } catch (err) {
+    console.error('Failed to create environment event', err);
+    res.status(500).json({ error: 'Failed to create environment event' });
+  }
+});
+
+router.delete('/environment/events/:eventId', requireAuth, async (req, res) => {
+  const eventId = req.params.eventId;
+  try {
+    const event = await prisma.environmentEvent.findUnique({
+      where: { id: eventId },
+    });
+    if (!event) {
+      res.status(404).json({ error: 'Event not found' });
+      return;
+    }
+    if (!(await canManageSpace(req, event.spaceId))) {
+      res.status(403).json({ error: 'Not authorized to delete this event' });
+      return;
+    }
+    await prisma.environmentEvent.delete({ where: { id: eventId } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Failed to delete environment event', err);
+    res.status(500).json({ error: 'Failed to delete environment event' });
+  }
+});
+
+// Missions & economy
+router.get(
+  '/missions',
+  requireAuth,
+  requirePermission('mission', 'list'),
+  async (req, res) => {
+    const spaceId =
+      typeof req.query.spaceId === 'string'
+        ? req.query.spaceId
+        : DEFAULT_SPACE_ID;
+    const rank = req.user?.rank ?? 1;
+    try {
+      const missions = (await prisma.mission.findMany({
+        where: {
+          spaceId,
+          active: true,
+          ...(req.user?.roles?.includes('admin')
+            ? {}
+            : { requiredRank: { lte: rank } }),
+        },
+        orderBy: { createdAt: 'asc' },
+      })) as MissionDefinition[];
+      res.json({ missions });
+    } catch (err) {
+      console.error('Failed to fetch missions', err);
+      res.status(500).json({ error: 'Failed to fetch missions' });
+    }
+  },
+);
+
+router.post(
+  '/missions/:missionId/assign',
+  requireAuth,
+  requirePermission('mission', 'assign'),
+  async (req, res) => {
+    const { missionId } = req.params;
+    try {
+      const mission = (await prisma.mission.findUnique({
+        where: { id: missionId },
+      })) as MissionDefinition | null;
+      if (!mission || !mission.active) {
+        res.status(404).json({ error: 'Mission not found' });
+        return;
+      }
+      const rank = req.user?.rank ?? 1;
+      if (!req.user?.roles?.includes('admin') && rank < mission.requiredRank) {
+        res.status(403).json({ error: 'Rank too low for this mission' });
+        return;
+      }
+      const existing = (await prisma.missionAssignment.findFirst({
+        where: {
+          userId: req.user!.userId,
+          status: { in: ['assigned', 'in_progress'] },
+        },
+      })) as MissionAssignmentData | null;
+      if (existing) {
+        res.json({ assignment: { ...existing, mission } });
+        return;
+      }
+      const assignment = await prisma.missionAssignment.create({
+        data: {
+          missionId,
+          userId: req.user!.userId,
+          vesselId: req.body?.vesselId || null,
+          status: 'assigned',
+          progress: { stage: 'pickup' },
+        },
+      });
+      res.status(201).json({ assignment: { ...assignment, mission } });
+    } catch (err) {
+      console.error('Failed to assign mission', err);
+      res.status(500).json({ error: 'Failed to assign mission' });
+    }
+  },
+);
+
+router.get(
+  '/missions/assignments',
+  requireAuth,
+  requirePermission('mission', 'list'),
+  async (req, res) => {
+    const status =
+      typeof req.query.status === 'string' ? req.query.status : undefined;
+    const statusList = status ? status.split(',') : undefined;
+    try {
+      const assignments = await prisma.missionAssignment.findMany({
+        where: {
+          userId: req.user!.userId,
+          ...(statusList ? { status: { in: statusList } } : {}),
+        },
+        include: { mission: true },
+        orderBy: { startedAt: 'desc' },
+      });
+      res.json({ assignments });
+    } catch (err) {
+      console.error('Failed to fetch mission assignments', err);
+      res.status(500).json({ error: 'Failed to fetch mission assignments' });
+    }
+  },
+);
+
+router.post('/scenarios/:scenarioId/start', requireAuth, async (req, res) => {
+  const { scenarioId } = req.params;
+  const scenario = getScenarios().find(item => item.id === scenarioId);
+  if (!scenario) {
+    res.status(404).json({ error: 'Scenario not found' });
+    return;
+  }
+  const rank = req.user?.rank ?? 1;
+  if (!req.user?.roles?.includes('admin') && rank < scenario.rankRequired) {
+    res.status(403).json({ error: 'Rank too low for this scenario' });
+    return;
+  }
+  try {
+    const name = `${scenario.name} (${req.user?.userId?.slice(0, 6) || 'pilot'})`;
+    const space = await prisma.space.create({
+      data: {
+        name,
+        visibility: 'private',
+        kind: 'scenario',
+        rankRequired: scenario.rankRequired,
+        rules: scenario.rules,
+        createdBy: req.user?.userId || null,
+      },
+    });
+    await prisma.spaceAccess.create({
+      data: {
+        userId: req.user!.userId,
+        spaceId: space.id,
+        role: 'host',
+        inviteToken: space.inviteToken || null,
+      },
+    });
+    if (scenario.weatherPattern || scenario.environmentOverrides) {
+      await prisma.environmentEvent.create({
+        data: {
+          spaceId: space.id,
+          name: scenario.name,
+          pattern: scenario.weatherPattern || null,
+          payload: scenario.environmentOverrides || null,
+          runAt: new Date(),
+          enabled: true,
+          createdBy: req.user?.userId || null,
+        },
+      });
+    }
+    res.status(201).json({
+      space: serializeSpace(space),
+      scenario,
+    });
+  } catch (err) {
+    console.error('Failed to start scenario', err);
+    res.status(500).json({ error: 'Failed to start scenario' });
+  }
+});
+
+router.get(
+  '/economy/summary',
+  requireAuth,
+  requirePermission('economy', 'read'),
+  async (req, res) => {
+    try {
+      const profile = await getEconomyProfile(req.user!.userId);
+      const transactions = await prisma.economyTransaction.findMany({
+        where: { userId: req.user!.userId },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      });
+      res.json({ profile, transactions });
+    } catch (err) {
+      console.error('Failed to load economy summary', err);
+      res.status(500).json({ error: 'Failed to load economy summary' });
+    }
+  },
+);
+
+router.get(
+  '/economy/transactions',
+  requireAuth,
+  requirePermission('economy', 'read'),
+  async (req, res) => {
+    const limit = Math.min(Number(req.query.limit ?? 50) || 50, 200);
+    try {
+      const transactions = await prisma.economyTransaction.findMany({
+        where: { userId: req.user!.userId },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      });
+      res.json({ transactions });
+    } catch (err) {
+      console.error('Failed to fetch transactions', err);
+      res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+  },
+);
+
 const serializeSpace = (space: {
   id: string;
   name: string;
   visibility: string;
   inviteToken: string | null;
   passwordHash?: string | null;
+  kind?: string | null;
+  rankRequired?: number | null;
+  rules?: Record<string, unknown> | null;
   createdBy?: string | null;
 }) => ({
   id: space.id,
   name: space.name,
   visibility: space.visibility,
   inviteToken: space.inviteToken || undefined,
+  kind: space.kind || 'free',
+  rankRequired: space.rankRequired ?? 1,
+  rules: space.rules ?? null,
   createdBy: space.createdBy || undefined,
 });
 
@@ -357,6 +685,20 @@ router.post('/spaces', requireAuth, async (req, res) => {
     return;
   }
   const visibility = req.body?.visibility === 'private' ? 'private' : 'public';
+  const requestedKind = req.body?.kind;
+  const kind =
+    req.user?.roles?.includes('admin') &&
+    (requestedKind === 'tutorial' || requestedKind === 'scenario')
+      ? requestedKind
+      : 'free';
+  const rankRequiredRaw = Number(req.body?.rankRequired ?? 1);
+  const rankRequired = Number.isFinite(rankRequiredRaw)
+    ? Math.max(1, Math.round(rankRequiredRaw))
+    : 1;
+  const rules =
+    req.user?.roles?.includes('admin') && req.body?.rules
+      ? req.body.rules
+      : null;
   const password =
     typeof req.body?.password === 'string' ? req.body.password : undefined;
   const inviteToken =
@@ -381,9 +723,29 @@ router.post('/spaces', requireAuth, async (req, res) => {
         visibility,
         inviteToken,
         passwordHash,
+        kind,
+        rankRequired,
+        rules,
         createdBy: req.user?.userId || null,
       },
     });
+    await seedDefaultMissions(space.id).catch(err => {
+      console.warn('Failed to seed default missions', err);
+    });
+    if (req.user?.userId) {
+      await prisma.spaceAccess.upsert({
+        where: {
+          userId_spaceId: { userId: req.user.userId, spaceId: space.id },
+        },
+        update: { role: 'host', inviteToken: space.inviteToken || null },
+        create: {
+          userId: req.user.userId,
+          spaceId: space.id,
+          inviteToken: space.inviteToken || null,
+          role: 'host',
+        },
+      });
+    }
     res.status(201).json(serializeSpace(space));
   } catch (err) {
     console.error('Failed to create space', err);
@@ -411,6 +773,7 @@ router.post('/spaces/known', requireAuth, async (req, res) => {
         userId: req.user!.userId,
         spaceId,
         inviteToken: inviteToken || space.inviteToken || null,
+        role: 'member',
       },
     });
     res.json({ success: true });
@@ -450,7 +813,7 @@ router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
       res.status(404).json({ error: 'Space not found' });
       return;
     }
-    if (space.createdBy !== req.user!.userId) {
+    if (!(await canManageSpace(req, spaceId))) {
       res.status(403).json({ error: 'Not authorized to edit this space' });
       return;
     }
@@ -463,6 +826,9 @@ router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
       typeof req.body?.password === 'string' ? req.body.password : undefined;
     const clearPassword = req.body?.clearPassword === true;
     const regenerateInvite = req.body?.regenerateInvite === true;
+    const requestedKind = req.body?.kind;
+    const requestedRank = Number(req.body?.rankRequired);
+    const requestedRules = req.body?.rules;
 
     const nextVisibility =
       visibility === 'public' || visibility === 'private'
@@ -494,6 +860,20 @@ router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
     } else if (clearPassword) {
       updates.passwordHash = null;
     }
+    if (
+      req.user?.roles?.includes('admin') &&
+      (requestedKind === 'free' ||
+        requestedKind === 'tutorial' ||
+        requestedKind === 'scenario')
+    ) {
+      updates.kind = requestedKind;
+    }
+    if (req.user?.roles?.includes('admin') && Number.isFinite(requestedRank)) {
+      updates.rankRequired = Math.max(1, Math.round(requestedRank));
+    }
+    if (requestedRules && (await canManageSpace(req, spaceId))) {
+      updates.rules = requestedRules;
+    }
 
     if (Object.keys(updates).length === 0) {
       res.json(serializeSpace(space));
@@ -524,7 +904,7 @@ router.delete('/spaces/:spaceId', requireAuth, async (req, res) => {
       res.status(404).json({ error: 'Space not found' });
       return;
     }
-    if (space.createdBy !== req.user!.userId) {
+    if (!(await canManageSpace(req, spaceId))) {
       res.status(403).json({ error: 'Not authorized to delete this space' });
       return;
     }
@@ -550,6 +930,19 @@ router.delete('/spaces/:spaceId', requireAuth, async (req, res) => {
 // GET /api/metrics - basic server metrics (auth required)
 router.get('/metrics', requireAuth, (_req, res) => {
   res.json(serverMetrics);
+});
+
+// GET /api/logs - aggregated logs (admin only)
+router.get('/logs', requireAuth, requireRole(['admin']), (req, res) => {
+  const since = Number(req.query.since ?? 0);
+  const limit = Number(req.query.limit ?? 200);
+  res.json({ logs: getLogs({ since, limit }) });
+});
+
+// DELETE /api/logs - clear log buffer (admin only)
+router.delete('/logs', requireAuth, requireRole(['admin']), (_req, res) => {
+  clearLogs();
+  res.json({ success: true });
 });
 
 // GET /api/settings/:userId
@@ -600,6 +993,148 @@ router.get(
       vesselCount: Object.keys(vesselStates).length,
       lastUpdate: latest?.updatedAt || null,
     });
+  },
+);
+
+// Moderation endpoints (admin only)
+router.get(
+  '/admin/moderation',
+  requireAuth,
+  requireRole(['admin']),
+  async (req, res) => {
+    const spaceId =
+      typeof req.query.spaceId === 'string'
+        ? req.query.spaceId
+        : DEFAULT_SPACE_ID;
+    try {
+      const [bans, mutes] = await Promise.all([
+        prisma.ban.findMany({
+          where: { spaceId },
+          orderBy: { createdAt: 'desc' },
+        }),
+        prisma.mute.findMany({
+          where: { spaceId },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+      res.json({ bans, mutes });
+    } catch (err) {
+      console.error('Failed to load moderation list', err);
+      res.status(500).json({ error: 'Failed to load moderation list' });
+    }
+  },
+);
+
+router.patch(
+  '/admin/users/:userId/role',
+  requireAuth,
+  requireRole(['admin']),
+  async (req, res) => {
+    const { userId } = req.params;
+    const nextRole = req.body?.role as Role | undefined;
+    const allowed: Role[] = ['guest', 'spectator', 'player', 'admin'];
+    if (!nextRole || !allowed.includes(nextRole)) {
+      res.status(400).json({ error: 'Invalid role' });
+      return;
+    }
+    try {
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: { role: nextRole },
+      });
+      res.json({ id: updated.id, role: updated.role });
+    } catch (err) {
+      console.error('Failed to update user role', err);
+      res.status(500).json({ error: 'Failed to update user role' });
+    }
+  },
+);
+
+router.post(
+  '/admin/bans',
+  requireAuth,
+  requireRole(['admin']),
+  async (req, res) => {
+    const { userId, username, spaceId, reason, expiresAt } = req.body || {};
+    if (!userId && !username) {
+      res.status(400).json({ error: 'userId or username is required' });
+      return;
+    }
+    try {
+      const ban = await prisma.ban.create({
+        data: {
+          userId: userId || null,
+          username: username || null,
+          spaceId: spaceId || DEFAULT_SPACE_ID,
+          reason: reason || null,
+          createdBy: req.user?.userId || null,
+          expiresAt: expiresAt ? new Date(expiresAt) : null,
+        },
+      });
+      res.status(201).json(ban);
+    } catch (err) {
+      console.error('Failed to create ban', err);
+      res.status(500).json({ error: 'Failed to create ban' });
+    }
+  },
+);
+
+router.delete(
+  '/admin/bans/:banId',
+  requireAuth,
+  requireRole(['admin']),
+  async (req, res) => {
+    try {
+      await prisma.ban.delete({ where: { id: req.params.banId } });
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Failed to delete ban', err);
+      res.status(500).json({ error: 'Failed to delete ban' });
+    }
+  },
+);
+
+router.post(
+  '/admin/mutes',
+  requireAuth,
+  requireRole(['admin']),
+  async (req, res) => {
+    const { userId, username, spaceId, reason, expiresAt } = req.body || {};
+    if (!userId && !username) {
+      res.status(400).json({ error: 'userId or username is required' });
+      return;
+    }
+    try {
+      const mute = await prisma.mute.create({
+        data: {
+          userId: userId || null,
+          username: username || null,
+          spaceId: spaceId || DEFAULT_SPACE_ID,
+          reason: reason || null,
+          createdBy: req.user?.userId || null,
+          expiresAt: expiresAt ? new Date(expiresAt) : null,
+        },
+      });
+      res.status(201).json(mute);
+    } catch (err) {
+      console.error('Failed to create mute', err);
+      res.status(500).json({ error: 'Failed to create mute' });
+    }
+  },
+);
+
+router.delete(
+  '/admin/mutes/:muteId',
+  requireAuth,
+  requireRole(['admin']),
+  async (req, res) => {
+    try {
+      await prisma.mute.delete({ where: { id: req.params.muteId } });
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Failed to delete mute', err);
+      res.status(500).json({ error: 'Failed to delete mute' });
+    }
   },
 );
 

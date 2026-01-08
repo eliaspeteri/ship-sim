@@ -9,6 +9,7 @@ export type ServerMetrics = {
   api: MetricBucket;
   broadcast: MetricBucket;
   ai: MetricBucket;
+  socketLatency: MetricBucket;
   sockets: { connected: number };
   updatedAt: number;
 };
@@ -24,6 +25,7 @@ export const serverMetrics: ServerMetrics = {
   api: createBucket(),
   broadcast: createBucket(),
   ai: createBucket(),
+  socketLatency: createBucket(),
   sockets: { connected: 0 },
   updatedAt: Date.now(),
 };

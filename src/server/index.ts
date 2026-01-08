@@ -30,12 +30,17 @@ import { EnvironmentState } from '../types/environment.types';
 import {
   ensurePosition,
   mergePosition,
+  distanceMeters,
   positionFromLatLon,
   positionFromXY,
 } from '../lib/position';
 import { prisma } from '../lib/prisma';
-import { RUDDER_STALL_ANGLE_RAD } from '../constants/vessel';
+import { RUDDER_MAX_ANGLE_RAD } from '../constants/vessel';
 import { recordMetric, setConnectedClients } from './metrics';
+import { getBathymetryDepth, loadBathymetry } from './bathymetry';
+import { getEconomyProfile, applyEconomyAdjustment } from './economy';
+import { seedDefaultMissions, updateMissionAssignments } from './missions';
+import { recordLog } from './observability';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
@@ -54,6 +59,61 @@ const AI_GRACE_MS = parseInt(process.env.AI_GRACE_MS || '30000', 10) || 30000; /
 const CHAT_HISTORY_PAGE_SIZE = 20;
 const GLOBAL_SPACE_ID = 'global';
 const DEFAULT_SPACE_ID = process.env.DEFAULT_SPACE_ID || GLOBAL_SPACE_ID;
+const ECONOMY_CHARGE_INTERVAL_MS = 10_000;
+const ECONOMY_BASE_COST = 4;
+const ECONOMY_THROTTLE_COST = 18;
+const PORT_FEE = 120;
+const COLLISION_DISTANCE_M = 50;
+const NEAR_MISS_DISTANCE_M = 200;
+const COLLISION_COOLDOWN_MS = 30_000;
+const NEAR_MISS_COOLDOWN_MS = 15_000;
+const SPEED_VIOLATION_COOLDOWN_MS = 20_000;
+
+type SpaceMeta = {
+  id: string;
+  name: string;
+  visibility: string;
+  kind: string;
+  rankRequired: number;
+  rules?: Record<string, unknown> | null;
+  createdBy?: string | null;
+};
+
+const spaceMetaCache = new Map<string, SpaceMeta>();
+const economyLedger = new Map<
+  string,
+  { lastChargeAt: number; accrued: number; lastPortId?: string }
+>();
+const colregsCooldown = new Map<string, number>();
+const DEFAULT_ECONOMY_PROFILE = {
+  rank: 1,
+  experience: 0,
+  credits: 0,
+  safetyScore: 1,
+};
+
+const PORTS = [
+  {
+    id: 'harbor-alpha',
+    name: 'Harbor Alpha',
+    position: positionFromXY({ x: 0, y: 0 }),
+  },
+  {
+    id: 'bay-delta',
+    name: 'Bay Delta',
+    position: positionFromXY({ x: 2000, y: -1500 }),
+  },
+  {
+    id: 'island-anchorage',
+    name: 'Island Anchorage',
+    position: positionFromXY({ x: -2500, y: 1200 }),
+  },
+  {
+    id: 'channel-gate',
+    name: 'Channel Gate',
+    position: positionFromXY({ x: 800, y: 2400 }),
+  },
+];
 
 type VesselMode = 'player' | 'ai';
 type CoreVesselProperties = Pick<
@@ -68,6 +128,10 @@ interface VesselRecord {
   crewNames: Map<string, string>;
   helmUserId?: string | null;
   helmUsername?: string | null;
+  engineUserId?: string | null;
+  engineUsername?: string | null;
+  radioUserId?: string | null;
+  radioUsername?: string | null;
   mode: VesselMode;
   desiredMode: VesselMode;
   lastCrewAt: number;
@@ -87,6 +151,7 @@ const WEATHER_AUTO_INTERVAL_MS = 5 * 60 * 1000;
 const vesselPersistAt = new Map<string, number>();
 const environmentPersistAt = new Map<string, number>();
 let nextAutoWeatherAt = Date.now() + WEATHER_AUTO_INTERVAL_MS;
+let lastMissionUpdateAt = 0;
 
 const currentUtcTimeOfDay = () => {
   const now = new Date();
@@ -97,6 +162,309 @@ const currentUtcTimeOfDay = () => {
       now.getUTCMilliseconds() / 3_600_000) %
     24
   );
+};
+
+const toSpaceMeta = (space: {
+  id: string;
+  name: string;
+  visibility: string;
+  kind?: string | null;
+  rankRequired?: number | null;
+  rules?: Record<string, unknown> | null;
+  createdBy?: string | null;
+}): SpaceMeta => ({
+  id: space.id,
+  name: space.name,
+  visibility: space.visibility,
+  kind: space.kind || 'free',
+  rankRequired: space.rankRequired ?? 1,
+  rules: space.rules ?? null,
+  createdBy: space.createdBy || null,
+});
+
+const getSpaceMeta = async (spaceId: string): Promise<SpaceMeta> => {
+  const cached = spaceMetaCache.get(spaceId);
+  if (cached) return cached;
+  try {
+    const record = await prisma.space.findUnique({ where: { id: spaceId } });
+    if (record) {
+      const meta = toSpaceMeta(record as SpaceMeta);
+      spaceMetaCache.set(spaceId, meta);
+      return meta;
+    }
+  } catch (err) {
+    console.warn('Failed to load space metadata', err);
+  }
+  const fallback: SpaceMeta = {
+    id: spaceId,
+    name: spaceId,
+    visibility: 'public',
+    kind: 'free',
+    rankRequired: 1,
+    rules: null,
+    createdBy: null,
+  };
+  spaceMetaCache.set(spaceId, fallback);
+  return fallback;
+};
+
+const refreshSpaceMeta = async (spaceId: string) => {
+  spaceMetaCache.delete(spaceId);
+  return getSpaceMeta(spaceId);
+};
+
+const getSpaceRole = async (userId: string | undefined, spaceId: string) => {
+  if (!userId) return 'member' as const;
+  const meta = await getSpaceMeta(spaceId);
+  if (meta.createdBy && meta.createdBy === userId) return 'host' as const;
+  try {
+    const access = await prisma.spaceAccess.findUnique({
+      where: { userId_spaceId: { userId, spaceId } },
+      select: { role: true },
+    });
+    if (access?.role === 'host') return 'host' as const;
+  } catch (err) {
+    console.warn('Failed to resolve space role', err);
+  }
+  return 'member' as const;
+};
+
+const resolveChargeUserId = (vessel: VesselRecord) => {
+  if (vessel.ownerId) return vessel.ownerId;
+  const [crewId] = Array.from(vessel.crewIds.values());
+  return crewId || null;
+};
+
+const resolvePortForPosition = (position: VesselPose['position']) => {
+  const closest = PORTS.find(
+    port => distanceMeters(position, port.position) < 250,
+  );
+  return closest || null;
+};
+
+const syncUserSocketsEconomy = async (
+  userId: string,
+  profile: {
+    rank: number;
+    experience: number;
+    credits: number;
+    safetyScore: number;
+  },
+) => {
+  try {
+    const sockets = await io.in(`user:${userId}`).fetchSockets();
+    sockets.forEach(socket => {
+      socket.data.rank = profile.rank;
+      socket.data.experience = profile.experience;
+      socket.data.credits = profile.credits;
+      socket.data.safetyScore = profile.safetyScore;
+    });
+  } catch (err) {
+    console.warn('Failed to sync user economy to sockets', err);
+  }
+};
+
+const updateEconomyForVessel = async (vessel: VesselRecord, now: number) => {
+  if (vessel.mode !== 'player') return;
+  const chargeUserId = resolveChargeUserId(vessel);
+  if (!chargeUserId) return;
+  const ledger = economyLedger.get(vessel.id) || {
+    lastChargeAt: now,
+    accrued: 0,
+  };
+  const dt = now - ledger.lastChargeAt;
+  if (dt < ECONOMY_CHARGE_INTERVAL_MS) {
+    economyLedger.set(vessel.id, ledger);
+    return;
+  }
+  ledger.lastChargeAt = now;
+
+  const throttle = vessel.controls.throttle ?? 0;
+  const usageFactor = Math.abs(throttle);
+  const costPerInterval =
+    ECONOMY_BASE_COST + ECONOMY_THROTTLE_COST * usageFactor;
+  const cost = costPerInterval * (dt / ECONOMY_CHARGE_INTERVAL_MS);
+
+  if (cost > 0) {
+    const profile = await applyEconomyAdjustment({
+      userId: chargeUserId,
+      vesselId: vessel.id,
+      deltaCredits: -cost,
+      reason: 'operating_cost',
+      meta: { throttle, intervalMs: dt },
+    });
+    io.to(`user:${chargeUserId}`).emit('economy:update', profile);
+    void syncUserSocketsEconomy(chargeUserId, profile);
+  }
+
+  const port = resolvePortForPosition(vessel.position);
+  if (port && ledger.lastPortId !== port.id) {
+    ledger.lastPortId = port.id;
+    const profile = await applyEconomyAdjustment({
+      userId: chargeUserId,
+      vesselId: vessel.id,
+      deltaCredits: -PORT_FEE,
+      reason: 'port_fee',
+      meta: { portId: port.id, portName: port.name },
+    });
+    io.to(`user:${chargeUserId}`).emit('economy:update', profile);
+    void syncUserSocketsEconomy(chargeUserId, profile);
+  }
+  if (!port) {
+    ledger.lastPortId = undefined;
+  }
+
+  economyLedger.set(vessel.id, ledger);
+};
+
+const canTriggerCooldown = (key: string, now: number, cooldown: number) => {
+  const last = colregsCooldown.get(key) || 0;
+  if (now - last < cooldown) return false;
+  colregsCooldown.set(key, now);
+  return true;
+};
+
+const applyColregsRules = async (spaceId: string, now: number) => {
+  const meta = spaceMetaCache.get(spaceId);
+  const rules = meta?.rules as
+    | {
+        colregs?: boolean;
+        collisionPenalty?: number;
+        nearMissPenalty?: number;
+        maxSpeed?: number;
+      }
+    | undefined;
+  if (!rules?.colregs) return;
+  const vessels = Array.from(globalState.vessels.values()).filter(
+    v => (v.spaceId || DEFAULT_SPACE_ID) === spaceId && v.mode === 'player',
+  );
+  if (vessels.length < 1) return;
+
+  for (const vessel of vessels) {
+    if (!rules.maxSpeed) continue;
+    const speedMs = Math.sqrt(
+      vessel.velocity.surge ** 2 + vessel.velocity.sway ** 2,
+    );
+    const speedKnots = speedMs * 1.94384;
+    if (speedKnots <= rules.maxSpeed) continue;
+    const chargeUserId = resolveChargeUserId(vessel);
+    if (!chargeUserId) continue;
+    const key = `speed:${spaceId}:${vessel.id}`;
+    if (!canTriggerCooldown(key, now, SPEED_VIOLATION_COOLDOWN_MS)) continue;
+    const penalty = rules.nearMissPenalty || 100;
+    const profile = await applyEconomyAdjustment({
+      userId: chargeUserId,
+      vesselId: vessel.id,
+      deltaCredits: -penalty,
+      deltaSafetyScore: -0.05,
+      reason: 'speed_violation',
+      meta: { speedKnots, maxSpeed: rules.maxSpeed },
+    });
+    io.to(`user:${chargeUserId}`).emit('economy:update', profile);
+    void syncUserSocketsEconomy(chargeUserId, profile);
+    recordLog({
+      level: 'warn',
+      source: 'colregs',
+      message: 'Speed violation',
+      meta: { vesselId: vessel.id, speedKnots, limit: rules.maxSpeed },
+    });
+  }
+
+  for (let i = 0; i < vessels.length; i++) {
+    for (let j = i + 1; j < vessels.length; j++) {
+      const a = vessels[i];
+      const b = vessels[j];
+      const dist = distanceMeters(a.position, b.position);
+      const pairKey = [a.id, b.id].sort().join(':');
+      if (dist <= COLLISION_DISTANCE_M) {
+        if (
+          !canTriggerCooldown(
+            `collision:${spaceId}:${pairKey}`,
+            now,
+            COLLISION_COOLDOWN_MS,
+          )
+        ) {
+          continue;
+        }
+        const penalty = rules.collisionPenalty || 500;
+        const chargeA = resolveChargeUserId(a);
+        const chargeB = resolveChargeUserId(b);
+        if (chargeA) {
+          const profile = await applyEconomyAdjustment({
+            userId: chargeA,
+            vesselId: a.id,
+            deltaCredits: -penalty,
+            deltaSafetyScore: -0.15,
+            reason: 'collision',
+            meta: { otherVessel: b.id, distance: dist },
+          });
+          io.to(`user:${chargeA}`).emit('economy:update', profile);
+          void syncUserSocketsEconomy(chargeA, profile);
+        }
+        if (chargeB) {
+          const profile = await applyEconomyAdjustment({
+            userId: chargeB,
+            vesselId: b.id,
+            deltaCredits: -penalty,
+            deltaSafetyScore: -0.15,
+            reason: 'collision',
+            meta: { otherVessel: a.id, distance: dist },
+          });
+          io.to(`user:${chargeB}`).emit('economy:update', profile);
+          void syncUserSocketsEconomy(chargeB, profile);
+        }
+        recordLog({
+          level: 'warn',
+          source: 'colregs',
+          message: 'Collision detected',
+          meta: { vessels: [a.id, b.id], distance: dist },
+        });
+      } else if (dist <= NEAR_MISS_DISTANCE_M) {
+        if (
+          !canTriggerCooldown(
+            `nearmiss:${spaceId}:${pairKey}`,
+            now,
+            NEAR_MISS_COOLDOWN_MS,
+          )
+        ) {
+          continue;
+        }
+        const penalty = rules.nearMissPenalty || 150;
+        const chargeA = resolveChargeUserId(a);
+        const chargeB = resolveChargeUserId(b);
+        if (chargeA) {
+          const profile = await applyEconomyAdjustment({
+            userId: chargeA,
+            vesselId: a.id,
+            deltaCredits: -penalty,
+            deltaSafetyScore: -0.05,
+            reason: 'near_miss',
+            meta: { otherVessel: b.id, distance: dist },
+          });
+          io.to(`user:${chargeA}`).emit('economy:update', profile);
+          void syncUserSocketsEconomy(chargeA, profile);
+        }
+        if (chargeB) {
+          const profile = await applyEconomyAdjustment({
+            userId: chargeB,
+            vesselId: b.id,
+            deltaCredits: -penalty,
+            deltaSafetyScore: -0.05,
+            reason: 'near_miss',
+            meta: { otherVessel: a.id, distance: dist },
+          });
+          io.to(`user:${chargeB}`).emit('economy:update', profile);
+          void syncUserSocketsEconomy(chargeB, profile);
+        }
+        recordLog({
+          level: 'info',
+          source: 'colregs',
+          message: 'Near miss detected',
+          meta: { vessels: [a.id, b.id], distance: dist },
+        });
+      }
+    }
+  }
 };
 
 const userSpaceKey = (userId: string, spaceId: string) =>
@@ -204,6 +572,12 @@ async function loadVesselsFromDb() {
       ownerId: row.ownerId,
       crewIds: new Set<string>(),
       crewNames: new Map<string, string>(),
+      helmUserId: null,
+      helmUsername: null,
+      engineUserId: null,
+      engineUsername: null,
+      radioUserId: null,
+      radioUsername: null,
       mode: (row.mode as VesselMode) || 'ai',
       desiredMode: (row.desiredMode as VesselMode) || 'player',
       lastCrewAt: row.lastCrewAt?.getTime() || Date.now(),
@@ -357,6 +731,12 @@ function createDefaultAIVessel(
     ownerId: null,
     crewIds: new Set<string>(),
     crewNames: new Map<string, string>(),
+    helmUserId: null,
+    helmUsername: null,
+    engineUserId: null,
+    engineUsername: null,
+    radioUserId: null,
+    radioUsername: null,
     mode: 'ai',
     desiredMode: 'ai',
     lastCrewAt: Date.now(),
@@ -391,6 +771,10 @@ function createNewVesselForUser(
     crewNames: new Map<string, string>([[userId, username]]),
     helmUserId: userId,
     helmUsername: username,
+    engineUserId: userId,
+    engineUsername: username,
+    radioUserId: userId,
+    radioUsername: username,
     mode: 'player',
     desiredMode: 'player',
     lastCrewAt: Date.now(),
@@ -418,12 +802,81 @@ function detachUserFromCurrentVessel(userId: string, spaceId: string): void {
   if (!vessel) return;
   vessel.crewIds.delete(userId);
   vessel.crewNames.delete(userId);
+  if (vessel.helmUserId === userId) {
+    vessel.helmUserId = null;
+    vessel.helmUsername = null;
+  }
+  if (vessel.engineUserId === userId) {
+    vessel.engineUserId = null;
+    vessel.engineUsername = null;
+  }
+  if (vessel.radioUserId === userId) {
+    vessel.radioUserId = null;
+    vessel.radioUsername = null;
+  }
   vessel.lastCrewAt = Date.now();
   if (vessel.crewIds.size === 0) {
     vessel.mode = vessel.desiredMode === 'ai' ? 'ai' : 'ai';
     vessel.desiredMode = vessel.mode;
   }
   void persistVesselToDb(vessel, { force: true });
+}
+
+function assignStationsForCrew(
+  vessel: VesselRecord,
+  userId: string,
+  username: string,
+) {
+  if (!vessel.helmUserId) {
+    vessel.helmUserId = userId;
+    vessel.helmUsername = username;
+  }
+  if (!vessel.engineUserId) {
+    vessel.engineUserId = userId;
+    vessel.engineUsername = username;
+  }
+  if (!vessel.radioUserId) {
+    vessel.radioUserId = userId;
+    vessel.radioUsername = username;
+  }
+}
+
+const STATION_KEYS = {
+  helm: { id: 'helmUserId', name: 'helmUsername' },
+  engine: { id: 'engineUserId', name: 'engineUsername' },
+  radio: { id: 'radioUserId', name: 'radioUsername' },
+} as const;
+
+function updateStationAssignment(
+  vessel: VesselRecord,
+  station: keyof typeof STATION_KEYS,
+  action: 'claim' | 'release',
+  userId: string,
+  username: string,
+  isAdminOverride = false,
+): { ok: boolean; message?: string } {
+  const keys = STATION_KEYS[station];
+  const currentId = vessel[keys.id];
+  const currentName = vessel[keys.name];
+
+  if (action === 'claim') {
+    if (currentId && currentId !== userId && !isAdminOverride) {
+      return {
+        ok: false,
+        message: `${station} station held by ${currentName || currentId}`,
+      };
+    }
+    vessel[keys.id] = userId;
+    vessel[keys.name] = username;
+    return { ok: true };
+  }
+
+  if (currentId && currentId !== userId && !isAdminOverride) {
+    return { ok: false, message: `You do not hold the ${station} station` };
+  }
+  vessel[keys.id] = null;
+  vessel[keys.name] = null;
+  return { ok: true };
 }
 
 const getDefaultEnvironment = (name = 'Global'): EnvironmentState => ({
@@ -476,6 +929,27 @@ const applyWeatherPattern = (
   return next;
 };
 
+const applyEnvironmentOverrides = (
+  spaceId: string,
+  overrides: Partial<EnvironmentState>,
+): EnvironmentState => {
+  const env = getEnvironmentForSpace(spaceId);
+  const next: EnvironmentState = {
+    ...env,
+    ...overrides,
+    wind: {
+      ...env.wind,
+      ...(overrides.wind || {}),
+    },
+    current: {
+      ...env.current,
+      ...(overrides.current || {}),
+    },
+  };
+  globalState.environmentBySpace.set(spaceId, next);
+  return next;
+};
+
 // Application state
 const globalState = {
   vessels: new Map<string, VesselRecord>(),
@@ -505,8 +979,17 @@ const clampHeading = (rad: number) => {
   return h;
 };
 
+const normalizeSignedAngle = (rad: number) => {
+  let angle = (rad + Math.PI) % (Math.PI * 2);
+  if (angle < 0) angle += Math.PI * 2;
+  return angle - Math.PI;
+};
+
+const aiControllers = new Map<string, { heading: number; speed: number }>();
+
 function stepAIVessel(v: VesselRecord, dt: number) {
   // Basic 2D integration mirroring the client WASM approximations
+  const currentHeading = v.orientation.heading || 0;
   const throttle = clamp(v.controls.throttle, -1, 1);
   const mass = v.properties.mass || 1_000_000;
   const length = v.properties.length || 120;
@@ -517,7 +1000,24 @@ function stepAIVessel(v: VesselRecord, dt: number) {
   });
   const speedMag = Math.sqrt(v.velocity.surge ** 2 + v.velocity.sway ** 2);
 
-  const thrust = SERVER_MAX_THRUST * throttle;
+  const controller = aiControllers.get(v.id) || {
+    heading: currentHeading,
+    speed: Math.max(2, speedMag),
+  };
+  aiControllers.set(v.id, controller);
+
+  const headingError = normalizeSignedAngle(
+    controller.heading - currentHeading,
+  );
+  v.controls.rudderAngle = clamp(
+    headingError * 0.8,
+    -SERVER_RUDDER_STALL,
+    SERVER_RUDDER_STALL,
+  );
+  const speedError = controller.speed - speedMag;
+  v.controls.throttle = clamp(throttle + speedError * 0.05, 0, 0.8);
+
+  const thrust = SERVER_MAX_THRUST * v.controls.throttle;
   const dragSurge = SERVER_DRAG * v.velocity.surge * Math.abs(v.velocity.surge);
   const dragSway = SERVER_DRAG * v.velocity.sway * Math.abs(v.velocity.sway);
 
@@ -605,7 +1105,9 @@ function takeOverAvailableAIVessel(
   );
   aiVessel.crewIds.add(userId);
   aiVessel.crewNames.set(userId, username);
+  assignStationsForCrew(aiVessel, userId, username);
   aiVessel.mode = 'player';
+  aiControllers.delete(aiVessel.id);
   aiVessel.ownerId = aiVessel.ownerId ?? userId;
   aiVessel.spaceId = spaceId;
   aiVessel.lastUpdate = Date.now();
@@ -653,6 +1155,8 @@ function ensureVesselForUser(
       if (lastVessel.mode === 'player') {
         lastVessel.crewIds.add(userId);
         lastVessel.crewNames.set(userId, username);
+        assignStationsForCrew(lastVessel, userId, username);
+        aiControllers.delete(lastVessel.id);
       }
       lastVessel.spaceId = spaceId;
       return lastVessel;
@@ -675,6 +1179,8 @@ function ensureVesselForUser(
     if (existing.mode === 'player') {
       existing.crewIds.add(userId);
       existing.crewNames.set(userId, username);
+      assignStationsForCrew(existing, userId, username);
+      aiControllers.delete(existing.id);
     }
     existing.spaceId = spaceId;
     globalState.userLastVessel.set(userSpaceKey(userId, spaceId), existing.id);
@@ -688,7 +1194,9 @@ function ensureVesselForUser(
     );
     joinable.crewIds.add(userId);
     joinable.crewNames.set(userId, username);
+    assignStationsForCrew(joinable, userId, username);
     joinable.mode = 'player';
+    aiControllers.delete(joinable.id);
     joinable.spaceId = spaceId;
     globalState.userLastVessel.set(userSpaceKey(userId, spaceId), joinable.id);
     return joinable;
@@ -704,7 +1212,9 @@ function ensureVesselForUser(
     );
     owned.crewIds.add(userId);
     owned.crewNames.set(userId, username);
+    assignStationsForCrew(owned, userId, username);
     owned.mode = 'player';
+    aiControllers.delete(owned.id);
     owned.spaceId = spaceId;
     globalState.userLastVessel.set(userSpaceKey(userId, spaceId), owned.id);
     return owned;
@@ -720,6 +1230,12 @@ function ensureVesselForUser(
     ownerId: userId,
     crewIds: new Set([userId]),
     crewNames: new Map([[userId, username]]),
+    helmUserId: userId,
+    helmUsername: username,
+    engineUserId: userId,
+    engineUsername: username,
+    radioUserId: userId,
+    radioUsername: username,
     mode: 'player',
     desiredMode: 'player',
     lastCrewAt: Date.now(),
@@ -771,6 +1287,85 @@ const resolveChatChannel = (
   return vesselChannel || `space:${space}:global`;
 };
 
+async function isSpaceHost(userId: string | undefined, spaceId: string) {
+  if (!userId) return false;
+  return (await getSpaceRole(userId, spaceId)) === 'host';
+}
+
+async function getActiveBan(
+  userId: string | undefined,
+  username: string | undefined,
+  spaceId: string,
+) {
+  if (!userId && !username) return null;
+  const now = new Date();
+  try {
+    return await prisma.ban.findFirst({
+      where: {
+        spaceId: { in: [spaceId, DEFAULT_SPACE_ID] },
+        ...(userId || username
+          ? {
+              OR: [
+                ...(userId ? [{ userId }] : []),
+                ...(username ? [{ username }] : []),
+              ],
+            }
+          : {}),
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+    });
+  } catch (err) {
+    console.warn('Failed to check bans', err);
+    return null;
+  }
+}
+
+async function getActiveMute(
+  userId: string | undefined,
+  username: string | undefined,
+  spaceId: string,
+) {
+  if (!userId && !username) return null;
+  const now = new Date();
+  try {
+    return await prisma.mute.findFirst({
+      where: {
+        spaceId: { in: [spaceId, DEFAULT_SPACE_ID] },
+        ...(userId || username
+          ? {
+              OR: [
+                ...(userId ? [{ userId }] : []),
+                ...(username ? [{ username }] : []),
+              ],
+            }
+          : {}),
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+    });
+  } catch (err) {
+    console.warn('Failed to check mutes', err);
+    return null;
+  }
+}
+
+function updateSocketVesselRoom(
+  socket: import('socket.io').Socket,
+  spaceId: string,
+  vesselId?: string | null,
+) {
+  const current = socket.data.vesselId;
+  if (current) {
+    socket.leave(`space:${spaceId}:vessel:${current}`);
+  }
+  const normalized = vesselId ? vesselChannelId(vesselId) || vesselId : null;
+  if (normalized) {
+    socket.join(`space:${spaceId}:vessel:${normalized}`);
+    socket.data.vesselId = normalized;
+  } else {
+    socket.data.vesselId = undefined;
+  }
+}
+
 const loadChatHistory = async (
   channel: string,
   before?: number,
@@ -815,25 +1410,41 @@ const loadChatHistory = async (
   return { messages, hasMore };
 };
 
-const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => ({
-  id: v.id,
-  ownerId: v.ownerId,
-  crewIds: Array.from(v.crewIds),
-  crewCount: v.crewIds.size,
-  crewNames:
-    v.crewNames.size > 0
-      ? Object.fromEntries(Array.from(v.crewNames.entries()))
-      : undefined,
-  helm: { userId: v.helmUserId ?? null, username: v.helmUsername ?? null },
-  desiredMode: v.desiredMode,
-  mode: v.mode,
-  lastCrewAt: v.lastCrewAt,
-  position: mergePosition(v.position),
-  orientation: v.orientation,
-  velocity: v.velocity,
-  controls: v.controls,
-  angularVelocity: { yaw: v.yawRate ?? 0 },
-});
+const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => {
+  const mergedPosition = mergePosition(v.position);
+  const waterDepth = getBathymetryDepth(mergedPosition.lat, mergedPosition.lon);
+  return {
+    id: v.id,
+    ownerId: v.ownerId,
+    crewIds: Array.from(v.crewIds),
+    crewCount: v.crewIds.size,
+    crewNames:
+      v.crewNames.size > 0
+        ? Object.fromEntries(Array.from(v.crewNames.entries()))
+        : undefined,
+    helm: { userId: v.helmUserId ?? null, username: v.helmUsername ?? null },
+    stations: {
+      helm: { userId: v.helmUserId ?? null, username: v.helmUsername ?? null },
+      engine: {
+        userId: v.engineUserId ?? null,
+        username: v.engineUsername ?? null,
+      },
+      radio: {
+        userId: v.radioUserId ?? null,
+        username: v.radioUsername ?? null,
+      },
+    },
+    desiredMode: v.desiredMode,
+    mode: v.mode,
+    lastCrewAt: v.lastCrewAt,
+    position: mergedPosition,
+    orientation: v.orientation,
+    velocity: v.velocity,
+    controls: v.controls,
+    angularVelocity: { yaw: v.yawRate ?? 0 },
+    waterDepth,
+  };
+};
 
 const findVesselInSpace = (
   vesselId: string,
@@ -877,6 +1488,17 @@ if (PERF_LOGGING_ENABLED) {
         console.warn(
           `Slow API response: ${req.method} ${req.path} ${durationMs.toFixed(1)}ms status=${res.statusCode}`,
         );
+        recordLog({
+          level: 'warn',
+          source: 'api',
+          message: 'Slow API response',
+          meta: {
+            method: req.method,
+            path: req.path,
+            durationMs,
+            statusCode: res.statusCode,
+          },
+        });
       }
     });
     next();
@@ -938,7 +1560,7 @@ const io = new Server<
 });
 
 // Handle Socket.IO connections
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   const cookies = parseCookies(socket.handshake.headers.cookie as string);
   const cookieToken =
     cookies['next-auth.session-token'] ||
@@ -949,6 +1571,8 @@ io.use((socket, next) => {
         socketToken?: string;
         accessToken?: string;
         spaceId?: string;
+        mode?: 'player' | 'spectator';
+        autoJoin?: boolean;
       }
     | undefined;
   const rawToken =
@@ -957,6 +1581,10 @@ io.use((socket, next) => {
     authPayload?.accessToken ||
     cookieToken;
   const spaceIdFromHandshake = authPayload?.spaceId;
+  const requestedMode =
+    authPayload?.mode === 'spectator' ? 'spectator' : 'player';
+  const autoJoin =
+    typeof authPayload?.autoJoin === 'boolean' ? authPayload.autoJoin : true;
 
   if (!NEXTAUTH_SECRET) {
     console.warn('NEXTAUTH_SECRET is missing; treating socket as guest');
@@ -990,7 +1618,28 @@ io.use((socket, next) => {
       );
       const permissions = permissionsForRoles(roles);
       const spaceId = spaceIdFromHandshake || DEFAULT_SPACE_ID;
-      socket.data = { userId, username, roles, permissions, spaceId };
+      const account =
+        (await getEconomyProfile(userId).catch(() => null)) ||
+        DEFAULT_ECONOMY_PROFILE;
+      const spaceRole = await getSpaceRole(userId, spaceId);
+      socket.data = {
+        userId,
+        username,
+        roles,
+        permissions,
+        spaceId,
+        mode: requestedMode,
+        autoJoin,
+        rank: account.rank,
+        credits: account.credits,
+        experience: account.experience,
+        safetyScore: account.safetyScore,
+        spaceRole,
+      };
+      const ban = await getActiveBan(userId, username, spaceId);
+      if (ban) {
+        return next(new Error(`Banned: ${ban.reason || 'Access denied'}`));
+      }
       return next();
     } catch (err) {
       console.warn(
@@ -1010,7 +1659,18 @@ io.use((socket, next) => {
     roles: guestRoles,
     permissions: guestPermissions,
     spaceId,
+    mode: 'spectator',
+    autoJoin: false,
+    rank: 0,
+    credits: 0,
+    experience: 0,
+    safetyScore: 1,
+    spaceRole: 'member',
   };
+  const ban = await getActiveBan(undefined, undefined, spaceId);
+  if (ban) {
+    return next(new Error(`Banned: ${ban.reason || 'Access denied'}`));
+  }
   next();
 });
 
@@ -1020,29 +1680,57 @@ io.on('connection', async socket => {
   const effectiveUserId =
     userId || `guest_${Math.random().toString(36).substring(2, 9)}`;
   const effectiveUsername = username || 'Guest';
+  if (socket.data.rank === undefined && effectiveUserId) {
+    const account =
+      (await getEconomyProfile(effectiveUserId).catch(() => null)) ||
+      DEFAULT_ECONOMY_PROFILE;
+    socket.data.rank = account.rank;
+    socket.data.credits = account.credits;
+    socket.data.experience = account.experience;
+    socket.data.safetyScore = account.safetyScore;
+  }
+  if (!socket.data.spaceRole) {
+    socket.data.spaceRole = await getSpaceRole(effectiveUserId, spaceId);
+  }
+  const spaceMeta = await getSpaceMeta(spaceId);
   const roleSet = new Set(roles || []);
   const isPlayerOrHigher = roleSet.has('player') || roleSet.has('admin');
   const isSpectatorOnly = roleSet.has('spectator') && !isPlayerOrHigher;
   const isGuest = !isPlayerOrHigher && !roleSet.has('spectator');
+  const requestedMode = socket.data.mode || 'player';
+  const autoJoin = !(socket.data.autoJoin === false);
+  const rankEligible = (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
+  const wantsSpectator =
+    requestedMode === 'spectator' ||
+    !autoJoin ||
+    isSpectatorOnly ||
+    isGuest ||
+    !rankEligible;
 
   setConnectedClients(io.engine.clientsCount);
 
   let vessel: VesselRecord | null = null;
-  if (isPlayerOrHigher) {
+  if (isPlayerOrHigher && !wantsSpectator) {
     vessel = ensureVesselForUser(effectiveUserId, effectiveUsername, spaceId);
+    socket.data.mode = 'player';
+  } else {
+    socket.data.mode = 'spectator';
   }
 
   console.info(
     `Socket connected: ${effectiveUsername} (${effectiveUserId}) role=${isPlayerOrHigher ? 'player' : isSpectatorOnly ? 'spectator' : 'guest'} space=${spaceId}`,
   );
+  if (!rankEligible && isPlayerOrHigher) {
+    socket.emit(
+      'error',
+      `Rank ${socket.data.rank ?? 1} required to join ${spaceMeta.name}`,
+    );
+  }
 
-  const normalizedVesselId = vesselChannelId(vessel?.id);
-  socket.data.vesselId = normalizedVesselId || vessel?.id;
   socket.join(`space:${spaceId}`);
   socket.join(`space:${spaceId}:global`);
-  if (normalizedVesselId) {
-    socket.join(`space:${spaceId}:vessel:${normalizedVesselId}`);
-  }
+  socket.join(`user:${effectiveUserId}`);
+  updateSocketVesselRoom(socket, spaceId, vessel?.id);
 
   // Load and send environment for this space on connect
   await loadEnvironmentFromDb(spaceId);
@@ -1109,7 +1797,27 @@ io.on('connection', async socket => {
       vessels: vesselsInSpace,
       environment: globalState.environmentBySpace.get(spaceId),
       timestamp: Date.now(),
-      self: { userId: effectiveUserId, roles: roles || ['guest'], spaceId },
+      self: {
+        userId: effectiveUserId,
+        roles: roles || ['guest'],
+        rank: socket.data.rank ?? DEFAULT_ECONOMY_PROFILE.rank,
+        credits: socket.data.credits ?? DEFAULT_ECONOMY_PROFILE.credits,
+        experience:
+          socket.data.experience ?? DEFAULT_ECONOMY_PROFILE.experience,
+        safetyScore:
+          socket.data.safetyScore ?? DEFAULT_ECONOMY_PROFILE.safetyScore,
+        spaceId,
+        mode: (socket.data as { mode?: 'player' | 'spectator' }).mode,
+      },
+      spaceInfo: {
+        id: spaceMeta.id,
+        name: spaceMeta.name,
+        visibility: spaceMeta.visibility,
+        kind: spaceMeta.kind,
+        rankRequired: spaceMeta.rankRequired,
+        rules: spaceMeta.rules ?? null,
+        role: socket.data.spaceRole || 'member',
+      },
       chatHistory,
     });
   })();
@@ -1124,6 +1832,9 @@ io.on('connection', async socket => {
     }
     if (!isPlayerOrHigher) {
       console.info('Ignoring vessel:update from non-player');
+      return;
+    }
+    if ((socket.data as { mode?: string }).mode === 'spectator') {
       return;
     }
 
@@ -1141,6 +1852,13 @@ io.on('connection', async socket => {
       getVesselIdForUser(currentUserId, spaceId) || currentUserId,
     );
     if (!target || (target.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
+    const canSendUpdates =
+      hasAdminRole(socket) ||
+      target.helmUserId === currentUserId ||
+      target.ownerId === currentUserId;
+    if (!canSendUpdates) {
+      return;
+    }
 
     if (data.position) {
       target.position = mergePosition(target.position, data.position);
@@ -1177,9 +1895,25 @@ io.on('connection', async socket => {
   socket.on('user:mode', data => {
     const currentUserId = socket.data.userId || effectiveUserId;
     const wantsPlayer = data.mode === 'player';
+    const rankEligible =
+      (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
 
     if (wantsPlayer && !isPlayerOrHigher) {
       socket.emit('error', 'Your role does not permit player mode');
+      return;
+    }
+    if (wantsPlayer && !rankEligible) {
+      socket.emit(
+        'error',
+        `Rank ${spaceMeta.rankRequired ?? 1} required for this space`,
+      );
+      return;
+    }
+
+    if (data.mode === 'spectator') {
+      detachUserFromCurrentVessel(currentUserId, spaceId);
+      updateSocketVesselRoom(socket, spaceId, null);
+      socket.data.mode = 'spectator';
       return;
     }
 
@@ -1191,17 +1925,23 @@ io.on('connection', async socket => {
     }
     if (!target || (target.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
 
-    if (data.mode === 'spectator') {
-      // Keep crew membership/controls; AI_GRACE_MS will handle idle vessels.
-    } else {
-      target.crewIds.add(currentUserId);
-      target.desiredMode = 'player';
-      target.mode = 'player';
-      console.info(`Vessel ${target.id} switched to Player mode (crew added)`);
-    }
+    target.crewIds.add(currentUserId);
+    target.crewNames.set(currentUserId, effectiveUsername);
+    assignStationsForCrew(target, currentUserId, effectiveUsername);
+    target.desiredMode = 'player';
+    target.mode = 'player';
+    aiControllers.delete(target.id);
     target.lastCrewAt = Date.now();
     target.lastUpdate = Date.now();
+    updateSocketVesselRoom(socket, spaceId, target.id);
+    socket.data.mode = 'player';
     void persistVesselToDb(target, { force: true });
+
+    io.to(`space:${spaceId}`).emit('simulation:update', {
+      vessels: { [target.id]: toSimpleVesselState(target) },
+      partial: true,
+      timestamp: Date.now(),
+    });
   });
 
   // Handle vessel:control events
@@ -1210,6 +1950,10 @@ io.on('connection', async socket => {
     if (!currentUserId) return;
     if (!isPlayerOrHigher) {
       socket.emit('error', 'Not authorized to control a vessel');
+      return;
+    }
+    if ((socket.data as { mode?: string }).mode === 'spectator') {
+      socket.emit('error', 'Spectator mode cannot control vessels');
       return;
     }
 
@@ -1228,12 +1972,30 @@ io.on('connection', async socket => {
     );
     if (!target || (target.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
 
-    if (!target.helmUserId || target.helmUserId !== currentUserId) {
+    const isHelm = target.helmUserId === currentUserId;
+    const isEngine = target.engineUserId === currentUserId;
+    const isAdmin = hasAdminRole(socket);
+    const engineAvailable = !target.engineUserId || isEngine || isAdmin;
+
+    if (data.rudderAngle !== undefined && !isHelm && !isAdmin) {
       socket.emit(
         'error',
         target.helmUserId
           ? `Helm held by ${target.helmUsername || target.helmUserId}`
           : 'Claim the helm to steer',
+      );
+      return;
+    }
+
+    if (
+      (data.throttle !== undefined || data.ballast !== undefined) &&
+      !engineAvailable
+    ) {
+      socket.emit(
+        'error',
+        target.engineUserId
+          ? `Engine station held by ${target.engineUsername || target.engineUserId}`
+          : 'Claim the engine station to adjust throttle/ballast',
       );
       return;
     }
@@ -1244,8 +2006,8 @@ io.on('connection', async socket => {
     if (data.rudderAngle !== undefined) {
       target.controls.rudderAngle = clamp(
         data.rudderAngle,
-        -RUDDER_STALL_ANGLE_RAD,
-        RUDDER_STALL_ANGLE_RAD,
+        -RUDDER_MAX_ANGLE_RAD,
+        RUDDER_MAX_ANGLE_RAD,
       );
     }
     if (data.ballast !== undefined) {
@@ -1268,11 +2030,99 @@ io.on('connection', async socket => {
     // Future: apply global sim changes
   });
 
+  socket.on('latency:ping', data => {
+    if (!data || typeof data.sentAt !== 'number') return;
+    socket.emit('latency:pong', {
+      sentAt: data.sentAt,
+      serverAt: Date.now(),
+    });
+    recordMetric('socketLatency', Date.now() - data.sentAt);
+  });
+
+  socket.on('client:log', data => {
+    if (!data || typeof data.message !== 'string') return;
+    recordLog({
+      level: data.level || 'info',
+      source: data.source || 'client',
+      message: data.message,
+      meta: {
+        ...((data.meta as Record<string, unknown>) || {}),
+        userId: socket.data.userId || 'unknown',
+        spaceId: socket.data.spaceId || DEFAULT_SPACE_ID,
+      },
+    });
+  });
+
+  socket.on('vessel:join', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    const currentUsername = socket.data.username || effectiveUsername;
+    const rankEligible =
+      (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
+    if (!isPlayerOrHigher) {
+      socket.emit('error', 'Not authorized to join a vessel');
+      return;
+    }
+    if (!rankEligible) {
+      socket.emit(
+        'error',
+        `Rank ${spaceMeta.rankRequired ?? 1} required for this space`,
+      );
+      return;
+    }
+    const targetId =
+      typeof data?.vesselId === 'string' ? data.vesselId : undefined;
+    let target = targetId ? findVesselInSpace(targetId, spaceId) : null;
+    if (!target) {
+      target = findJoinableVessel(currentUserId, spaceId);
+    }
+    if (!target) {
+      socket.emit('error', 'No joinable vessels available');
+      return;
+    }
+    if (target.crewIds.size >= MAX_CREW) {
+      socket.emit('error', 'Selected vessel is at max crew');
+      return;
+    }
+
+    detachUserFromCurrentVessel(currentUserId, spaceId);
+    target.crewIds.add(currentUserId);
+    target.crewNames.set(currentUserId, currentUsername);
+    assignStationsForCrew(target, currentUserId, currentUsername);
+    target.mode = 'player';
+    aiControllers.delete(target.id);
+    target.desiredMode = 'player';
+    target.spaceId = spaceId;
+    target.lastCrewAt = Date.now();
+    target.lastUpdate = Date.now();
+    globalState.userLastVessel.set(
+      userSpaceKey(currentUserId, spaceId),
+      target.id,
+    );
+    updateSocketVesselRoom(socket, spaceId, target.id);
+    socket.data.mode = 'player';
+    void persistVesselToDb(target, { force: true });
+
+    io.to(`space:${spaceId}`).emit('simulation:update', {
+      vessels: { [target.id]: toSimpleVesselState(target) },
+      partial: true,
+      timestamp: Date.now(),
+    });
+  });
+
   socket.on('vessel:create', data => {
     const currentUserId = socket.data.userId || effectiveUserId;
     const currentUsername = socket.data.username || effectiveUsername;
+    const rankEligible =
+      (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
     if (!isPlayerOrHigher) {
       socket.emit('error', 'Not authorized to create a vessel');
+      return;
+    }
+    if (!rankEligible) {
+      socket.emit(
+        'error',
+        `Rank ${spaceMeta.rankRequired ?? 1} required for this space`,
+      );
       return;
     }
     detachUserFromCurrentVessel(currentUserId, spaceId);
@@ -1287,6 +2137,8 @@ io.on('connection', async socket => {
       userSpaceKey(currentUserId, spaceId),
       newVessel.id,
     );
+    updateSocketVesselRoom(socket, spaceId, newVessel.id);
+    socket.data.mode = 'player';
     void persistVesselToDb(newVessel, { force: true });
     io.to(`space:${spaceId}`).emit('simulation:update', {
       vessels: { [newVessel.id]: toSimpleVesselState(newVessel) },
@@ -1309,12 +2161,53 @@ io.on('connection', async socket => {
       socket.emit('error', 'You are not crew on this vessel');
       return;
     }
-    if (data.action === 'claim') {
-      vessel.helmUserId = currentUserId;
-      vessel.helmUsername = currentUsername;
-    } else {
-      vessel.helmUserId = null;
-      vessel.helmUsername = null;
+    const result = updateStationAssignment(
+      vessel,
+      'helm',
+      data.action,
+      currentUserId,
+      currentUsername,
+      hasAdminRole(socket),
+    );
+    if (!result.ok) {
+      socket.emit('error', result.message || 'Unable to change helm');
+      return;
+    }
+    vessel.lastUpdate = Date.now();
+    void persistVesselToDb(vessel, { force: true });
+    io.to(`space:${spaceId}`).emit('simulation:update', {
+      vessels: { [vessel.id]: toSimpleVesselState(vessel) },
+      partial: true,
+      timestamp: Date.now(),
+    });
+  });
+
+  socket.on('vessel:station', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    const currentUsername = socket.data.username || effectiveUsername;
+    const vesselKey =
+      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
+    const vessel = globalState.vessels.get(vesselKey);
+    if (!vessel || (vessel.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
+    if (!vessel.crewIds.has(currentUserId) && !hasAdminRole(socket)) {
+      socket.emit('error', 'You are not crew on this vessel');
+      return;
+    }
+    const station =
+      data.station === 'engine' || data.station === 'radio'
+        ? data.station
+        : 'helm';
+    const result = updateStationAssignment(
+      vessel,
+      station,
+      data.action,
+      currentUserId,
+      currentUsername,
+      hasAdminRole(socket),
+    );
+    if (!result.ok) {
+      socket.emit('error', result.message || 'Unable to change station');
+      return;
     }
     vessel.lastUpdate = Date.now();
     void persistVesselToDb(vessel, { force: true });
@@ -1345,6 +2238,31 @@ io.on('connection', async socket => {
     }
     target.lastUpdate = Date.now();
     void persistVesselToDb(target, { force: true });
+  });
+
+  socket.on('admin:kick', async data => {
+    if (!hasAdminRole(socket)) {
+      socket.emit('error', 'Not authorized to kick users');
+      return;
+    }
+    if (!data?.userId) {
+      socket.emit('error', 'Missing user id for kick');
+      return;
+    }
+    try {
+      const sockets = await io.fetchSockets();
+      const reason = data.reason || 'Removed by admin';
+      sockets.forEach(targetSocket => {
+        if (targetSocket.data.userId === data.userId) {
+          targetSocket.emit('error', reason);
+          targetSocket.disconnect(true);
+        }
+      });
+      console.info(`Admin kick executed for ${data.userId}`);
+    } catch (err) {
+      console.error('Failed to kick user', err);
+      socket.emit('error', 'Failed to kick user');
+    }
   });
 
   socket.on('admin:vessel:move', data => {
@@ -1404,14 +2322,15 @@ io.on('connection', async socket => {
   });
 
   // Handle admin weather control
-  socket.on('admin:weather', data => {
-    if (!hasAdminRole(socket)) {
+  socket.on('admin:weather', async data => {
+    const spaceId = getSpaceIdForSocket(socket);
+    const isHost = await isSpaceHost(socket.data.userId, spaceId);
+    if (!hasAdminRole(socket) && !isHost) {
       socket.emit('error', 'Not authorized to change weather');
       return;
     }
 
     const mode = data.mode === 'auto' ? 'auto' : 'manual';
-    const spaceId = getSpaceIdForSocket(socket);
 
     if (mode === 'auto') {
       weatherMode = 'auto';
@@ -1460,6 +2379,16 @@ io.on('connection', async socket => {
   socket.on('chat:message', async data => {
     if (!socketHasPermission(socket, 'chat', 'send')) {
       socket.emit('error', 'Not authorized to send chat messages');
+      return;
+    }
+
+    const mute = await getActiveMute(
+      socket.data.userId,
+      socket.data.username,
+      spaceId,
+    );
+    if (mute) {
+      socket.emit('error', mute.reason || 'You are muted in this space');
       return;
     }
 
@@ -1553,6 +2482,18 @@ io.on('connection', async socket => {
         : undefined;
       if (vesselRecord) {
         vesselRecord.crewIds.delete(currentUserId);
+        if (vesselRecord.helmUserId === currentUserId) {
+          vesselRecord.helmUserId = null;
+          vesselRecord.helmUsername = null;
+        }
+        if (vesselRecord.engineUserId === currentUserId) {
+          vesselRecord.engineUserId = null;
+          vesselRecord.engineUsername = null;
+        }
+        if (vesselRecord.radioUserId === currentUserId) {
+          vesselRecord.radioUserId = null;
+          vesselRecord.radioUsername = null;
+        }
         if (vesselRecord.crewIds.size === 0) {
           vesselRecord.mode = vesselRecord.desiredMode || 'player';
           vesselRecord.lastCrewAt = Date.now();
@@ -1574,8 +2515,15 @@ async function ensureDefaultSpaceExists() {
     await prisma.space.upsert({
       where: { id: DEFAULT_SPACE_ID },
       update: { name: 'Global', visibility: 'public' },
-      create: { id: DEFAULT_SPACE_ID, name: 'Global', visibility: 'public' },
+      create: {
+        id: DEFAULT_SPACE_ID,
+        name: 'Global',
+        visibility: 'public',
+        kind: 'free',
+        rankRequired: 1,
+      },
     });
+    await refreshSpaceMeta(DEFAULT_SPACE_ID);
   } catch (err) {
     console.warn('Failed to ensure default space exists', err);
   }
@@ -1595,11 +2543,67 @@ async function ensureDefaultVesselExists() {
   );
 }
 
+const ENV_EVENT_POLL_MS = 10000;
+
+async function processEnvironmentEvents() {
+  try {
+    const now = new Date();
+    const events = await prisma.environmentEvent.findMany({
+      where: {
+        enabled: true,
+        executedAt: null,
+        runAt: { lte: now },
+      },
+      orderBy: { runAt: 'asc' },
+    });
+    if (!events.length) return;
+
+    for (const event of events) {
+      const spaceId = event.spaceId || DEFAULT_SPACE_ID;
+      let env = getEnvironmentForSpace(spaceId);
+      if (event.pattern) {
+        const pattern = getWeatherPattern(event.pattern);
+        pattern.timeOfDay = env.timeOfDay ?? currentUtcTimeOfDay();
+        env = applyWeatherPattern(spaceId, pattern);
+      }
+      if (event.payload) {
+        env = applyEnvironmentOverrides(
+          spaceId,
+          event.payload as Partial<EnvironmentState>,
+        );
+      }
+      if (event.name) {
+        env = { ...env, name: event.name };
+        globalState.environmentBySpace.set(spaceId, env);
+      }
+      io.to(`space:${spaceId}`).emit('environment:update', env);
+      await prisma.environmentEvent.update({
+        where: { id: event.id },
+        data: { executedAt: now },
+      });
+      void persistEnvironmentToDb({ force: true, spaceId });
+      console.info(
+        `Applied scheduled environment event ${event.id} for space ${spaceId}`,
+      );
+    }
+  } catch (err) {
+    console.warn('Failed to process environment events', err);
+  }
+}
+
 async function startServer() {
   try {
     await ensureDefaultSpaceExists();
+    await loadBathymetry();
     await loadVesselsFromDb();
     await loadEnvironmentFromDb(DEFAULT_SPACE_ID);
+    const spaces = await prisma.space.findMany({ select: { id: true } });
+    await Promise.all(
+      spaces.map(space => seedDefaultMissions(space.id).catch(() => null)),
+    );
+    await Promise.all(
+      spaces.map(space => refreshSpaceMeta(space.id).catch(() => null)),
+    );
     await ensureDefaultVesselExists();
     server.listen(PORT, () => {
       console.info(`Server listening on port ${PORT}`);
@@ -1611,6 +2615,10 @@ async function startServer() {
 }
 
 void startServer();
+
+setInterval(() => {
+  void processEnvironmentEvents();
+}, ENV_EVENT_POLL_MS);
 
 // Broadcast authoritative snapshots at a throttled rate (5Hz)
 const BROADCAST_INTERVAL_MS = 200;
@@ -1627,6 +2635,12 @@ setInterval(() => {
     console.warn(
       `Simulation broadcast drifted: expected ${BROADCAST_INTERVAL_MS}ms, got ${drift}ms`,
     );
+    recordLog({
+      level: 'warn',
+      source: 'broadcast',
+      message: 'Simulation broadcast drifted',
+      meta: { expectedMs: BROADCAST_INTERVAL_MS, driftMs: drift },
+    });
   }
   lastBroadcastAt = now;
   const dt = BROADCAST_INTERVAL_MS / 1000;
@@ -1690,20 +2704,69 @@ setInterval(() => {
     string,
     Record<string, ReturnType<typeof toSimpleVesselState>>
   >();
+  const positionsBySpace = new Map<
+    string,
+    Map<
+      string,
+      { position: { lat: number; lon: number }; ownerId?: string | null }
+    >
+  >();
   for (const [id, v] of globalState.vessels.entries()) {
     const sid = v.spaceId || DEFAULT_SPACE_ID;
     if (!vesselsBySpace.has(sid)) vesselsBySpace.set(sid, {});
     vesselsBySpace.get(sid)![id] = toSimpleVesselState(v);
+    if (!positionsBySpace.has(sid)) positionsBySpace.set(sid, new Map());
+    const pos = mergePosition(v.position);
+    positionsBySpace.get(sid)!.set(id, {
+      position: { lat: pos.lat, lon: pos.lon },
+      ownerId: v.ownerId,
+    });
   }
 
   for (const [sid, vessels] of vesselsBySpace.entries()) {
     const env = getEnvironmentForSpace(sid);
+    const meta = spaceMetaCache.get(sid);
     io.to(`space:${sid}`).emit('simulation:update', {
       vessels,
       environment: env,
       timestamp: Date.now(),
       spaceId: sid,
+      spaceInfo: meta
+        ? {
+            id: meta.id,
+            name: meta.name,
+            visibility: meta.visibility,
+            kind: meta.kind,
+            rankRequired: meta.rankRequired,
+            rules: meta.rules ?? null,
+          }
+        : undefined,
     });
+  }
+
+  if (now - lastMissionUpdateAt > 1000) {
+    lastMissionUpdateAt = now;
+    for (const [sid, vesselMap] of positionsBySpace.entries()) {
+      void updateMissionAssignments({
+        spaceId: sid,
+        vessels: vesselMap,
+        emitUpdate: (userId, assignment) => {
+          io.to(`user:${userId}`).emit('mission:update', assignment);
+        },
+        emitEconomyUpdate: (userId, profile) => {
+          io.to(`user:${userId}`).emit('economy:update', profile);
+          void syncUserSocketsEconomy(userId, profile);
+        },
+      });
+    }
+  }
+
+  for (const sid of positionsBySpace.keys()) {
+    void applyColregsRules(sid, now);
+  }
+
+  for (const vessel of globalState.vessels.values()) {
+    void updateEconomyForVessel(vessel, now);
   }
 
   if (environmentChanged) {

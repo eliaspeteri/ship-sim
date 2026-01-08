@@ -93,3 +93,12 @@ export const positionToLatLon = (pos: {
   x: number;
   y: number;
 }): { lat: number; lon: number } => xyToLatLon(pos);
+
+export const distanceMeters = (
+  a: { lat: number; lon: number },
+  b: { lat: number; lon: number },
+): number => {
+  const { x: ax, y: ay } = latLonToXY(a);
+  const { x: bx, y: by } = latLonToXY(b);
+  return Math.hypot(ax - bx, ay - by);
+};
