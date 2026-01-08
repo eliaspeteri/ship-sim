@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import bcrypt from 'bcryptjs';
 
 import { prisma } from '../../lib/prisma';
+import { recordAuthEvent } from '../../lib/authAudit';
 
 export default async function handler(
   req: NextApiRequest,
@@ -42,8 +43,17 @@ export default async function handler(
       data: {
         name: username,
         role: 'player',
+        rank: 1,
+        experience: 0,
+        credits: 0,
+        safetyScore: 1,
         passwordHash,
       },
+    });
+    await recordAuthEvent({
+      userId: user.id,
+      event: 'register',
+      detail: { method: 'credentials' },
     });
 
     return res.status(201).json({

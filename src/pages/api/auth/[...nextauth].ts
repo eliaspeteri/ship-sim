@@ -4,12 +4,14 @@ import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../../lib/prisma';
+import { recordAuthEvent } from '../../../lib/authAudit';
 
 // Simple in-memory rate limiter/lockout for credential auth
 type LoginAttempt = { failures: number; lockedUntil: number };
 const loginAttempts = new Map<string, LoginAttempt>();
 const MAX_FAILURES = 5;
 const LOCKOUT_MS = 10 * 60 * 1000; // 10 minutes
+const TOKEN_ROTATION_AUDIT_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 const getAttemptKey = (username?: string) =>
   (username || 'unknown').trim().toLowerCase() || 'unknown';
@@ -76,6 +78,10 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           name: user.name || user.email || user.id,
           role: user.role || 'player',
+          rank: (user as { rank?: number }).rank ?? 1,
+          credits: (user as { credits?: number }).credits ?? 0,
+          experience: (user as { experience?: number }).experience ?? 0,
+          safetyScore: (user as { safetyScore?: number }).safetyScore ?? 1,
         };
       },
     }),
@@ -90,12 +96,51 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.sub = user.id || token.sub;
         token.name = user.name || token.name;
         (token as ShipSimJWT).role =
           (user as { role?: string }).role || (token as ShipSimJWT).role;
+        (token as ShipSimJWT).rank =
+          (user as { rank?: number }).rank ?? (token as ShipSimJWT).rank ?? 1;
+        (token as ShipSimJWT).credits =
+          (user as { credits?: number }).credits ??
+          (token as ShipSimJWT).credits ??
+          0;
+        (token as ShipSimJWT).experience =
+          (user as { experience?: number }).experience ??
+          (token as ShipSimJWT).experience ??
+          0;
+        (token as ShipSimJWT).safetyScore =
+          (user as { safetyScore?: number }).safetyScore ??
+          (token as ShipSimJWT).safetyScore ??
+          1;
+        (token as ShipSimJWT).lastRotationAt = Date.now();
+        await recordAuthEvent({
+          userId: user.id,
+          event: 'login',
+          detail: {
+            provider: account?.provider || 'credentials',
+          },
+        });
+      } else {
+        const now = Date.now();
+        const lastRotation =
+          (token as ShipSimJWT).lastRotationAt ||
+          (token as ShipSimJWT).iat * 1000 ||
+          0;
+        if (now - lastRotation > TOKEN_ROTATION_AUDIT_MS) {
+          (token as ShipSimJWT).lastRotationAt = now;
+          await recordAuthEvent({
+            userId: (token.sub as string) || undefined,
+            event: 'token_rotate',
+            detail: {
+              ageMs: now - lastRotation,
+              provider: account?.provider || 'session',
+            },
+          });
+        }
       }
       return token;
     },
@@ -105,6 +150,13 @@ export const authOptions: NextAuthOptions = {
           (token as ShipSimJWT).sub || session.user?.id || '';
         (session.user as ShipSimUser).role =
           (token as ShipSimJWT).role || 'player';
+        (session.user as ShipSimUser).rank = (token as ShipSimJWT).rank ?? 1;
+        (session.user as ShipSimUser).credits =
+          (token as ShipSimJWT).credits ?? 0;
+        (session.user as ShipSimUser).experience =
+          (token as ShipSimJWT).experience ?? 0;
+        (session.user as ShipSimUser).safetyScore =
+          (token as ShipSimJWT).safetyScore ?? 1;
       }
       // Expose a signed token for sockets (non-HTTP-only)
       if (process.env.NEXTAUTH_SECRET) {
@@ -123,6 +175,10 @@ export default NextAuth(authOptions);
 interface ShipSimUser {
   id: string;
   role: string;
+  rank?: number;
+  credits?: number;
+  experience?: number;
+  safetyScore?: number;
   name?: string | null;
   email?: string | null;
   image?: string | null;
@@ -131,7 +187,13 @@ interface ShipSimUser {
 interface ShipSimJWT {
   role?: string;
   sub?: string;
+  rank?: number;
+  credits?: number;
+  experience?: number;
+  safetyScore?: number;
+  lastRotationAt?: number;
   [key: string]: unknown;
+  iat: number;
 }
 
 interface ShipSimSession extends Record<string, unknown> {

@@ -5,20 +5,33 @@ declare module 'next-auth' {
     socketToken?: string;
     user?: DefaultSession['user'] & {
       id?: string;
-      roles?: string[];
+      role?: string;
+      rank?: number;
+      credits?: number;
+      experience?: number;
+      safetyScore?: number;
     };
   }
 
   interface User extends DefaultUser {
-    roles?: string[];
+    role?: string;
     id?: string;
+    rank?: number;
+    credits?: number;
+    experience?: number;
+    safetyScore?: number;
   }
 }
 
 declare module 'next-auth/jwt' {
   interface JWT {
-    roles?: string[];
+    role?: string;
     sub?: string;
     name?: string;
+    rank?: number;
+    credits?: number;
+    experience?: number;
+    safetyScore?: number;
+    lastRotationAt?: number;
   }
 }

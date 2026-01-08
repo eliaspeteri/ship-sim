@@ -1,12 +1,34 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { getToken } from 'next-auth/jwt';
+import { recordAuthEvent } from '../../lib/authAudit';
 
 // Simple logout endpoint to clear auth-related cookies (NextAuth + legacy tokens)
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res
       .status(405)
       .json({ success: false, error: 'Method not allowed' });
+  }
+
+  try {
+    const token = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: false,
+    });
+    if (token) {
+      await recordAuthEvent({
+        userId: (token.sub as string) || undefined,
+        event: 'logout',
+        detail: { reason: 'manual' },
+      });
+    }
+  } catch (error) {
+    console.warn('Failed to record logout event', error);
   }
 
   const expires = new Date(0).toUTCString();

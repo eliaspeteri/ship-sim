@@ -8,6 +8,10 @@ export interface AuthenticatedUser {
   username: string;
   roles: Role[];
   permissions: Permission[];
+  rank: number;
+  credits: number;
+  experience: number;
+  safetyScore: number;
 }
 
 // Extend the Express Request interface to include the user property
@@ -21,6 +25,10 @@ declare global {
 }
 
 const getTokenFromRequest = (req: Request): string | undefined => {
+  const header = req.headers.authorization;
+  if (header && header.startsWith('Bearer ')) {
+    return header.slice('Bearer '.length).trim();
+  }
   return (
     req.cookies?.['next-auth.session-token'] ||
     req.cookies?.['__Secure-next-auth.session-token']
@@ -32,6 +40,10 @@ const toAuthenticatedUser = (token: {
   name?: string;
   email?: string;
   role?: Role;
+  rank?: number;
+  credits?: number;
+  experience?: number;
+  safetyScore?: number;
 }): AuthenticatedUser => {
   const baseRole: Role = token.role || 'player';
   const roles = expandRoles([baseRole]);
@@ -41,6 +53,10 @@ const toAuthenticatedUser = (token: {
     username: token.name || token.email || 'Unknown',
     roles,
     permissions,
+    rank: token.rank ?? 1,
+    credits: token.credits ?? 0,
+    experience: token.experience ?? 0,
+    safetyScore: token.safetyScore ?? 1,
   };
 };
 

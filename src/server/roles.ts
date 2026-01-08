@@ -9,11 +9,17 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   guest: [],
   spectator: [
     { resource: 'vessel', action: 'list' }, // read-only vessel visibility
+    { resource: 'mission', action: 'list' },
+    { resource: 'economy', action: 'read' },
   ],
   player: [
     { resource: 'vessel', action: 'list' },
     { resource: 'vessel', action: 'update' }, // send control/position updates
     { resource: 'chat', action: 'send' }, // can chat once chat system enabled
+    { resource: 'mission', action: 'list' },
+    { resource: 'mission', action: 'assign' },
+    { resource: 'mission', action: 'progress' },
+    { resource: 'economy', action: 'read' },
   ],
   admin: [{ resource: '*', action: '*' }],
 };
