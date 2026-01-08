@@ -25,6 +25,19 @@ export interface WasmModule {
     beam: number,
     draft: number,
     blockCoefficient: number,
+    rudderForceCoefficient: number,
+    rudderStallAngle: number,
+    rudderMaxAngle: number,
+    dragCoefficient: number,
+    yawDamping: number,
+    yawDampingQuad: number,
+    swayDamping: number,
+    maxThrust: number,
+    maxSpeed: number,
+    rollDamping: number,
+    pitchDamping: number,
+    heaveStiffness: number,
+    heaveDamping: number,
   ) => number;
   destroyVessel?: (vesselPtr: number) => void;
 
@@ -36,6 +49,10 @@ export interface WasmModule {
     windDirection: number,
     currentSpeed: number,
     currentDirection: number,
+    waveHeight: number,
+    waveLength: number,
+    waveDirection: number,
+    waveSteepness: number,
   ) => number;
 
   // Control inputs

@@ -25,6 +25,7 @@ export interface EnvironmentState {
   waveHeight?: number;
   waveDirection?: number;
   waveLength?: number;
+  waveSteepness?: number;
   visibility?: number;
   timeOfDay: number;
   precipitation?: 'none' | 'rain' | 'snow' | 'fog';

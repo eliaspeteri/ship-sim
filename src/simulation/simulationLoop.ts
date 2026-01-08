@@ -5,10 +5,52 @@ import { VesselState } from '../types/vessel.types';
 import { safe } from '../lib/safe';
 import socketManager from '../networking/socket';
 import { positionFromXY, positionToXY } from '../lib/position';
-import { clampRudderAngle } from '../constants/vessel';
+import { clampRudderAngle, DEFAULT_HYDRO } from '../constants/vessel';
+import { deriveWaveState } from '../lib/waves';
 
 // Singleton for simulation instance
 let simulationInstance: SimulationLoop | null = null;
+
+const toNumber = (value: number | undefined, fallback: number) =>
+  Number.isFinite(value) ? (value as number) : fallback;
+
+const buildHydroParams = (vessel: VesselState) => {
+  const hydro = vessel.hydrodynamics || DEFAULT_HYDRO;
+  const maxSpeedKnots = toNumber(vessel.properties?.maxSpeed, 23);
+  return {
+    rudderForceCoefficient: toNumber(
+      hydro.rudderForceCoefficient,
+      DEFAULT_HYDRO.rudderForceCoefficient,
+    ),
+    rudderStallAngle: toNumber(
+      hydro.rudderStallAngle,
+      DEFAULT_HYDRO.rudderStallAngle,
+    ),
+    rudderMaxAngle: toNumber(
+      hydro.rudderMaxAngle,
+      DEFAULT_HYDRO.rudderMaxAngle,
+    ),
+    dragCoefficient: toNumber(
+      hydro.dragCoefficient,
+      DEFAULT_HYDRO.dragCoefficient,
+    ),
+    yawDamping: toNumber(hydro.yawDamping, DEFAULT_HYDRO.yawDamping),
+    yawDampingQuad: toNumber(
+      hydro.yawDampingQuad,
+      DEFAULT_HYDRO.yawDampingQuad,
+    ),
+    swayDamping: toNumber(hydro.swayDamping, DEFAULT_HYDRO.swayDamping),
+    maxThrust: toNumber(hydro.maxThrust, DEFAULT_HYDRO.maxThrust),
+    maxSpeed: maxSpeedKnots * 0.514444,
+    rollDamping: toNumber(hydro.rollDamping, DEFAULT_HYDRO.rollDamping),
+    pitchDamping: toNumber(hydro.pitchDamping, DEFAULT_HYDRO.pitchDamping),
+    heaveStiffness: toNumber(
+      hydro.heaveStiffness,
+      DEFAULT_HYDRO.heaveStiffness,
+    ),
+    heaveDamping: toNumber(hydro.heaveDamping, DEFAULT_HYDRO.heaveDamping),
+  };
+};
 
 export class SimulationLoop {
   private wasmBridge: WasmBridge | null = null;
@@ -20,12 +62,13 @@ export class SimulationLoop {
     process.env.NEXT_PUBLIC_SIM_PERF_LOGS === 'true' ||
     process.env.NODE_ENV !== 'production';
   private static readonly perfLogIntervalMs = 5000;
-  private static readonly perfAvgWarnMs = 25;
-  private static readonly perfMaxWarnMs = 50;
+  private static readonly perfAvgWarnMs = 20;
+  private static readonly perfMaxWarnMs = 40;
 
   private lastStateUpdateTime = 0;
   private stabilityUpdateCounter = 0;
   private wavePropertiesUpdateCounter = 0;
+  private replayUpdateCounter = 0;
   private lastBroadcastTime = 0;
   private readonly broadcastInterval = 0.2; // seconds (5 Hz)
   private stopped = false;
@@ -93,6 +136,7 @@ export class SimulationLoop {
       const blockCoeff = Number.isFinite(properties.blockCoefficient)
         ? properties.blockCoefficient
         : 0.8;
+      const hydro = buildHydroParams(vessel);
       const vesselPtr = this.wasmBridge.createVessel(
         safe(initialX, 0),
         safe(initialY, 0),
@@ -113,6 +157,19 @@ export class SimulationLoop {
         safe(properties.beam, 28),
         safe(properties.draft, 9.1),
         blockCoeff,
+        hydro.rudderForceCoefficient,
+        hydro.rudderStallAngle,
+        hydro.rudderMaxAngle,
+        hydro.dragCoefficient,
+        hydro.yawDamping,
+        hydro.yawDampingQuad,
+        hydro.swayDamping,
+        hydro.maxThrust,
+        hydro.maxSpeed,
+        hydro.rollDamping,
+        hydro.pitchDamping,
+        hydro.heaveStiffness,
+        hydro.heaveDamping,
       );
       state.setWasmVesselPtr(vesselPtr);
 
@@ -200,6 +257,12 @@ export class SimulationLoop {
         console.warn(
           `Simulation loop over budget: avg ${avgMs.toFixed(2)}ms, max ${this.maxFrameMs.toFixed(2)}ms`,
         );
+        socketManager.sendClientLog({
+          level: 'warn',
+          source: 'sim-loop',
+          message: 'Simulation loop over budget',
+          meta: { avgMs, maxMs: this.maxFrameMs },
+        });
       } else {
         console.info(
           `Simulation loop timing: avg ${avgMs.toFixed(2)}ms, max ${this.maxFrameMs.toFixed(2)}ms`,
@@ -244,7 +307,18 @@ export class SimulationLoop {
 
     // Calculate the actual sea state based on wind speed
     const calculatedSeaState = this.wasmBridge.calculateSeaState(wind.speed);
-    state.updateEnvironment({ seaState: calculatedSeaState });
+    const waveState = deriveWaveState(state.environment, {
+      fallbackDirection: wind.direction,
+    });
+    if (this.wavePropertiesUpdateCounter++ % 30 === 0) {
+      state.updateEnvironment({
+        seaState: calculatedSeaState,
+        waveHeight: waveState.amplitude * 2,
+        waveDirection: waveState.direction,
+        waveLength: waveState.wavelength,
+        waveSteepness: waveState.steepness,
+      });
+    }
 
     try {
       // Update vessel state in WASM - store the updated pointer in case it changes
@@ -255,6 +329,10 @@ export class SimulationLoop {
         wind.direction,
         current.speed,
         current.direction,
+        waveState.amplitude * 2,
+        waveState.wavelength,
+        waveState.direction,
+        waveState.steepness,
       );
 
       // Read vessel data from WASM
@@ -333,10 +411,14 @@ export class SimulationLoop {
 
       // Set rudder angle if provided
       if (controls.rudderAngle !== undefined) {
-        this.wasmBridge.setRudderAngle(
-          vesselPtr,
-          clampRudderAngle(controls.rudderAngle),
+        const maxAngle =
+          state.vessel.hydrodynamics?.rudderMaxAngle ??
+          DEFAULT_HYDRO.rudderMaxAngle;
+        const clamped = Math.max(
+          -maxAngle,
+          Math.min(maxAngle, controls.rudderAngle),
         );
+        this.wasmBridge.setRudderAngle(vesselPtr, clamped);
       }
 
       // Set ballast if provided
@@ -362,6 +444,7 @@ export class SimulationLoop {
     const blockCoeff = Number.isFinite(vessel.properties.blockCoefficient)
       ? vessel.properties.blockCoefficient
       : 0.8;
+    const hydro = buildHydroParams(vessel);
     const nextPtr = this.wasmBridge.createVessel(
       safe(position.x, 0),
       safe(position.y, 0),
@@ -382,6 +465,19 @@ export class SimulationLoop {
       safe(vessel.properties.beam, 28),
       safe(vessel.properties.draft, 9.1),
       blockCoeff,
+      hydro.rudderForceCoefficient,
+      hydro.rudderStallAngle,
+      hydro.rudderMaxAngle,
+      hydro.dragCoefficient,
+      hydro.yawDamping,
+      hydro.yawDampingQuad,
+      hydro.swayDamping,
+      hydro.maxThrust,
+      hydro.maxSpeed,
+      hydro.rollDamping,
+      hydro.pitchDamping,
+      hydro.heaveStiffness,
+      hydro.heaveDamping,
     );
 
     if (state.wasmVesselPtr) {
@@ -464,10 +560,59 @@ export class SimulationLoop {
 
       vesselUpdate.engineState = engineUpdate;
 
+      const waterDepth = state.vessel.waterDepth;
+      const draft = state.vessel.properties?.draft ?? 0;
+      if (
+        Number.isFinite(waterDepth) &&
+        Number.isFinite(draft) &&
+        (waterDepth as number) <= draft + 0.1
+      ) {
+        vesselUpdate.velocity = { surge: 0, sway: 0, heave: 0 };
+        vesselUpdate.controls = {
+          ...state.vessel.controls,
+          throttle: 0,
+          rudderAngle: 0,
+        };
+        const otherAlarms = state.vessel.alarms?.otherAlarms || {};
+        if (!otherAlarms.grounding) {
+          vesselUpdate.alarms = {
+            ...state.vessel.alarms,
+            collisionAlert: true,
+            otherAlarms: { ...otherAlarms, grounding: true },
+          };
+          state.addEvent({
+            category: 'alarm',
+            type: 'grounding',
+            message: 'Grounding detected: keel exceeds local depth',
+            severity: 'critical',
+          });
+        }
+      }
+
       // Only update the store if we have something to update
       if (Object.keys(vesselUpdate).length > 0) {
         // Update the store with the collected values
         state.updateVessel(vesselUpdate);
+      }
+
+      if (state.replay.recording && positionUpdate && orientationUpdate) {
+        if (this.replayUpdateCounter++ % 3 === 0) {
+          state.addReplayFrame({
+            timestamp: Date.now(),
+            position: {
+              x: positionUpdate.x ?? 0,
+              y: positionUpdate.y ?? 0,
+              z: positionUpdate.z ?? 0,
+              lat: positionUpdate.lat ?? 0,
+              lon: positionUpdate.lon ?? 0,
+            },
+            orientation: {
+              heading: orientationUpdate.heading ?? 0,
+              roll: orientationUpdate.roll ?? 0,
+              pitch: orientationUpdate.pitch ?? 0,
+            },
+          });
+        }
       }
 
       // Check for low fuel alarm - with null safety

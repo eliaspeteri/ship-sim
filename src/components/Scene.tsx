@@ -16,6 +16,7 @@ import { Water } from 'three/examples/jsm/objects/Water.js';
 import useStore from '../store';
 import Ship from './Ship';
 import socketManager from '../networking/socket';
+import { deriveWaveState, getGerstnerSample } from '../lib/waves';
 
 interface SceneProps {
   vesselPosition: {
@@ -70,10 +71,12 @@ function WaterPlane({
   centerRef,
   sunDirection,
   size,
+  waveState,
 }: {
   centerRef: React.MutableRefObject<{ x: number; y: number }>;
   sunDirection: THREE.Vector3;
   size: number;
+  waveState: ReturnType<typeof deriveWaveState>;
 }) {
   const waterRef = useRef<Water | null>(null);
   const geometry = useMemo(
@@ -81,6 +84,8 @@ function WaterPlane({
     [size],
   );
   const waterNormals = useMemo(() => createTiledNormalMap(), []);
+  const waveRef = useRef(waveState);
+  const waveTimeRef = useRef(0);
 
   const water = useMemo(
     () =>
@@ -107,6 +112,10 @@ function WaterPlane({
     }
   }, [sunDirection]);
 
+  useEffect(() => {
+    waveRef.current = waveState;
+  }, [waveState]);
+
   useEffect(
     () => () => {
       water.geometry.dispose();
@@ -119,6 +128,18 @@ function WaterPlane({
     if (!waterRef.current) return;
     waterRef.current.material.uniforms.time.value += delta;
     waterRef.current.position.set(centerRef.current.x, 0, centerRef.current.y);
+    waveTimeRef.current += delta;
+    const positions = geometry.attributes.position;
+    const wave = waveRef.current;
+    if (!wave || wave.amplitude <= 0.01) return;
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i) + centerRef.current.x;
+      const y = positions.getY(i) + centerRef.current.y;
+      const sample = getGerstnerSample(x, y, waveTimeRef.current, wave);
+      positions.setZ(i, sample.height);
+    }
+    positions.needsUpdate = true;
+    geometry.computeVertexNormals();
   });
 
   return (
@@ -277,6 +298,118 @@ function LightTracker({
     light.target.updateMatrixWorld();
   });
   return null;
+}
+
+function RendererPerfMonitor({ enabled }: { enabled: boolean }) {
+  const frameCounter = useRef(0);
+  const totalMs = useRef(0);
+  const maxMs = useRef(0);
+  const lastReportAt = useRef(0);
+  const warnAvg = 18;
+  const warnMax = 40;
+  const reportInterval = 5000;
+
+  useFrame((_, delta) => {
+    if (!enabled) return;
+    const now = performance.now();
+    const ms = delta * 1000;
+    frameCounter.current += 1;
+    totalMs.current += ms;
+    maxMs.current = Math.max(maxMs.current, ms);
+
+    if (now - lastReportAt.current > reportInterval) {
+      const avgMs =
+        frameCounter.current > 0 ? totalMs.current / frameCounter.current : 0;
+      if (avgMs > warnAvg || maxMs.current > warnMax) {
+        socketManager.sendClientLog({
+          level: 'warn',
+          source: 'renderer',
+          message: 'Renderer frame budget exceeded',
+          meta: { avgMs, maxMs: maxMs.current },
+        });
+      }
+      lastReportAt.current = now;
+      frameCounter.current = 0;
+      totalMs.current = 0;
+      maxMs.current = 0;
+    }
+  });
+
+  return null;
+}
+
+function ReplayGhost({
+  frames,
+  playing,
+  size,
+  onComplete,
+}: {
+  frames: Array<{
+    timestamp: number;
+    position: { x: number; y: number; z: number };
+    orientation: { heading: number; roll: number; pitch: number };
+  }>;
+  playing: boolean;
+  size: { length: number; beam: number; draft: number };
+  onComplete: () => void;
+}) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const indexRef = useRef(0);
+  const startRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!playing) {
+      indexRef.current = 0;
+      startRef.current = null;
+    }
+  }, [playing]);
+
+  useFrame(() => {
+    if (!playing || frames.length === 0 || !meshRef.current) return;
+    if (startRef.current === null) {
+      startRef.current = performance.now();
+      indexRef.current = 0;
+    }
+    const elapsed = performance.now() - startRef.current;
+    const targetTime = frames[0].timestamp + elapsed;
+
+    while (
+      indexRef.current < frames.length - 1 &&
+      frames[indexRef.current].timestamp < targetTime
+    ) {
+      indexRef.current += 1;
+    }
+
+    const frame = frames[indexRef.current];
+    const sink = -size.draft * 0.35;
+    meshRef.current.position.set(
+      frame.position.x,
+      frame.position.y + sink,
+      frame.position.z,
+    );
+    meshRef.current.rotation.set(
+      frame.orientation.pitch,
+      -frame.orientation.heading - Math.PI / 2,
+      frame.orientation.roll,
+    );
+
+    if (indexRef.current >= frames.length - 1) {
+      onComplete();
+    }
+  });
+
+  return (
+    <mesh ref={meshRef}>
+      <boxGeometry args={[size.length, size.draft * 1.2, size.beam]} />
+      <meshStandardMaterial
+        color="#8cc6ff"
+        opacity={0.35}
+        transparent
+        roughness={0.2}
+        metalness={0.1}
+      />
+    </mesh>
+  );
 }
 
 function AdminDragHandles({
@@ -438,6 +571,9 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
   const vesselOrientation = useStore(state => state.vessel.orientation);
   const otherVessels = useStore(state => state.otherVessels);
   const envTime = useStore(state => state.environment.timeOfDay);
+  const environment = useStore(state => state.environment);
+  const replay = useStore(state => state.replay);
+  const stopReplayPlayback = useStore(state => state.stopReplayPlayback);
   const roles = useStore(state => state.roles);
   const currentVesselId = useStore(state => state.currentVesselId);
   const isAdmin = roles.includes('admin');
@@ -446,6 +582,9 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
     Record<string, { x: number; y: number }>
   >({});
   const directionalLightRef = useRef<THREE.DirectionalLight | null>(null);
+  const perfLoggingEnabled =
+    process.env.NEXT_PUBLIC_RENDERER_PERF_LOGS === 'true' ||
+    process.env.NODE_ENV !== 'production';
   const focusRef = useRef<{ x: number; y: number }>({
     x: vesselPosition.x,
     y: vesselPosition.y,
@@ -480,6 +619,8 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
     };
     return { sunDirection: dir, daylight, lightIntensity };
   }, [envTime]);
+
+  const waveState = useMemo(() => deriveWaveState(environment), [environment]);
 
   const dragTargets = useMemo(() => {
     if (!isAdmin || !isSpectator) return [];
@@ -597,10 +738,12 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           targetRef={focusRef}
           sunDirection={sunDirection}
         />
+        <RendererPerfMonitor enabled={perfLoggingEnabled} />
         <WaterPlane
           centerRef={focusRef}
           sunDirection={sunDirection}
           size={isSpectator ? 80000 : 40000}
+          waveState={waveState}
         />
         <Ship
           position={{
@@ -619,6 +762,18 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           roll={vesselOrientation.roll}
           pitch={vesselOrientation.pitch}
         />
+        {replay.playing && replay.frames.length > 1 ? (
+          <ReplayGhost
+            frames={replay.frames}
+            playing={replay.playing}
+            size={{
+              length: vesselProperties.length,
+              beam: vesselProperties.beam,
+              draft: vesselProperties.draft,
+            }}
+            onComplete={stopReplayPlayback}
+          />
+        ) : null}
         {Object.entries(otherVessels || {}).map(([id, v]) => (
           <Ship
             key={id}

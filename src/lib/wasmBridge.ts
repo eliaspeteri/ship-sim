@@ -18,6 +18,10 @@ export class WasmBridge {
     windDirection: number,
     currentSpeed: number,
     currentDirection: number,
+    waveHeight: number,
+    waveLength: number,
+    waveDirection: number,
+    waveSteepness: number,
   ): number {
     return this.wasmModule.updateVesselState(
       vesselPtr,
@@ -26,6 +30,10 @@ export class WasmBridge {
       windDirection,
       currentSpeed,
       currentDirection,
+      waveHeight,
+      waveLength,
+      waveDirection,
+      waveSteepness,
     );
   }
 
@@ -49,6 +57,19 @@ export class WasmBridge {
     beam: number,
     draft: number,
     blockCoefficient: number,
+    rudderForceCoefficient: number,
+    rudderStallAngle: number,
+    rudderMaxAngle: number,
+    dragCoefficient: number,
+    yawDamping: number,
+    yawDampingQuad: number,
+    swayDamping: number,
+    maxThrust: number,
+    maxSpeed: number,
+    rollDamping: number,
+    pitchDamping: number,
+    heaveStiffness: number,
+    heaveDamping: number,
   ): number {
     return this.wasmModule.createVessel(
       x,
@@ -70,6 +91,19 @@ export class WasmBridge {
       beam,
       draft,
       blockCoefficient,
+      rudderForceCoefficient,
+      rudderStallAngle,
+      rudderMaxAngle,
+      dragCoefficient,
+      yawDamping,
+      yawDampingQuad,
+      swayDamping,
+      maxThrust,
+      maxSpeed,
+      rollDamping,
+      pitchDamping,
+      heaveStiffness,
+      heaveDamping,
     );
   }
 

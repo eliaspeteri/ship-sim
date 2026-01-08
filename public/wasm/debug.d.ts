@@ -23,9 +23,22 @@ export declare const table: WebAssembly.Table;
  * @param beam `f64`
  * @param draft `f64`
  * @param blockCoefficient `f64`
+ * @param rudderForceCoefficient `f64`
+ * @param rudderStallAngle `f64`
+ * @param rudderMaxAngle `f64`
+ * @param dragCoefficient `f64`
+ * @param yawDamping `f64`
+ * @param yawDampingQuad `f64`
+ * @param swayDamping `f64`
+ * @param maxThrust `f64`
+ * @param maxSpeed `f64`
+ * @param rollDamping `f64`
+ * @param pitchDamping `f64`
+ * @param heaveStiffness `f64`
+ * @param heaveDamping `f64`
  * @returns `usize`
  */
-export declare function createVessel(x: number, y: number, z: number, psi: number, _phi: number, _theta: number, u: number, v: number, w: number, r: number, _p: number, _q: number, throttle: number, rudderAngle: number, mass: number, length: number, beam: number, draft: number, blockCoefficient?: number): number;
+export declare function createVessel(x: number, y: number, z: number, psi: number, _phi: number, _theta: number, u: number, v: number, w: number, r: number, _p: number, _q: number, throttle: number, rudderAngle: number, mass: number, length: number, beam: number, draft: number, blockCoefficient?: number, rudderForceCoefficient?: number, rudderStallAngle?: number, rudderMaxAngle?: number, dragCoefficient?: number, yawDamping?: number, yawDampingQuad?: number, swayDamping?: number, maxThrust?: number, maxSpeed?: number, rollDamping?: number, pitchDamping?: number, heaveStiffness?: number, heaveDamping?: number): number;
 /**
  * assembly/index/destroyVessel
  * @param _vesselPtr `usize`
@@ -39,9 +52,13 @@ export declare function destroyVessel(_vesselPtr: number): void;
  * @param windDirection `f64`
  * @param currentSpeed `f64`
  * @param currentDirection `f64`
+ * @param waveHeight `f64`
+ * @param waveLength `f64`
+ * @param waveDirection `f64`
+ * @param waveSteepness `f64`
  * @returns `usize`
  */
-export declare function updateVesselState(vesselPtr: number, dt: number, windSpeed: number, windDirection: number, currentSpeed: number, currentDirection: number): number;
+export declare function updateVesselState(vesselPtr: number, dt: number, windSpeed: number, windDirection: number, currentSpeed: number, currentDirection: number, waveHeight: number, waveLength: number, waveDirection: number, waveSteepness: number): number;
 /**
  * assembly/index/setThrottle
  * @param vesselPtr `usize`
