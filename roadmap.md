@@ -1,75 +1,199 @@
 # Roadmap TODOs
 
-- [x] Roles & permissions
-  - Define cumulative roles: Guest (unauth, spectator only), Spectator (auth, spectator only), Player (auth, join/create vessels; default for new users), Admin (kick/ban/demote/promote, update environment/time, mute chat).
-  - Enforce role checks across API/server and gate UI access for spectator vs play modes.
-  - Seed default roles and assign Player on registration.
-- [x] Modes
-  - Spectator mode: elevated free camera with WASD/arrow movement and rotation; water plane follows user with larger radius; can view vessels and join if role allows; does not send vessel updates.
-  - Player mode: current sim for joining/creating vessels, crew visibility, and chat readiness; robust mode switching for vessel membership.
-  - Add a spectate-only option in the vessel join/create prompt.
-- [x] Vessel join/create UX
-  - [x] Prompt new users to choose between creating their own vessel or joining an available crew slot (respect max crew), instead of auto-assigning.
-  - Surface crew list for the active vessel in the HUD; add a basic vessel-local chat.
-  - [x] Add spawn picker (ports/anchors) when creating a vessel.
-  - [x] Persist chat history (global + vessel channels) in the database and replay/paginate messages on join.
-- [x] Chat & spaces
-  - [x] Keep global chat open for everyone; add vessel-local channels with history pagination.
-  - [x] Add private spaces/namespaces so friends can sail in invite-only sessions or solo with AI traffic.
-  - [x] Build scenario/tutorial spaces that gate rank progression and enforce collision/COLREGs rules with penalties.
-  - [x] Support public vs private spaces: public spaces appear in a join list; private spaces require invite link + password, can be saved by returning users, and can generate invite links.
-  - [x] Add a “Manage my spaces” view/page for creators (list/edit visibility/password/regenerate invite or delete).
-- [x] Layout component
-  - Shared navbar (home, sim, login, register) with room for future pages such as a 2D tiling map of active vessels.
-- [x] UI overhaul
-  - [x] Replace Tailwind-heavy styling with a custom or alternative styling approach; refresh HUD/layout components for clarity and responsiveness.
-  - [x] Move sim HUD into a docked drawer with topical tabs (navigation, weather, fuel, ballast, load, electrics, etc.) reusing existing weather visuals.
-  - [x] Add Conning display tab in the HUD with core navigation readouts.
-  - [x] Add Alarms tab in the HUD with engine/safety alerts.
-  - [x] Add a mobile landscape mode (rotated/condensed HUD) once the desktop flow is stable.
-- [x] Environment controls
-  - Rebuild the EnvironmentControls UI to reflect the current server-driven weather model, admin gating, and live updates; remove obsolete toggles.
-  - Gate weather controls to space creators/hosts (not only admins) once spaces/rooms exist.
-  - [x] Persist weather state per space/session (DB) so private scenarios and global space can keep distinct conditions.
-  - [x] Add a server-driven day/night cycle (sun position over time) and surface to clients.
-  - [x] Infer/display local time zones from vessel lat/lon (fallback to UTC) when rendering environment time.
-  - [x] Timed events can attach environment presets (weather/lighting) and trigger them on schedule.
-- [x] Controls & ballast
-  - [x] Expose ballast control in the UI, wire to physics, and show feedback/state.
-  - [x] Expand helm/crew roles (e.g., helm/engine/radio) to avoid control conflicts.
-- [x] Admin tools
-  - [x] Add admin ship repositioning tools (spectator drag/teleport, separate admin view).
-- [x] Bridge systems
-  - [x] Add AIS receiver/overlay with labeled AIS targets alongside radar returns.
-  - [x] Add dual-band radar views (X-band + S-band) in the HUD layout.
-- [x] Instrumentation & observability
-  - [x] Track broadcast/AI loop timing and API latency via `/api/metrics`.
-  - [x] Add socket latency sampling and central log aggregation for server and sim loops.
-- [x] Default vessels
-  - [x] On server boot, load saved vessels; if none, spawn an AI-controlled vessel at a default lat/long/heading and publish to clients.
-- [x] Position data
-  - [x] Refactor x/y to lat/long; keep height/depth; update physics, rendering, and network schemas.
-- [x] Auth review
-  - Audit NextAuth flow so the server receives auth/role on every request; align JWT/cookie handling and role mapping.
-- [x] Auth hardening
-  - Add logout endpoint/UI, rate limiting/lockout, and refresh/token rotation audit.
-- [x] Persistence
-  - Confirm DB choice (Prisma/Postgres vs alternative) and persist users, vessels, environment state, bans/mutes, and chat history.
-- [x] Persistence polish
-  - Add migrations/seed data for default roles/vessels and a backup/restore plan.
-- [x] Frontend tests
-  - Add unit coverage and a smoke e2e (login → start sim → basic movement).
-- [x] Simulation UX
-  - Add replay/ghost mode (record + playback), quick-start scenarios, and AI pilot on loss of control.
-- [x] Performance budgets
-  - Profile WASM/renderer with targets for 60 Hz sim and smooth 3D rendering.
-- [x] Globe & ocean
-  - Render globe with realistic ocean/land heightmap and bathymetry; ground ships when keel exceeds depth.
-- [x] Physics realism
-  - Review AssemblyScript physics and improve hydrodynamics/environment forces without sacrificing stability.
-  - Parameterize hydrodynamic constants per vessel (e.g., rudder stall angle/force coefficients) and pass them into WASM `createVessel`.
-  - Wire Gerstner wave input (sea state → amplitude/steepness) into physics forces and renderer; ensure waves animate with correct phase and normals.
-  - Add basic hull-form differentiation (block coefficient per vessel, draft/beam effects) and buoyancy/heave modeling.
-- [x] Missions & economy
-  - Add mission system (deliveries, towing, harbor entries) with rewards and failure conditions.
-  - Implement a simple economy: vessel operating costs, fuel consumption, port fees, and earnings tied to missions or cargo.
+## Core access & social
+
+- [x] Roles & permissions (Guest / Spectator / Player / Admin)
+- [x] Spectator mode + Player mode + robust switching
+- [x] Vessel join/create UX (crew slots, spawn picker, chat replay)
+- [x] Global chat + vessel-local chat
+- [x] Spaces (public/private, invites, manage my spaces, scenarios/tutorial spaces)
+- [x] Shared layout/navbar + HUD overhaul + mobile landscape mode
+
+## Environment & world simulation
+
+- [x] Server-driven weather per space + persisted state
+- [x] Server-driven day/night cycle + local time from lat/lon
+- [x] Timed events triggering environment presets
+- [ ] Tide system (Earth-data-driven, regional or global)
+
+## Vessel control & bridge systems
+
+- [x] Ballast controls + feedback/state
+- [x] Crew roles to avoid control conflicts (helm/engine/radio)
+- [x] Admin reposition tools
+- [x] AIS overlay + dual-band radar views
+
+## Observability & performance
+
+- [x] Metrics endpoint + socket latency sampling + centralized logs
+- [x] Performance budgets (60 Hz sim + smooth rendering)
+
+## Persistence & auth
+
+- [x] Postgres + Prisma persistence (users, vessels, environment, bans/mutes, chat)
+- [x] Migrations/seed + backup/restore
+- [x] NextAuth review + hardening
+- [x] Frontend tests (unit + smoke e2e)
+
+## Core simulation
+
+- [x] Replay/ghost mode + quick-start scenarios + AI pilot takeover
+- [x] Globe/ocean rendering from Earth tiles + bathymetry grounding
+- [x] Physics realism upgrades (hydro constants, waves, hull form/buoyancy)
+- [x] Mission system + basic economy (costs, fuel, port fees, earnings)
+
+---
+
+## Map editor (layer-based, Earth-data-backed)
+
+### Base assumptions
+
+- [x] Terrain and bathymetry sourced from Earth tile servers (read-only)
+- [ ] Overlay-based editor (no terrain sculpting)
+- [ ] Tile-aligned streaming + LOD awareness
+
+### Decor & atmosphere layers
+
+- [ ] Vegetation painting (trees, bushes, scrub)
+- [ ] Natural clutter (rocks, shoreline props)
+- [ ] Man-made clutter (fences, poles, containers, signage)
+- [ ] Biome presets (coastal, tundra, industrial, urban)
+- [ ] No-decoration masks (ports, roads, restricted zones)
+
+### Structures & clearance
+
+- [ ] Bridges with clearance height metadata
+- [ ] Overhead lines / cable crossings with clearance
+- [ ] Radio masts, towers, chimneys
+- [ ] Clearance zones for routing and vessel gating
+
+### Ports & harbor infrastructure
+
+- [ ] Port definitions (name, region, metadata)
+- [ ] Dock / berth authoring (length, depth requirement)
+- [ ] Fender zones / soft docking helpers
+- [ ] Mooring points (bollards, dolphins)
+- [ ] Anchorage areas (depth + seabed type)
+- [ ] Port services metadata (fuel, repair, tug availability)
+
+### Navigation aids
+
+- [ ] Buoys (IALA A/B, type, shape, light characteristics)
+- [ ] Beacons and daymarks
+- [ ] Lighthouses and sector lights
+- [ ] Leading lines / range markers
+- [ ] Chart + 3D nav aid parity
+
+### Zones & constraints
+
+- [ ] Speed limit zones
+- [ ] Restricted / exclusion zones
+- [ ] No-anchoring zones
+- [ ] Shallow-water caution zones
+- [ ] Environmental rule zones (emissions, protected areas)
+
+### Spawn points & routing
+
+- [ ] Vessel spawn points (berth, anchor, offshore)
+- [ ] Spawn constraints (vessel class, weather, time)
+- [ ] Route authoring (waypoints, speed hints)
+- [ ] AI route tagging (cargo, ferry, patrol, escort)
+- [ ] Route validation (depth, clearance warnings)
+
+### Scenario & event authoring
+
+- [ ] Scenario metadata (title, difficulty, recommended vessels)
+- [ ] Deterministic environment presets
+- [ ] Objectives (dock, deliver, tow, rescue, survey)
+- [ ] Failure conditions (collisions, grounding, penalties, lateness)
+- [ ] Scoring rules (exams, prosumer runs)
+- [ ] Regions/volumes for rules and triggers
+- [ ] Trigger/action system (time, region entry, incidents)
+
+### AI traffic authoring
+
+- [ ] Traffic spawners with schedules
+- [ ] Vessel pools per spawner
+- [ ] Behavior profiles (lawful, rushed, inexperienced, distressed)
+- [ ] Port congestion modeling (queues, berth occupancy)
+
+### Validation & tooling
+
+- [ ] Depth and clearance validation tools
+- [ ] Nav light visibility preview (night mode)
+- [ ] AI traffic test simulation
+- [ ] Measure tool (distance, bearing, depth)
+- [ ] Layer panel (lock/visibility)
+- [ ] Prefab library + search
+
+### Publishing & sharing
+
+- [ ] Versioned saves
+- [ ] Export world layer packs and scenario packs
+- [ ] Private sharing links
+- [ ] Public listing with moderation
+- [ ] Dependency tracking (assets/mods)
+
+---
+
+## Economy & ownership
+
+- [ ] Costs only charged to vessel owners
+- [ ] Crew pay for time/tasks + optional profit share
+- [ ] Vessel creation limited by rank + currency
+- [ ] Inventory/cargo system
+- [ ] Vessel lifecycle (maintenance, wear, dry dock, insurance)
+
+## Vessel classes & content
+
+- [ ] Core vessel archetypes (transit, precision, force, vulnerable, static)
+- [ ] Standard vessels (cargo, tanker, passenger, tug, small craft)
+- [ ] Weird / specialized vessels
+  - [ ] Icebreaker
+  - [ ] Cable layer
+  - [ ] Fishing vessel
+  - [ ] Research vessel
+  - [ ] Salvage ship
+  - [ ] Heavy-lift / ship carrier
+  - [ ] Sailboat
+  - [ ] Rowboat
+  - [ ] Fireboat
+  - [ ] Buoy tender
+- [ ] Static / semi-static structures as vessels
+  - [ ] Oil rigs / offshore platforms
+  - [ ] Wind farms
+  - [ ] Floating docks / barges
+  - [ ] Buoy systems as entities
+
+## Navigation & realism
+
+- [ ] ECDIS-lite (routes, channels, shallow warnings)
+- [ ] Manual navigation modes (dead reckoning, celestial in hardcore)
+- [ ] Pilotage zones + tug assistance
+- [ ] Dynamic hazards (weather failures, ice, visibility effects)
+
+## Missions, AI & progression
+
+- [ ] Emergency missions (SAR, disabled tow, fire response)
+- [ ] Competitive contracts
+- [ ] Long-haul multi-leg missions
+- [ ] Dynamic mission generation from world state
+- [ ] Smarter AI behavior + consequences
+- [ ] Licensing & certification system
+- [ ] Reputation system (ports and companies)
+
+## Modding
+
+- [ ] Mod package support (manifest + assets)
+- [ ] Server-normalized physics values
+- [ ] Persisted mod installations per space
+- [ ] Certification for public spaces
+- [ ] Mod sharing, ratings, clone-and-mod workflow
+
+## Analysis & community
+
+- [ ] Post-voyage analysis tools
+- [ ] Replay export and sharing
+- [ ] Shipping companies (shared fleet, treasury, ranks)
+- [ ] Scheduled events (convoys, storm challenges)
+- [ ] Observer tools (spectator cameras + commentary)
