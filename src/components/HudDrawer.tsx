@@ -213,11 +213,45 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const loadPercent = clamp01(engineState?.load ?? 0);
   const batteryPercent = clamp01(electrical?.batteryLevel ?? 0);
   const ballastPercent = clamp01(ballastLocal);
+  const draftEstimate = useMemo(() => {
+    const mass = vessel.properties.mass ?? 0;
+    const length = vessel.properties.length ?? 0;
+    const beam = vessel.properties.beam ?? 0;
+    const block = vessel.properties.blockCoefficient ?? 0;
+    if (
+      !Number.isFinite(mass) ||
+      !Number.isFinite(length) ||
+      !Number.isFinite(beam) ||
+      !Number.isFinite(block) ||
+      length <= 0 ||
+      beam <= 0 ||
+      block <= 0
+    ) {
+      return vessel.properties.draft ?? 0;
+    }
+    const ballast = clamp01(ballastLocal);
+    const density = 1025;
+    const effectiveMass = mass * (0.9 + ballast * 0.4);
+    const neutralDraft =
+      effectiveMass / (density * length * beam * block + 1e-6);
+    const targetDraft = neutralDraft * (0.7 + ballast * 0.5);
+    return Number.isFinite(targetDraft)
+      ? targetDraft
+      : (vessel.properties.draft ?? 0);
+  }, [
+    ballastLocal,
+    vessel.properties.beam,
+    vessel.properties.blockCoefficient,
+    vessel.properties.draft,
+    vessel.properties.length,
+    vessel.properties.mass,
+  ]);
   const waterDepth = vessel.waterDepth ?? environment.waterDepth;
+  const draftForUnderKeel = Number.isFinite(draftEstimate)
+    ? draftEstimate
+    : (vessel.properties.draft ?? 0);
   const underKeel =
-    waterDepth !== undefined
-      ? waterDepth - (vessel.properties.draft ?? 0)
-      : undefined;
+    waterDepth !== undefined ? waterDepth - draftForUnderKeel : undefined;
   const engineRunning =
     Boolean(engineState?.running) || (vessel.controls.throttle ?? 0) > 0.05;
   const generatorOnline = Boolean(electrical?.generatorRunning);
@@ -1196,7 +1230,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                 <div className={styles.sectionHeader}>
                   <div className={styles.sectionTitle}>Stability & load</div>
                   <span className={styles.badge}>
-                    Draft {vessel.properties.draft.toFixed(1)} m
+                    Draft (est) {draftEstimate.toFixed(1)} m
                   </span>
                 </div>
                 <div className={styles.statGrid}>
