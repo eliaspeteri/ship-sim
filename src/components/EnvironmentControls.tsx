@@ -83,7 +83,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
     const seaState = normalizeSeaState(
       environment.seaState ?? seaStateFromWind(windSpeedMs),
     );
-    const waveHeight = environment.waveHeight ?? calculateWaveHeight(seaState);
+    const waveHeight = calculateWaveHeight(seaState);
     const visibility = environment.visibility ?? 10;
     const timeOfDay = environment.timeOfDay ?? 12;
     const precipitation = environment.precipitation ?? 'none';
@@ -588,9 +588,12 @@ function getSeaStateDescription(state: number): string {
 
 function calculateWaveHeight(state: number): number {
   const waveHeights = [0, 0.1, 0.2, 0.6, 1.5, 2.5, 4, 6, 9, 14, 14, 14, 14];
-  return waveHeights[
-    Math.min(Math.max(Math.round(state), 0), waveHeights.length - 1)
-  ];
+  const waveHeight =
+    waveHeights[
+      Math.min(Math.max(Math.round(state), 0), waveHeights.length - 1)
+    ];
+
+  return waveHeight;
 }
 
 function seaStateFromWind(speedMs: number): number {
