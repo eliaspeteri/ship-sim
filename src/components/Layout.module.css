@@ -132,11 +132,16 @@
   color: #ffffff;
 }
 
-.userRole {
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--muted);
+.userNameLink {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.userNameLink:hover {
+  color: #bfe7ea;
 }
 
 .roleBadge {
