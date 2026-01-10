@@ -150,48 +150,27 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     }),
     [],
   );
-  const [radarSettingsX, setRadarSettingsX] = useState<RadarSettings>({
+  const [radarSettings, setRadarSettings] = useState<RadarSettings>({
     ...baseRadarSettings,
     band: 'X',
   });
-  const [radarSettingsS, setRadarSettingsS] = useState<RadarSettings>({
-    ...baseRadarSettings,
-    band: 'S',
-  });
-  const [radarEblX, setRadarEblX] = useState<EBL>({ active: false, angle: 0 });
-  const [radarEblS, setRadarEblS] = useState<EBL>({ active: false, angle: 0 });
-  const [radarVrmX, setRadarVrmX] = useState<VRM>({
+  const [radarEbl, setRadarEbl] = useState<EBL>({ active: false, angle: 0 });
+  const [radarVrm, setRadarVrm] = useState<VRM>({
     active: false,
     distance: 0,
   });
-  const [radarVrmS, setRadarVrmS] = useState<VRM>({
-    active: false,
-    distance: 0,
-  });
-  const [radarGuardZoneX, setRadarGuardZoneX] = useState<GuardZone>({
+  const [radarGuardZone, setRadarGuardZone] = useState<GuardZone>({
     active: false,
     startAngle: 320,
     endAngle: 40,
     innerRange: 0.5,
     outerRange: 3,
   });
-  const [radarGuardZoneS, setRadarGuardZoneS] = useState<GuardZone>({
-    active: false,
-    startAngle: 320,
-    endAngle: 40,
-    innerRange: 0.5,
-    outerRange: 3,
-  });
-  const [radarArpaSettingsX, setRadarArpaSettingsX] = useState<ARPASettings>(
+  const [radarArpaSettings, setRadarArpaSettings] = useState<ARPASettings>(
     DEFAULT_ARPA_SETTINGS,
   );
-  const [radarArpaSettingsS, setRadarArpaSettingsS] = useState<ARPASettings>(
-    DEFAULT_ARPA_SETTINGS,
-  );
-  const [radarArpaEnabledX, setRadarArpaEnabledX] = useState(false);
-  const [radarArpaEnabledS, setRadarArpaEnabledS] = useState(false);
-  const [radarArpaTargetsX, setRadarArpaTargetsX] = useState<ARPATarget[]>([]);
-  const [radarArpaTargetsS, setRadarArpaTargetsS] = useState<ARPATarget[]>([]);
+  const [radarArpaEnabled, setRadarArpaEnabled] = useState(false);
+  const [radarArpaTargets, setRadarArpaTargets] = useState<ARPATarget[]>([]);
   const [throttleLocal, setThrottleLocal] = useState(controls?.throttle || 0);
   const [rudderAngleLocal, setRudderAngleLocal] = useState(
     controls?.rudderAngle || 0,
@@ -1539,49 +1518,24 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
             <div className={styles.sectionCard}>
               <div className={styles.radarGrid}>
                 <div className="space-y-2">
-                  <div className={styles.radarTitle}>X-band</div>
+                  <div className={styles.radarTitle}>Radar</div>
                   <RadarDisplay
-                    size={320}
-                    className="max-w-[860px] mx-auto"
-                    initialSettings={radarSettingsX}
-                    onSettingsChange={setRadarSettingsX}
-                    ebl={radarEblX}
-                    onEblChange={setRadarEblX}
-                    vrm={radarVrmX}
-                    onVrmChange={setRadarVrmX}
-                    guardZone={radarGuardZoneX}
-                    onGuardZoneChange={setRadarGuardZoneX}
-                    arpaSettings={radarArpaSettingsX}
-                    onArpaSettingsChange={setRadarArpaSettingsX}
-                    arpaEnabled={radarArpaEnabledX}
-                    onArpaEnabledChange={setRadarArpaEnabledX}
-                    arpaTargets={radarArpaTargetsX}
-                    onArpaTargetsChange={setRadarArpaTargetsX}
-                    liveTargets={radarTargets}
-                    aisTargets={aisTargets}
-                    environment={radarEnvironment}
-                    ownShipData={ownShipData}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <div className={styles.radarTitle}>S-band</div>
-                  <RadarDisplay
-                    size={320}
-                    className="max-w-[860px] mx-auto"
-                    initialSettings={radarSettingsS}
-                    onSettingsChange={setRadarSettingsS}
-                    ebl={radarEblS}
-                    onEblChange={setRadarEblS}
-                    vrm={radarVrmS}
-                    onVrmChange={setRadarVrmS}
-                    guardZone={radarGuardZoneS}
-                    onGuardZoneChange={setRadarGuardZoneS}
-                    arpaSettings={radarArpaSettingsS}
-                    onArpaSettingsChange={setRadarArpaSettingsS}
-                    arpaEnabled={radarArpaEnabledS}
-                    onArpaEnabledChange={setRadarArpaEnabledS}
-                    arpaTargets={radarArpaTargetsS}
-                    onArpaTargetsChange={setRadarArpaTargetsS}
+                    size={360}
+                    className="max-w-[920px] mx-auto"
+                    initialSettings={radarSettings}
+                    onSettingsChange={setRadarSettings}
+                    ebl={radarEbl}
+                    onEblChange={setRadarEbl}
+                    vrm={radarVrm}
+                    onVrmChange={setRadarVrm}
+                    guardZone={radarGuardZone}
+                    onGuardZoneChange={setRadarGuardZone}
+                    arpaSettings={radarArpaSettings}
+                    onArpaSettingsChange={setRadarArpaSettings}
+                    arpaEnabled={radarArpaEnabled}
+                    onArpaEnabledChange={setRadarArpaEnabled}
+                    arpaTargets={radarArpaTargets}
+                    onArpaTargetsChange={setRadarArpaTargets}
                     liveTargets={radarTargets}
                     aisTargets={aisTargets}
                     environment={radarEnvironment}
