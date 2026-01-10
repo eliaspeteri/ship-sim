@@ -33,6 +33,8 @@ import {
   distanceMeters,
   positionFromLatLon,
   positionFromXY,
+  bodyVelocityFromWorld,
+  speedFromWorldVelocity,
 } from '../lib/position';
 import { prisma } from '../lib/prisma';
 import { RUDDER_MAX_ANGLE_RAD } from '../constants/vessel';
@@ -2240,6 +2242,38 @@ io.on('connection', async socket => {
     void persistVesselToDb(target, { force: true });
   });
 
+  socket.on('admin:vessel:stop', data => {
+    if (!hasAdminRole(socket)) {
+      socket.emit('error', 'Not authorized to stop vessels');
+      return;
+    }
+    if (!data?.vesselId) {
+      socket.emit('error', 'Missing vessel id');
+      return;
+    }
+    const spaceId = getSpaceIdForSocket(socket);
+    const target = findVesselInSpace(data.vesselId, spaceId);
+    if (!target) {
+      socket.emit('error', 'Vessel not found');
+      return;
+    }
+    target.controls = {
+      ...target.controls,
+      throttle: 0,
+      rudderAngle: 0,
+      bowThruster: 0,
+    };
+    target.velocity = { surge: 0, sway: 0, heave: 0 };
+    target.yawRate = 0;
+    target.lastUpdate = Date.now();
+    void persistVesselToDb(target, { force: true });
+    io.to(`space:${spaceId}`).emit('simulation:update', {
+      vessels: { [target.id]: toSimpleVesselState(target) },
+      partial: true,
+      timestamp: Date.now(),
+    });
+  });
+
   socket.on('admin:kick', async data => {
     if (!hasAdminRole(socket)) {
       socket.emit('error', 'Not authorized to kick users');
@@ -2263,6 +2297,37 @@ io.on('connection', async socket => {
       console.error('Failed to kick user', err);
       socket.emit('error', 'Failed to kick user');
     }
+  });
+
+  socket.on('admin:vessel:remove', async data => {
+    if (!hasAdminRole(socket)) {
+      socket.emit('error', 'Not authorized to remove vessels');
+      return;
+    }
+    if (!data?.vesselId) {
+      socket.emit('error', 'Missing vessel id');
+      return;
+    }
+    const spaceId = getSpaceIdForSocket(socket);
+    const target = findVesselInSpace(data.vesselId, spaceId);
+    if (!target) {
+      socket.emit('error', 'Vessel not found');
+      return;
+    }
+    aiControllers.delete(target.id);
+    economyLedger.delete(target.id);
+    globalState.vessels.delete(target.id);
+    for (const [key, vesselId] of globalState.userLastVessel.entries()) {
+      if (vesselId === target.id) {
+        globalState.userLastVessel.delete(key);
+      }
+    }
+    try {
+      await prisma.vessel.delete({ where: { id: target.id } });
+    } catch (err) {
+      console.warn('Failed to delete vessel record', err);
+    }
+    console.info(`Admin removed vessel ${target.id} from space ${spaceId}`);
   });
 
   socket.on('admin:vessel:move', data => {

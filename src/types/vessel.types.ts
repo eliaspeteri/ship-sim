@@ -134,6 +134,12 @@ export type VesselSnapshot = VesselPose & {
   stations?: VesselStations;
   angularVelocity?: Partial<VesselState['angularVelocity']>;
   hydrodynamics?: Partial<VesselState['hydrodynamics']>;
+  properties?: Partial<
+    Pick<
+      VesselState['properties'],
+      'name' | 'type' | 'length' | 'beam' | 'draft'
+    >
+  >;
   mode?: 'player' | 'ai';
   desiredMode?: 'player' | 'ai';
   lastCrewAt?: number;

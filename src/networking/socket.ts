@@ -720,6 +720,21 @@ class SocketManager {
     this.socket.emit('admin:vessel:move', { vesselId, position: nextPosition });
   }
 
+  sendAdminVesselMode(vesselId: string, mode: 'player' | 'ai'): void {
+    if (!this.socket?.connected) return;
+    this.socket.emit('admin:vesselMode', { vesselId, mode });
+  }
+
+  sendAdminVesselStop(vesselId: string): void {
+    if (!this.socket?.connected) return;
+    this.socket.emit('admin:vessel:stop', { vesselId });
+  }
+
+  sendAdminVesselRemove(vesselId: string): void {
+    if (!this.socket?.connected) return;
+    this.socket.emit('admin:vessel:remove', { vesselId });
+  }
+
   sendAdminKick(userId: string, reason?: string): void {
     if (!this.socket?.connected) return;
     this.socket.emit('admin:kick', { userId, reason });

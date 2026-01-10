@@ -15,8 +15,15 @@ import * as THREE from 'three';
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import useStore from '../store';
 import Ship from './Ship';
+import VesselCallout from './VesselCallout';
 import socketManager from '../networking/socket';
 import { deriveWaveState, getGerstnerSample } from '../lib/waves';
+import {
+  courseFromWorldVelocity,
+  ensurePosition,
+  speedFromWorldVelocity,
+  worldVelocityFromBody,
+} from '../lib/position';
 
 interface SceneProps {
   vesselPosition: {
@@ -588,10 +595,12 @@ function SkyFollowCamera(
 
 export default function Scene({ vesselPosition, mode }: SceneProps) {
   const isSpectator = mode === 'spectator';
+  const vesselState = useStore(state => state.vessel);
   const vesselProperties = useStore(state => state.vessel.properties);
   const vesselControls = useStore(state => state.vessel.controls);
   const vesselOrientation = useStore(state => state.vessel.orientation);
   const otherVessels = useStore(state => state.otherVessels);
+  const crewIds = useStore(state => state.crewIds);
   const envTime = useStore(state => state.environment.timeOfDay);
   const environment = useStore(state => state.environment);
   const replay = useStore(state => state.replay);
@@ -599,6 +608,8 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
   const roles = useStore(state => state.roles);
   const currentVesselId = useStore(state => state.currentVesselId);
   const isAdmin = roles.includes('admin');
+  const [selectedVesselId, setSelectedVesselId] = useState<string | null>(null);
+  const [calloutOffset, setCalloutOffset] = useState({ x: 24, y: -24 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragPreviewPositions, setDragPreviewPositions] = useState<
     Record<string, { x: number; y: number }>
@@ -616,6 +627,70 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
     x: vesselPosition.x,
     y: vesselPosition.y,
   });
+  const handleSelectVessel = useCallback(
+    (id: string) => {
+      if (!isSpectator || isDragging) return;
+      setSelectedVesselId(prev => (prev === id ? null : id));
+    },
+    [isDragging, isSpectator],
+  );
+
+  const handleAdminMoveToFocus = useCallback(() => {
+    if (!selectedVesselId) return;
+    socketManager.sendAdminVesselMove(selectedVesselId, {
+      x: focusRef.current.x,
+      y: focusRef.current.y,
+    });
+  }, [selectedVesselId]);
+
+  const handleAdminStopVessel = useCallback(() => {
+    if (!selectedVesselId) return;
+    socketManager.sendAdminVesselStop(selectedVesselId);
+  }, [selectedVesselId]);
+
+  const handleAdminForceAi = useCallback(() => {
+    if (!selectedVesselId) return;
+    socketManager.sendAdminVesselMode(selectedVesselId, 'ai');
+  }, [selectedVesselId]);
+
+  const handleAdminForcePlayer = useCallback(() => {
+    if (!selectedVesselId) return;
+    socketManager.sendAdminVesselMode(selectedVesselId, 'player');
+  }, [selectedVesselId]);
+
+  const handleAdminRemove = useCallback(() => {
+    if (!selectedVesselId) return;
+    socketManager.sendAdminVesselRemove(selectedVesselId);
+    setSelectedVesselId(null);
+  }, [selectedVesselId]);
+
+  useEffect(() => {
+    if (selectedVesselId) {
+      setCalloutOffset({ x: 24, y: -24 });
+    }
+  }, [selectedVesselId]);
+
+  const selectedSnapshot = useMemo(() => {
+    if (!selectedVesselId) return null;
+    if (selectedVesselId === currentVesselId) {
+      return {
+        id: selectedVesselId,
+        position: vesselState.position,
+        orientation: vesselState.orientation,
+        velocity: vesselState.velocity,
+        controls: vesselState.controls,
+        waterDepth: vesselState.waterDepth,
+        properties: vesselState.properties,
+      };
+    }
+    return otherVessels[selectedVesselId] || null;
+  }, [currentVesselId, otherVessels, selectedVesselId, vesselState]);
+
+  useEffect(() => {
+    if (selectedVesselId && !selectedSnapshot) {
+      setSelectedVesselId(null);
+    }
+  }, [selectedSnapshot, selectedVesselId]);
 
   // Simple sun direction derived from time of day (0-24). Kept adaptable for future lat/season logic.
   const { sunDirection, lightIntensity } = useMemo(() => {
@@ -641,6 +716,116 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
     };
     return { sunDirection: dir, daylight, lightIntensity };
   }, [envTime]);
+
+  const calloutData = useMemo(() => {
+    if (!selectedSnapshot) return null;
+    const position = ensurePosition(selectedSnapshot.position);
+    const heading = selectedSnapshot.orientation?.heading ?? 0;
+    const velocity = selectedSnapshot.velocity || { surge: 0, sway: 0 };
+    const worldVelocity = worldVelocityFromBody(heading, velocity);
+    const speedKts = speedFromWorldVelocity(worldVelocity) * 1.94384;
+    const course = courseFromWorldVelocity(worldVelocity);
+    const headingDeg = ((heading * 180) / Math.PI + 360) % 360;
+    const depth = Number.isFinite(position.z) ? Math.abs(position.z) : 0;
+    const length = selectedSnapshot.properties?.length;
+    const beam = selectedSnapshot.properties?.beam;
+    const draft = selectedSnapshot.properties?.draft;
+    const crewCount =
+      selectedSnapshot.crewCount ??
+      selectedSnapshot.crewIds?.length ??
+      (selectedVesselId === currentVesselId ? crewIds.length : 0);
+    const rows = [
+      { label: 'Speed', value: `${speedKts.toFixed(1)} kts` },
+      { label: 'COG', value: `${course.toFixed(0)} deg` },
+      { label: 'Heading', value: `${headingDeg.toFixed(0)} deg` },
+      {
+        label: 'Lat',
+        value: Number.isFinite(position.lat) ? position.lat.toFixed(5) : 'n/a',
+      },
+      {
+        label: 'Lon',
+        value: Number.isFinite(position.lon) ? position.lon.toFixed(5) : 'n/a',
+      },
+      { label: 'Depth', value: `${depth.toFixed(1)} m` },
+      {
+        label: 'Length',
+        value: Number.isFinite(length) ? `${length?.toFixed(1)} m` : 'n/a',
+      },
+      {
+        label: 'Beam',
+        value: Number.isFinite(beam) ? `${beam?.toFixed(1)} m` : 'n/a',
+      },
+      {
+        label: 'Draft',
+        value: Number.isFinite(draft) ? `${draft?.toFixed(1)} m` : 'n/a',
+      },
+      { label: 'Crew', value: crewCount.toString() },
+      {
+        label: 'Mode',
+        value: selectedSnapshot.mode || selectedSnapshot.desiredMode || 'n/a',
+      },
+    ];
+    return {
+      position: {
+        x: position.x ?? 0,
+        y: (position.z ?? 0) + 6,
+        z: position.y ?? 0,
+      },
+      rows,
+    };
+  }, [crewIds.length, currentVesselId, selectedSnapshot, selectedVesselId]);
+
+  const calloutTitle = useMemo(() => {
+    if (!selectedSnapshot || !selectedVesselId) return '';
+    const name = selectedSnapshot.properties?.name;
+    const displayId =
+      selectedVesselId.length > 10
+        ? `${selectedVesselId.slice(0, 10)}...`
+        : selectedVesselId;
+    return name ? name : `Vessel ${displayId}`;
+  }, [selectedSnapshot, selectedVesselId]);
+
+  const calloutActions = useMemo(() => {
+    if (!isAdmin || !selectedVesselId) return [];
+    return [
+      {
+        label: 'Stop',
+        onClick: handleAdminStopVessel,
+        variant: 'ghost' as const,
+      },
+      {
+        label: 'Move to view',
+        onClick: handleAdminMoveToFocus,
+        variant: 'ghost' as const,
+      },
+      {
+        label: 'Force AI',
+        onClick: handleAdminForceAi,
+        variant: 'ghost' as const,
+      },
+      {
+        label: 'Force player',
+        onClick: handleAdminForcePlayer,
+        variant: 'ghost' as const,
+      },
+      {
+        label: 'Remove',
+        onClick: handleAdminRemove,
+        variant: 'danger' as const,
+      },
+    ];
+  }, [
+    handleAdminForceAi,
+    handleAdminForcePlayer,
+    handleAdminMoveToFocus,
+    handleAdminRemove,
+    handleAdminStopVessel,
+    isAdmin,
+    selectedVesselId,
+  ]);
+
+  const showSelfDebug =
+    isSpectator && (!selectedVesselId || selectedVesselId === currentVesselId);
 
   const waveState = useMemo(() => deriveWaveState(environment), [environment]);
 
@@ -770,6 +955,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           waveState={waveState}
         />
         <Ship
+          vesselId={currentVesselId || undefined}
           position={{
             x:
               dragPreviewPositions[currentVesselId || '']?.x ??
@@ -783,8 +969,11 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           shipType={vesselProperties.type}
           ballast={vesselControls.ballast}
           draft={vesselProperties.draft}
+          length={vesselProperties.length}
           roll={vesselOrientation.roll}
           pitch={vesselOrientation.pitch}
+          showDebugMarkers={showSelfDebug}
+          onSelect={isSpectator ? handleSelectVessel : undefined}
         />
         {replay.playing && replay.frames.length > 1 ? (
           <ReplayGhost
@@ -801,6 +990,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
         {Object.entries(otherVessels || {}).map(([id, v]) => (
           <Ship
             key={id}
+            vesselId={id}
             position={{
               x: dragPreviewPositions[id]?.x ?? v.position.x ?? 0,
               y: v.position.z ?? 0,
@@ -809,9 +999,24 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
             heading={v.orientation.heading}
             shipType={vesselProperties.type}
             ballast={v.controls?.ballast ?? 0.5}
-            draft={vesselProperties.draft}
+            draft={v.properties?.draft ?? vesselProperties.draft}
+            length={v.properties?.length ?? vesselProperties.length}
+            showDebugMarkers={isSpectator && selectedVesselId === id}
+            onSelect={isSpectator ? handleSelectVessel : undefined}
           />
         ))}
+        {isSpectator && selectedVesselId && calloutData ? (
+          <VesselCallout
+            vesselId={selectedVesselId}
+            title={calloutTitle}
+            position={calloutData.position}
+            rows={calloutData.rows}
+            offset={calloutOffset}
+            onOffsetChange={setCalloutOffset}
+            onClose={() => setSelectedVesselId(null)}
+            actions={calloutActions}
+          />
+        ) : null}
         <AdminDragHandles
           enabled={isSpectator && isAdmin}
           targets={dragTargets}

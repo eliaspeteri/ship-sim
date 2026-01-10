@@ -102,3 +102,35 @@ export const distanceMeters = (
   const { x: bx, y: by } = latLonToXY(b);
   return Math.hypot(ax - bx, ay - by);
 };
+
+export const worldVelocityFromBody = (
+  headingRad: number,
+  velocity: { surge?: number; sway?: number },
+): { x: number; y: number } => {
+  const surge = velocity.surge ?? 0;
+  const sway = velocity.sway ?? 0;
+  const cosH = Math.cos(headingRad);
+  const sinH = Math.sin(headingRad);
+  return {
+    x: surge * cosH - sway * sinH,
+    y: surge * sinH + sway * cosH,
+  };
+};
+
+export const bodyVelocityFromWorld = (
+  headingRad: number,
+  world: { x: number; y: number },
+): { surge: number; sway: number } => {
+  const cosH = Math.cos(headingRad);
+  const sinH = Math.sin(headingRad);
+  return {
+    surge: world.x * cosH + world.y * sinH,
+    sway: -world.x * sinH + world.y * cosH,
+  };
+};
+
+export const speedFromWorldVelocity = (world: { x: number; y: number }) =>
+  Math.hypot(world.x, world.y);
+
+export const courseFromWorldVelocity = (world: { x: number; y: number }) =>
+  ((Math.atan2(world.x, world.y) * 180) / Math.PI + 360) % 360;

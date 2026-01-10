@@ -5,13 +5,17 @@ import * as THREE from 'three';
 import useStore from '../store';
 
 interface ShipProps {
+  vesselId?: string;
   position: { x: number; y: number; z: number };
   heading: number;
   shipType?: 'CONTAINER' | 'TANKER' | 'CARGO' | 'DEFAULT';
   ballast?: number;
   draft?: number;
+  length?: number;
   roll?: number;
   pitch?: number;
+  showDebugMarkers?: boolean;
+  onSelect?: (id: string) => void;
 }
 
 const SHIP_MODELS = {
@@ -22,13 +26,17 @@ const SHIP_MODELS = {
 } as const;
 
 const Ship: React.FC<ShipProps> = ({
+  vesselId,
   position,
   heading,
   shipType = 'DEFAULT',
   ballast = 0.5,
   draft = 6,
+  length = 150,
   roll,
   pitch,
+  showDebugMarkers = false,
+  onSelect,
 }) => {
   const shipRef = useRef<THREE.Group>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
@@ -91,7 +99,15 @@ const Ship: React.FC<ShipProps> = ({
   });
 
   return (
-    <group ref={shipRef} position={[position.x, position.y, position.z]}>
+    <group
+      ref={shipRef}
+      position={[position.x, position.y, position.z]}
+      onPointerDown={event => {
+        if (!onSelect || !vesselId) return;
+        event.stopPropagation();
+        onSelect(vesselId);
+      }}
+    >
       {modelLoaded && model?.scene && (
         <Detailed distances={[0, 50, 300]}>
           <primitive

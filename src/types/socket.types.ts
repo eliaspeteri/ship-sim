@@ -28,6 +28,7 @@ export interface SimulationUpdateData {
     safetyScore?: number;
     spaceId?: string;
     mode?: 'player' | 'spectator';
+    vesselId?: string;
   };
   spaceInfo?: {
     id: string;
@@ -136,6 +137,8 @@ export type ClientToServerEvents = {
   }) => void;
   'admin:kick': (data: { userId: string; reason?: string }) => void;
   'admin:vessel:move': (data: AdminVesselMoveData) => void;
+  'admin:vessel:stop': (data: { vesselId: string }) => void;
+  'admin:vessel:remove': (data: { vesselId: string }) => void;
   'chat:message': (data: { message: string; channel?: string }) => void;
   'chat:history': (data: ChatHistoryRequest) => void;
   'admin:vesselMode': (data: {
