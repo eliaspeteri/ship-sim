@@ -174,6 +174,13 @@ const AdminPage: React.FC = () => {
     ) => {
       setModerationError(null);
       try {
+        const expiresAt = payload.expiresAt
+          ? new Date(payload.expiresAt)
+          : null;
+        if (expiresAt && Number.isNaN(expiresAt.getTime())) {
+          setModerationError('Enter a valid expiry date/time.');
+          return;
+        }
         const res = await fetch(`${apiBase}/api/admin/${endpoint}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -182,7 +189,7 @@ const AdminPage: React.FC = () => {
             userId: payload.userId || undefined,
             username: payload.username || undefined,
             reason: payload.reason || undefined,
-            expiresAt: payload.expiresAt || undefined,
+            expiresAt: expiresAt ? expiresAt.toISOString() : undefined,
             spaceId: moderationSpace,
           }),
         });
@@ -262,8 +269,22 @@ const AdminPage: React.FC = () => {
       setMoveMessage('Valid latitude and longitude are required.');
       return;
     }
-    socketManager.sendAdminVesselMove(moveForm.vesselId.trim(), { lat, lon });
-  }, [moveForm]);
+    const payload = { lat, lon };
+    const send = () => {
+      socketManager.sendAdminVesselMove(moveForm.vesselId.trim(), payload);
+      setMoveMessage('Move command sent.');
+    };
+    if (!socketManager.isConnected()) {
+      setMoveMessage('Connecting to admin socket…');
+      socketManager.connect(apiBase);
+      void socketManager
+        .waitForConnection()
+        .then(() => send())
+        .catch(() => setMoveMessage('Socket offline; move not sent.'));
+      return;
+    }
+    send();
+  }, [apiBase, moveForm]);
 
   const sendKick = useCallback(() => {
     setKickMessage(null);
@@ -503,7 +524,8 @@ const AdminPage: React.FC = () => {
                 onChange={e =>
                   setBanForm(prev => ({ ...prev, expiresAt: e.target.value }))
                 }
-                placeholder="expires ISO"
+                type="datetime-local"
+                placeholder="expires"
               />
               <button
                 type="button"
@@ -568,7 +590,8 @@ const AdminPage: React.FC = () => {
                 onChange={e =>
                   setMuteForm(prev => ({ ...prev, expiresAt: e.target.value }))
                 }
-                placeholder="expires ISO"
+                type="datetime-local"
+                placeholder="expires"
               />
               <button
                 type="button"
