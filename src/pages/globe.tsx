@@ -3,6 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { majorCities } from '../lib/majorCities';
+import styles from './Globe.module.css';
 
 const EARTH_RADIUS = 6371;
 const SEGMENTS = 512;
@@ -129,13 +130,13 @@ function SpinningGlobeGroup({ spinSpeed = 0.00005 }: { spinSpeed?: number }) {
   );
 }
 
-const GlobePage = () => {
+const GlobePage: React.FC & { fullBleedLayout?: boolean } = () => {
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#050b14' }}>
+    <div className={styles.page}>
       <Canvas
         camera={{ position: [0, 0, EARTH_RADIUS * 1.8], far: 30000 }}
         shadows
-        style={{ background: '#050b14' }}
+        className={styles.canvas}
       >
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 5, 5]} intensity={1.1} />
@@ -151,3 +152,5 @@ const GlobePage = () => {
 };
 
 export default GlobePage;
+
+GlobePage.fullBleedLayout = true;
