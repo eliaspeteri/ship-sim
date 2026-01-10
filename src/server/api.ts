@@ -201,6 +201,61 @@ router.get(
   },
 );
 
+// GET /api/vessels/by-id/:vesselId
+router.get('/vessels/by-id/:vesselId', requireAuth, async (req, res) => {
+  const { vesselId } = req.params;
+  try {
+    const vessel = await prisma.vessel.findUnique({ where: { id: vesselId } });
+    if (!vessel) {
+      res.status(404).json({ error: 'Vessel not found' });
+      return;
+    }
+    res.json({
+      vessel: {
+        id: vessel.id,
+        spaceId: vessel.spaceId,
+        ownerId: vessel.ownerId,
+        mode: vessel.mode,
+        desiredMode: vessel.desiredMode,
+        lastCrewAt: vessel.lastCrewAt?.getTime?.() ?? null,
+        position: {
+          lat: vessel.lat,
+          lon: vessel.lon,
+          z: vessel.z,
+        },
+        orientation: {
+          heading: vessel.heading,
+          roll: vessel.roll,
+          pitch: vessel.pitch,
+        },
+        velocity: {
+          surge: vessel.surge,
+          sway: vessel.sway,
+          heave: vessel.heave,
+        },
+        controls: {
+          throttle: vessel.throttle,
+          rudderAngle: vessel.rudderAngle,
+          ballast: vessel.ballast ?? 0.5,
+          bowThruster: vessel.bowThruster ?? 0,
+        },
+        properties: {
+          mass: vessel.mass,
+          length: vessel.length,
+          beam: vessel.beam,
+          draft: vessel.draft,
+        },
+        yawRate: vessel.yawRate ?? 0,
+        lastUpdate: vessel.lastUpdate?.getTime?.() ?? null,
+        isAi: vessel.isAi,
+      },
+    });
+  } catch (err) {
+    console.error('Failed to fetch vessel by id', err);
+    res.status(500).json({ error: 'Failed to fetch vessel' });
+  }
+});
+
 // GET /api/vessels/:userId
 router.get('/vessels/:userId', requireAuth, function (req, res) {
   const { userId } = req.params;
