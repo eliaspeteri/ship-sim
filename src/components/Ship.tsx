@@ -42,6 +42,9 @@ const Ship: React.FC<ShipProps> = ({
   const [modelLoaded, setModelLoaded] = useState(false);
   const model = SHIP_MODELS[shipType] ? useGLTF(SHIP_MODELS[shipType]) : null;
   const orientation = useStore(state => state.vessel.orientation);
+  const markerOffset = Number.isFinite(length)
+    ? Math.max(length * 0.45, 15)
+    : 30;
   useEffect(() => {
     if (model) {
       setModelLoaded(true);
@@ -124,6 +127,18 @@ const Ship: React.FC<ShipProps> = ({
           />
         </Detailed>
       )}
+      {showDebugMarkers ? (
+        <>
+          <mesh position={[0, 2, markerOffset]}>
+            <sphereGeometry args={[2.5, 16, 16]} />
+            <meshBasicMaterial color="#ff3b30" />
+          </mesh>
+          <mesh position={[0, 2, -markerOffset]}>
+            <sphereGeometry args={[2.5, 16, 16]} />
+            <meshBasicMaterial color="#34c759" />
+          </mesh>
+        </>
+      ) : null}
     </group>
   );
 };
