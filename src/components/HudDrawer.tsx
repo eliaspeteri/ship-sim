@@ -95,6 +95,15 @@ interface HudDrawerProps {
   onOpenSpaces?: () => void;
 }
 
+type EconomyTransaction = {
+  id: string;
+  amount: number;
+  reason: string;
+  createdAt: string;
+  vesselId?: string | null;
+  meta?: Record<string, unknown> | null;
+};
+
 export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const [tab, setTab] = useState<HudTab | null>(null);
   const [pressedTab, setPressedTab] = useState<HudTab | null>(null);
@@ -107,6 +116,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const crewNames = useStore(state => state.crewNames);
   const setNotice = useStore(state => state.setNotice);
   const account = useStore(state => state.account);
+  const setAccount = useStore(state => state.setAccount);
   const missions = useStore(state => state.missions);
   const missionAssignments = useStore(state => state.missionAssignments);
   const upsertMissionAssignment = useStore(
@@ -192,6 +202,11 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const [adminLon, setAdminLon] = useState('');
   const [missionError, setMissionError] = useState<string | null>(null);
   const [missionBusyId, setMissionBusyId] = useState<string | null>(null);
+  const [economyTransactions, setEconomyTransactions] = useState<
+    EconomyTransaction[]
+  >([]);
+  const [economyLoading, setEconomyLoading] = useState(false);
+  const [economyError, setEconomyError] = useState<string | null>(null);
   const apiBase = useMemo(() => getApiBase(), []);
   const shortId = React.useCallback(
     (id: string) => (id.length > 10 ? `${id.slice(0, 10)}…` : id),
@@ -782,6 +797,11 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     [missionAssignments],
   );
 
+  const nextRankAt = Math.max(1000, account.rank * 1000);
+  const rankProgress =
+    nextRankAt > 0 ? Math.min(account.experience / nextRankAt, 1) : 0;
+  const xpToNext = Math.max(0, nextRankAt - account.experience);
+
   const replayDuration = useMemo(() => {
     if (replay.frames.length < 2) return 0;
     const start = replay.frames[0]?.timestamp ?? 0;
@@ -835,6 +855,48 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       setMissionBusyId(null);
     }
   };
+
+  React.useEffect(() => {
+    if (tab !== 'missions') return;
+    let active = true;
+    const loadEconomy = async () => {
+      setEconomyLoading(true);
+      setEconomyError(null);
+      try {
+        const res = await fetch(`${apiBase}/api/economy/summary`, {
+          credentials: 'include',
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.error || `Request failed: ${res.status}`);
+        }
+        const data = await res.json();
+        if (!active) return;
+        if (data?.profile) {
+          setAccount(data.profile);
+        }
+        setEconomyTransactions(
+          Array.isArray(data?.transactions) ? data.transactions : [],
+        );
+      } catch (err) {
+        if (!active) return;
+        console.error('Failed to load economy summary', err);
+        setEconomyError(
+          err instanceof Error
+            ? err.message
+            : 'Unable to load economy summary.',
+        );
+      } finally {
+        if (active) {
+          setEconomyLoading(false);
+        }
+      }
+    };
+    void loadEconomy();
+    return () => {
+      active = false;
+    };
+  }, [apiBase, setAccount, tab]);
 
   const handleAdminMove = () => {
     if (!adminTargetId) return;
@@ -1238,6 +1300,62 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                     </div>
                   </div>
                 </div>
+                <div className={styles.progressRow}>
+                  <div className={styles.progressTrack}>
+                    <div
+                      className={styles.progressFill}
+                      style={{ width: `${(rankProgress * 100).toFixed(0)}%` }}
+                    />
+                  </div>
+                  <div className={styles.progressMeta}>
+                    Next rank in {xpToNext.toFixed(0)} XP
+                  </div>
+                </div>
+                <div className={styles.sectionSub}>
+                  Missions award credits and XP. Operating costs and port fees
+                  deduct credits while you sail; safety penalties apply for
+                  collisions or speed violations in regulated spaces.
+                </div>
+              </div>
+              <div className={styles.sectionCard}>
+                <div className={styles.sectionTitle}>Recent activity</div>
+                {economyLoading ? (
+                  <div className={styles.sectionSub}>Loading economy...</div>
+                ) : null}
+                {economyError ? (
+                  <div className={styles.sectionSub}>{economyError}</div>
+                ) : null}
+                {!economyLoading && economyTransactions.length === 0 ? (
+                  <div className={styles.sectionSub}>
+                    No recent economy activity yet.
+                  </div>
+                ) : null}
+                {economyTransactions.length > 0 ? (
+                  <div className={styles.transactionList}>
+                    {economyTransactions.slice(0, 8).map(tx => (
+                      <div key={tx.id} className={styles.transactionRow}>
+                        <div>
+                          <div className={styles.transactionLabel}>
+                            {formatTransactionReason(tx.reason)}
+                          </div>
+                          <div className={styles.transactionMeta}>
+                            {new Date(tx.createdAt).toLocaleString()}
+                          </div>
+                        </div>
+                        <div
+                          className={`${styles.transactionAmount} ${
+                            tx.amount >= 0
+                              ? styles.transactionPositive
+                              : styles.transactionNegative
+                          }`}
+                        >
+                          {tx.amount >= 0 ? '+' : ''}
+                          {tx.amount.toFixed(0)} cr
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
               <div className={styles.sectionCard}>
                 <div className={styles.sectionTitle}>Active assignments</div>
@@ -1595,6 +1713,20 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     </div>
   );
 }
+
+const TRANSACTION_REASON_LABELS: Record<string, string> = {
+  operating_cost: 'Operating cost',
+  port_fee: 'Port fee',
+  collision: 'Collision penalty',
+  speed_violation: 'Speed violation',
+  near_miss: 'Near miss',
+  mission_reward: 'Mission reward',
+};
+
+const formatTransactionReason = (reason?: string) => {
+  if (!reason) return 'Economy update';
+  return TRANSACTION_REASON_LABELS[reason] || reason.replace(/_/g, ' ');
+};
 
 const SystemMeter = ({
   label,

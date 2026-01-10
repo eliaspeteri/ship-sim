@@ -201,6 +201,70 @@
   color: #f1f7f8;
 }
 
+.progressRow {
+  margin-top: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.progressTrack {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(10, 24, 36, 0.7);
+  border: 1px solid rgba(40, 60, 80, 0.6);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(135deg, #1b9aaa, #0f6d75);
+}
+
+.progressMeta {
+  font-size: 11px;
+  color: rgba(150, 168, 182, 0.7);
+}
+
+.transactionList {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.transactionRow {
+  border-radius: 12px;
+  border: 1px solid rgba(40, 60, 80, 0.6);
+  background: rgba(6, 12, 18, 0.6);
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.transactionLabel {
+  font-size: 12px;
+  color: rgba(210, 222, 230, 0.9);
+}
+
+.transactionMeta {
+  font-size: 10px;
+  color: rgba(150, 168, 182, 0.7);
+}
+
+.transactionAmount {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.transactionPositive {
+  color: #6ad39f;
+}
+
+.transactionNegative {
+  color: #f39b7b;
+}
+
 .assignmentList {
   margin-top: 10px;
   display: grid;
