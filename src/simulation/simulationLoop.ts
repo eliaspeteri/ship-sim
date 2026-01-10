@@ -297,6 +297,7 @@ export class SimulationLoop {
   private updatePhysics(dt: number): void {
     const state = useStore.getState();
     if (!state || !this.wasmBridge || !state.wasmVesselPtr) return;
+    if (state.mode === 'spectator') return;
 
     const { wind, current } = state.environment;
     const prevVesselPos = state.vessel.position;
@@ -508,6 +509,7 @@ export class SimulationLoop {
     if (!this.wasmBridge) return;
 
     const state = useStore.getState();
+    if (state.mode === 'spectator') return;
     const vesselPtr = state.wasmVesselPtr;
 
     if (vesselPtr === null) return;
