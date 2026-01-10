@@ -16,7 +16,6 @@ const navLinks = [
   { href: '/sim', label: 'Simulator' },
   { href: '/spaces', label: 'Spaces' },
   { href: '/globe', label: 'Map', tag: 'beta' },
-  { href: '/system-schematics', label: 'Systems' },
 ];
 
 const Layout: React.FC<LayoutProps> = ({ children, fullBleed = false }) => {
