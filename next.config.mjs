@@ -1,5 +1,5 @@
 export default {
-  allowedDevOrigins: ['http://localhost:3000', 'http://192.168.1.220:3000'],
+  allowedDevOrigins: ['http://localhost:3000', '192.168.1.220'],
   reactStrictMode: true,
   transpilePackages: ['three'],
   images: {
