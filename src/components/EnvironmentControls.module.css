@@ -205,7 +205,7 @@
 .scheduleForm {
   margin-top: 10px;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr auto;
+  grid-template-columns: 1fr 1fr 1fr 1fr auto;
   gap: 8px;
 }
 
