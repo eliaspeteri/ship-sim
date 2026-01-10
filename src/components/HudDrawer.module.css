@@ -494,6 +494,12 @@
   color: rgba(220, 234, 240, 0.8);
 }
 
+.stationHint {
+  margin-top: 4px;
+  font-size: 10px;
+  color: rgba(150, 168, 182, 0.7);
+}
+
 .stationButton {
   border: none;
   border-radius: 8px;

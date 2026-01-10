@@ -1050,16 +1050,19 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                           key: 'helm',
                           label: 'Helm',
                           station: helmStation,
+                          description: 'Steer the vessel and manage heading.',
                         },
                         {
                           key: 'engine',
                           label: 'Engine',
                           station: engineStation,
+                          description: 'Throttle and ballast controls.',
                         },
                         {
                           key: 'radio',
                           label: 'Radio',
                           station: radioStation,
+                          description: 'Communications and broadcasts.',
                         },
                       ].map(item => {
                         const holderId = item.station?.userId || null;
@@ -1090,6 +1093,9 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                                 {holderId
                                   ? `Held by ${holderName}`
                                   : 'Unassigned'}
+                              </div>
+                              <div className={styles.stationHint}>
+                                {item.description}
                               </div>
                             </div>
                             <button
