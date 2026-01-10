@@ -14,6 +14,8 @@ type ManagedSpace = {
   createdAt?: string;
   updatedAt?: string;
   passwordProtected?: boolean;
+  totalVessels?: number;
+  activeVessels?: number;
 };
 
 type SpaceDraft = {
@@ -25,12 +27,15 @@ type SpaceDraft = {
 };
 
 const SpacesPage: React.FC = () => {
-  const { status } = useSession();
+  const { status, data: session } = useSession();
   const [spaces, setSpaces] = useState<ManagedSpace[]>([]);
   const [drafts, setDrafts] = useState<Record<string, SpaceDraft>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const role = (session?.user as { role?: string })?.role || 'guest';
+  const isAdmin = role === 'admin';
+  const [scope, setScope] = useState<'mine' | 'all'>('mine');
 
   const syncDrafts = useCallback((incoming: ManagedSpace[]) => {
     setDrafts(prev => {
@@ -53,9 +58,13 @@ const SpacesPage: React.FC = () => {
     setError(null);
     setNotice(null);
     try {
-      const res = await fetch(`${getApiBase()}/api/spaces/mine`, {
-        credentials: 'include',
-      });
+      const queryScope = scope === 'all' && isAdmin ? 'all' : 'mine';
+      const res = await fetch(
+        `${getApiBase()}/api/spaces/manage?scope=${queryScope}`,
+        {
+          credentials: 'include',
+        },
+      );
       if (!res.ok) {
         throw new Error(`Request failed with status ${res.status}`);
       }
@@ -69,7 +78,13 @@ const SpacesPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [syncDrafts]);
+  }, [isAdmin, scope, syncDrafts]);
+
+  useEffect(() => {
+    if (!isAdmin && scope !== 'mine') {
+      setScope('mine');
+    }
+  }, [isAdmin, scope]);
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -192,8 +207,11 @@ const SpacesPage: React.FC = () => {
   );
 
   const spaceCountLabel = useMemo(
-    () => `${spaces.length} space${spaces.length === 1 ? '' : 's'}`,
-    [spaces.length],
+    () =>
+      scope === 'all' && isAdmin
+        ? `${spaces.length} total`
+        : `${spaces.length} space${spaces.length === 1 ? '' : 's'}`,
+    [isAdmin, scope, spaces.length],
   );
 
   if (status === 'loading') {
@@ -217,18 +235,50 @@ const SpacesPage: React.FC = () => {
         <div>
           <div className={styles.title}>Manage spaces</div>
           <p className={styles.subtitle}>
-            {spaceCountLabel} created by you. Update visibility, share invites,
-            or rotate passwords.
+            {scope === 'all' && isAdmin
+              ? `${spaceCountLabel} spaces across all creators.`
+              : `${spaceCountLabel} created by you.`}{' '}
+            Update visibility, share invites, or rotate passwords.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void fetchSpaces()}
-          className={`${styles.button} ${styles.buttonSecondary}`}
-          disabled={loading}
-        >
-          Refresh
-        </button>
+        <div className={styles.actionsRow}>
+          {isAdmin ? (
+            <div className={styles.toggleGroup}>
+              <button
+                type="button"
+                onClick={() => setScope('mine')}
+                className={`${styles.button} ${
+                  scope === 'mine'
+                    ? styles.buttonPrimary
+                    : styles.buttonSecondary
+                }`}
+                disabled={loading}
+              >
+                My spaces
+              </button>
+              <button
+                type="button"
+                onClick={() => setScope('all')}
+                className={`${styles.button} ${
+                  scope === 'all'
+                    ? styles.buttonPrimary
+                    : styles.buttonSecondary
+                }`}
+                disabled={loading}
+              >
+                All spaces
+              </button>
+            </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void fetchSpaces()}
+            className={`${styles.button} ${styles.buttonSecondary}`}
+            disabled={loading}
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {notice ? (
@@ -252,6 +302,9 @@ const SpacesPage: React.FC = () => {
         {spaces.map(space => {
           const draft = drafts[space.id];
           const inviteToken = space.inviteToken || '—';
+          const totalVessels = space.totalVessels ?? 0;
+          const activeVessels = space.activeVessels ?? 0;
+          const hasTraffic = activeVessels > 0;
           return (
             <div key={space.id} className={styles.spaceCard}>
               <div className={styles.cardHeader}>
@@ -272,8 +325,17 @@ const SpacesPage: React.FC = () => {
                   {space.passwordProtected ? (
                     <span className={styles.tag}>Password</span>
                   ) : null}
+                  <span className={styles.tag}>Vessels {totalVessels}</span>
+                  {hasTraffic ? (
+                    <span className={styles.tag}>Active {activeVessels}</span>
+                  ) : null}
                 </div>
               </div>
+              {scope === 'all' && isAdmin ? (
+                <div className={styles.cardMeta}>
+                  Owner: {space.createdBy || 'Unknown'}
+                </div>
+              ) : null}
 
               <div className={styles.formGrid}>
                 <label className={styles.cardMeta}>
@@ -365,7 +427,7 @@ const SpacesPage: React.FC = () => {
                     type="button"
                     className={`${styles.button} ${styles.buttonDanger}`}
                     onClick={() => void handleDelete(space.id)}
-                    disabled={draft?.saving}
+                    disabled={draft?.saving || totalVessels > 0}
                   >
                     Delete
                   </button>
@@ -375,6 +437,11 @@ const SpacesPage: React.FC = () => {
               {draft?.error ? (
                 <div className={`${styles.notice} ${styles.noticeError}`}>
                   {draft.error}
+                </div>
+              ) : null}
+              {totalVessels > 0 ? (
+                <div className={styles.cardMeta}>
+                  Delete is disabled while vessels exist in this space.
                 </div>
               ) : null}
             </div>

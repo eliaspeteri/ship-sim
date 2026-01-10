@@ -147,6 +147,11 @@
   gap: 8px;
 }
 
+.toggleGroup {
+  display: flex;
+  gap: 6px;
+}
+
 @media (max-width: 720px) {
   .header {
     flex-direction: column;

@@ -827,6 +827,60 @@ router.get('/spaces/mine', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/spaces/manage - list spaces for management (admin can view all)
+router.get('/spaces/manage', requireAuth, async (req, res) => {
+  const scope = typeof req.query.scope === 'string' ? req.query.scope : 'mine';
+  const isAdmin = req.user?.roles?.includes('admin');
+  const where =
+    scope === 'all' && isAdmin ? {} : { createdBy: req.user!.userId };
+  try {
+    const spaces = await prisma.space.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+    if (spaces.length === 0) {
+      res.json({ spaces: [] });
+      return;
+    }
+    const spaceIds = spaces.map(space => space.id);
+    const activeSince = new Date(Date.now() - 2 * 60 * 1000);
+    const [vesselCounts, activeCounts] = await Promise.all([
+      prisma.vessel.groupBy({
+        by: ['spaceId'],
+        _count: { _all: true },
+        where: { spaceId: { in: spaceIds } },
+      }),
+      prisma.vessel.groupBy({
+        by: ['spaceId'],
+        _count: { _all: true },
+        where: {
+          spaceId: { in: spaceIds },
+          lastUpdate: { gt: activeSince },
+        },
+      }),
+    ]);
+    const vesselCountMap = new Map(
+      vesselCounts.map(entry => [entry.spaceId, entry._count._all]),
+    );
+    const activeCountMap = new Map(
+      activeCounts.map(entry => [entry.spaceId, entry._count._all]),
+    );
+    res.json({
+      spaces: spaces.map(space => ({
+        ...serializeSpace(space),
+        createdAt: space.createdAt,
+        updatedAt: space.updatedAt,
+        passwordProtected: Boolean(space.passwordHash),
+        totalVessels: vesselCountMap.get(space.id) ?? 0,
+        activeVessels: activeCountMap.get(space.id) ?? 0,
+      })),
+    });
+  } catch (err) {
+    console.error('Failed to fetch managed spaces', err);
+    res.status(500).json({ error: 'Failed to fetch managed spaces' });
+  }
+});
+
 // PATCH /api/spaces/:spaceId - update a space (owner only)
 router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
   const { spaceId } = req.params;
@@ -929,6 +983,16 @@ router.delete('/spaces/:spaceId', requireAuth, async (req, res) => {
     }
     if (!(await canManageSpace(req, spaceId))) {
       res.status(403).json({ error: 'Not authorized to delete this space' });
+      return;
+    }
+    const activeSince = new Date(Date.now() - 2 * 60 * 1000);
+    const activeVesselCount = await prisma.vessel.count({
+      where: { spaceId, lastUpdate: { gt: activeSince } },
+    });
+    if (activeVesselCount > 0) {
+      res.status(409).json({
+        error: 'Space has active vessels; wait until it is empty',
+      });
       return;
     }
     const vesselCount = await prisma.vessel.count({
