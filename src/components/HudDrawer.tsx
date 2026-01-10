@@ -1514,8 +1514,8 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                   </button>
                 </div>
                 <div className={styles.sectionSub}>
-                  Ghost playback overlays the last run. Recordings pause vessel
-                  control updates while active.
+                  Record a run, stop, then play ghost to overlay the last
+                  capture. Playback freezes live control updates while active.
                 </div>
               </div>
             </div>
