@@ -221,8 +221,8 @@ function SpectatorController({
     distanceVec.current.set(focusRef.current.x, 0, focusRef.current.y);
     const distance = camera.position.distanceTo(distanceVec.current);
     const speedScale = THREE.MathUtils.clamp(distance / 200, 0.3, 6);
-    const baseSpeed = 130;
-    const boostSpeed = 320;
+    const baseSpeed = 330;
+    const boostSpeed = 820;
     const moveSpeed =
       (keys.current['shift'] ? boostSpeed : baseSpeed) * delta * speedScale;
 
