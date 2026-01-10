@@ -332,8 +332,17 @@ router.post('/environment/events', requireAuth, async (req, res) => {
     return;
   }
   const runAt = new Date(req.body?.runAt);
+  const endAt = req.body?.endAt ? new Date(req.body.endAt) : null;
   if (!runAt || Number.isNaN(runAt.getTime())) {
     res.status(400).json({ error: 'runAt must be a valid date' });
+    return;
+  }
+  if (endAt && Number.isNaN(endAt.getTime())) {
+    res.status(400).json({ error: 'endAt must be a valid date' });
+    return;
+  }
+  if (endAt && endAt <= runAt) {
+    res.status(400).json({ error: 'endAt must be after runAt' });
     return;
   }
   if (!req.body?.pattern && !req.body?.payload) {
@@ -348,6 +357,7 @@ router.post('/environment/events', requireAuth, async (req, res) => {
         pattern: req.body?.pattern || null,
         payload: req.body?.payload || null,
         runAt,
+        endAt,
         enabled: req.body?.enabled !== false,
         createdBy: req.user?.userId || null,
       },

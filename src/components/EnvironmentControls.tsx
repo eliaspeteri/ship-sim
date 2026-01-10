@@ -28,6 +28,9 @@ type EnvironmentEvent = {
   name?: string | null;
   pattern?: string | null;
   runAt: string;
+  endAt?: string | null;
+  executedAt?: string | null;
+  endedAt?: string | null;
   enabled: boolean;
   createdBy?: string | null;
 };
@@ -54,6 +57,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
   const [scheduleTime, setScheduleTime] = useState(() =>
     toLocalInputValue(new Date(Date.now() + 30 * 60 * 1000)),
   );
+  const [scheduleEndTime, setScheduleEndTime] = useState('');
 
   useEffect(() => {
     setLastUpdated(Date.now());
@@ -168,6 +172,15 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
         setEventsError('Select a valid time for the event.');
         return;
       }
+      const endAt = scheduleEndTime ? new Date(scheduleEndTime) : null;
+      if (scheduleEndTime && Number.isNaN(endAt?.getTime() ?? NaN)) {
+        setEventsError('Select a valid end time for the event.');
+        return;
+      }
+      if (endAt && endAt <= runAt) {
+        setEventsError('End time must be after the start time.');
+        return;
+      }
       const res = await fetch(`${apiBase}/api/environment/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -177,6 +190,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
           name: scheduleName.trim() || null,
           pattern: schedulePattern || null,
           runAt: runAt.toISOString(),
+          endAt: endAt ? endAt.toISOString() : null,
         }),
       });
       if (!res.ok) {
@@ -187,6 +201,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
       setEvents(prev => [...prev, created].sort(sortEvents));
       setScheduleName('');
       setScheduleTime(toLocalInputValue(new Date(Date.now() + 30 * 60 * 1000)));
+      setScheduleEndTime('');
     } catch (err) {
       console.error('Failed to schedule environment event', err);
       setEventsError(
@@ -406,9 +421,22 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
                       </div>
                       <div className={styles.scheduleSub}>
                         {formatEventTime(event.runAt, timeZone?.offsetHours)}
+                        {event.endAt
+                          ? ` → ${formatEventTime(
+                              event.endAt,
+                              timeZone?.offsetHours,
+                            )}`
+                          : ''}
                       </div>
                     </div>
                     <div>
+                      <span className={`${styles.pill} ${styles.pillTag}`}>
+                        {event.endedAt
+                          ? 'Ended'
+                          : event.executedAt
+                            ? 'Active'
+                            : 'Scheduled'}
+                      </span>
                       {canManageWeather ? (
                         <button
                           type="button"
@@ -454,6 +482,14 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
                 onChange={e => setScheduleTime(e.target.value)}
                 disabled={!canManageWeather}
               />
+              <input
+                className={styles.input}
+                type="datetime-local"
+                value={scheduleEndTime}
+                onChange={e => setScheduleEndTime(e.target.value)}
+                placeholder="End time (optional)"
+                disabled={!canManageWeather}
+              />
               <button
                 type="button"
                 className={styles.actionButton}
@@ -465,7 +501,8 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
             </div>
             <div className={styles.inlineNote}>
               Times are scheduled in your browser locale; display adapts to the
-              vessel&apos;s inferred time zone.
+              vessel&apos;s inferred time zone. End times restore the prior
+              weather snapshot or fall back to auto if missing.
             </div>
           </div>
         </>

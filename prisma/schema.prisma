@@ -194,7 +194,10 @@ model EnvironmentEvent {
     pattern    String?
     payload    Json?
     runAt      DateTime
+    endAt      DateTime?
+    endPayload Json?
     executedAt DateTime?
+    endedAt    DateTime?
     enabled    Boolean  @default(true)
     createdBy  String?
     createdAt  DateTime @default(now())

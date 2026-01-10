@@ -2560,7 +2560,12 @@ async function processEnvironmentEvents() {
 
     for (const event of events) {
       const spaceId = event.spaceId || DEFAULT_SPACE_ID;
-      let env = getEnvironmentForSpace(spaceId);
+      const currentEnv = getEnvironmentForSpace(spaceId);
+      const restorePayload =
+        event.endAt && !event.endPayload
+          ? JSON.parse(JSON.stringify(currentEnv))
+          : null;
+      let env = currentEnv;
       if (event.pattern) {
         const pattern = getWeatherPattern(event.pattern);
         pattern.timeOfDay = env.timeOfDay ?? currentUtcTimeOfDay();
@@ -2579,11 +2584,48 @@ async function processEnvironmentEvents() {
       io.to(`space:${spaceId}`).emit('environment:update', env);
       await prisma.environmentEvent.update({
         where: { id: event.id },
-        data: { executedAt: now },
+        data: {
+          executedAt: now,
+          ...(restorePayload ? { endPayload: restorePayload } : {}),
+        },
       });
       void persistEnvironmentToDb({ force: true, spaceId });
       console.info(
         `Applied scheduled environment event ${event.id} for space ${spaceId}`,
+      );
+    }
+
+    const ending = await prisma.environmentEvent.findMany({
+      where: {
+        enabled: true,
+        endedAt: null,
+        endAt: { lte: now },
+        executedAt: { not: null },
+      },
+      orderBy: { endAt: 'asc' },
+    });
+
+    for (const event of ending) {
+      const spaceId = event.spaceId || DEFAULT_SPACE_ID;
+      let env = getEnvironmentForSpace(spaceId);
+      if (event.endPayload) {
+        env = applyEnvironmentOverrides(
+          spaceId,
+          event.endPayload as Partial<EnvironmentState>,
+        );
+      } else {
+        const pattern = getWeatherPattern();
+        pattern.timeOfDay = env.timeOfDay ?? currentUtcTimeOfDay();
+        env = applyWeatherPattern(spaceId, pattern);
+      }
+      io.to(`space:${spaceId}`).emit('environment:update', env);
+      await prisma.environmentEvent.update({
+        where: { id: event.id },
+        data: { endedAt: now, enabled: false },
+      });
+      void persistEnvironmentToDb({ force: true, spaceId });
+      console.info(
+        `Ended scheduled environment event ${event.id} for space ${spaceId}`,
       );
     }
   } catch (err) {

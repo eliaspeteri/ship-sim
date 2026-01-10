@@ -168,3 +168,10 @@ CREATE INDEX "Mission_spaceId_active_idx" ON "Mission"("spaceId", "active");
 CREATE INDEX "MissionAssignment_userId_status_idx" ON "MissionAssignment"("userId", "status");
 CREATE INDEX "MissionAssignment_missionId_idx" ON "MissionAssignment"("missionId");
 CREATE INDEX "EconomyTransaction_userId_idx" ON "EconomyTransaction"("userId");
+
+-- Environment event end window
+ALTER TABLE "EnvironmentEvent" ADD COLUMN "endAt" TIMESTAMP(3);
+ALTER TABLE "EnvironmentEvent" ADD COLUMN "endPayload" JSONB;
+ALTER TABLE "EnvironmentEvent" ADD COLUMN "endedAt" TIMESTAMP(3);
+
+CREATE INDEX "EnvironmentEvent_spaceId_endAt_idx" ON "EnvironmentEvent"("spaceId", "endAt");
