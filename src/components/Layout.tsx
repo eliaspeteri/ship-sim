@@ -96,10 +96,9 @@ const Layout: React.FC<LayoutProps> = ({ children, fullBleed = false }) => {
             {isAuthed ? (
               <>
                 <div className={styles.userInfo}>
-                  <span className={styles.userName}>
+                  <Link href="/profile" className={styles.userNameLink}>
                     {username || 'Signed in'}
-                  </span>
-                  <span className={styles.userRole}>{role}</span>
+                  </Link>
                 </div>
                 <span className={styles.roleBadge}>{role}</span>
                 <button

@@ -135,6 +135,11 @@ interface UserSettings {
   soundEnabled: boolean;
   showHUD: boolean;
   timeScale: number;
+  units: 'metric' | 'imperial' | 'nautical';
+  speedUnit: 'knots' | 'kmh' | 'mph';
+  distanceUnit: 'nm' | 'km' | 'mi';
+  timeZoneMode: 'auto' | 'manual';
+  timeZone: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -978,16 +983,47 @@ router.get('/settings/:userId', requireAuth, function (req, res) {
 // POST /api/settings/:userId
 router.post('/settings/:userId', requireAuth, function (req, res) {
   const { userId } = req.params;
-  const { cameraMode, soundEnabled, showHUD, timeScale } = req.body;
+  const {
+    cameraMode,
+    soundEnabled,
+    showHUD,
+    timeScale,
+    units,
+    speedUnit,
+    distanceUnit,
+    timeZoneMode,
+    timeZone,
+  } = req.body;
+  const existing = userSettingsStore[userId];
 
   const settings: UserSettings = {
-    id: userSettingsStore[userId]?.id ?? Date.now(),
+    id: existing?.id ?? Date.now(),
     userId,
-    cameraMode: cameraMode || 'thirdPerson',
-    soundEnabled: soundEnabled !== undefined ? soundEnabled : true,
-    showHUD: showHUD !== undefined ? showHUD : true,
-    timeScale: timeScale || 1.0,
-    createdAt: userSettingsStore[userId]?.createdAt ?? new Date(),
+    cameraMode: cameraMode || existing?.cameraMode || 'thirdPerson',
+    soundEnabled:
+      soundEnabled !== undefined
+        ? soundEnabled
+        : (existing?.soundEnabled ?? true),
+    showHUD: showHUD !== undefined ? showHUD : (existing?.showHUD ?? true),
+    timeScale: timeScale || existing?.timeScale || 1.0,
+    units:
+      units === 'imperial' || units === 'nautical'
+        ? units
+        : existing?.units || 'metric',
+    speedUnit:
+      speedUnit === 'kmh' || speedUnit === 'mph' || speedUnit === 'knots'
+        ? speedUnit
+        : existing?.speedUnit || 'knots',
+    distanceUnit:
+      distanceUnit === 'km' || distanceUnit === 'mi' || distanceUnit === 'nm'
+        ? distanceUnit
+        : existing?.distanceUnit || 'nm',
+    timeZoneMode: timeZoneMode === 'manual' ? 'manual' : 'auto',
+    timeZone:
+      typeof timeZone === 'string' && timeZone.trim().length > 0
+        ? timeZone.trim()
+        : existing?.timeZone || 'UTC',
+    createdAt: existing?.createdAt ?? new Date(),
     updatedAt: new Date(),
   };
   userSettingsStore[userId] = settings;
