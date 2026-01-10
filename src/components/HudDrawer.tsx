@@ -24,7 +24,12 @@ import EventLog from './EventLog';
 import { MarineRadio } from './radio/index';
 import { ConningDisplay } from './bridge/ConningDisplay';
 import { AlarmIndicator } from './alarms/AlarmIndicator';
-import { positionToXY } from '../lib/position';
+import {
+  courseFromWorldVelocity,
+  positionToXY,
+  speedFromWorldVelocity,
+  worldVelocityFromBody,
+} from '../lib/position';
 import { getApiBase } from '../lib/api';
 import {
   applyOffsetToTimeOfDay,
@@ -81,8 +86,10 @@ const formatBearing = (deg?: number) => {
 
 const formatKnots = (val?: number) =>
   `${((val || 0) * 1.94384).toFixed(1)} kts`;
+const formatKnotsValue = (val?: number) => `${(val || 0).toFixed(1)} kts`;
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+const COURSE_SPEED_THRESHOLD = 0.05;
 
 interface HudDrawerProps {
   onOpenSpaces?: () => void;
@@ -241,18 +248,27 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     register(radioStation?.userId, 'Radio');
     return map;
   }, [engineStation?.userId, helmStation?.userId, radioStation?.userId]);
+  const currentVector = useMemo(() => {
+    const speed = environment.current?.speed ?? 0;
+    const direction = environment.current?.direction ?? 0;
+    return {
+      x: speed * Math.cos(direction),
+      y: speed * Math.sin(direction),
+    };
+  }, [environment.current?.direction, environment.current?.speed]);
   const toWorldVelocity = React.useCallback(
     (v: typeof vessel | (typeof otherVessels)[string]) => {
-      const h = v?.orientation?.heading ?? 0;
-      const surge = v?.velocity?.surge ?? 0;
-      const sway = v?.velocity?.sway ?? 0;
-      const wx = surge * Math.cos(h) - sway * Math.sin(h);
-      const wy = surge * Math.sin(h) + sway * Math.cos(h);
-      const speed = Math.sqrt(wx ** 2 + wy ** 2);
-      const course = ((Math.atan2(wx, wy) * 180) / Math.PI + 360) % 360;
-      return { wx, wy, speed, course };
+      const heading = v?.orientation?.heading ?? 0;
+      const base = worldVelocityFromBody(heading, v?.velocity ?? {});
+      const combined = {
+        x: base.x + currentVector.x,
+        y: base.y + currentVector.y,
+      };
+      const speed = speedFromWorldVelocity(combined);
+      const course = courseFromWorldVelocity(combined);
+      return { wx: combined.x, wy: combined.y, speed, course };
     },
-    [],
+    [currentVector.x, currentVector.y],
   );
 
   const timeZone = useMemo(
@@ -269,13 +285,11 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     const headingRad = vessel.orientation.heading || 0;
     const headingDeg = ((toDegrees(headingRad) % 360) + 360) % 360;
     const headingCompass = (((90 - headingDeg) % 360) + 360) % 360;
-    const surge = vessel.velocity.surge || 0;
-    const sway = vessel.velocity.sway || 0;
-    const worldX = surge * Math.cos(headingRad) - sway * Math.sin(headingRad);
-    const worldY = surge * Math.sin(headingRad) + sway * Math.cos(headingRad);
-    const speedMs = Math.sqrt(worldX ** 2 + worldY ** 2);
-    const courseDeg =
-      ((Math.atan2(worldX, worldY) * 180) / Math.PI + 360) % 360;
+    const { speed: speedMs, course: courseDeg } = toWorldVelocity(vessel);
+    const stableCourse =
+      speedMs > COURSE_SPEED_THRESHOLD && Number.isFinite(courseDeg)
+        ? courseDeg
+        : headingCompass;
     return {
       position: {
         lat: vessel.position.lat ?? 0,
@@ -283,14 +297,13 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       },
       heading: headingCompass,
       speed: Number.isFinite(speedMs) ? speedMs * 1.94384 : 0,
-      course: Number.isFinite(courseDeg) ? courseDeg : 0,
+      course: Number.isFinite(stableCourse) ? stableCourse : headingCompass,
     };
   }, [
+    toWorldVelocity,
     vessel.orientation.heading,
     vessel.position.lat,
     vessel.position.lon,
-    vessel.velocity.surge,
-    vessel.velocity.sway,
   ]);
 
   const radarEnvironment = useMemo(
@@ -441,9 +454,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     const headingCompass = (((90 - headingDeg) % 360) + 360) % 360;
     const windDeg = ((toDegrees(environment.wind.direction) % 360) + 360) % 360;
     const windCompass = (((90 - windDeg) % 360) + 360) % 360;
-    const surge = vessel.velocity.surge ?? 0;
-    const sway = vessel.velocity.sway ?? 0;
-    const speedMs = Math.sqrt(surge ** 2 + sway ** 2);
+    const { speed: speedMs } = toWorldVelocity(vessel);
     const speedKts = speedMs * 1.94384;
     const yawRateDeg = toDegrees(vessel.angularVelocity?.yaw ?? 0);
     const rudderDeg = toDegrees(vessel.controls.rudderAngle ?? 0);
@@ -489,6 +500,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     environment.timeOfDay,
     environment.wind.direction,
     environment.wind.speed,
+    toWorldVelocity,
     vessel.angularVelocity?.yaw,
     vessel.controls.rudderAngle,
     vessel.controls.throttle,
@@ -500,8 +512,6 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     vessel.orientation.roll,
     vessel.position.lat,
     vessel.position.lon,
-    vessel.velocity.surge,
-    vessel.velocity.sway,
   ]);
 
   const alarmItems = useMemo(() => {
@@ -689,8 +699,9 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
         value: formatBearing(ownShipData.course),
       },
       {
-        label: 'Speed',
-        value: formatKnots(vessel.velocity.surge),
+        label: 'SOG',
+        value: formatKnotsValue(ownShipData.speed),
+        detail: `STW ${formatKnots(vessel.velocity.surge)}`,
       },
       {
         label: 'Rudder',
@@ -743,6 +754,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       localTimeOfDay,
       timeZoneLabel,
       ownShipData.course,
+      ownShipData.speed,
       vessel.angularVelocity?.yaw,
       vessel.controls.ballast,
       vessel.controls.rudderAngle,

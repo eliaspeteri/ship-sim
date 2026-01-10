@@ -1,8 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import useStore from '../store';
 import { AlarmIndicator } from './alarms/AlarmIndicator';
 import { CompassRose } from './CompassRose';
 import { CircularGauge } from './CircularGauge';
+import {
+  courseFromWorldVelocity,
+  speedFromWorldVelocity,
+  worldVelocityFromBody,
+} from '../lib/position';
 import styles from './Dashboard.module.css';
 
 interface DashboardProps {
@@ -23,6 +28,28 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
   const headingDeg = ((headingRad * 180) / Math.PI + 360) % 360;
   const compassHeadingDeg = (((90 - headingDeg) % 360) + 360) % 360;
   const compassHeadingRad = (compassHeadingDeg * Math.PI) / 180;
+  const currentVector = useMemo(() => {
+    const speed = environment.current?.speed ?? 0;
+    const direction = environment.current?.direction ?? 0;
+    return {
+      x: speed * Math.cos(direction),
+      y: speed * Math.sin(direction),
+    };
+  }, [environment.current?.direction, environment.current?.speed]);
+  const worldVelocity = useMemo(() => {
+    const base = worldVelocityFromBody(headingRad, velocity ?? {});
+    return {
+      x: base.x + currentVector.x,
+      y: base.y + currentVector.y,
+    };
+  }, [currentVector.x, currentVector.y, headingRad, velocity]);
+  const speedRaw = speedFromWorldVelocity(worldVelocity);
+  const speedMs = Number.isFinite(speedRaw) ? speedRaw : 0;
+  const courseRaw = courseFromWorldVelocity(worldVelocity);
+  const courseDeg =
+    speedMs > 0.05 && Number.isFinite(courseRaw)
+      ? courseRaw
+      : compassHeadingDeg;
 
   const navOffset = 'calc(var(--nav-height, 0px) + 1rem)';
   const panelMaxHeight = 'calc(92vh - var(--nav-height, 0px))';
@@ -106,9 +133,9 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
             </div>
           </div>
           <div className={styles.statCard}>
-            <div className={styles.statLabel}>Speed</div>
+            <div className={styles.statLabel}>SOG</div>
             <div className={styles.statValue}>
-              {((velocity?.surge || 0) * 1.94384).toFixed(1)} kts
+              {(speedMs * 1.94384).toFixed(1)} kts
             </div>
           </div>
           <div className={styles.statCard}>
@@ -119,21 +146,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
           </div>
           <div className={styles.statCard}>
             <div className={styles.statLabel}>Course</div>
-            <div className={styles.statValue}>
-              {(() => {
-                const heading = orientation?.heading || 0;
-                const surge = velocity?.surge || 0;
-                const sway = velocity?.sway || 0;
-                const worldX =
-                  surge * Math.cos(heading) - sway * Math.sin(heading);
-                const worldY =
-                  surge * Math.sin(heading) + sway * Math.cos(heading);
-                const bearing =
-                  ((Math.atan2(worldX, worldY) * 180) / Math.PI + 360) % 360;
-                return Math.round(bearing);
-              })()}
-              °
-            </div>
+            <div className={styles.statValue}>{Math.round(courseDeg)}°</div>
           </div>
           <div className={styles.statCard}>
             <div className={styles.statLabel}>Yaw rate</div>
@@ -156,8 +169,8 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
 
         <div className={styles.gaugeGrid}>
           <CircularGauge
-            label="Speed"
-            value={(velocity?.surge || 0) * 1.94384}
+            label="SOG"
+            value={speedMs * 1.94384}
             min={-20}
             max={20}
             unit="kts"
