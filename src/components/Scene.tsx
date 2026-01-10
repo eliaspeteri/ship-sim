@@ -564,6 +564,28 @@ function AdminDragHandles({
   );
 }
 
+function SkyFollowCamera(
+  props: React.ComponentProps<typeof Sky> & { enabled?: boolean },
+) {
+  const { camera } = useThree();
+  const ref = useRef<THREE.Object3D>(null);
+
+  useFrame(() => {
+    if (!props.enabled) return;
+    if (!ref.current) return;
+    ref.current.position.copy(camera.position);
+  });
+
+  return (
+    <Sky
+      // @ts-expect-error Sky forwards ref to an Object3D
+      ref={ref}
+      frustumCulled={false}
+      {...props}
+    />
+  );
+}
+
 export default function Scene({ vesselPosition, mode }: SceneProps) {
   const isSpectator = mode === 'spectator';
   const vesselProperties = useStore(state => state.vessel.properties);
@@ -713,7 +735,8 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
         }}
       >
         <color attach="background" args={['#091623']} />
-        <Sky
+        <SkyFollowCamera
+          enabled
           distance={45000}
           sunPosition={[
             sunDirection.x * 3000,
@@ -725,6 +748,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           mieCoefficient={0.005}
           mieDirectionalG={0.8}
         />
+
         <Environment preset="sunset" />
         <ambientLight intensity={lightIntensity.ambient} />
         <hemisphereLight args={['#6fa6ff', '#0b1e2d', lightIntensity.hemi]} />
