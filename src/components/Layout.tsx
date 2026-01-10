@@ -70,6 +70,9 @@ const Layout: React.FC<LayoutProps> = ({ children, fullBleed = false }) => {
                 className={`${styles.navLink} ${isActive(link.href) ? styles.navLinkActive : ''}`}
               >
                 {link.label}
+                {link.tag ? (
+                  <span className={styles.navTag}>{link.tag}</span>
+                ) : null}
               </Link>
             ))}
           </nav>
