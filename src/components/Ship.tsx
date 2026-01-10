@@ -93,8 +93,8 @@ const Ship: React.FC<ShipProps> = ({
 
       const rollAngle = roll ?? orientation?.roll ?? 0;
       const pitchAngle = pitch ?? orientation?.pitch ?? 0;
-      // Render heading: model forward (+Z) vs physics forward (+X). Rotate -90° to align axes and invert for Three.js.
-      const renderHeading = -heading - Math.PI / 2;
+      // Render heading: model forward (+Z) vs physics forward (+X). Rotate +90° to align axes.
+      const renderHeading = Math.PI / 2 - heading;
 
       // Apply heading, roll, and pitch (roll/pitch from physics; heading from store)
       obj.rotation.set(pitchAngle, renderHeading, rollAngle);
