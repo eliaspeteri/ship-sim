@@ -722,42 +722,6 @@ async function persistEnvironmentToDb(
   }
 }
 
-function createDefaultAIVessel(
-  id: string,
-  position: Partial<VesselPose['position']> = {},
-) {
-  const nextPosition = ensurePosition(position);
-  const vessel: VesselRecord = {
-    id,
-    spaceId: DEFAULT_SPACE_ID,
-    ownerId: null,
-    crewIds: new Set<string>(),
-    crewNames: new Map<string, string>(),
-    helmUserId: null,
-    helmUsername: null,
-    engineUserId: null,
-    engineUsername: null,
-    radioUserId: null,
-    radioUsername: null,
-    mode: 'ai',
-    desiredMode: 'ai',
-    lastCrewAt: Date.now(),
-    yawRate: 0,
-    position: nextPosition,
-    orientation: { heading: 0, roll: 0, pitch: 0 },
-    velocity: { surge: 0, sway: 0, heave: 0 },
-    properties: {
-      mass: 1_200_000,
-      length: 150,
-      beam: 24,
-      draft: 7,
-    },
-    controls: { throttle: 0, rudderAngle: 0, ballast: 0.5, bowThruster: 0 },
-    lastUpdate: Date.now(),
-  };
-  return vessel;
-}
-
 function createNewVesselForUser(
   userId: string,
   username: string,
@@ -2594,20 +2558,6 @@ async function ensureDefaultSpaceExists() {
   }
 }
 
-async function ensureDefaultVesselExists() {
-  if (globalState.vessels.size > 0) return;
-  const aiVessel = createDefaultAIVessel('ai_default_1', {
-    x: 0,
-    y: 0,
-    z: 0,
-  });
-  globalState.vessels.set(aiVessel.id, aiVessel);
-  await persistVesselToDb(aiVessel);
-  console.info(
-    `Seeded default AI vessel ${aiVessel.id} at (${aiVessel.position.x ?? 0}, ${aiVessel.position.y ?? 0})`,
-  );
-}
-
 const ENV_EVENT_POLL_MS = 10000;
 
 async function processEnvironmentEvents() {
@@ -2711,7 +2661,6 @@ async function startServer() {
     await Promise.all(
       spaces.map(space => refreshSpaceMeta(space.id).catch(() => null)),
     );
-    await ensureDefaultVesselExists();
     server.listen(PORT, () => {
       console.info(`Server listening on port ${PORT}`);
     });
