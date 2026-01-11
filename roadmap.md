@@ -76,6 +76,7 @@
 ### Built-in rulesets
 
 - [ ] CASUAL_PUBLIC
+
   - [ ] Free leave/teleport allowed
   - [ ] Soft collisions
   - [ ] Generous insurance & loans
@@ -83,6 +84,7 @@
   - [ ] AI handles failures automatically
 
 - [ ] SIM_PUBLIC
+
   - [ ] Leaving only in port / via transfer
   - [ ] Damage, towing, SAR required
   - [ ] COLREG enforcement
@@ -90,6 +92,7 @@
   - [ ] Higher rewards for clean ops
 
 - [ ] PRIVATE_SANDBOX
+
   - [ ] Host-controlled realism
   - [ ] Mods unrestricted
   - [ ] Progression optional
