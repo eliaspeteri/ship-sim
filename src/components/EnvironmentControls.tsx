@@ -445,11 +445,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
                         >
                           Remove
                         </button>
-                      ) : (
-                        <span className={`${styles.pill} ${styles.pillTag}`}>
-                          View
-                        </span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 ))
