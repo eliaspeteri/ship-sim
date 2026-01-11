@@ -19,9 +19,7 @@ export const deriveWaveState = (
 ): WaveState => {
   const seaState = Math.max(0, Math.min(environment.seaState ?? 0, 12));
   const windSpeed = environment.wind?.speed ?? 0;
-  const waveHeight =
-    environment.waveHeight ??
-    clamp(0.2 + seaState * 0.5 + windSpeed * 0.05, 0, 8);
+  const waveHeight = clamp(0.2 + seaState * 0.5 + windSpeed * 0.05, 0, 8);
   const amplitude = waveHeight / 2;
   const wavelength =
     environment.waveLength ??
