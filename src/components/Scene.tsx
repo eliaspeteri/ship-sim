@@ -12,18 +12,19 @@ import { Canvas, ThreeEvent, useFrame, useThree } from '@react-three/fiber';
 import { Environment, OrbitControls, Sky } from '@react-three/drei';
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
-import { Water } from 'three/examples/jsm/objects/Water.js';
 import useStore from '../store';
 import Ship from './Ship';
 import VesselCallout from './VesselCallout';
 import socketManager from '../networking/socket';
-import { deriveWaveState, getGerstnerSample } from '../lib/waves';
+import { deriveWaveState } from '../lib/waves';
 import {
   courseFromWorldVelocity,
   ensurePosition,
   speedFromWorldVelocity,
   worldVelocityFromBody,
 } from '../lib/position';
+import { OceanPatch } from './OceanPatch';
+import { FarWater } from './FarWater';
 
 interface SceneProps {
   vesselPosition: {
@@ -33,130 +34,6 @@ interface SceneProps {
     heading: number;
   };
   mode: 'player' | 'spectator';
-}
-
-// Generate a seamless tiled normal map using summed sine waves (tileable)
-function createTiledNormalMap(size = 256): THREE.DataTexture {
-  const data = new Uint8Array(size * size * 3);
-  const freq1 = 2 * Math.PI;
-  const freq2 = 4 * Math.PI;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const u = x / size;
-      const v = y / size;
-      // Height field as sum of sines, guaranteed to tile
-      // Approximate derivatives
-      const du =
-        Math.cos(freq1 * u) * freq1 * 0.6 +
-        Math.cos(freq2 * (u + v)) * freq2 * 0.25;
-      const dv =
-        Math.cos(freq1 * v + Math.PI / 3) * freq1 * 0.6 +
-        Math.cos(freq2 * (u + v)) * freq2 * 0.25;
-      const nx = -du;
-      const ny = -dv;
-      const nz = 1.0;
-      const len = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
-      const r = (nx / len) * 0.5 + 0.5;
-      const g = (ny / len) * 0.5 + 0.5;
-      const b = (nz / len) * 0.5 + 0.5;
-      const i = (y * size + x) * 3;
-      data[i] = Math.floor(r * 255);
-      data[i + 1] = Math.floor(g * 255);
-      data[i + 2] = Math.floor(b * 255);
-    }
-  }
-  const texture = new THREE.DataTexture(data, size, size, THREE.RGBFormat);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(10, 10);
-  texture.needsUpdate = true;
-  texture.anisotropy = 4;
-  return texture;
-}
-
-function WaterPlane({
-  centerRef,
-  sunDirection,
-  size,
-  waveState,
-}: {
-  centerRef: React.MutableRefObject<{ x: number; y: number }>;
-  sunDirection: THREE.Vector3;
-  size: number;
-  waveState: ReturnType<typeof deriveWaveState>;
-}) {
-  const waterRef = useRef<Water | null>(null);
-  const geometry = useMemo(
-    () => new THREE.PlaneGeometry(size, size, 32, 32),
-    [size],
-  );
-  const waterNormals = useMemo(() => createTiledNormalMap(), []);
-  const waveRef = useRef(waveState);
-  const waveTimeRef = useRef(0);
-
-  const water = useMemo(
-    () =>
-      new Water(geometry, {
-        textureWidth: 512,
-        textureHeight: 512,
-        waterNormals,
-        sunDirection: sunDirection.clone(),
-        sunColor: 0xffffff,
-        waterColor: 0x0c2f45,
-        distortionScale: 2.4,
-        fog: false,
-      }),
-    [geometry, sunDirection, waterNormals],
-  );
-
-  useEffect(() => {
-    const current = waterRef.current;
-    if (current) {
-      current.material.uniforms.sunDirection.value.copy(sunDirection);
-      current.material.uniforms.size.value = 6.0;
-      current.material.uniforms.distortionScale.value = 2.4;
-      current.material.uniforms.alpha.value = 0.96;
-    }
-  }, [sunDirection]);
-
-  useEffect(() => {
-    waveRef.current = waveState;
-  }, [waveState]);
-
-  useEffect(
-    () => () => {
-      water.geometry.dispose();
-      (water.material as THREE.Material).dispose();
-    },
-    [water],
-  );
-
-  useFrame((_, delta) => {
-    if (!waterRef.current) return;
-    waterRef.current.material.uniforms.time.value += delta;
-    waterRef.current.position.set(centerRef.current.x, 0, centerRef.current.y);
-    waveTimeRef.current += delta;
-    const positions = geometry.attributes.position;
-    const wave = waveRef.current;
-    if (!wave || wave.amplitude <= 0.01) return;
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i) + centerRef.current.x;
-      const y = positions.getY(i) + centerRef.current.y;
-      const sample = getGerstnerSample(x, y, waveTimeRef.current, wave);
-      positions.setZ(i, sample.height);
-    }
-    positions.needsUpdate = true;
-    geometry.computeVertexNormals();
-  });
-
-  return (
-    <primitive
-      ref={waterRef}
-      object={water}
-      position={[centerRef.current.x, 0, centerRef.current.y]}
-      rotation={[-Math.PI / 2, 0, 0]}
-    />
-  );
 }
 
 function SpectatorController({
@@ -948,12 +825,16 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           sunDirection={sunDirection}
         />
         <RendererPerfMonitor enabled={perfLoggingEnabled} />
-        <WaterPlane
+        <fog attach="fog" args={['#091623', 6000, 40000]} />
+        {!isSpectator ? <FarWater centerRef={focusRef} /> : null}
+        <OceanPatch
           centerRef={focusRef}
+          size={4000}
+          segments={512}
+          wave={waveState}
           sunDirection={sunDirection}
-          size={isSpectator ? 80000 : 40000}
-          waveState={waveState}
         />
+
         <Ship
           vesselId={currentVesselId || undefined}
           position={{
