@@ -88,6 +88,22 @@ interface SpaceInfo {
   role?: 'host' | 'member';
 }
 
+const shallowEqualEnv = (a: EnvironmentState, b: EnvironmentState) => {
+  if (a.seaState !== b.seaState) return false;
+  if (a.timeOfDay !== b.timeOfDay) return false;
+  if (a.waveHeight !== b.waveHeight) return false;
+  if (a.waveLength !== b.waveLength) return false;
+  if (a.waveDirection !== b.waveDirection) return false;
+
+  // wind/current are nested
+  if (a.wind.speed !== b.wind.speed) return false;
+  if (a.wind.direction !== b.wind.direction) return false;
+  if (a.current.speed !== b.current.speed) return false;
+  if (a.current.direction !== b.current.direction) return false;
+
+  return true;
+};
+
 const hydrodynamicsForType = (type: ShipType) => {
   switch (type) {
     case ShipType.TANKER:
@@ -690,14 +706,11 @@ const useStore = create<SimulationState>()((set, get) => ({
   // Environment state
   environment: defaultEnvironmentState,
   updateEnvironment: environmentUpdate =>
-    set(state => ({
-      environment: {
+    set(state => {
+      const next: EnvironmentState = {
         ...state.environment,
         ...environmentUpdate,
-        wind: {
-          ...state.environment.wind,
-          ...(environmentUpdate.wind || {}),
-        },
+        wind: { ...state.environment.wind, ...(environmentUpdate.wind || {}) },
         current: {
           ...state.environment.current,
           ...(environmentUpdate.current || {}),
@@ -705,8 +718,11 @@ const useStore = create<SimulationState>()((set, get) => ({
         seaState: normalizeSeaState(
           environmentUpdate.seaState ?? state.environment.seaState,
         ),
-      },
-    })),
+      };
+
+      if (shallowEqualEnv(state.environment, next)) return {}; // <-- crucial
+      return { environment: next };
+    }),
 
   setDayNightCycle: enabled => {
     // Implement day/night cycle logic
