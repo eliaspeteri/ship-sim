@@ -106,7 +106,11 @@ const VesselCallout: React.FC<VesselCalloutProps> = ({
             ))}
           </div>
           <div className={styles.footer}>
-            <Link href={`/vessels/${vesselId}`} className={styles.link}>
+            <Link
+              href={`/vessels/${vesselId}`}
+              className={styles.link}
+              target="_blank"
+            >
               Go to vessel page -&gt;
             </Link>
             {actions.length > 0 ? (
