@@ -1103,40 +1103,6 @@ function ensureVesselForUser(
 
   const aiTaken = takeOverAvailableAIVessel(userId, username, spaceId);
   if (aiTaken) return aiTaken;
-
-  console.info(`Creating new vessel for user ${username}.`);
-  const vessel: VesselRecord = {
-    id: userId,
-    spaceId,
-    ownerId: userId,
-    crewIds: new Set([userId]),
-    crewNames: new Map([[userId, username]]),
-    helmUserId: userId,
-    helmUsername: username,
-    engineUserId: userId,
-    engineUsername: username,
-    radioUserId: userId,
-    radioUsername: username,
-    mode: 'player',
-    desiredMode: 'player',
-    lastCrewAt: Date.now(),
-    yawRate: 0,
-    position: ensurePosition({ lat: 0, lon: 0, z: 0 }),
-    orientation: { heading: 0, roll: 0, pitch: 0 },
-    velocity: { surge: 0, sway: 0, heave: 0 },
-    properties: {
-      mass: 1_000_000,
-      length: 120,
-      beam: 20,
-      draft: 6,
-    },
-    controls: { throttle: 0, rudderAngle: 0, ballast: 0.5, bowThruster: 0 },
-    lastUpdate: Date.now(),
-  };
-  globalState.vessels.set(vessel.id, vessel);
-  globalState.userLastVessel.set(userSpaceKey(userId, spaceId), vessel.id);
-  void persistVesselToDb(vessel);
-  return vessel;
 }
 
 let targetWeather: WeatherPattern | null = null;
