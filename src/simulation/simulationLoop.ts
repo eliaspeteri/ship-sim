@@ -306,14 +306,11 @@ export class SimulationLoop {
       lon: prevVesselPos.lon,
     });
 
-    // Calculate the actual sea state based on wind speed
-    const calculatedSeaState = this.wasmBridge.calculateSeaState(wind.speed);
     const waveState = deriveWaveState(state.environment, {
       fallbackDirection: wind.direction,
     });
     if (this.wavePropertiesUpdateCounter++ % 30 === 0) {
       state.updateEnvironment({
-        seaState: calculatedSeaState,
         waveHeight: waveState.amplitude * 2,
         waveDirection: waveState.direction,
         waveLength: waveState.wavelength,
