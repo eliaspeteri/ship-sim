@@ -40,7 +40,11 @@ import { prisma } from '../lib/prisma';
 import { RUDDER_MAX_ANGLE_RAD } from '../constants/vessel';
 import { recordMetric, setConnectedClients } from './metrics';
 import { getBathymetryDepth, loadBathymetry } from './bathymetry';
-import { getEconomyProfile, applyEconomyAdjustment } from './economy';
+import {
+  getEconomyProfile,
+  applyEconomyAdjustment,
+  updateEconomyForVessel,
+} from './economy';
 import { seedDefaultMissions, updateMissionAssignments } from './missions';
 import { recordLog } from './observability';
 
@@ -61,10 +65,6 @@ const AI_GRACE_MS = parseInt(process.env.AI_GRACE_MS || '30000', 10) || 30000; /
 const CHAT_HISTORY_PAGE_SIZE = 20;
 const GLOBAL_SPACE_ID = 'global';
 const DEFAULT_SPACE_ID = process.env.DEFAULT_SPACE_ID || GLOBAL_SPACE_ID;
-const ECONOMY_CHARGE_INTERVAL_MS = 10_000;
-const ECONOMY_BASE_COST = 4;
-const ECONOMY_THROTTLE_COST = 18;
-const PORT_FEE = 120;
 const COLLISION_DISTANCE_M = 50;
 const NEAR_MISS_DISTANCE_M = 200;
 const COLLISION_COOLDOWN_MS = 30_000;
@@ -82,7 +82,7 @@ type SpaceMeta = {
 };
 
 const spaceMetaCache = new Map<string, SpaceMeta>();
-const economyLedger = new Map<
+export const economyLedger = new Map<
   string,
   { lastChargeAt: number; accrued: number; lastPortId?: string }
 >();
@@ -94,35 +94,12 @@ const DEFAULT_ECONOMY_PROFILE = {
   safetyScore: 1,
 };
 
-const PORTS = [
-  {
-    id: 'harbor-alpha',
-    name: 'Harbor Alpha',
-    position: positionFromXY({ x: 0, y: 0 }),
-  },
-  {
-    id: 'bay-delta',
-    name: 'Bay Delta',
-    position: positionFromXY({ x: 2000, y: -1500 }),
-  },
-  {
-    id: 'island-anchorage',
-    name: 'Island Anchorage',
-    position: positionFromXY({ x: -2500, y: 1200 }),
-  },
-  {
-    id: 'channel-gate',
-    name: 'Channel Gate',
-    position: positionFromXY({ x: 800, y: 2400 }),
-  },
-];
-
 type VesselMode = 'player' | 'ai';
 type CoreVesselProperties = Pick<
   VesselState['properties'],
   'mass' | 'length' | 'beam' | 'draft'
 >;
-interface VesselRecord {
+export interface VesselRecord {
   id: string;
   spaceId?: string;
   ownerId: string | null;
@@ -233,18 +210,9 @@ const getSpaceRole = async (userId: string | undefined, spaceId: string) => {
 
 const resolveChargeUserId = (vessel: VesselRecord) => {
   if (vessel.ownerId) return vessel.ownerId;
-  const [crewId] = Array.from(vessel.crewIds.values());
-  return crewId || null;
 };
 
-const resolvePortForPosition = (position: VesselPose['position']) => {
-  const closest = PORTS.find(
-    port => distanceMeters(position, port.position) < 250,
-  );
-  return closest || null;
-};
-
-const syncUserSocketsEconomy = async (
+export const syncUserSocketsEconomy = async (
   userId: string,
   profile: {
     rank: number;
@@ -264,59 +232,6 @@ const syncUserSocketsEconomy = async (
   } catch (err) {
     console.warn('Failed to sync user economy to sockets', err);
   }
-};
-
-const updateEconomyForVessel = async (vessel: VesselRecord, now: number) => {
-  if (vessel.mode !== 'player') return;
-  const chargeUserId = resolveChargeUserId(vessel);
-  if (!chargeUserId) return;
-  const ledger = economyLedger.get(vessel.id) || {
-    lastChargeAt: now,
-    accrued: 0,
-  };
-  const dt = now - ledger.lastChargeAt;
-  if (dt < ECONOMY_CHARGE_INTERVAL_MS) {
-    economyLedger.set(vessel.id, ledger);
-    return;
-  }
-  ledger.lastChargeAt = now;
-
-  const throttle = vessel.controls.throttle ?? 0;
-  const usageFactor = Math.abs(throttle);
-  const costPerInterval =
-    ECONOMY_BASE_COST + ECONOMY_THROTTLE_COST * usageFactor;
-  const cost = costPerInterval * (dt / ECONOMY_CHARGE_INTERVAL_MS);
-
-  if (cost > 0) {
-    const profile = await applyEconomyAdjustment({
-      userId: chargeUserId,
-      vesselId: vessel.id,
-      deltaCredits: -cost,
-      reason: 'operating_cost',
-      meta: { throttle, intervalMs: dt },
-    });
-    io.to(`user:${chargeUserId}`).emit('economy:update', profile);
-    void syncUserSocketsEconomy(chargeUserId, profile);
-  }
-
-  const port = resolvePortForPosition(vessel.position);
-  if (port && ledger.lastPortId !== port.id) {
-    ledger.lastPortId = port.id;
-    const profile = await applyEconomyAdjustment({
-      userId: chargeUserId,
-      vesselId: vessel.id,
-      deltaCredits: -PORT_FEE,
-      reason: 'port_fee',
-      meta: { portId: port.id, portName: port.name },
-    });
-    io.to(`user:${chargeUserId}`).emit('economy:update', profile);
-    void syncUserSocketsEconomy(chargeUserId, profile);
-  }
-  if (!port) {
-    ledger.lastPortId = undefined;
-  }
-
-  economyLedger.set(vessel.id, ledger);
 };
 
 const canTriggerCooldown = (key: string, now: number, cooldown: number) => {
@@ -488,7 +403,7 @@ const getVesselIdForUser = (
 const getSpaceIdForSocket = (socket: import('socket.io').Socket): string =>
   socket.data.spaceId || DEFAULT_SPACE_ID;
 
-async function persistVesselToDb(
+export async function persistVesselToDb(
   vessel: VesselRecord,
   opts: { force?: boolean } = {},
 ) {
@@ -2850,7 +2765,7 @@ setInterval(() => {
   }
 
   for (const vessel of globalState.vessels.values()) {
-    void updateEconomyForVessel(vessel, now);
+    void updateEconomyForVessel(vessel, now, io);
   }
 
   if (environmentChanged) {
