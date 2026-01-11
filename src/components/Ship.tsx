@@ -115,13 +115,13 @@ const Ship: React.FC<ShipProps> = ({
         <Detailed distances={[0, 50, 300]}>
           <primitive
             object={model.scene.clone()}
-            scale={[10, 10, 10]}
+            scale={[1, 1, 1]}
             castShadow
             receiveShadow
           />
           <primitive
             object={model.scene.clone()}
-            scale={[10, 10, 10]}
+            scale={[1, 1, 1]}
             castShadow
             receiveShadow
           />
