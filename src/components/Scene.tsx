@@ -916,8 +916,8 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           }
           enabled={!isDragging}
           enablePan={false}
-          minDistance={isSpectator ? 50 : vesselProperties.length * 2}
-          maxDistance={isSpectator ? 10000 : vesselProperties.length * 10}
+          minDistance={isSpectator ? 50 : vesselProperties.length * 1}
+          maxDistance={isSpectator ? 10000 : vesselProperties.length * 5}
           minPolarAngle={isSpectator ? Math.PI / 4 : Math.PI * 0.05}
           maxPolarAngle={isSpectator ? Math.PI / 4 : Math.PI * 0.5}
         />
