@@ -37,8 +37,10 @@ import {
   formatTimeOfDay,
 } from '../lib/time';
 import styles from './HudDrawer.module.css';
+import { VesselList } from './VesselList';
 
 type HudTab =
+  | 'vessels'
   | 'navigation'
   | 'conning'
   | 'weather'
@@ -54,6 +56,7 @@ type HudTab =
   | 'admin';
 
 const tabs: { id: HudTab; label: string }[] = [
+  { id: 'vessels', label: 'Vessels' },
   { id: 'navigation', label: 'Navigation' },
   { id: 'conning', label: 'Conning' },
   { id: 'weather', label: 'Weather' },
@@ -948,6 +951,12 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     <div className={styles.hudRoot}>
       {tab ? (
         <div className={styles.hudPanel}>
+          {tab === 'vessels' ? (
+            <div className={styles.vesselList}>
+              <div className={styles.sectionTitle}>Vessels in space</div>
+              <VesselList vessels={otherVessels} />
+            </div>
+          ) : null}
           {tab === 'navigation' ? (
             <div className={styles.sectionGrid}>
               <div className={`${styles.sectionGrid} ${styles.twoCol}`}>
