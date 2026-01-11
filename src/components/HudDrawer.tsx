@@ -38,10 +38,12 @@ import {
 } from '../lib/time';
 import styles from './HudDrawer.module.css';
 import { VesselList } from './VesselList';
+import { EcdisDisplay } from './navigation/EcdisDisplay';
 
 type HudTab =
   | 'vessels'
   | 'navigation'
+  | 'ecdis'
   | 'conning'
   | 'weather'
   | 'systems'
@@ -58,6 +60,7 @@ type HudTab =
 const tabs: { id: HudTab; label: string }[] = [
   { id: 'vessels', label: 'Vessels' },
   { id: 'navigation', label: 'Navigation' },
+  { id: 'ecdis', label: 'ECDIS' },
   { id: 'conning', label: 'Conning' },
   { id: 'weather', label: 'Weather' },
   { id: 'systems', label: 'Systems' },
@@ -1143,6 +1146,12 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                 </div>
               </div>
             </div>
+          ) : null}
+          {tab === 'ecdis' ? (
+            <EcdisDisplay
+              shipPosition={vessel.position}
+              heading={vessel.orientation.heading}
+            />
           ) : null}
           {tab === 'conning' ? (
             <div className={styles.sectionCard}>

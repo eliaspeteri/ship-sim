@@ -6,6 +6,7 @@ import { RouteInfoPanel } from '../common/RouteInfoPanel';
 import { EBLControl, EBLState } from './EBLControl';
 import { VRMControl, VRMState } from './VRMControl';
 import { StatusPanelSchema } from '../common/StatusPanelTypes';
+import { VesselState } from '../../types/vessel.types';
 
 // --- Mock Data ---
 const mockCoastline = [
@@ -28,35 +29,6 @@ const mockRoute = [
   { latitude: 60.168, longitude: 24.96 },
   { latitude: 60.174, longitude: 24.98 },
   { latitude: 60.178, longitude: 25.0 },
-];
-const mockShip = { latitude: 60.168, longitude: 24.965, heading: 87 };
-
-// --- Mock AIS Targets ---
-const mockAisTargets = [
-  {
-    mmsi: '123456789',
-    name: 'Vessel A',
-    lat: 60.166,
-    lon: 24.98,
-    heading: 45,
-    speed: 12,
-  },
-  {
-    mmsi: '987654321',
-    name: 'Vessel B',
-    lat: 60.175,
-    lon: 24.95,
-    heading: 270,
-    speed: 9,
-  },
-  {
-    mmsi: '555555555',
-    name: 'Vessel C',
-    lat: 60.172,
-    lon: 24.99,
-    heading: 120,
-    speed: 7,
-  },
 ];
 
 // --- Helpers ---
@@ -157,8 +129,17 @@ function screenToLatLon(
 }
 
 export interface EcdisDisplayProps {
-  shipPosition?: { latitude: number; longitude: number; heading?: number };
+  shipPosition?: VesselState['position'];
+  heading?: VesselState['orientation']['heading'];
   route?: Array<{ latitude: number; longitude: number }>;
+  aisTargets?: {
+    lat: number;
+    lon: number;
+    name: string;
+    mmsi: string;
+    heading: number;
+    speed: number;
+  }[];
   chartData?: {
     coastline: Array<[number, number]>;
     buoys: Array<{ latitude: number; longitude: number; type: string }>;
@@ -167,8 +148,10 @@ export interface EcdisDisplayProps {
 
 export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
   shipPosition,
+  heading,
   route,
   chartData,
+  aisTargets,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -184,14 +167,6 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     lastX: number;
     lastY: number;
   } | null>(null);
-
-  // --- Ship Animation State ---
-  const [animatedShip, setAnimatedShip] = useState<{
-    latitude: number;
-    longitude: number;
-    heading: number;
-  } | null>(null);
-  const animationActive = useRef(true);
 
   // --- Cursor latitude/longitude State ---
   const [cursorlatitudeLon, setCursorlatitudeLon] = useState<{
@@ -242,9 +217,6 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     origin: 'ship',
   });
 
-  // --- AIS State ---
-  const [aisTargets, setAisTargets] = useState(mockAisTargets);
-
   // --- Chart Layer Management State ---
   const [chartLayers, setChartLayers] = useState([
     { id: 'vector', name: 'Vector Chart', visible: true, opacity: 1 },
@@ -288,17 +260,19 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
         return;
       }
     }
-    // Search AIS targets
-    for (let i = 0; i < aisTargets.length; i++) {
-      if (
-        (aisTargets[i].name || '').toLowerCase().includes(q) ||
-        (aisTargets[i].mmsi || '').toLowerCase().includes(q)
-      ) {
-        setSearchResult({ type: 'ais', index: i });
-        return;
+    if (aisTargets) {
+      // Search AIS targets
+      for (let i = 0; i < aisTargets.length; i++) {
+        if (
+          (aisTargets[i].name || '').toLowerCase().includes(q) ||
+          (aisTargets[i].mmsi || '').toLowerCase().includes(q)
+        ) {
+          setSearchResult({ type: 'ais', index: i });
+          return;
+        }
       }
+      setSearchResult(null);
     }
-    setSearchResult(null);
   }
 
   // --- Auto-pan to search result ---
@@ -312,9 +286,9 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     } else if (searchResult.type === 'buoy') {
       lat = buoys[searchResult.index].latitude;
       lon = buoys[searchResult.index].longitude;
-    } else if (searchResult.type === 'ais') {
-      lat = aisTargets[searchResult.index].lat;
-      lon = aisTargets[searchResult.index].lon;
+    } else if (searchResult.type === 'ais' && aisTargets) {
+      lat = aisTargets?.[searchResult.index].lat;
+      lon = aisTargets?.[searchResult.index].lon;
     }
     // Center camera on found object
     panRef.current.x = (lon - center.longitude) * scale;
@@ -363,15 +337,11 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
   // Use editable route for animation and rendering
   const routePoints = editableRoute.map(wp => [wp.latitude, wp.longitude]);
   // Use animated ship if available, else prop or mock
-  const ship =
-    animatedShip ||
-    (shipPosition
-      ? {
-          latitude: shipPosition.latitude,
-          longitude: shipPosition.longitude,
-          heading: shipPosition.heading ?? 0,
-        }
-      : mockShip);
+  const ship = {
+    latitude: shipPosition?.lat,
+    longitude: shipPosition?.lon,
+    heading: heading ?? 0,
+  };
   const scale = 12000; // meters per degree (zoom)
 
   // --- Scale Bar Calculation ---
@@ -402,58 +372,6 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     const px = (displayMeters / metersPerDeg) * scale * zoom;
     return { px, label };
   }
-
-  // --- Animate Ship Along Route ---
-  useEffect(() => {
-    if (!routePoints.length) return;
-    let idx = 0;
-    let t = 0;
-    animationActive.current = true;
-    function step() {
-      if (!animationActive.current) return;
-      const [latitude1, lon1] = routePoints[idx];
-      const [latitude2, lon2] = routePoints[(idx + 1) % routePoints.length];
-      t += 0.002; // speed
-      if (t > 1) {
-        t = 0;
-        idx = (idx + 1) % routePoints.length;
-      }
-      const latitude = latitude1 + (latitude2 - latitude1) * t;
-      const longitude = lon1 + (lon2 - lon1) * t;
-      const heading =
-        (Math.atan2(lon2 - lon1, latitude2 - latitude1) * 180) / Math.PI;
-      setAnimatedShip({ latitude, longitude, heading });
-      setTimeout(step, 100);
-    }
-    step();
-    return () => {
-      animationActive.current = false;
-    };
-  }, [route]);
-
-  // --- Animate AIS Targets (mock movement) ---
-  useEffect(() => {
-    let running = true;
-    function moveTargets() {
-      setAisTargets(targets =>
-        targets.map(t => {
-          // Move each target in heading direction
-          const dist = t.speed * 0.00002; // mock speed factor
-          const rad = (t.heading * Math.PI) / 180;
-          return {
-            ...t,
-            lat: t.lat + Math.cos(rad) * dist,
-            lon: t.lon + Math.sin(rad) * dist,
-          };
-        }),
-      );
-      if (running) setTimeout(moveTargets, 200);
-    }
-    moveTargets();
-    return () => {
-      running = false;
-    };
-  }, []);
 
   // --- Enhanced Mouse Move Handler for Tooltip ---
   useEffect(() => {
@@ -538,28 +456,30 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
         }
       }
 
-      // 3. AIS Targets
-      for (const target of aisTargets) {
-        const [tX, tY] = latLonToXY(target.lat, target.lon, center, scale);
-        const [ptX, ptY] = latLonToXY(
-          point.latitude,
-          point.longitude,
-          center,
-          scale,
-        );
+      if (aisTargets) {
+        // 3. AIS Targets
+        for (const target of aisTargets) {
+          const [tX, tY] = latLonToXY(target.lat, target.lon, center, scale);
+          const [ptX, ptY] = latLonToXY(
+            point.latitude,
+            point.longitude,
+            center,
+            scale,
+          );
 
-        const dx = tX - ptX;
-        const dy = tY - ptY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+          const dx = tX - ptX;
+          const dy = tY - ptY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
 
-        // AIS targets might need a slightly larger hit area
-        if (distance < hitTestRadiusWorld * 1.2) {
-          setTooltip({
-            x: e.clientX,
-            y: e.clientY,
-            content: `AIS: ${target.name || target.mmsi}\nLat: ${target.lat.toFixed(5)}\nLon: ${target.lon.toFixed(5)}\nHeading: ${target.heading}°\nSpeed: ${target.speed} kn`,
-          });
-          return;
+          // AIS targets might need a slightly larger hit area
+          if (distance < hitTestRadiusWorld * 1.2) {
+            setTooltip({
+              x: e.clientX,
+              y: e.clientY,
+              content: `AIS: ${target.name || target.mmsi}\nLat: ${target.lat.toFixed(5)}\nLon: ${target.lon.toFixed(5)}\nHeading: ${target.heading}°\nSpeed: ${target.speed} kn`,
+            });
+            return;
+          }
         }
       }
 
@@ -899,7 +819,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     }
 
     // --- Own Ship ---
-    const [sx, sy] = latLonToXY(ship.latitude, ship.longitude, center, scale);
+    const [sx, sy] = latLonToXY(ship.latitude!, ship.longitude!, center, scale);
     const shipShape = new THREE.Shape();
     shipShape.moveTo(0, -14);
     shipShape.lineTo(7, 10);
@@ -919,7 +839,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     scene.add(shipCenter);
 
     // --- AIS Targets ---
-    aisTargets.forEach((t, i) => {
+    aisTargets?.forEach((t, i) => {
       const [x, y] = latLonToXY(t.lat, t.lon, center, scale);
       const isSearched =
         searchResult?.type === 'ais' && searchResult.index === i;
@@ -1108,8 +1028,8 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     cogStatus: 'NON', // Mocked
     sog: '0.0kn', // Mocked, replace with actual SOG when available
     sogStatus: 'NON', // Mocked
-    posn_lat: `${ship.latitude.toFixed(5)}' N`,
-    posn_lon: `${ship.longitude.toFixed(5)}' E`,
+    posn_lat: `${ship.latitude?.toFixed(5)}' N`,
+    posn_lon: `${ship.longitude?.toFixed(5)}' E`,
     posnFilter: 'H', // Mocked
     offset: 'Offset', // Mocked label
     wgs84: 'WGS84', // Mocked
