@@ -17,8 +17,8 @@
 - [x] Server-driven day/night cycle + local time from lat/lon
 - [x] Timed events triggering environment presets
 - [ ] Tide system (Earth-data-driven, regional or global)
-- [ ] Seasonal effects (ice formation, freeze-up, thaw)
-- [ ] Ice mechanics (hull resistance, immobilization, overwintering)
+- [ ] Ice systems (freeze-over, drift ice, vessel immobilization)
+- [ ] Seasonal variation (weather, daylight, port accessibility)
 
 ---
 
@@ -28,9 +28,8 @@
 - [x] Crew roles to avoid control conflicts (helm/engine/radio)
 - [x] Admin reposition tools
 - [x] AIS overlay + dual-band radar views
-- [ ] Crew transfer mechanics (ladder, boat, heli later)
-- [ ] Pilot boarding mechanics
-- [ ] Emergency abandonment & evacuation mechanics
+- [ ] Advanced bridge equipment (ECDIS-lite, echo sounder, conning display)
+- [ ] Pilot transfer mechanics (boarding zones, vessel-to-vessel transfer)
 
 ---
 
@@ -38,6 +37,7 @@
 
 - [x] Metrics endpoint + socket latency sampling + centralized logs
 - [x] Performance budgets (60 Hz sim + smooth rendering)
+- [ ] Server health dashboards per space
 
 ---
 
@@ -47,6 +47,7 @@
 - [x] Migrations/seed + backup/restore
 - [x] NextAuth review + hardening
 - [x] Frontend tests (unit + smoke e2e)
+- [ ] Long-term audit logs (economy, ruleset changes, vessel lifecycle)
 
 ---
 
@@ -56,22 +57,23 @@
 - [x] Globe/ocean rendering from Earth tiles + bathymetry grounding
 - [x] Physics realism upgrades (hydro constants, waves, hull form/buoyancy)
 - [x] Mission system + basic economy (costs, fuel, port fees, earnings)
+- [ ] Failure modeling (engine, steering, flooding)
+- [ ] Damage persistence and repair workflows
 
 ---
 
-## Rulesets & realism policy
+## Rulesets & fairness (space policy + assists + realism)
 
 ### Ruleset fundamentals
 
 - [ ] Ruleset is a first-class space setting
 - [ ] Ruleset controls:
-  - [ ] Assist levels (stability, docking, autopilot)
+  - [ ] Assists (stability, autopilot, docking helpers)
   - [ ] Realism toggles (damage, wear, failures)
-  - [ ] Enforcement (COLREGs, speed limits, investigations)
-  - [ ] HUD limitations (camera modes, overlays)
-  - [ ] Economy strictness (insurance, loans, repossession)
-  - [ ] Allowed vessels/mods
-  - [ ] Scoring & progression
+  - [ ] Enforcement (COLREG penalties, investigations)
+  - [ ] HUD limitations
+  - [ ] Allowed vessel/mod definitions
+  - [ ] Progression and scoring behavior
 
 ### Built-in rulesets
 
@@ -105,13 +107,14 @@
 
 ### Ruleset UX
 
-- [ ] Space browser badges (ruleset, assists, mods, licenses)
-- [ ] Space creation preview panel
-- [ ] Ruleset change audit log
+- [ ] Ruleset badges in server browser
+- [ ] Assist disclosure + run tagging
+- [ ] Ruleset migration warnings
+- [ ] Ruleset change audit logs
 
 ---
 
-## Map editor (overlay-based, Earth-backed)
+## Map editor (layer-based, Earth-data-backed)
 
 ### Base assumptions
 
@@ -135,191 +138,108 @@
 
 ### Ports & infrastructure
 
-- [ ] Port definitions (size, rules, services)
-- [ ] Docks / berths (length, depth)
-- [ ] Mooring points
-- [ ] Anchorages
-- [ ] Port services metadata (fuel, repair, tugs)
+- [ ] Port definitions (name, region, metadata)
+- [ ] Berths, docks, moorings, anchorages
+- [ ] Port services metadata (fuel, repair, tugs, pilots)
+- [ ] Passenger terminals and ferry docks
 
-### Navigation aids
+### Navigation aids & constraints
 
-- [ ] Buoys (IALA A/B)
-- [ ] Beacons & daymarks
-- [ ] Lighthouses & sector lights
-- [ ] Leading lines
-
-### Zones & constraints
-
-- [ ] Speed limits
-- [ ] Restricted zones
-- [ ] Environmental zones
-- [ ] No-anchoring zones
-
-### Routing & AI traffic
-
-- [ ] Spawn points
-- [ ] Route authoring & validation
-- [ ] AI traffic schedules
-- [ ] Congestion modeling
-
-### Scenarios & events
-
-- [ ] Objectives & failure conditions
-- [ ] Triggers & actions
-- [ ] Deterministic exams
-
-### Tooling & publishing
-
-- [ ] Validation tools
-- [ ] Measure tools
-- [ ] Layer panel
-- [ ] Export/share packs
+- [ ] Buoys, beacons, lighthouses
+- [ ] Speed limit zones
+- [ ] Restricted / exclusion zones
+- [ ] Clearance and depth constraints
 
 ---
 
 ## Economy & ownership
 
-### Entry & recovery
-
-- [ ] Vessel creation costs (scaled by class)
-- [ ] Starter balance allows one failure
-- [ ] Charter system (temporary vessels)
-- [ ] Always-available AI employment
-- [ ] Join other players’ vessels for income
-
-### Operating economy
-
-- [ ] Costs charged only to owners
-- [ ] Underway costs apply even at zero throttle
-- [ ] Idle/storage reduces or halts costs
-- [ ] Port fees on entry
-
-### Crew compensation
-
-- [ ] Fixed wage contracts
-- [ ] Revenue-share contracts
-  - [ ] Locked per voyage
-  - [ ] Negotiated pre-departure
-  - [ ] Forfeited if leaving early
-
-### Loans & insurance
-
-- [ ] Central bank loan system
-- [ ] Loan eligibility based on rank/rep/history
-- [ ] Insurance tiers (none/basic/premium)
-- [ ] Insurance only purchasable in port
-
-### Vessel lifecycle
-
-- [ ] Active
-- [ ] Stored / dry dock (no operating cost)
-- [ ] Abandoned
-- [ ] Impounded
-- [ ] Auctioned
-- [ ] Written off / salvaged
-
-### Markets
-
-- [ ] Public auctions (repos, damaged ships)
-- [ ] Player-listed sales
-- [ ] Leasing system
-- [ ] Emergent broker gameplay
+- [ ] Vessel creation cost (rank + currency gated)
+- [ ] Operating costs apply while underway (even offline)
+- [ ] Idle, drifting, and underway cost models
+- [ ] Crew wages and/or revenue share (locked per voyage)
+- [ ] Loans and central banking system
+- [ ] Insurance (loss, damage, salvage)
+- [ ] Vessel storage in dock (zero operating cost)
+- [ ] Auctions, repossession, voluntary sales
+- [ ] Leasing and chartering
+- [ ] Cargo ownership and liability
 
 ---
 
-## Cargo & logistics
+## Cargo, passengers & logistics
 
-- [ ] World-driven cargo generation
-- [ ] Rolling backlog per port
-- [ ] Cargo tied to port size, region, season
-- [ ] Big ports: high volume, high competition
-- [ ] Small ports/piers: low volume, high reliability
-- [ ] Cargo supports all vessel scales
-- [ ] Passenger (PAX) cargo support
-
----
-
-## Vessel classes & content
-
-- [ ] Core archetypes
-  - Transit
-  - Precision
-  - Force
-  - Vulnerable
-  - Static / semi-static
-- [ ] Standard vessels (cargo, tanker, ferry, tug)
-- [ ] Small craft & starters (motorboats, water taxis)
-- [ ] Passenger ops
-  - Water taxis
-  - Ferries
-  - River buses
-- [ ] Weird / specialized vessels
-  - Icebreaker
-  - Cable layer
-  - Fishing vessel
-  - Research vessel
-  - Salvage ship
-  - Heavy-lift / ship carrier
-  - Fireboat
-  - Buoy tender
-- [ ] Static/semi-static entities
-  - Oil rigs
-  - Wind farms
-  - Floating docks
+- [ ] Procedural cargo generation by port size and region
+- [ ] Cargo expiration and rerouting
+- [ ] Competition balanced by availability, not scarcity
+- [ ] Small-craft cargo (fish, parcels, supplies)
+- [ ] Passenger (pax) operations
+  - [ ] Ferries
+  - [ ] Water buses
+  - [ ] Water taxis
+- [ ] Port congestion effects on turnaround
 
 ---
 
-## Navigation & realism
+## Careers & progression
 
-- [ ] ECDIS-lite
-- [ ] Manual navigation modes
-- [ ] Pilotage zones
-- [ ] Tug-assisted maneuvers
-- [ ] Dynamic hazards (ice, fog, storms)
+- [ ] Career paths (cargo, pax, SAR, salvage, pilotage, tug, survey)
+- [ ] Licensing and certification system
+- [ ] Exams and deterministic training scenarios
+- [ ] License expiration and renewal rules
+- [ ] Reputation system (ports, companies, regions)
+- [ ] Multi-career support and mixed fleets
+
+---
+
+## Vessels & structures
+
+- [ ] Core vessel archetypes (transit, precision, force, vulnerable, static)
+- [ ] Standard vessels (cargo, tanker, ferry, tug, small craft)
+- [ ] Specialized vessels (icebreaker, research, salvage, cable layer)
+- [ ] Static/semi-static structures as vessels
+  - [ ] Oil platforms
+  - [ ] Floating docks
+  - [ ] Wind farms
+  - [ ] Buoy systems
 
 ---
 
 ## Missions, AI & world population
 
-- [ ] Emergency missions (SAR, fire, tow)
-- [ ] Passenger schedules
-- [ ] Competitive contracts
-- [ ] Long-haul voyages
-- [ ] Dynamic mission generation
-- [ ] AI vessels populate lanes & carry cargo
-- [ ] AI causes incidents & congestion
-- [ ] AI provides baseline services everywhere
+- [ ] Dynamic mission generation from world state
+- [ ] AI baseline traffic and services
+- [ ] AI as service fallback, not competitor
+- [ ] Player-preferred contracts over AI
+- [ ] SAR, tug, pilot, and emergency workflows
+- [ ] Crew rescue and abandonment mechanics (ruleset-dependent)
 
 ---
 
-## Crew, careers & progression
+## Travel & world scale
 
-- [ ] Crew states (onboard, offboard, distressed)
-- [ ] SAR-generated rescue gameplay
-- [ ] Career paths (tug, ferry, salvage, offshore, pilot)
-- [ ] Career switching without hard lock-in
-- [ ] Mixed fleets per player/company
-- [ ] Licensing & certification system
-- [ ] License renewal / refresh exams
-- [ ] Reputation with ports, insurers, banks
+- [ ] Abstracted inter-region travel (port-to-port)
+- [ ] Cooldowns and costs for fast travel
+- [ ] Region discovery incentives
+- [ ] Inland waterways and river systems
 
 ---
 
 ## Modding
 
-- [ ] Mod packages (manifest + assets)
-- [ ] Server-normalized physics
-- [ ] Mod persistence per space
-- [ ] Certification for public spaces
-- [ ] Mod sharing, ratings, clone-and-mod workflow
+- [ ] Mod package support (manifest + assets)
+- [ ] Server-normalized physics values
+- [ ] Mod certification for public spaces
+- [ ] Private modded spaces
+- [ ] Asset dependency tracking
 
 ---
 
 ## Analysis & community
 
-- [ ] Post-voyage analysis
-- [ ] Incident review & playback
-- [ ] Replay export & sharing
-- [ ] Shipping companies (shared fleets, treasury)
-- [ ] Scheduled events (convoys, storms)
-- [ ] Observer & commentary tools
+- [ ] Post-voyage analysis tools
+- [ ] Replay export and sharing
+- [ ] Shipping companies (shared fleets and treasuries)
+- [ ] Auctions and broker gameplay
+- [ ] Scheduled world events
+- [ ] Observer tools (spectator cameras + commentary)
