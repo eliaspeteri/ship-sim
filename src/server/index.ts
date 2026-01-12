@@ -1297,6 +1297,7 @@ const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => {
     orientation: v.orientation,
     velocity: v.velocity,
     controls: v.controls,
+    properties: v.properties,
     angularVelocity: { yaw: v.yawRate ?? 0 },
     waterDepth,
   };
@@ -1664,6 +1665,7 @@ io.on('connection', async socket => {
           socket.data.safetyScore ?? DEFAULT_ECONOMY_PROFILE.safetyScore,
         spaceId,
         mode: (socket.data as { mode?: 'player' | 'spectator' }).mode,
+        vesselId: socket.data.vesselId,
       },
       spaceInfo: {
         id: spaceMeta.id,
@@ -1716,6 +1718,8 @@ io.on('connection', async socket => {
       return;
     }
 
+    const prevPosition = mergePosition(target.position);
+    const prevUpdate = target.lastUpdate || Date.now();
     if (data.position) {
       target.position = mergePosition(target.position, data.position);
     }

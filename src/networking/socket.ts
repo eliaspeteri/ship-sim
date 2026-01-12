@@ -116,6 +116,12 @@ class SocketManager {
   private chatHistoryLoading: Set<string> = new Set();
   private latencyTimer: NodeJS.Timeout | null = null;
   private connectResolvers: Array<() => void> = [];
+  private lastControlSent: {
+    throttle?: number;
+    rudderAngle?: number;
+    ballast?: number;
+    timestamp: number;
+  } = { timestamp: 0 };
 
   constructor() {
     this.userId = this.generateUserId();
@@ -371,6 +377,9 @@ class SocketManager {
     if (data.self?.roles) {
       store.setRoles(data.self.roles);
     }
+    if (data.self?.userId && store.sessionUserId !== data.self.userId) {
+      store.setSessionUserId(data.self.userId);
+    }
     if (data.self) {
       const nextAccount: Record<string, number> = {};
       if (typeof data.self.rank === 'number') {
@@ -431,18 +440,42 @@ class SocketManager {
     const nextOthers = data.partial ? { ...currentOthers } : {};
     let changed = false;
     let foundSelf = false;
+    const selfUserId = data.self?.userId || this.userId;
+    let preferredSelfId = data.self?.vesselId;
+    if (!preferredSelfId) {
+      preferredSelfId = Object.entries(data.vessels).find(([, vessel]) =>
+        Array.isArray(vessel.crewIds)
+          ? vessel.crewIds.includes(selfUserId)
+          : false,
+      )?.[0];
+    }
+    if (!preferredSelfId) {
+      const currentId = store.currentVesselId;
+      if (currentId && data.vessels[currentId]) {
+        preferredSelfId = currentId;
+      }
+    }
+    if (!preferredSelfId) {
+      const ownerMatches = Object.entries(data.vessels).filter(
+        ([, vessel]) => vessel.ownerId === selfUserId,
+      );
+      if (ownerMatches.length === 1) {
+        preferredSelfId = ownerMatches[0][0];
+      }
+    }
 
     Object.entries(data.vessels).forEach(([id, vesselData]) => {
       const normalized = {
         ...vesselData,
         position: ensurePosition(vesselData.position),
       };
-      const isSelf =
-        id === this.userId ||
-        id === store.currentVesselId ||
-        normalized.ownerId === this.userId ||
-        (Array.isArray(normalized.crewIds) &&
-          normalized.crewIds.includes(this.userId));
+      const isSelf = preferredSelfId
+        ? id === preferredSelfId
+        : id === this.userId ||
+          id === store.currentVesselId ||
+          normalized.ownerId === selfUserId ||
+          (Array.isArray(normalized.crewIds) &&
+            normalized.crewIds.includes(selfUserId));
       if (isSelf) {
         foundSelf = true;
         if (store.currentVesselId !== id) {
@@ -613,15 +646,49 @@ class SocketManager {
     ballast?: number,
   ): void {
     if (!this.socket?.connected) return;
+    if (
+      throttle === undefined &&
+      rudderAngle === undefined &&
+      ballast === undefined
+    ) {
+      console.info('No control changes to send');
+      return;
+    }
+
+    const last = this.lastControlSent;
+    const epsilon = 0.0005;
+    const hasThrottleChange =
+      throttle !== undefined &&
+      Math.abs(throttle - (last.throttle ?? 0)) > epsilon;
+    const hasRudderChange =
+      rudderAngle !== undefined &&
+      Math.abs(rudderAngle - (last.rudderAngle ?? 0)) > epsilon;
+    const hasBallastChange =
+      ballast !== undefined &&
+      Math.abs(ballast - (last.ballast ?? 0)) > epsilon;
+    if (!hasThrottleChange && !hasRudderChange && !hasBallastChange) {
+      return;
+    }
 
     const controlData: VesselControlData = {
       userId: this.userId,
+      throttle,
+      rudderAngle,
+      ballast,
     };
-    if (throttle !== undefined) controlData.throttle = throttle;
-    if (rudderAngle !== undefined) controlData.rudderAngle = rudderAngle;
-    if (ballast !== undefined) controlData.ballast = ballast;
 
+    console.info(
+      `Sending control update: ${JSON.stringify(controlData, null, 2)}`,
+    );
     this.socket.emit('vessel:control', controlData);
+    this.lastControlSent = {
+      throttle: hasThrottleChange ? throttle : last.throttle,
+      rudderAngle: hasRudderChange ? rudderAngle : last.rudderAngle,
+      ballast: hasBallastChange ? ballast : last.ballast,
+      timestamp: performance.now(),
+    };
+
+    console.info('Control update sent successfully');
   }
 
   requestNewVessel(position?: {

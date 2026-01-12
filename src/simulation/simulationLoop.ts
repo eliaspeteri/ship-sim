@@ -559,6 +559,25 @@ export class SimulationLoop {
 
       vesselUpdate.engineState = engineUpdate;
 
+      if (this.stabilityUpdateCounter++ % 20 === 0) {
+        const gm = this.wasmBridge.getVesselGM(vesselPtr);
+        const cgY = this.wasmBridge.getVesselCenterOfGravityY(vesselPtr);
+        vesselUpdate.stability = {
+          ...state.vessel.stability,
+          metacentricHeight: Number.isFinite(gm)
+            ? gm
+            : state.vessel.stability.metacentricHeight,
+          centerOfGravity: {
+            ...state.vessel.stability.centerOfGravity,
+            y: Number.isFinite(cgY)
+              ? cgY
+              : state.vessel.stability.centerOfGravity.y,
+          },
+          trim: ((orientationUpdate.pitch ?? 0) * 180) / Math.PI,
+          list: ((orientationUpdate.roll ?? 0) * 180) / Math.PI,
+        };
+      }
+
       const waterDepth = state.vessel.waterDepth;
       const draft = state.vessel.properties?.draft ?? 0;
       if (
