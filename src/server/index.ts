@@ -1027,7 +1027,7 @@ function ensureVesselForUser(
   userId: string,
   username: string,
   spaceId: string,
-): VesselRecord {
+): VesselRecord | undefined {
   // Prefer last vessel if still present
   const lastId = globalState.userLastVessel.get(userSpaceKey(userId, spaceId));
   if (lastId) {
@@ -1047,6 +1047,8 @@ function ensureVesselForUser(
       lastVessel.spaceId = spaceId;
       return lastVessel;
     }
+
+    return undefined;
   }
 
   console.info(
@@ -1108,6 +1110,8 @@ function ensureVesselForUser(
 
   const aiTaken = takeOverAvailableAIVessel(userId, username, spaceId);
   if (aiTaken) return aiTaken;
+
+  return undefined;
 }
 
 let targetWeather: WeatherPattern | null = null;
@@ -1561,7 +1565,7 @@ io.on('connection', async socket => {
 
   setConnectedClients(io.engine.clientsCount);
 
-  let vessel: VesselRecord | null = null;
+  let vessel: VesselRecord | undefined = undefined;
   if (isPlayerOrHigher && !wantsSpectator) {
     vessel = ensureVesselForUser(effectiveUserId, effectiveUsername, spaceId);
     socket.data.mode = 'player';
