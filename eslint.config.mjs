@@ -172,6 +172,8 @@ export default [
             'material',
             'frustumCulled',
             'renderOrder',
+            'distance',
+            'decay',
           ],
         },
       ],
