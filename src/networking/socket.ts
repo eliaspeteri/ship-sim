@@ -1,5 +1,6 @@
 import io from 'socket.io-client';
 import type * as SocketIOClient from 'socket.io-client';
+import * as GeoJSON from 'geojson';
 import useStore, { AccountState } from '../store';
 import { SimpleVesselState } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
@@ -316,6 +317,37 @@ class SocketManager {
             : 'Connection error';
       store.setNotice({ type: 'error', message });
     });
+
+    this.socket.on(
+      'seamarks:data',
+      (data: {
+        features: GeoJSON.Feature[];
+        type: string;
+        meta: {
+          lat: number;
+          lon: number;
+          radiusMeters: number;
+          bbox: { south: number; west: number; north: number; east: number };
+        };
+      }) => {
+        console.info('Received seamarks data from server', data);
+        // expected: { featureCollection, meta: { bboxKey, center, radiusMeters, ... } }
+        const fc = data?.features ?? data; // depending on your server payload
+        const meta = data?.meta ?? {};
+        const q = (n: number) => n.toFixed(5);
+        const bboxKey = meta.bbox
+          ? `${q(meta.bbox.south)}:${q(meta.bbox.west)}:${q(meta.bbox.north)}:${q(meta.bbox.east)}`
+          : null;
+        useStore.getState().setSeamarks({
+          features: fc,
+          bboxKey,
+          center: { lat: meta.lat, lon: meta.lon },
+          radiusMeters:
+            meta.radiusMeters ?? useStore.getState().seamarks.radiusMeters,
+          updatedAt: Date.now(),
+        });
+      },
+    );
   }
 
   private startLatencySampling(): void {
@@ -671,6 +703,17 @@ class SocketManager {
       before,
       limit,
     });
+  }
+
+  requestSeamarksNearby(payload: {
+    lat: number;
+    lon: number;
+    radiusMeters: number;
+    bbox: { south: number; west: number; north: number; east: number };
+    bboxKey: string;
+    limit?: number;
+  }) {
+    this.socket?.emit('seamarks:nearby', payload);
   }
 
   sendClientLog(entry: {

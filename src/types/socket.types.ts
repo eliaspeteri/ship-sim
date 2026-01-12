@@ -8,6 +8,7 @@ import {
 import { AuthenticatedUser } from '../server/middleware/authentication';
 import type { Role } from '../server/roles';
 import type { CrewStation } from './vessel.types';
+import * as GeoJSON from 'geojson';
 import type { MissionAssignmentData } from './mission.types';
 
 type ControlUpdate = Partial<Pick<VesselControls, 'throttle' | 'rudderAngle'>>;
@@ -112,6 +113,16 @@ export type ServerToClientEvents = {
   }) => void;
   'chat:history': (data: ChatHistoryResponse) => void;
   error: (error: string) => void;
+  'seamarks:data': (data: {
+    features: GeoJSON.Feature[];
+    type: string;
+    meta: {
+      lat: number;
+      lon: number;
+      radiusMeters: number;
+      bbox: { south: number; west: number; north: number; east: number };
+    };
+  }) => void;
 };
 export type ClientToServerEvents = {
   'vessel:update': (data: VesselUpdateData) => void;
@@ -141,6 +152,12 @@ export type ClientToServerEvents = {
   'admin:vessel:remove': (data: { vesselId: string }) => void;
   'chat:message': (data: { message: string; channel?: string }) => void;
   'chat:history': (data: ChatHistoryRequest) => void;
+  'seamarks:nearby': (data: {
+    lat: number;
+    lon: number;
+    radiusMeters: number;
+    limit?: number;
+  }) => void;
   'admin:vesselMode': (data: {
     vesselId: string;
     mode: 'player' | 'ai';

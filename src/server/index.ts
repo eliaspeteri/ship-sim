@@ -47,6 +47,11 @@ import {
 } from './economy';
 import { seedDefaultMissions, updateMissionAssignments } from './missions';
 import { recordLog } from './observability';
+import {
+  bboxAroundLatLonGeodesic,
+  loadSeamarks,
+  querySeamarksBBox,
+} from './seamarks';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
@@ -2405,6 +2410,33 @@ io.on('connection', async socket => {
     }
   });
 
+  socket.on('seamarks:nearby', data => {
+    const lat = Number(data?.lat);
+    const lon = Number(data?.lon);
+    const radiusMeters = Number(data?.radiusMeters ?? 25_000);
+    const limit = Number(data?.limit ?? 5000);
+
+    if (![lat, lon, radiusMeters].every(Number.isFinite)) return;
+
+    const bbox = bboxAroundLatLonGeodesic({
+      lat,
+      lon,
+      radiusMeters,
+      corner: true,
+    });
+
+    const features = querySeamarksBBox({
+      ...bbox,
+      limit: Number.isFinite(limit) ? limit : 5000,
+    });
+
+    socket.emit('seamarks:data', {
+      type: 'FeatureCollection',
+      features,
+      meta: { lat, lon, radiusMeters, bbox },
+    });
+  });
+
   // Handle disconnect
   socket.on('disconnect', () => {
     const currentUserId = socket.data.userId || effectiveUserId;
@@ -2561,6 +2593,7 @@ async function startServer() {
   try {
     await ensureDefaultSpaceExists();
     await loadBathymetry();
+    await loadSeamarks();
     await loadVesselsFromDb();
     await loadEnvironmentFromDb(DEFAULT_SPACE_ID);
     const spaces = await prisma.space.findMany({ select: { id: true } });

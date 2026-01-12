@@ -8,6 +8,7 @@ import {
 import { WasmModule } from '../types/wasm';
 import { EventLogEntry } from '../types/events.types';
 import { EnvironmentState } from '../types/environment.types';
+import * as GeoJSON from 'geojson';
 import type { Role } from '../server/roles';
 import type {
   MissionAssignmentData,
@@ -87,6 +88,14 @@ interface SpaceInfo {
   rules?: Record<string, unknown> | null;
   role?: 'host' | 'member';
 }
+
+type SeamarksState = {
+  bboxKey: string | null;
+  center: { lat: number; lon: number } | null;
+  radiusMeters: number;
+  features: GeoJSON.Feature[] | null;
+  updatedAt: number | null;
+};
 
 const shallowEqualEnv = (a: EnvironmentState, b: EnvironmentState) => {
   if (a.seaState !== b.seaState) return false;
@@ -241,6 +250,10 @@ interface SimulationState {
   environment: EnvironmentState;
   updateEnvironment: (environment: Partial<EnvironmentState>) => void;
   setDayNightCycle: (enabled: boolean) => void;
+
+  // Seamarks
+  seamarks: SeamarksState;
+  setSeamarks: (next: Partial<SeamarksState>) => void;
 
   // Event log
   eventLog: EventLogEntry[];
@@ -406,6 +419,14 @@ const defaultAccountState: AccountState = {
   experience: 0,
   credits: 0,
   safetyScore: 1,
+};
+
+const defaultSeamarks: SeamarksState = {
+  bboxKey: null,
+  center: null,
+  radiusMeters: 25_000,
+  features: null,
+  updatedAt: null,
 };
 
 const MAX_REPLAY_FRAMES = 1800;
@@ -723,6 +744,10 @@ const useStore = create<SimulationState>()((set, get) => ({
       if (shallowEqualEnv(state.environment, next)) return {}; // <-- crucial
       return { environment: next };
     }),
+
+  seamarks: defaultSeamarks,
+  setSeamarks: next =>
+    set(state => ({ seamarks: { ...state.seamarks, ...next } })),
 
   setDayNightCycle: enabled => {
     // Implement day/night cycle logic

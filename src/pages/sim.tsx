@@ -13,6 +13,7 @@ import { positionFromXY, positionToXY } from '../lib/position';
 import { getScenarios, ScenarioDefinition } from '../lib/scenarios';
 import { getApiBase } from '../lib/api';
 import styles from './SimPage.module.css';
+import { bboxAroundLatLon } from '../lib/geo';
 
 const PORTS = [
   { name: 'Harbor Alpha', position: positionFromXY({ x: 0, y: 0 }) },
@@ -20,6 +21,36 @@ const PORTS = [
   { name: 'Island Anchorage', position: positionFromXY({ x: -2500, y: 1200 }) },
   { name: 'Channel Gate', position: positionFromXY({ x: 800, y: 2400 }) },
 ];
+
+const SEAMARK_RADIUS_M = 25_000;
+const REQUERY_DISTANCE_M = 5_000; // tune
+const REQUERY_MIN_MS = 2000; // tune
+
+function haversineMeters(
+  a: { lat: number; lon: number },
+  b: { lat: number; lon: number },
+) {
+  const R = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLon = ((b.lon - a.lon) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const s1 = Math.sin(dLat / 2);
+  const s2 = Math.sin(dLon / 2);
+  const h = s1 * s1 + Math.cos(lat1) * Math.cos(lat2) * s2 * s2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function bboxKey(b: {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+}) {
+  // quantize to reduce churn
+  const q = (n: number) => n.toFixed(5);
+  return `${q(b.south)}:${q(b.west)}:${q(b.north)}:${q(b.east)}`;
+}
 
 /**
  * Simulation page for Ship Simulator.
@@ -50,6 +81,8 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const account = useStore(state => state.account);
   const setMissions = useStore(state => state.setMissions);
   const setMissionAssignments = useStore(state => state.setMissionAssignments);
+  const seamarks = useStore(state => state.seamarks);
+  const setSeamarks = useStore(state => state.setSeamarks);
   const hasStartedRef = useRef(false);
   const sessionRole = (session?.user as { role?: string })?.role;
   const canEnterPlayerMode =
@@ -315,6 +348,59 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     newSpaceName,
     newSpacePassword,
     newSpaceVisibility,
+  ]);
+
+  useEffect(() => {
+    // require socket ready + lat/lon sane
+    const lat = vessel.position.lat;
+    const lon = vessel.position.lon;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+    const now = Date.now();
+    if (seamarks.updatedAt && now - seamarks.updatedAt < REQUERY_MIN_MS) return;
+
+    const center = { lat, lon };
+    const lastCenter = seamarks.center;
+
+    if (lastCenter) {
+      const d = haversineMeters(lastCenter, center);
+      if (d < REQUERY_DISTANCE_M) return;
+    }
+
+    const bbox = bboxAroundLatLon({
+      lat,
+      lon,
+      radiusMeters: SEAMARK_RADIUS_M,
+      corner: true,
+    });
+    const key = bboxKey(bbox);
+
+    // avoid sending same bbox repeatedly
+    if (seamarks.bboxKey === key) return;
+
+    // optimistic update so other effects don't duplicate
+    setSeamarks({
+      bboxKey: key,
+      center,
+      radiusMeters: SEAMARK_RADIUS_M,
+      updatedAt: now,
+    });
+
+    socketManager.requestSeamarksNearby({
+      lat,
+      lon,
+      radiusMeters: SEAMARK_RADIUS_M,
+      bbox,
+      bboxKey: key,
+      limit: 5000,
+    });
+  }, [
+    vessel.position.lat,
+    vessel.position.lon,
+    seamarks.bboxKey,
+    seamarks.center,
+    seamarks.updatedAt,
+    setSeamarks,
   ]);
 
   useEffect(() => {

@@ -32,3 +32,33 @@ export function latLonToXY({ lat, lon }: LatLon): XY {
     y: (lat - ORIGIN.lat) * METERS_PER_DEG_LAT,
   };
 }
+
+const R = 6371000;
+const deg2rad = (d: number) => (d * Math.PI) / 180;
+const rad2deg = (r: number) => (r * 180) / Math.PI;
+
+/**
+ * Returns {south, west, north, east} around center.
+ * If corner=true, radiusMeters is distance to CORNER; else to EDGE.
+ */
+export function bboxAroundLatLon(opts: {
+  lat: number;
+  lon: number;
+  radiusMeters: number;
+  corner?: boolean;
+}) {
+  const { lat, lon } = opts;
+  const edgeMeters =
+    (opts.corner ?? true) ? opts.radiusMeters / Math.SQRT2 : opts.radiusMeters;
+
+  const dLat = rad2deg(edgeMeters / R);
+  const cosLat = Math.cos(deg2rad(lat));
+  const dLon = rad2deg(edgeMeters / (R * Math.max(1e-6, cosLat)));
+
+  return {
+    south: lat - dLat,
+    west: lon - dLon,
+    north: lat + dLat,
+    east: lon + dLon,
+  };
+}

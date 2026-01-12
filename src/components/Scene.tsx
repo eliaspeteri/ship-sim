@@ -9,14 +9,15 @@ import React, {
   useState,
 } from 'react';
 import { Canvas, ThreeEvent, useFrame, useThree } from '@react-three/fiber';
-import { Environment, OrbitControls, Sky } from '@react-three/drei';
+import { Environment, OrbitControls, Sky, useGLTF } from '@react-three/drei';
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import useStore from '../store';
 import Ship from './Ship';
 import VesselCallout from './VesselCallout';
 import socketManager from '../networking/socket';
-import { deriveWaveState } from '../lib/waves';
+import { deriveWaveState, getGerstnerSample } from '../lib/waves';
+import type { WaveState } from '../lib/waves';
 import {
   courseFromWorldVelocity,
   ensurePosition,
@@ -25,6 +26,9 @@ import {
 } from '../lib/position';
 import { OceanPatch } from './OceanPatch';
 import { FarWater } from './FarWater';
+import { latLonToXY } from '../lib/geo';
+import * as GeoJSON from 'geojson';
+import SeamarkSprites from './SeamarkSprites';
 
 interface SceneProps {
   vesselPosition: {
@@ -470,6 +474,140 @@ function SkyFollowCamera(
   );
 }
 
+function getSeamarkModelPath(
+  props: GeoJSON.Feature['properties'],
+): { path: string; dir: string; system?: 'iala-a' | 'iala-b' } | null {
+  const type = props?.['seamark:type'];
+  if (type?.includes('cardinal')) {
+    const dir = props?.['seamark:buoy_cardinal:category'] || 'north';
+    const shape = props?.['seamark:buoy_cardinal:shape'] || 'spar';
+    const path = `/models/cardinal_${shape}_${dir}.glb`;
+
+    return { path, dir };
+  }
+  if (type?.includes('buoy_lateral')) {
+    // Lateral buoys: map category/colour/shape to available model files.
+    // OSM properties may include either a colour or a category (port/starboard).
+    const category = props?.['seamark:buoy_lateral:category'] as
+      | string
+      | undefined;
+    const colourProp = props?.['seamark:buoy_lateral:colour'] as
+      | string
+      | undefined;
+    const shape = (props?.['seamark:buoy_lateral:shape'] as string) || 'spar';
+
+    // Determine colour: prefer explicit colour, otherwise infer from category (IALA-A: port=red)
+    let colour = 'red';
+    if (colourProp) colour = colourProp;
+    else if (category === 'starboard') colour = 'green';
+
+    const path = `/models/lateral_${shape}_${colour}.glb`;
+    const dir = `${category ?? colour}`;
+    return { path, dir };
+  }
+  return null;
+}
+
+function Seamarks() {
+  const seamarks = useStore(state => state.seamarks);
+  const environment = useStore(state => state.environment);
+  const waveState = useMemo(() => deriveWaveState(environment), [environment]);
+
+  const models = useMemo(() => {
+    const modelMap: Record<
+      string,
+      { path: string; dir: string; positions: { x: number; y: number }[] }
+    > = {};
+    seamarks.features?.forEach((f: GeoJSON.Feature) => {
+      if (f.geometry.type !== 'Point') return;
+      const props = f.properties as GeoJSON.Feature['properties'];
+      const path = getSeamarkModelPath(props);
+      if (path) {
+        const dir = path.dir; // e.g., cardinal_con_north -> north
+        if (!modelMap[path.path])
+          modelMap[path.path] = { path: path.path, dir, positions: [] };
+        const [lon, lat] = f.geometry.coordinates as [number, number];
+        const { x, y } = latLonToXY({ lat, lon });
+        modelMap[path.path].positions.push({ x, y });
+      }
+    });
+    return Object.values(modelMap);
+  }, [seamarks.features]);
+
+  return (
+    <>
+      {models.map((model, i) => (
+        <SeamarkGroup
+          key={i}
+          path={model.path}
+          dir={model.dir}
+          positions={model.positions}
+          waveState={waveState}
+        />
+      ))}
+    </>
+  );
+}
+
+function SeamarkGroup({
+  path,
+  dir: _dir,
+  positions,
+  waveState,
+}: {
+  path: string;
+  dir: string;
+  positions: { x: number; y: number }[];
+  waveState: WaveState;
+}) {
+  const gltf = useGLTF(path);
+  const { camera } = useThree();
+  const meshRefs = useRef<(THREE.Object3D | null)[]>([]);
+
+  useFrame(state => {
+    meshRefs.current.forEach(mesh => {
+      if (!mesh) return;
+      const distance = camera.position.distanceTo(mesh.position);
+      const baseScale = 10; // visibility baseline
+      const scale = Math.max(baseScale, distance / 1000);
+      mesh.scale.set(scale, scale, scale);
+
+      // Wave animation: bob vertically and tilt to wave slope
+      const posIndex = meshRefs.current.indexOf(mesh);
+      if (posIndex >= 0 && posIndex < positions.length) {
+        const pos = positions[posIndex];
+        const waveSample = getGerstnerSample(
+          pos.x,
+          pos.y,
+          state.clock.elapsedTime,
+          waveState,
+        );
+        // Set Y position to wave height, offset base ~5cm below surface
+        mesh.position.y = waveSample.height - 0.05;
+        // Tilt mesh to follow wave slope using rotations
+        const normal = waveSample.normal;
+        // Apply rotation angles based on wave slope (normal.x and normal.y are slopes)
+        mesh.rotation.x = Math.atan2(normal.x, normal.z) * 0.5;
+        mesh.rotation.z = Math.atan2(normal.y, normal.z) * 0.5;
+      }
+    });
+  });
+
+  return (
+    <>
+      {positions.map((pos, j) => (
+        <group
+          key={j}
+          ref={el => (meshRefs.current[j] = el)}
+          position={[pos.x, 0, pos.y]}
+        >
+          <primitive object={gltf.scene.clone()} />
+        </group>
+      ))}
+    </>
+  );
+}
+
 export default function Scene({ vesselPosition, mode }: SceneProps) {
   const isSpectator = mode === 'spectator';
   const vesselState = useStore(state => state.vessel);
@@ -907,6 +1045,8 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           onDrop={handleAdminMove}
           onDragStateChange={handleDragStateChange}
         />
+        <Seamarks />
+        <SeamarkSprites />
         <OrbitControls
           ref={orbitRef}
           target={
