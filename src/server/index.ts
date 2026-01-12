@@ -1765,9 +1765,6 @@ io.on('connection', async socket => {
       target.yawRate = data.angularVelocity.yaw;
     }
     target.lastUpdate = Date.now();
-    console.info(
-      `Vessel update from ${username}: pos=(${(target.position.x ?? 0).toFixed(1)},${(target.position.y ?? 0).toFixed(1)}) heading=${target.orientation.heading.toFixed(2)}`,
-    );
     void persistVesselToDb(target);
 
     socket.to(`space:${spaceId}`).emit('simulation:update', {
@@ -1903,9 +1900,9 @@ io.on('connection', async socket => {
     }
     target.lastUpdate = Date.now();
 
-    /*     console.info(
+    console.info(
       `Control applied for ${currentUserId}: throttle=${target.controls.throttle.toFixed(2)} rudder=${target.controls.rudderAngle.toFixed(2)}`,
-    ); */
+    );
   });
 
   // Handle simulation state changes
