@@ -117,6 +117,21 @@ export interface VesselState {
     blackout: boolean;
     otherAlarms: Record<string, boolean>; // For additional alarm types
   };
+
+  // Failure modeling
+  failureState?: {
+    engineFailure: boolean;
+    steeringFailure: boolean;
+    floodingLevel: number;
+  };
+
+  damageState?: {
+    hullIntegrity: number;
+    engineHealth: number;
+    steeringHealth: number;
+    electricalHealth: number;
+    floodingDamage: number;
+  };
 }
 
 export type VesselPose = Pick<VesselState, 'position' | 'orientation'>;
@@ -144,6 +159,8 @@ export type VesselSnapshot = VesselPose & {
   desiredMode?: 'player' | 'ai';
   lastCrewAt?: number;
   waterDepth?: number;
+  failureState?: VesselState['failureState'];
+  damageState?: VesselState['damageState'];
 };
 
 // Simplified vessel state for network transmission

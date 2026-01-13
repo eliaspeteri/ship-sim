@@ -17,6 +17,7 @@ import type {
 import { ChatMessageData } from '../types/socket.types';
 import { ensurePosition, mergePosition } from '../lib/position';
 import { DEFAULT_HYDRO } from '../constants/vessel';
+import { applyFailureControlLimits } from '../lib/failureControls';
 
 // Machinery failures for more realistic simulation
 interface MachinerySystemStatus {
@@ -103,6 +104,10 @@ const shallowEqualEnv = (a: EnvironmentState, b: EnvironmentState) => {
   if (a.waveHeight !== b.waveHeight) return false;
   if (a.waveLength !== b.waveLength) return false;
   if (a.waveDirection !== b.waveDirection) return false;
+  if (a.tideHeight !== b.tideHeight) return false;
+  if (a.tideRange !== b.tideRange) return false;
+  if (a.tidePhase !== b.tidePhase) return false;
+  if (a.tideTrend !== b.tideTrend) return false;
 
   // wind/current are nested
   if (a.wind.speed !== b.wind.speed) return false;
@@ -357,6 +362,18 @@ const defaultVesselState: VesselState = {
     blackout: false,
     otherAlarms: {},
   },
+  failureState: {
+    engineFailure: false,
+    steeringFailure: false,
+    floodingLevel: 0,
+  },
+  damageState: {
+    hullIntegrity: 1,
+    engineHealth: 1,
+    steeringHealth: 1,
+    electricalHealth: 1,
+    floodingDamage: 0,
+  },
 };
 
 const defaultEnvironmentState: EnvironmentState = {
@@ -380,6 +397,10 @@ const defaultEnvironmentState: EnvironmentState = {
   timeOfDay: 12,
   precipitation: 'rain',
   precipitationIntensity: 0,
+  tideHeight: 0,
+  tideRange: 0,
+  tidePhase: 0,
+  tideTrend: 'rising',
 };
 
 const normalizeSeaState = (value: number): number => {
@@ -693,6 +714,30 @@ const useStore = create<SimulationState>()((set, get) => ({
           }
         }
 
+        if (vesselUpdate.failureState) {
+          updatedVessel.failureState = {
+            ...(updatedVessel.failureState || {
+              engineFailure: false,
+              steeringFailure: false,
+              floodingLevel: 0,
+            }),
+            ...vesselUpdate.failureState,
+          };
+        }
+
+        if (vesselUpdate.damageState) {
+          updatedVessel.damageState = {
+            ...(updatedVessel.damageState || {
+              hullIntegrity: 1,
+              engineHealth: 1,
+              steeringHealth: 1,
+              electricalHealth: 1,
+              floodingDamage: 0,
+            }),
+            ...vesselUpdate.damageState,
+          };
+        }
+
         return { vessel: updatedVessel };
       } catch (error) {
         console.error('Error in updateVessel:', error);
@@ -920,7 +965,14 @@ const useStore = create<SimulationState>()((set, get) => ({
   applyVesselControls: controls => {
     try {
       const simulationLoop = getSimulationLoop();
-      simulationLoop.applyControls(controls);
+      const failureState = get().vessel.failureState;
+      const damageState = get().vessel.damageState;
+      const nextControls = applyFailureControlLimits(
+        controls,
+        failureState,
+        damageState,
+      );
+      simulationLoop.applyControls(nextControls);
     } catch (error) {
       console.error('Error applying vessel controls to simulation:', error);
     }

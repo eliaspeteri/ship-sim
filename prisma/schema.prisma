@@ -89,6 +89,11 @@ model Vessel {
     length      Float
     beam        Float
     draft       Float
+    hullIntegrity     Float   @default(1.0)
+    engineHealth      Float   @default(1.0)
+    steeringHealth    Float   @default(1.0)
+    electricalHealth  Float   @default(1.0)
+    floodingDamage    Float   @default(0.0)
     lastUpdate  DateTime @default(now())
     isAi        Boolean  @default(false)
 

@@ -27,7 +27,7 @@ import {
   VesselVelocity,
 } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
-import { getDefaultRules, mapToRulesetType } from '../types/rules.types';
+import { getDefaultRules, mapToRulesetType, Rules } from '../types/rules.types';
 import {
   ensurePosition,
   mergePosition,
@@ -39,7 +39,7 @@ import {
 } from '../lib/position';
 import { prisma } from '../lib/prisma';
 import { RUDDER_MAX_ANGLE_RAD } from '../constants/vessel';
-import { recordMetric, setConnectedClients } from './metrics';
+import { recordMetric, setConnectedClients, updateSpaceMetrics } from './metrics';
 import { getBathymetryDepth, loadBathymetry } from './bathymetry';
 import {
   getEconomyProfile,
@@ -53,6 +53,21 @@ import {
   loadSeamarks,
   querySeamarksBBox,
 } from './seamarks';
+import { computeTideState } from '../lib/tides';
+import { updateFailureState, FailureState } from './failureModel';
+import {
+  DamageState,
+  DEFAULT_DAMAGE_STATE,
+  applyRepair,
+  computeRepairCost,
+} from '../lib/damage';
+import {
+  applyCollisionDamage,
+  applyFailureWear,
+  applyGroundingDamage,
+  mergeDamageState,
+} from './damageModel';
+import { applyFailureControlLimits } from '../lib/failureControls';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
@@ -130,6 +145,8 @@ export interface VesselRecord {
     VesselControls,
     'throttle' | 'rudderAngle' | 'ballast' | 'bowThruster'
   >;
+  failureState?: FailureState;
+  damageState?: DamageState;
   lastUpdate: number;
 }
 
@@ -261,6 +278,8 @@ const applyColregsRules = async (spaceId: string, now: number) => {
         maxSpeed?: number;
       }
     | undefined;
+  const realismRules = getRulesForSpace(spaceId);
+  const damageEnabled = realismRules.realism?.damage === true;
   if (!rules?.colregs) return;
   const vessels = Array.from(globalState.vessels.values()).filter(
     v => (v.spaceId || DEFAULT_SPACE_ID) === spaceId && v.mode === 'player',
@@ -346,6 +365,21 @@ const applyColregsRules = async (spaceId: string, now: number) => {
           message: 'Collision detected',
           meta: { vessels: [a.id, b.id], distance: dist },
         });
+        if (damageEnabled) {
+          const relSpeed = Math.hypot(
+            (a.velocity.surge ?? 0) - (b.velocity.surge ?? 0),
+            (a.velocity.sway ?? 0) - (b.velocity.sway ?? 0),
+          );
+          const severity = Math.min(1, relSpeed / 6);
+          a.damageState = applyCollisionDamage(
+            mergeDamageState(a.damageState),
+            severity,
+          );
+          b.damageState = applyCollisionDamage(
+            mergeDamageState(b.damageState),
+            severity,
+          );
+        }
       } else if (dist <= NEAR_MISS_DISTANCE_M) {
         if (
           !canTriggerCooldown(
@@ -452,6 +486,11 @@ export async function persistVesselToDb(
         lastUpdate: new Date(vessel.lastUpdate),
         isAi: vessel.mode === 'ai',
         lastCrewAt: new Date(vessel.lastCrewAt || vessel.lastUpdate),
+        hullIntegrity: vessel.damageState?.hullIntegrity ?? 1,
+        engineHealth: vessel.damageState?.engineHealth ?? 1,
+        steeringHealth: vessel.damageState?.steeringHealth ?? 1,
+        electricalHealth: vessel.damageState?.electricalHealth ?? 1,
+        floodingDamage: vessel.damageState?.floodingDamage ?? 0,
       },
       create: {
         id: vessel.id,
@@ -480,6 +519,11 @@ export async function persistVesselToDb(
         lastUpdate: new Date(vessel.lastUpdate),
         isAi: vessel.mode === 'ai',
         lastCrewAt: new Date(vessel.lastCrewAt || vessel.lastUpdate),
+        hullIntegrity: vessel.damageState?.hullIntegrity ?? 1,
+        engineHealth: vessel.damageState?.engineHealth ?? 1,
+        steeringHealth: vessel.damageState?.steeringHealth ?? 1,
+        electricalHealth: vessel.damageState?.electricalHealth ?? 1,
+        floodingDamage: vessel.damageState?.floodingDamage ?? 0,
       },
     });
   } catch (err) {
@@ -532,6 +576,22 @@ async function loadVesselsFromDb() {
         ballast: row.ballast ?? 0.5,
         bowThruster: row.bowThruster ?? 0,
       },
+      failureState: {
+        engineFailure: false,
+        steeringFailure: false,
+        floodingLevel: 0,
+        engineFailureAt: null,
+        steeringFailureAt: null,
+      },
+      damageState: mergeDamageState({
+        hullIntegrity: (row as { hullIntegrity?: number }).hullIntegrity ?? 1,
+        engineHealth: (row as { engineHealth?: number }).engineHealth ?? 1,
+        steeringHealth: (row as { steeringHealth?: number }).steeringHealth ?? 1,
+        electricalHealth:
+          (row as { electricalHealth?: number }).electricalHealth ?? 1,
+        floodingDamage:
+          (row as { floodingDamage?: number }).floodingDamage ?? 0,
+      }),
       lastUpdate: row.lastUpdate.getTime(),
     };
     if (vessel.mode === 'player' && vessel.crewIds.size === 0) {
@@ -582,8 +642,17 @@ async function loadEnvironmentFromDb(spaceId = DEFAULT_SPACE_ID) {
       precipitation:
         (row.precipitation as EnvironmentState['precipitation']) || 'none',
       precipitationIntensity: row.precipitationIntensity ?? 0,
+      tideHeight: 0,
+      tideRange: 0,
+      tidePhase: 0,
+      tideTrend: 'rising',
       name: row.name || spaceId,
     };
+    const tide = computeTideState({ timestampMs: Date.now(), spaceId });
+    env.tideHeight = tide.height;
+    env.tideRange = tide.range;
+    env.tidePhase = tide.phase;
+    env.tideTrend = tide.trend;
     globalState.environmentBySpace.set(spaceId, env);
     environmentPersistAt.set(spaceId, Date.now());
     console.info(`Loaded weather state for space ${row.spaceId}`);
@@ -679,6 +748,14 @@ function createNewVesselForUser(
       draft: 7,
     },
     controls: { throttle: 0, rudderAngle: 0, ballast: 0.5, bowThruster: 0 },
+    failureState: {
+      engineFailure: false,
+      steeringFailure: false,
+      floodingLevel: 0,
+      engineFailureAt: null,
+      steeringFailureAt: null,
+    },
+    damageState: { ...DEFAULT_DAMAGE_STATE },
     lastUpdate: Date.now(),
   };
   return vessel;
@@ -788,6 +865,10 @@ const getDefaultEnvironment = (name = 'Global'): EnvironmentState => ({
   timeOfDay: currentUtcTimeOfDay(),
   precipitation: 'none',
   precipitationIntensity: 0,
+  tideHeight: 0,
+  tideRange: 0,
+  tidePhase: 0,
+  tideTrend: 'rising',
   name,
 });
 
@@ -814,6 +895,10 @@ const applyWeatherPattern = (
     timeOfDay: pattern.timeOfDay ?? env.timeOfDay ?? currentUtcTimeOfDay(),
     precipitation: pattern.precipitation,
     precipitationIntensity: pattern.precipitationIntensity,
+    tideHeight: env.tideHeight,
+    tideRange: env.tideRange,
+    tidePhase: env.tidePhase,
+    tideTrend: env.tideTrend,
     name: pattern.name || 'Weather',
   };
   globalState.environmentBySpace.set(spaceId, next);
@@ -841,6 +926,26 @@ const applyEnvironmentOverrides = (
   return next;
 };
 
+const updateTideForSpace = (spaceId: string, now: number) => {
+  const env = getEnvironmentForSpace(spaceId);
+  const tide = computeTideState({
+    timestampMs: now,
+    spaceId,
+    rangeOverride: env.tideRange,
+  });
+  const changed =
+    Math.abs((env.tideHeight ?? 0) - tide.height) > 1e-4 ||
+    Math.abs((env.tideRange ?? 0) - tide.range) > 1e-4 ||
+    Math.abs((env.tidePhase ?? 0) - tide.phase) > 1e-4 ||
+    env.tideTrend !== tide.trend;
+  if (!changed) return false;
+  env.tideHeight = tide.height;
+  env.tideRange = tide.range;
+  env.tidePhase = tide.phase;
+  env.tideTrend = tide.trend;
+  return true;
+};
+
 // Application state
 const globalState = {
   vessels: new Map<string, VesselRecord>(),
@@ -856,6 +961,15 @@ const getEnvironmentForSpace = (spaceId: string): EnvironmentState => {
   const env = getDefaultEnvironment(spaceId);
   globalState.environmentBySpace.set(spaceId, env);
   return env;
+};
+
+const getRulesForSpace = (spaceId: string): Rules => {
+  const meta = spaceMetaCache.get(spaceId);
+  if (meta?.rulesetType) {
+    return getDefaultRules(mapToRulesetType(meta.rulesetType));
+  }
+  if (meta?.rules) return meta.rules as Rules;
+  return getDefaultRules(mapToRulesetType('CASUAL'));
 };
 
 const clamp = (val: number, min: number, max: number) =>
@@ -1273,7 +1387,28 @@ const loadChatHistory = async (
 
 const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => {
   const mergedPosition = mergePosition(v.position);
-  const waterDepth = getBathymetryDepth(mergedPosition.lat, mergedPosition.lon);
+  const env = getEnvironmentForSpace(v.spaceId || DEFAULT_SPACE_ID);
+  const tideHeight = env.tideHeight ?? 0;
+  const waterDepth = Math.max(
+    0,
+    getBathymetryDepth(mergedPosition.lat, mergedPosition.lon) + tideHeight,
+  );
+  const failureState = v.failureState
+    ? {
+        engineFailure: v.failureState.engineFailure,
+        steeringFailure: v.failureState.steeringFailure,
+        floodingLevel: v.failureState.floodingLevel,
+      }
+    : undefined;
+  const damageState = v.damageState
+    ? {
+        hullIntegrity: v.damageState.hullIntegrity,
+        engineHealth: v.damageState.engineHealth,
+        steeringHealth: v.damageState.steeringHealth,
+        electricalHealth: v.damageState.electricalHealth,
+        floodingDamage: v.damageState.floodingDamage,
+      }
+    : undefined;
   return {
     id: v.id,
     ownerId: v.ownerId,
@@ -1305,6 +1440,8 @@ const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => {
     properties: v.properties,
     angularVelocity: { yaw: v.yawRate ?? 0 },
     waterDepth,
+    failureState,
+    damageState,
   };
 };
 
@@ -1905,11 +2042,90 @@ io.on('connection', async socket => {
     if (data.ballast !== undefined) {
       target.controls.ballast = clamp(data.ballast, 0, 1);
     }
+    const limitedControls = applyFailureControlLimits(
+      target.controls,
+      target.failureState,
+      target.damageState,
+    );
+    target.controls = {
+      ...target.controls,
+      ...limitedControls,
+    };
     target.lastUpdate = Date.now();
 
     console.info(
       `Control applied for ${currentUserId}: throttle=${target.controls.throttle.toFixed(2)} rudder=${target.controls.rudderAngle.toFixed(2)}`,
     );
+  });
+
+  socket.on('vessel:repair', async (data, callback) => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    if (!currentUserId) return;
+    const vesselKey =
+      data?.vesselId ||
+      getVesselIdForUser(currentUserId, spaceId) ||
+      currentUserId;
+    const target = globalState.vessels.get(vesselKey);
+    if (!target || (target.spaceId || DEFAULT_SPACE_ID) !== spaceId) {
+      callback?.({ ok: false, message: 'Vessel not found' });
+      return;
+    }
+
+    const isCrew = target.crewIds.has(currentUserId);
+    const isAdmin = hasAdminRole(socket);
+    if (!isCrew && !isAdmin) {
+      callback?.({ ok: false, message: 'Not authorized to repair this vessel' });
+      return;
+    }
+
+    const speed = Math.hypot(target.velocity.surge, target.velocity.sway);
+    if (speed > 0.2) {
+      callback?.({ ok: false, message: 'Stop the vessel before repairs' });
+      return;
+    }
+
+    const damageState = mergeDamageState(target.damageState);
+    const cost = computeRepairCost(damageState);
+    if (cost <= 0) {
+      callback?.({ ok: true, message: 'No repairs needed' });
+      return;
+    }
+
+    const chargeUserId = resolveChargeUserId(target);
+    if (!chargeUserId) {
+      callback?.({ ok: false, message: 'Unable to bill repairs' });
+      return;
+    }
+
+    try {
+      const profile = await applyEconomyAdjustment({
+        userId: chargeUserId,
+        vesselId: target.id,
+        deltaCredits: -cost,
+        deltaSafetyScore: 0,
+        reason: 'repair',
+        meta: { cost },
+      });
+      target.damageState = applyRepair(damageState);
+      if (target.failureState) {
+        target.failureState.floodingLevel = 0;
+        target.failureState.engineFailure = false;
+        target.failureState.steeringFailure = false;
+      }
+      target.lastUpdate = Date.now();
+      void persistVesselToDb(target, { force: true });
+      io.to(`user:${chargeUserId}`).emit('economy:update', profile);
+      void syncUserSocketsEconomy(chargeUserId, profile);
+      io.to(`space:${spaceId}`).emit('simulation:update', {
+        vessels: { [target.id]: toSimpleVesselState(target) },
+        partial: true,
+        timestamp: Date.now(),
+      });
+      callback?.({ ok: true, message: `Repairs complete (${cost} cr)` });
+    } catch (err) {
+      console.error('Failed to repair vessel', err);
+      callback?.({ ok: false, message: 'Repair failed' });
+    }
   });
 
   // Handle simulation state changes
@@ -2673,6 +2889,9 @@ setInterval(() => {
       );
     }
   }
+  for (const sid of globalState.environmentBySpace.keys()) {
+    updateTideForSpace(sid, now);
+  }
 
   // Advance AI vessels using substeps for stability
   const aiStart = Date.now();
@@ -2706,6 +2925,96 @@ setInterval(() => {
       v.lastUpdate = now;
       void persistVesselToDb(v, { force: true });
     }
+
+    const sid = v.spaceId || DEFAULT_SPACE_ID;
+    const rules = getRulesForSpace(sid);
+    if (rules.realism.failures) {
+      const env = getEnvironmentForSpace(sid);
+      const tideHeight = env.tideHeight ?? 0;
+      const mergedPosition = mergePosition(v.position);
+      const waterDepth = Math.max(
+        0,
+        getBathymetryDepth(mergedPosition.lat, mergedPosition.lon) + tideHeight,
+      );
+      const speed = Math.hypot(v.velocity.surge, v.velocity.sway);
+      const failureUpdate = updateFailureState({
+        state: v.failureState,
+        dt,
+        nowMs: now,
+        throttle: v.controls.throttle,
+        rudderAngle: v.controls.rudderAngle,
+        speed,
+        waterDepth,
+        draft: v.properties.draft,
+        failuresEnabled: true,
+      });
+      v.failureState = failureUpdate.state;
+      if (rules.realism.damage) {
+        const currentDamage = mergeDamageState(v.damageState);
+        v.damageState = applyFailureWear(
+          currentDamage,
+          failureUpdate.triggered.engineFailure,
+          failureUpdate.triggered.steeringFailure,
+        );
+        if (
+          Number.isFinite(waterDepth) &&
+          Number.isFinite(v.properties.draft) &&
+          waterDepth <= v.properties.draft + 0.1
+        ) {
+          const severity = Math.min(1, Math.max(0.2, speed / 5));
+          v.damageState = applyGroundingDamage(v.damageState, dt, severity);
+        }
+      }
+      if (failureUpdate.triggered.engineFailure) {
+        recordLog({
+          level: 'warn',
+          source: 'failure',
+          message: 'Engine failure triggered',
+          meta: { vesselId: v.id, spaceId: sid },
+        });
+      }
+      if (failureUpdate.triggered.steeringFailure) {
+        recordLog({
+          level: 'warn',
+          source: 'failure',
+          message: 'Steering failure triggered',
+          meta: { vesselId: v.id, spaceId: sid },
+        });
+      }
+      if (failureUpdate.triggered.flooding) {
+        recordLog({
+          level: 'warn',
+          source: 'failure',
+          message: 'Flooding detected',
+          meta: { vesselId: v.id, spaceId: sid },
+        });
+      }
+      if (failureUpdate.triggered.engineRecovered) {
+        recordLog({
+          level: 'info',
+          source: 'failure',
+          message: 'Engine failure cleared',
+          meta: { vesselId: v.id, spaceId: sid },
+        });
+      }
+      if (failureUpdate.triggered.steeringRecovered) {
+        recordLog({
+          level: 'info',
+          source: 'failure',
+          message: 'Steering failure cleared',
+          meta: { vesselId: v.id, spaceId: sid },
+        });
+      }
+      const limitedControls = applyFailureControlLimits(
+        v.controls,
+        v.failureState,
+        v.damageState,
+      );
+      v.controls = {
+        ...v.controls,
+        ...limitedControls,
+      };
+    }
   }
   recordMetric('ai', Date.now() - aiStart);
 
@@ -2713,6 +3022,10 @@ setInterval(() => {
   const vesselsBySpace = new Map<
     string,
     Record<string, ReturnType<typeof toSimpleVesselState>>
+  >();
+  const vesselCountsBySpace = new Map<
+    string,
+    { total: number; ai: number; player: number }
   >();
   const positionsBySpace = new Map<
     string,
@@ -2725,6 +3038,15 @@ setInterval(() => {
     const sid = v.spaceId || DEFAULT_SPACE_ID;
     if (!vesselsBySpace.has(sid)) vesselsBySpace.set(sid, {});
     vesselsBySpace.get(sid)![id] = toSimpleVesselState(v);
+    const counts = vesselCountsBySpace.get(sid) || {
+      total: 0,
+      ai: 0,
+      player: 0,
+    };
+    counts.total += 1;
+    if (v.mode === 'ai') counts.ai += 1;
+    if (v.mode === 'player') counts.player += 1;
+    vesselCountsBySpace.set(sid, counts);
     if (!positionsBySpace.has(sid)) positionsBySpace.set(sid, new Map());
     const pos = mergePosition(v.position);
     positionsBySpace.get(sid)!.set(id, {
@@ -2753,6 +3075,33 @@ setInterval(() => {
         : undefined,
     });
   }
+
+  const spaceIds = new Set<string>([
+    ...globalState.environmentBySpace.keys(),
+    ...spaceMetaCache.keys(),
+    ...vesselsBySpace.keys(),
+  ]);
+  const spaceMetrics = Array.from(spaceIds).map(spaceId => {
+    const counts = vesselCountsBySpace.get(spaceId) || {
+      total: 0,
+      ai: 0,
+      player: 0,
+    };
+    const spaceRoom = io.sockets.adapter.rooms.get(`space:${spaceId}`);
+    const connected = spaceRoom ? spaceRoom.size : 0;
+    const meta = spaceMetaCache.get(spaceId);
+    return {
+      spaceId,
+      name: meta?.name || spaceId,
+      connected,
+      vessels: counts.total,
+      aiVessels: counts.ai,
+      playerVessels: counts.player,
+      lastBroadcastAt: now,
+      updatedAt: now,
+    };
+  });
+  updateSpaceMetrics(spaceMetrics);
 
   if (now - lastMissionUpdateAt > 1000) {
     lastMissionUpdateAt = now;

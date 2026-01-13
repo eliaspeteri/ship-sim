@@ -84,6 +84,24 @@ const hasVesselChanged = (
     prev.helm?.userId !== next.helm?.userId ||
     prev.helm?.username !== next.helm?.username;
   const stationsChanged = !stationsEqual(prev.stations, next.stations);
+  const failureChanged =
+    (prev.failureState?.engineFailure ?? false) !==
+      (next.failureState?.engineFailure ?? false) ||
+    (prev.failureState?.steeringFailure ?? false) !==
+      (next.failureState?.steeringFailure ?? false) ||
+    (prev.failureState?.floodingLevel ?? 0) !==
+      (next.failureState?.floodingLevel ?? 0);
+  const damageChanged =
+    (prev.damageState?.hullIntegrity ?? 1) !==
+      (next.damageState?.hullIntegrity ?? 1) ||
+    (prev.damageState?.engineHealth ?? 1) !==
+      (next.damageState?.engineHealth ?? 1) ||
+    (prev.damageState?.steeringHealth ?? 1) !==
+      (next.damageState?.steeringHealth ?? 1) ||
+    (prev.damageState?.electricalHealth ?? 1) !==
+      (next.damageState?.electricalHealth ?? 1) ||
+    (prev.damageState?.floodingDamage ?? 0) !==
+      (next.damageState?.floodingDamage ?? 0);
 
   return (
     prev.id !== next.id ||
@@ -93,7 +111,9 @@ const hasVesselChanged = (
     velocityChanged ||
     controlsChanged ||
     helmChanged ||
-    stationsChanged
+    stationsChanged ||
+    failureChanged ||
+    damageChanged
   );
 };
 
@@ -478,6 +498,8 @@ class SocketManager {
             normalized.crewIds.includes(selfUserId));
       if (isSelf) {
         foundSelf = true;
+        const prevFailure = store.vessel.failureState;
+        const prevDamage = store.vessel.damageState;
         if (store.currentVesselId !== id) {
           store.setCurrentVesselId(id);
         }
@@ -505,6 +527,8 @@ class SocketManager {
               }
             : undefined,
           waterDepth: normalized.waterDepth,
+          failureState: normalized.failureState ?? store.vessel.failureState,
+          damageState: normalized.damageState ?? store.vessel.damageState,
           controls: normalized.controls
             ? {
                 ...store.vessel.controls,
@@ -529,6 +553,83 @@ class SocketManager {
           helm: normalized.helm,
           stations: normalized.stations,
         });
+        if (normalized.failureState) {
+          store.updateMachineryStatus({
+            failures: {
+              engineFailure: normalized.failureState.engineFailure,
+              rudderFailure: normalized.failureState.steeringFailure,
+              pumpFailure: normalized.failureState.floodingLevel > 0.2,
+            },
+          });
+          const changed =
+            (prevFailure?.engineFailure ?? false) !==
+              normalized.failureState.engineFailure ||
+            (prevFailure?.steeringFailure ?? false) !==
+              normalized.failureState.steeringFailure ||
+            (prevFailure?.floodingLevel ?? 0) !==
+              normalized.failureState.floodingLevel;
+          if (changed) {
+            if (
+              normalized.failureState.engineFailure &&
+              !(prevFailure?.engineFailure ?? false)
+            ) {
+              store.addEvent({
+                category: 'alarm',
+                type: 'engine_failure',
+                message: 'Engine failure detected',
+                severity: 'critical',
+              });
+            }
+            if (
+              normalized.failureState.steeringFailure &&
+              !(prevFailure?.steeringFailure ?? false)
+            ) {
+              store.addEvent({
+                category: 'alarm',
+                type: 'steering_failure',
+                message: 'Steering failure detected',
+                severity: 'critical',
+              });
+            }
+            if (
+              normalized.failureState.floodingLevel > 0.2 &&
+              (prevFailure?.floodingLevel ?? 0) <= 0.2
+            ) {
+              store.addEvent({
+                category: 'alarm',
+                type: 'flooding',
+                message: 'Flooding detected',
+                severity: 'critical',
+              });
+            }
+          }
+        }
+        if (normalized.damageState) {
+          store.updateMachineryStatus({
+            engineHealth: normalized.damageState.engineHealth,
+            steeringSystemHealth: normalized.damageState.steeringHealth,
+            electricalSystemHealth: normalized.damageState.electricalHealth,
+          });
+          const damageChanged =
+            (prevDamage?.hullIntegrity ?? 1) !==
+              normalized.damageState.hullIntegrity ||
+            (prevDamage?.engineHealth ?? 1) !==
+              normalized.damageState.engineHealth ||
+            (prevDamage?.steeringHealth ?? 1) !==
+              normalized.damageState.steeringHealth ||
+            (prevDamage?.electricalHealth ?? 1) !==
+              normalized.damageState.electricalHealth ||
+            (prevDamage?.floodingDamage ?? 0) !==
+              normalized.damageState.floodingDamage;
+          if (damageChanged && normalized.damageState.hullIntegrity < 0.4) {
+            store.addEvent({
+              category: 'alarm',
+              type: 'damage',
+              message: 'Hull integrity critical',
+              severity: 'critical',
+            });
+          }
+        }
         const desired = normalized.desiredMode || normalized.mode;
         if (desired === 'ai') {
           store.setMode('spectator');
@@ -733,6 +834,22 @@ class SocketManager {
   ): void {
     if (!this.socket?.connected) return;
     this.socket.emit('vessel:station', { station, action });
+  }
+
+  requestRepair(vesselId?: string): void {
+    if (!this.socket?.connected) return;
+    const store = useStore.getState();
+    this.socket.emit(
+      'vessel:repair',
+      { vesselId },
+      (res?: { ok: boolean; message?: string }) => {
+        if (res?.ok) {
+          store.setNotice({ message: res.message || 'Repairs complete' });
+        } else if (res?.message) {
+          store.setNotice({ message: res.message, kind: 'error' });
+        }
+      },
+    );
   }
 
   sendChatMessage(message: string, channel = 'global'): void {

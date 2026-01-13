@@ -36,6 +36,8 @@ import {
   estimateTimeZoneOffsetHours,
   formatTimeOfDay,
 } from '../lib/time';
+import { applyFailureControlLimits } from '../lib/failureControls';
+import { computeRepairCost, normalizeDamageState } from '../lib/damage';
 import styles from './HudDrawer.module.css';
 import { VesselList } from './VesselList';
 import { EcdisDisplay } from './navigation/EcdisDisplay';
@@ -215,6 +217,12 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const engineState = vessel.engineState;
   const electrical = vessel.electricalSystem;
   const stability = vessel.stability;
+  const damageState = normalizeDamageState(vessel.damageState);
+  const repairCost = computeRepairCost(damageState);
+  const speedMs = Math.hypot(
+    vessel.velocity?.surge ?? 0,
+    vessel.velocity?.sway ?? 0,
+  );
   const fuelPercent = clamp01(engineState?.fuelLevel ?? 0);
   const loadPercent = clamp01(engineState?.load ?? 0);
   const batteryPercent = clamp01(electrical?.batteryLevel ?? 0);
@@ -707,11 +715,16 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       if (canAdjustRudder) {
         nextControls.rudderAngle = clampedRudder;
       }
-      simulationLoop.applyControls(nextControls);
+      const limitedControls = applyFailureControlLimits(
+        nextControls,
+        vessel.failureState,
+        vessel.damageState,
+      );
+      simulationLoop.applyControls(limitedControls);
       socketManager.sendControlUpdate(
-        nextControls.throttle,
-        nextControls.rudderAngle,
-        nextControls.ballast,
+        limitedControls.throttle,
+        limitedControls.rudderAngle,
+        limitedControls.ballast,
       );
     } catch (error) {
       console.error('Error applying controls from HUD:', error);
@@ -1246,6 +1259,71 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
               </div>
               <div className={styles.sectionCard}>
                 <div className={styles.sectionHeader}>
+                  <div className={styles.sectionTitle}>Damage & repairs</div>
+                  <span className={styles.badge}>
+                    {damageState.hullIntegrity < 0.4
+                      ? 'Critical'
+                      : repairCost > 0
+                        ? 'Maintenance'
+                        : 'Healthy'}
+                  </span>
+                </div>
+                <div className={styles.systemGrid}>
+                  <SystemMeter
+                    label="Hull"
+                    value={`${Math.round(damageState.hullIntegrity * 100)}%`}
+                    percent={damageState.hullIntegrity}
+                  />
+                  <SystemMeter
+                    label="Engine"
+                    value={`${Math.round(damageState.engineHealth * 100)}%`}
+                    percent={damageState.engineHealth}
+                  />
+                  <SystemMeter
+                    label="Steering"
+                    value={`${Math.round(damageState.steeringHealth * 100)}%`}
+                    percent={damageState.steeringHealth}
+                  />
+                  <SystemMeter
+                    label="Electrical"
+                    value={`${Math.round(damageState.electricalHealth * 100)}%`}
+                    percent={damageState.electricalHealth}
+                  />
+                  <SystemMeter
+                    label="Flooding"
+                    value={`${Math.round(damageState.floodingDamage * 100)}%`}
+                    percent={1 - damageState.floodingDamage}
+                  />
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <div className={styles.sectionSub}>
+                    {repairCost > 0
+                      ? `Estimated repair cost: ${repairCost} cr`
+                      : 'No repairs needed'}
+                  </div>
+                  <button
+                    type="button"
+                    className={`${styles.stationButton} ${
+                      repairCost <= 0 || speedMs > 0.2
+                        ? styles.stationButtonDisabled
+                        : ''
+                    }`}
+                    disabled={repairCost <= 0 || speedMs > 0.2}
+                    onClick={() =>
+                      socketManager.requestRepair(currentVesselId || undefined)
+                    }
+                  >
+                    Request repair
+                  </button>
+                </div>
+                {speedMs > 0.2 ? (
+                  <div className={styles.sectionSub}>
+                    Stop the vessel to begin repairs.
+                  </div>
+                ) : null}
+              </div>
+              <div className={styles.sectionCard}>
+                <div className={styles.sectionHeader}>
                   <div className={styles.sectionTitle}>Stability & load</div>
                   <span className={styles.badge}>
                     Draft (est) {draftEstimate.toFixed(1)} m
@@ -1733,6 +1811,7 @@ const TRANSACTION_REASON_LABELS: Record<string, string> = {
   speed_violation: 'Speed violation',
   near_miss: 'Near miss',
   mission_reward: 'Mission reward',
+  repair: 'Repairs',
 };
 
 const formatTransactionReason = (reason?: string) => {
