@@ -203,14 +203,23 @@ export default [
 
   // Test files config
   {
-    files: ['**/tests/**/*.{js,ts,cjs}'],
+    files: ['**/tests/**/*.{js,ts,tsx,cjs}'],
     rules: {
       'no-console': 'off', // Allow console in test files
-      require: 'off', // Allow require in test files
+      'no-undef': 'off', // Disable no-undef for test globals
+      '@typescript-eslint/no-require-imports': 'off', // Allow require in tests
+      '@typescript-eslint/no-explicit-any': 'off', // Allow any in tests
     },
     languageOptions: {
       globals: {
         console: 'readonly',
+        describe: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        jest: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        require: 'readonly',
       },
     },
   },
