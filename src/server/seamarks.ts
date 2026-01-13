@@ -110,6 +110,8 @@ export async function loadSeamarks() {
     try {
       const filePath = path.resolve(process.cwd(), 'data', 'seamarks.geojson');
       const raw = await fs.readFile(filePath, 'utf8');
+      if (!raw) throw new Error('Seamarks geojson file is empty');
+
       const data = JSON.parse(raw) as FeatureCollection;
 
       points = [];
