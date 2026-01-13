@@ -163,6 +163,51 @@ export type ClientToServerEvents = {
     vesselId: string;
     mode: 'player' | 'ai';
   }) => void;
+  'vessel:storage': (data: {
+    vesselId?: string;
+    action?: 'store' | 'activate';
+  }) => void;
+  'vessel:sale:create': (data: {
+    vesselId: string;
+    type?: 'sale' | 'auction';
+    price: number;
+    reservePrice?: number;
+    endsAt?: number;
+  }) => void;
+  'vessel:sale:buy': (data: { saleId: string }) => void;
+  'vessel:lease:create': (data: {
+    vesselId: string;
+    type?: 'charter' | 'lease';
+    ratePerHour: number;
+    revenueShare?: number;
+    endsAt?: number;
+  }) => void;
+  'vessel:lease:accept': (data: { leaseId: string }) => void;
+  'economy:loan:request': (data: {
+    amount: number;
+    termDays?: number;
+    interestRate?: number;
+  }) => void;
+  'economy:loan:repay': (data: { loanId: string; amount: number }) => void;
+  'economy:insurance:purchase': (data: {
+    vesselId: string;
+    type?: 'loss' | 'damage' | 'salvage';
+    coverage: number;
+    deductible: number;
+    premiumRate: number;
+    termDays?: number;
+  }) => void;
+  'economy:insurance:cancel': (data: { policyId: string }) => void;
+  'cargo:create': (data: {
+    vesselId?: string;
+    portId?: string;
+    description?: string;
+    value: number;
+    weightTons?: number;
+    liabilityRate?: number;
+  }) => void;
+  'cargo:assign': (data: { cargoId: string; vesselId: string }) => void;
+  'cargo:release': (data: { cargoId: string }) => void;
   'user:mode': (data: { mode: 'player' | 'spectator' }) => void;
   'latency:ping': (data: { sentAt: number }) => void;
   'client:log': (data: {

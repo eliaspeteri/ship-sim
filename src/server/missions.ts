@@ -4,7 +4,7 @@ import type {
   MissionAssignmentData,
   MissionDefinition,
 } from '../types/mission.types';
-import { applyEconomyAdjustment } from './economy';
+import { applyEconomyAdjustmentWithRevenueShare } from './economy';
 
 type MissionSeed = Omit<
   MissionDefinition,
@@ -200,7 +200,7 @@ export async function updateMissionAssignments(params: {
           where: { id: assignment.id },
           data: { status: 'completed', completedAt: new Date(), progress },
         })) as MissionAssignmentData;
-        const profile = await applyEconomyAdjustment({
+        const profile = await applyEconomyAdjustmentWithRevenueShare({
           userId: assignment.userId,
           vesselId: assignment.vesselId,
           deltaCredits: mission.rewardCredits,

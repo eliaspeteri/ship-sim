@@ -68,6 +68,11 @@ model Vessel {
     id          String   @id
     spaceId     String   @default("global")
     ownerId     String?
+    status      String   @default("active") // active | stored | auction | leased | chartered | repossession
+    storagePortId String?
+    storedAt    DateTime?
+    chartererId String?
+    leaseeId    String?
     mode        String // 'ai' | 'player'
     desiredMode String   @default("player") // intended mode when unattended
     lastCrewAt  DateTime @default(now()) // last time a crew member was attached
@@ -262,6 +267,108 @@ model EconomyTransaction {
     createdAt DateTime @default(now())
 
     @@index([userId])
+}
+
+model CrewContract {
+    id           String   @id @default(cuid())
+    vesselId     String
+    userId       String
+    wageRate     Float    @default(0)
+    revenueShare Float    @default(0)
+    status       String   @default("draft") // draft | active | completed | canceled
+    lockedAt     DateTime?
+    releasedAt   DateTime?
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+
+    @@index([vesselId, status])
+    @@index([userId, status])
+}
+
+model Loan {
+    id            String   @id @default(cuid())
+    userId        String
+    principal     Float
+    balance       Float
+    interestRate  Float    @default(0.08) // annual rate
+    status        String   @default("active") // active | paid | defaulted
+    issuedAt      DateTime @default(now())
+    dueAt         DateTime?
+    lastAccruedAt DateTime?
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+
+    @@index([userId, status])
+}
+
+model InsurancePolicy {
+    id            String   @id @default(cuid())
+    vesselId      String
+    ownerId       String
+    type          String
+    coverage      Float
+    deductible    Float
+    premiumRate   Float
+    status        String   @default("active") // active | lapsed | canceled
+    activeFrom    DateTime @default(now())
+    activeUntil   DateTime?
+    lastChargedAt DateTime?
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+
+    @@index([vesselId, status])
+    @@index([ownerId, status])
+}
+
+model VesselSale {
+    id           String   @id @default(cuid())
+    vesselId     String
+    sellerId     String
+    buyerId      String?
+    type         String   @default("sale") // sale | auction | repossession
+    price        Float
+    reservePrice Float?
+    status       String   @default("open") // open | sold | canceled | expired
+    createdAt    DateTime @default(now())
+    endsAt       DateTime?
+
+    @@index([status, type])
+}
+
+model VesselLease {
+    id           String   @id @default(cuid())
+    vesselId     String
+    ownerId      String
+    lesseeId     String?
+    type         String   @default("charter") // charter | lease
+    ratePerHour  Float
+    revenueShare Float    @default(0)
+    status       String   @default("open") // open | active | completed | canceled
+    startedAt    DateTime?
+    endsAt       DateTime?
+    lastChargedAt DateTime?
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+
+    @@index([status, type])
+}
+
+model CargoLot {
+    id           String   @id @default(cuid())
+    vesselId     String?
+    portId       String?
+    ownerId      String
+    description  String?
+    value        Float
+    weightTons   Float    @default(0)
+    liabilityRate Float   @default(0)
+    status       String   @default("loaded") // listed | loaded | delivered | lost
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+
+    @@index([ownerId, status])
+    @@index([vesselId])
+    @@index([portId, status])
 }
 
 model AuthEvent {

@@ -48,6 +48,9 @@ import { getBathymetryDepth, loadBathymetry } from './bathymetry';
 import {
   getEconomyProfile,
   applyEconomyAdjustment,
+  calculateVesselCreationCost,
+  getVesselCargoCapacityTons,
+  resolvePortForPosition,
   updateEconomyForVessel,
 } from './economy';
 import { seedDefaultMissions, updateMissionAssignments } from './missions';
@@ -129,6 +132,11 @@ export interface VesselRecord {
   id: string;
   spaceId?: string;
   ownerId: string | null;
+  status?: string;
+  storagePortId?: string | null;
+  storedAt?: number | null;
+  chartererId?: string | null;
+  leaseeId?: string | null;
   crewIds: Set<string>;
   crewNames: Map<string, string>;
   helmUserId?: string | null;
@@ -239,9 +247,8 @@ const getSpaceRole = async (userId: string | undefined, spaceId: string) => {
   return 'member' as const;
 };
 
-const resolveChargeUserId = (vessel: VesselRecord) => {
-  if (vessel.ownerId) return vessel.ownerId;
-};
+const resolveChargeUserId = (vessel: VesselRecord) =>
+  vessel.chartererId || vessel.leaseeId || vessel.ownerId || undefined;
 
 export const syncUserSocketsEconomy = async (
   userId: string,
@@ -467,6 +474,11 @@ export async function persistVesselToDb(
       update: {
         spaceId: vessel.spaceId || DEFAULT_SPACE_ID,
         ownerId: vessel.ownerId ?? null,
+        status: vessel.status || 'active',
+        storagePortId: vessel.storagePortId ?? null,
+        storedAt: vessel.storedAt ? new Date(vessel.storedAt) : null,
+        chartererId: vessel.chartererId ?? null,
+        leaseeId: vessel.leaseeId ?? null,
         mode: vessel.mode,
         desiredMode: vessel.desiredMode || 'player',
         lat: pos.lat ?? 0,
@@ -500,6 +512,11 @@ export async function persistVesselToDb(
         id: vessel.id,
         spaceId: vessel.spaceId || DEFAULT_SPACE_ID,
         ownerId: vessel.ownerId ?? null,
+        status: vessel.status || 'active',
+        storagePortId: vessel.storagePortId ?? null,
+        storedAt: vessel.storedAt ? new Date(vessel.storedAt) : null,
+        chartererId: vessel.chartererId ?? null,
+        leaseeId: vessel.leaseeId ?? null,
         mode: vessel.mode,
         desiredMode: vessel.desiredMode || 'player',
         lat: pos.lat ?? 0,
@@ -545,6 +562,18 @@ async function loadVesselsFromDb() {
       spaceId:
         (row as unknown as { spaceId?: string }).spaceId || DEFAULT_SPACE_ID,
       ownerId: row.ownerId,
+      status: (row as unknown as { status?: string }).status || 'active',
+      storagePortId:
+        (row as unknown as { storagePortId?: string | null }).storagePortId ??
+        null,
+      storedAt: (row as unknown as { storedAt?: Date | null }).storedAt
+        ? (row as unknown as { storedAt?: Date | null }).storedAt?.getTime() ||
+          null
+        : null,
+      chartererId:
+        (row as unknown as { chartererId?: string | null }).chartererId ?? null,
+      leaseeId:
+        (row as unknown as { leaseeId?: string | null }).leaseeId ?? null,
       crewIds: new Set<string>(),
       crewNames: new Map<string, string>(),
       helmUserId: null,
@@ -732,6 +761,11 @@ function createNewVesselForUser(
     id: `${userId}_${Date.now()}`,
     spaceId,
     ownerId: userId,
+    status: 'active',
+    storagePortId: null,
+    storedAt: null,
+    chartererId: null,
+    leaseeId: null,
     crewIds: new Set<string>([userId]),
     crewNames: new Map<string, string>([[userId, username]]),
     helmUserId: userId,
@@ -1106,6 +1140,8 @@ function takeOverAvailableAIVessel(
   const aiVessel = Array.from(globalState.vessels.values()).find(
     v =>
       v.mode === 'ai' &&
+      v.status !== 'stored' &&
+      v.status !== 'repossession' &&
       v.crewIds.size === 0 &&
       (v.spaceId || DEFAULT_SPACE_ID) === spaceId,
   );
@@ -1139,6 +1175,10 @@ function findJoinableVessel(
       v =>
         (v.spaceId || DEFAULT_SPACE_ID) === spaceId &&
         v.mode === 'player' &&
+        v.status !== 'stored' &&
+        v.status !== 'repossession' &&
+        v.status !== 'auction' &&
+        v.status !== 'sale' &&
         v.crewIds.size > 0 &&
         v.crewIds.size < MAX_CREW &&
         !v.crewIds.has(userId),
@@ -1157,6 +1197,12 @@ function ensureVesselForUser(
   if (lastId) {
     const lastVessel = globalState.vessels.get(lastId);
     if (lastVessel && (lastVessel.spaceId || DEFAULT_SPACE_ID) === spaceId) {
+      if (
+        lastVessel.status === 'stored' ||
+        lastVessel.status === 'repossession'
+      ) {
+        return undefined;
+      }
       console.info(
         `Reassigning user ${username} to their last vessel ${lastId}`,
       );
@@ -2106,13 +2152,45 @@ io.on('connection', async socket => {
     }
 
     try {
+      let costToCharge = cost;
+      if (target.ownerId) {
+        const policy = await prisma.insurancePolicy.findFirst({
+          where: {
+            vesselId: target.id,
+            ownerId: target.ownerId,
+            status: 'active',
+            type: 'damage',
+          },
+        });
+        if (policy) {
+          const payout = Math.max(
+            0,
+            Math.min(cost - (policy.deductible ?? 0), policy.coverage ?? 0),
+          );
+          if (payout > 0) {
+            costToCharge = Math.max(0, cost - payout);
+            const payoutProfile = await applyEconomyAdjustment({
+              userId: target.ownerId,
+              vesselId: target.id,
+              deltaCredits: payout,
+              reason: 'insurance_payout',
+              meta: { policyId: policy.id, repairCost: cost },
+            });
+            io.to(`user:${target.ownerId}`).emit(
+              'economy:update',
+              payoutProfile,
+            );
+            void syncUserSocketsEconomy(target.ownerId, payoutProfile);
+          }
+        }
+      }
       const profile = await applyEconomyAdjustment({
         userId: chargeUserId,
         vesselId: target.id,
-        deltaCredits: -cost,
+        deltaCredits: -costToCharge,
         deltaSafetyScore: 0,
         reason: 'repair',
-        meta: { cost },
+        meta: { cost: costToCharge },
       });
       target.damageState = applyRepair(damageState);
       if (target.failureState) {
@@ -2241,29 +2319,716 @@ io.on('connection', async socket => {
       );
       return;
     }
-    detachUserFromCurrentVessel(currentUserId, spaceId);
-    const newVessel = createNewVesselForUser(
-      currentUserId,
-      currentUsername,
-      data || {},
-      spaceId,
-    );
-    globalState.vessels.set(newVessel.id, newVessel);
-    globalState.userLastVessel.set(
-      userSpaceKey(currentUserId, spaceId),
-      newVessel.id,
-    );
-    updateSocketVesselRoom(socket, spaceId, newVessel.id);
-    socket.data.mode = 'player';
-    void persistVesselToDb(newVessel, { force: true });
+    void (async () => {
+      const economyProfile = await getEconomyProfile(currentUserId);
+      const creationCost = calculateVesselCreationCost(economyProfile.rank);
+      if (economyProfile.credits < creationCost) {
+        socket.emit(
+          'error',
+          `Insufficient credits for vessel creation (${creationCost} cr required)`,
+        );
+        return;
+      }
+      const updatedProfile = await applyEconomyAdjustment({
+        userId: currentUserId,
+        deltaCredits: -creationCost,
+        reason: 'vessel_purchase',
+        meta: { cost: creationCost },
+      });
+      io.to(`user:${currentUserId}`).emit('economy:update', updatedProfile);
+      void syncUserSocketsEconomy(currentUserId, updatedProfile);
+
+      detachUserFromCurrentVessel(currentUserId, spaceId);
+      const newVessel = createNewVesselForUser(
+        currentUserId,
+        currentUsername,
+        data || {},
+        spaceId,
+      );
+      globalState.vessels.set(newVessel.id, newVessel);
+      globalState.userLastVessel.set(
+        userSpaceKey(currentUserId, spaceId),
+        newVessel.id,
+      );
+      updateSocketVesselRoom(socket, spaceId, newVessel.id);
+      socket.data.mode = 'player';
+      void persistVesselToDb(newVessel, { force: true });
+      io.to(`space:${spaceId}`).emit('simulation:update', {
+        vessels: { [newVessel.id]: toSimpleVesselState(newVessel) },
+        partial: true,
+        timestamp: Date.now(),
+      });
+      console.info(
+        `Created new vessel ${newVessel.id} for ${currentUsername} (${currentUserId})`,
+      );
+    })().catch(err => {
+      console.error('Failed to create vessel', err);
+      socket.emit('error', 'Unable to create vessel');
+    });
+  });
+
+  socket.on('vessel:storage', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    if (!currentUserId) return;
+    const vesselKey =
+      data?.vesselId ||
+      getVesselIdForUser(currentUserId, spaceId) ||
+      currentUserId;
+    const vessel = globalState.vessels.get(vesselKey);
+    if (!vessel || (vessel.spaceId || DEFAULT_SPACE_ID) !== spaceId) {
+      socket.emit('error', 'Vessel not found');
+      return;
+    }
+    const isAdmin = hasAdminRole(socket);
+    const isOwner = vessel.ownerId === currentUserId;
+    if (!isOwner && !isAdmin) {
+      socket.emit('error', 'Not authorized to store this vessel');
+      return;
+    }
+    const action = data?.action === 'activate' ? 'activate' : 'store';
+    if (action === 'store') {
+      const port = resolvePortForPosition(vessel.position);
+      if (!port) {
+        socket.emit('error', 'Vessel must be in port to store');
+        return;
+      }
+      const speed = Math.hypot(vessel.velocity.surge, vessel.velocity.sway);
+      if (speed > 0.2) {
+        socket.emit('error', 'Stop the vessel before storing');
+        return;
+      }
+      vessel.status = 'stored';
+      vessel.storagePortId = port.id;
+      vessel.storedAt = Date.now();
+      vessel.mode = 'ai';
+      vessel.desiredMode = 'ai';
+      vessel.controls.throttle = 0;
+      vessel.controls.rudderAngle = 0;
+      vessel.controls.bowThruster = 0;
+      vessel.crewIds.clear();
+      vessel.crewNames.clear();
+      vessel.helmUserId = null;
+      vessel.helmUsername = null;
+      vessel.engineUserId = null;
+      vessel.engineUsername = null;
+      vessel.radioUserId = null;
+      vessel.radioUsername = null;
+    } else {
+      vessel.status = 'active';
+      vessel.storagePortId = null;
+      vessel.storedAt = null;
+      vessel.desiredMode = 'player';
+    }
+    vessel.lastUpdate = Date.now();
+    void persistVesselToDb(vessel, { force: true });
     io.to(`space:${spaceId}`).emit('simulation:update', {
-      vessels: { [newVessel.id]: toSimpleVesselState(newVessel) },
+      vessels: { [vessel.id]: toSimpleVesselState(vessel) },
       partial: true,
       timestamp: Date.now(),
     });
-    console.info(
-      `Created new vessel ${newVessel.id} for ${currentUsername} (${currentUserId})`,
-    );
+  });
+
+  socket.on('vessel:sale:create', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    if (!currentUserId) return;
+    void (async () => {
+      const vesselId = data?.vesselId;
+      if (!vesselId || typeof vesselId !== 'string') {
+        socket.emit('error', 'Missing vessel id');
+        return;
+      }
+      const vessel = globalState.vessels.get(vesselId);
+      if (!vessel) {
+        socket.emit('error', 'Vessel not found');
+        return;
+      }
+      const isAdmin = hasAdminRole(socket);
+      const isOwner = vessel.ownerId === currentUserId;
+      if (!isOwner && !isAdmin) {
+        socket.emit('error', 'Not authorized to sell this vessel');
+        return;
+      }
+      const port = resolvePortForPosition(vessel.position);
+      if (!port) {
+        socket.emit('error', 'Vessel must be in port to list for sale');
+        return;
+      }
+      const price = Number(data?.price);
+      if (!Number.isFinite(price) || price <= 0) {
+        socket.emit('error', 'Invalid sale price');
+        return;
+      }
+      const type = data?.type === 'auction' ? 'auction' : 'sale';
+      const reservePrice =
+        data?.reservePrice !== undefined ? Number(data.reservePrice) : undefined;
+      const endsAt =
+        data?.endsAt && Number.isFinite(data.endsAt)
+          ? new Date(Number(data.endsAt))
+          : null;
+      const sale = await prisma.vesselSale.create({
+        data: {
+          vesselId: vessel.id,
+          sellerId: currentUserId,
+          type,
+          price,
+          reservePrice:
+            reservePrice !== undefined && !Number.isNaN(reservePrice)
+              ? reservePrice
+              : null,
+          endsAt,
+        },
+      });
+      vessel.status = type === 'auction' ? 'auction' : 'sale';
+      vessel.mode = 'ai';
+      vessel.desiredMode = 'ai';
+      vessel.crewIds.clear();
+      vessel.crewNames.clear();
+      vessel.helmUserId = null;
+      vessel.helmUsername = null;
+      vessel.engineUserId = null;
+      vessel.engineUsername = null;
+      vessel.radioUserId = null;
+      vessel.radioUsername = null;
+      vessel.lastUpdate = Date.now();
+      void persistVesselToDb(vessel, { force: true });
+    })().catch(err => {
+      console.error('Failed to create sale', err);
+      socket.emit('error', 'Unable to list vessel');
+    });
+  });
+
+  socket.on('vessel:sale:buy', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    if (!currentUserId) return;
+    void (async () => {
+      const saleId = data?.saleId;
+      if (!saleId || typeof saleId !== 'string') {
+        socket.emit('error', 'Missing sale id');
+        return;
+      }
+      const sale = await prisma.vesselSale.findUnique({ where: { id: saleId } });
+      if (!sale || sale.status !== 'open') {
+        socket.emit('error', 'Sale not available');
+        return;
+      }
+      if (sale.reservePrice && sale.price < sale.reservePrice) {
+        socket.emit('error', 'Sale reserve not met');
+        return;
+      }
+      const buyerProfile = await getEconomyProfile(currentUserId);
+      if (buyerProfile.credits < sale.price) {
+        socket.emit('error', 'Insufficient credits to purchase vessel');
+        return;
+      }
+      const vessel = globalState.vessels.get(sale.vesselId);
+      if (vessel) {
+        vessel.ownerId = currentUserId;
+        vessel.status = 'active';
+        vessel.chartererId = null;
+        vessel.leaseeId = null;
+        vessel.desiredMode = 'player';
+        vessel.crewIds.clear();
+        vessel.crewNames.clear();
+        vessel.helmUserId = null;
+        vessel.helmUsername = null;
+        vessel.engineUserId = null;
+        vessel.engineUsername = null;
+        vessel.radioUserId = null;
+        vessel.radioUsername = null;
+        vessel.lastUpdate = Date.now();
+        globalState.userLastVessel.set(
+          userSpaceKey(currentUserId, vessel.spaceId || DEFAULT_SPACE_ID),
+          vessel.id,
+        );
+        void persistVesselToDb(vessel, { force: true });
+      } else {
+        await prisma.vessel.update({
+          where: { id: sale.vesselId },
+          data: {
+            ownerId: currentUserId,
+            status: 'active',
+            chartererId: null,
+            leaseeId: null,
+          },
+        });
+      }
+      await prisma.vesselSale.update({
+        where: { id: sale.id },
+        data: {
+          status: 'sold',
+          buyerId: currentUserId,
+          endsAt: new Date(),
+        },
+      });
+      const buyerNext = await applyEconomyAdjustment({
+        userId: currentUserId,
+        vesselId: sale.vesselId,
+        deltaCredits: -sale.price,
+        reason: 'vessel_purchase',
+        meta: { saleId: sale.id },
+      });
+      io.to(`user:${currentUserId}`).emit('economy:update', buyerNext);
+      void syncUserSocketsEconomy(currentUserId, buyerNext);
+      const sellerNext = await applyEconomyAdjustment({
+        userId: sale.sellerId,
+        vesselId: sale.vesselId,
+        deltaCredits: sale.price,
+        reason: 'vessel_sale',
+        meta: { saleId: sale.id },
+      });
+      io.to(`user:${sale.sellerId}`).emit('economy:update', sellerNext);
+      void syncUserSocketsEconomy(sale.sellerId, sellerNext);
+    })().catch(err => {
+      console.error('Failed to buy vessel', err);
+      socket.emit('error', 'Unable to purchase vessel');
+    });
+  });
+
+  socket.on('vessel:lease:create', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    if (!currentUserId) return;
+    void (async () => {
+      const vesselId = data?.vesselId;
+      if (!vesselId || typeof vesselId !== 'string') {
+        socket.emit('error', 'Missing vessel id');
+        return;
+      }
+      const vessel = globalState.vessels.get(vesselId);
+      if (!vessel) {
+        socket.emit('error', 'Vessel not found');
+        return;
+      }
+      const isAdmin = hasAdminRole(socket);
+      const isOwner = vessel.ownerId === currentUserId;
+      if (!isOwner && !isAdmin) {
+        socket.emit('error', 'Not authorized to lease this vessel');
+        return;
+      }
+      const ratePerHour = Number(data?.ratePerHour);
+      if (!Number.isFinite(ratePerHour) || ratePerHour <= 0) {
+        socket.emit('error', 'Invalid lease rate');
+        return;
+      }
+      const revenueShare =
+        data?.revenueShare !== undefined ? Number(data.revenueShare) : 0;
+      const leaseType = data?.type === 'lease' ? 'lease' : 'charter';
+      const endsAt =
+        data?.endsAt && Number.isFinite(data.endsAt)
+          ? new Date(Number(data.endsAt))
+          : null;
+      await prisma.vesselLease.create({
+        data: {
+          vesselId: vessel.id,
+          ownerId: currentUserId,
+          type: leaseType,
+          ratePerHour,
+          revenueShare:
+            Number.isFinite(revenueShare) && revenueShare > 0
+              ? revenueShare
+              : 0,
+          status: 'open',
+          endsAt,
+        },
+      });
+    })().catch(err => {
+      console.error('Failed to create lease', err);
+      socket.emit('error', 'Unable to create lease');
+    });
+  });
+
+  socket.on('vessel:lease:accept', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    if (!currentUserId) return;
+    void (async () => {
+      const leaseId = data?.leaseId;
+      if (!leaseId || typeof leaseId !== 'string') {
+        socket.emit('error', 'Missing lease id');
+        return;
+      }
+      const lease = await prisma.vesselLease.findUnique({
+        where: { id: leaseId },
+      });
+      if (!lease || lease.status !== 'open') {
+        socket.emit('error', 'Lease not available');
+        return;
+      }
+      const updated = await prisma.vesselLease.update({
+        where: { id: lease.id },
+        data: {
+          status: 'active',
+          lesseeId: currentUserId,
+          startedAt: new Date(),
+        },
+      });
+      const vessel = globalState.vessels.get(updated.vesselId);
+      if (vessel) {
+        if (updated.type === 'lease') {
+          vessel.leaseeId = currentUserId;
+          vessel.chartererId = null;
+          vessel.status = 'leased';
+        } else {
+          vessel.chartererId = currentUserId;
+          vessel.leaseeId = null;
+          vessel.status = 'chartered';
+        }
+        vessel.desiredMode = 'player';
+        vessel.lastUpdate = Date.now();
+        void persistVesselToDb(vessel, { force: true });
+      } else {
+        await prisma.vessel.update({
+          where: { id: updated.vesselId },
+          data:
+            updated.type === 'lease'
+              ? {
+                  status: 'leased',
+                  leaseeId: currentUserId,
+                  chartererId: null,
+                }
+              : {
+                  status: 'chartered',
+                  chartererId: currentUserId,
+                  leaseeId: null,
+                },
+        });
+      }
+    })().catch(err => {
+      console.error('Failed to accept lease', err);
+      socket.emit('error', 'Unable to accept lease');
+    });
+  });
+
+  socket.on('economy:loan:request', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    if (!currentUserId) return;
+    void (async () => {
+      const amount = Number(data?.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        socket.emit('error', 'Invalid loan amount');
+        return;
+      }
+      const rank = socket.data.rank ?? 1;
+      const maxLoan = 5000 + rank * 2000;
+      const existing = await prisma.loan.aggregate({
+        where: { userId: currentUserId, status: 'active' },
+        _sum: { balance: true },
+      });
+      const activeBalance = existing._sum.balance ?? 0;
+      if (activeBalance + amount > maxLoan) {
+        socket.emit('error', 'Loan request exceeds available credit');
+        return;
+      }
+      const termDays =
+        Number.isFinite(data?.termDays) && Number(data.termDays) > 0
+          ? Number(data.termDays)
+          : 14;
+      const interestRate =
+        Number.isFinite(data?.interestRate) && Number(data.interestRate) > 0
+          ? Number(data.interestRate)
+          : 0.08;
+      const loan = await prisma.loan.create({
+        data: {
+          userId: currentUserId,
+          principal: amount,
+          balance: amount,
+          interestRate,
+          issuedAt: new Date(),
+          dueAt: new Date(Date.now() + termDays * 24 * 60 * 60 * 1000),
+        },
+      });
+      const profile = await applyEconomyAdjustment({
+        userId: currentUserId,
+        deltaCredits: amount,
+        reason: 'loan_disbursement',
+        meta: { loanId: loan.id },
+      });
+      io.to(`user:${currentUserId}`).emit('economy:update', profile);
+      void syncUserSocketsEconomy(currentUserId, profile);
+    })().catch(err => {
+      console.error('Failed to issue loan', err);
+      socket.emit('error', 'Unable to issue loan');
+    });
+  });
+
+  socket.on('economy:loan:repay', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    if (!currentUserId) return;
+    void (async () => {
+      const loanId = data?.loanId;
+      const amount = Number(data?.amount);
+      if (!loanId || typeof loanId !== 'string') {
+        socket.emit('error', 'Missing loan id');
+        return;
+      }
+      if (!Number.isFinite(amount) || amount <= 0) {
+        socket.emit('error', 'Invalid repayment amount');
+        return;
+      }
+      const loan = await prisma.loan.findUnique({ where: { id: loanId } });
+      if (!loan || loan.userId !== currentUserId) {
+        socket.emit('error', 'Loan not found');
+        return;
+      }
+      if (loan.status !== 'active' && loan.status !== 'defaulted') {
+        socket.emit('error', 'Loan not active');
+        return;
+      }
+      const profile = await getEconomyProfile(currentUserId);
+      const payAmount = Math.min(amount, loan.balance, profile.credits);
+      if (payAmount <= 0) {
+        socket.emit('error', 'Insufficient credits');
+        return;
+      }
+      const updatedProfile = await applyEconomyAdjustment({
+        userId: currentUserId,
+        deltaCredits: -payAmount,
+        reason: 'loan_repayment',
+        meta: { loanId: loan.id },
+      });
+      const nextBalance = loan.balance - payAmount;
+      await prisma.loan.update({
+        where: { id: loan.id },
+        data: {
+          balance: nextBalance,
+          status: nextBalance <= 0 ? 'paid' : loan.status,
+        },
+      });
+      io.to(`user:${currentUserId}`).emit('economy:update', updatedProfile);
+      void syncUserSocketsEconomy(currentUserId, updatedProfile);
+    })().catch(err => {
+      console.error('Failed to repay loan', err);
+      socket.emit('error', 'Unable to repay loan');
+    });
+  });
+
+  socket.on('economy:insurance:purchase', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    if (!currentUserId) return;
+    void (async () => {
+      const vesselId = data?.vesselId;
+      if (!vesselId || typeof vesselId !== 'string') {
+        socket.emit('error', 'Missing vessel id');
+        return;
+      }
+      const vessel = globalState.vessels.get(vesselId);
+      if (!vessel || vessel.ownerId !== currentUserId) {
+        socket.emit('error', 'Not authorized to insure this vessel');
+        return;
+      }
+      const coverage = Number(data?.coverage);
+      const deductible = Number(data?.deductible);
+      const premiumRate = Number(data?.premiumRate);
+      if (
+        !Number.isFinite(coverage) ||
+        coverage <= 0 ||
+        !Number.isFinite(deductible) ||
+        deductible < 0 ||
+        !Number.isFinite(premiumRate) ||
+        premiumRate <= 0
+      ) {
+        socket.emit('error', 'Invalid insurance terms');
+        return;
+      }
+      const termDays =
+        Number.isFinite(data?.termDays) && Number(data.termDays) > 0
+          ? Number(data.termDays)
+          : 30;
+      const policy = await prisma.insurancePolicy.create({
+        data: {
+          vesselId,
+          ownerId: currentUserId,
+          type: data?.type === 'loss' || data?.type === 'salvage' ? data.type : 'damage',
+          coverage,
+          deductible,
+          premiumRate,
+          status: 'active',
+          activeFrom: new Date(),
+          activeUntil: new Date(Date.now() + termDays * 24 * 60 * 60 * 1000),
+          lastChargedAt: new Date(),
+        },
+      });
+      const profile = await applyEconomyAdjustment({
+        userId: currentUserId,
+        vesselId,
+        deltaCredits: -premiumRate,
+        reason: 'insurance_premium',
+        meta: { policyId: policy.id },
+      });
+      io.to(`user:${currentUserId}`).emit('economy:update', profile);
+      void syncUserSocketsEconomy(currentUserId, profile);
+    })().catch(err => {
+      console.error('Failed to purchase insurance', err);
+      socket.emit('error', 'Unable to purchase insurance');
+    });
+  });
+
+  socket.on('economy:insurance:cancel', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    if (!currentUserId) return;
+    void (async () => {
+      const policyId = data?.policyId;
+      if (!policyId || typeof policyId !== 'string') {
+        socket.emit('error', 'Missing policy id');
+        return;
+      }
+      const policy = await prisma.insurancePolicy.findUnique({
+        where: { id: policyId },
+      });
+      if (!policy || policy.ownerId !== currentUserId) {
+        socket.emit('error', 'Policy not found');
+        return;
+      }
+      await prisma.insurancePolicy.update({
+        where: { id: policy.id },
+        data: { status: 'canceled', activeUntil: new Date() },
+      });
+    })().catch(err => {
+      console.error('Failed to cancel insurance', err);
+      socket.emit('error', 'Unable to cancel insurance');
+    });
+  });
+
+  socket.on('cargo:create', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    if (!currentUserId) return;
+    void (async () => {
+      const value = Number(data?.value);
+      if (!Number.isFinite(value) || value <= 0) {
+        socket.emit('error', 'Invalid cargo value');
+        return;
+      }
+      const weightTons = Number(data?.weightTons ?? 0);
+      if (!Number.isFinite(weightTons) || weightTons < 0) {
+        socket.emit('error', 'Invalid cargo weight');
+        return;
+      }
+      const vesselId =
+        data?.vesselId && typeof data.vesselId === 'string'
+          ? data.vesselId
+          : null;
+      let portId =
+        data?.portId && typeof data.portId === 'string' ? data.portId : null;
+      if (vesselId) {
+        const vessel = globalState.vessels.get(vesselId);
+        if (!vessel) {
+          socket.emit('error', 'Vessel not found');
+          return;
+        }
+        const isAdmin = hasAdminRole(socket);
+        const isOwner = vessel.ownerId === currentUserId;
+        if (!isOwner && !isAdmin) {
+          socket.emit('error', 'Not authorized to load cargo');
+          return;
+        }
+        const port = resolvePortForPosition(vessel.position);
+        if (!port) {
+          socket.emit('error', 'Vessel must be in port to load cargo');
+          return;
+        }
+        portId = port.id;
+      }
+      if (!vesselId && !portId) {
+        socket.emit('error', 'Missing port for cargo listing');
+        return;
+      }
+      const liabilityRate =
+        data?.liabilityRate !== undefined ? Number(data.liabilityRate) : 0;
+      await prisma.cargoLot.create({
+        data: {
+          ownerId: currentUserId,
+          vesselId,
+          portId,
+          description:
+            typeof data?.description === 'string' ? data.description : null,
+          value,
+          weightTons,
+          liabilityRate:
+            Number.isFinite(liabilityRate) && liabilityRate > 0
+              ? liabilityRate
+              : 0,
+          status: vesselId ? 'loaded' : 'listed',
+        },
+      });
+    })().catch(err => {
+      console.error('Failed to create cargo', err);
+      socket.emit('error', 'Unable to create cargo');
+    });
+  });
+
+  socket.on('cargo:assign', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    if (!currentUserId) return;
+    void (async () => {
+      const cargoId = data?.cargoId;
+      const vesselId = data?.vesselId;
+      if (!cargoId || !vesselId) {
+        socket.emit('error', 'Missing cargo or vessel id');
+        return;
+      }
+      const cargo = await prisma.cargoLot.findUnique({
+        where: { id: cargoId },
+      });
+      if (!cargo || cargo.ownerId !== currentUserId) {
+        socket.emit('error', 'Cargo not found');
+        return;
+      }
+      if (cargo.status !== 'listed') {
+        socket.emit('error', 'Cargo not available');
+        return;
+      }
+      const vessel = globalState.vessels.get(vesselId);
+      if (!vessel) {
+        socket.emit('error', 'Vessel not found');
+        return;
+      }
+      const port = resolvePortForPosition(vessel.position);
+      if (!port || (cargo.portId && cargo.portId !== port.id)) {
+        socket.emit('error', 'Vessel must be in the cargo port');
+        return;
+      }
+      const loadedCargo = await prisma.cargoLot.aggregate({
+        where: { vesselId, status: 'loaded' },
+        _sum: { weightTons: true },
+      });
+      const currentWeight = loadedCargo._sum.weightTons ?? 0;
+      const capacityTons = getVesselCargoCapacityTons(vessel);
+      if (currentWeight + (cargo.weightTons ?? 0) > capacityTons) {
+        socket.emit('error', 'Cargo exceeds vessel capacity');
+        return;
+      }
+      await prisma.cargoLot.update({
+        where: { id: cargo.id },
+        data: { vesselId, status: 'loaded' },
+      });
+    })().catch(err => {
+      console.error('Failed to assign cargo', err);
+      socket.emit('error', 'Unable to assign cargo');
+    });
+  });
+
+  socket.on('cargo:release', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    if (!currentUserId) return;
+    void (async () => {
+      const cargoId = data?.cargoId;
+      if (!cargoId || typeof cargoId !== 'string') {
+        socket.emit('error', 'Missing cargo id');
+        return;
+      }
+      const cargo = await prisma.cargoLot.findUnique({
+        where: { id: cargoId },
+      });
+      if (!cargo || cargo.ownerId !== currentUserId) {
+        socket.emit('error', 'Cargo not found');
+        return;
+      }
+      await prisma.cargoLot.update({
+        where: { id: cargo.id },
+        data: { vesselId: null, status: 'delivered', portId: null },
+      });
+    })().catch(err => {
+      console.error('Failed to release cargo', err);
+      socket.emit('error', 'Unable to release cargo');
+    });
   });
 
   socket.on('vessel:helm', data => {
