@@ -1,7 +1,4 @@
-import {
-  DamageState,
-  normalizeDamageState,
-} from '../lib/damage';
+import { DamageState, normalizeDamageState } from '../lib/damage';
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -39,13 +36,14 @@ export const applyFailureWear = (
   steeringFailure: boolean,
 ): DamageState => {
   return normalizeDamageState({
-    engineHealth: engineFailure ? state.engineHealth - 0.02 : state.engineHealth,
+    engineHealth: engineFailure
+      ? state.engineHealth - 0.02
+      : state.engineHealth,
     steeringHealth: steeringFailure
       ? state.steeringHealth - 0.02
       : state.steeringHealth,
   });
 };
 
-export const mergeDamageState = (
-  current?: DamageState | null,
-): DamageState => normalizeDamageState(current);
+export const mergeDamageState = (current?: DamageState | null): DamageState =>
+  normalizeDamageState(current);

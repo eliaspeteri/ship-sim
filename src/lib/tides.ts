@@ -80,17 +80,18 @@ export const computeTideState = ({
     return {
       height: height * scale,
       range,
-      phase: ((hours / CONSTITUENTS[0].periodHours) % 1 + 1) % 1,
-      trend: computeTideHeight(hours + 0.25, spaceId) - height >= 0
-        ? 'rising'
-        : 'falling',
+      phase: (((hours / CONSTITUENTS[0].periodHours) % 1) + 1) % 1,
+      trend:
+        computeTideHeight(hours + 0.25, spaceId) - height >= 0
+          ? 'rising'
+          : 'falling',
     };
   }
 
   return {
     height,
     range,
-    phase: ((hours / CONSTITUENTS[0].periodHours) % 1 + 1) % 1,
+    phase: (((hours / CONSTITUENTS[0].periodHours) % 1) + 1) % 1,
     trend:
       computeTideHeight(hours + 0.25, spaceId) - height >= 0
         ? 'rising'

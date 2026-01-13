@@ -70,7 +70,9 @@
 .spaceHeader,
 .spaceRow {
   display: grid;
-  grid-template-columns: minmax(120px, 1.4fr) repeat(4, minmax(60px, 0.6fr)) minmax(110px, 0.9fr);
+  grid-template-columns:
+    minmax(120px, 1.4fr) repeat(4, minmax(60px, 0.6fr))
+    minmax(110px, 0.9fr);
   gap: 8px;
   align-items: center;
   font-size: 12px;

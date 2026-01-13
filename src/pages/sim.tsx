@@ -941,54 +941,58 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                 </div>
                 <div className={styles.pillScroller}>
                   <div className={styles.pillRow}>
-                  {spacesLoading ? <span>Loading spaces...</span> : null}
-                  {spaces.map(space => (
-                    <button
-                      key={space.id}
-                      className={`${styles.pill} ${
-                        space.visibility === 'private' ? styles.pillPrivate : ''
-                      }`}
-                      onClick={() => joinSpace(space.id)}
-                      title={
-                        space.visibility === 'private'
-                          ? `Private space - ${space.rulesetType || 'CASUAL'}`
-                          : `Public space - ${space.rulesetType || 'CASUAL'}`
-                      }
-                    >
-                      <span className={styles.pillName}>{space.name}</span>
-                      <span className={styles.pillBadges}>
-                        <span className={styles.pillBadge}>
-                          {space.visibility === 'private' ? 'Private' : 'Public'}
+                    {spacesLoading ? <span>Loading spaces...</span> : null}
+                    {spaces.map(space => (
+                      <button
+                        key={space.id}
+                        className={`${styles.pill} ${
+                          space.visibility === 'private'
+                            ? styles.pillPrivate
+                            : ''
+                        }`}
+                        onClick={() => joinSpace(space.id)}
+                        title={
+                          space.visibility === 'private'
+                            ? `Private space - ${space.rulesetType || 'CASUAL'}`
+                            : `Public space - ${space.rulesetType || 'CASUAL'}`
+                        }
+                      >
+                        <span className={styles.pillName}>{space.name}</span>
+                        <span className={styles.pillBadges}>
+                          <span className={styles.pillBadge}>
+                            {space.visibility === 'private'
+                              ? 'Private'
+                              : 'Public'}
+                          </span>
+                          <span
+                            className={`${styles.pillBadge} ${
+                              space.rulesetType === 'SIM_PUBLIC' ||
+                              space.rulesetType === 'REALISM'
+                                ? styles.pillBadgeRealism
+                                : space.rulesetType === 'TRAINING_EXAM' ||
+                                    space.rulesetType === 'EXAM'
+                                  ? styles.pillBadgeExam
+                                  : space.rulesetType === 'PRIVATE_SANDBOX' ||
+                                      space.rulesetType === 'CUSTOM'
+                                    ? styles.pillBadgeSandbox
+                                    : styles.pillBadgeCasual
+                            }`}
+                          >
+                            {space.rulesetType || 'CASUAL'}
+                          </span>
                         </span>
-                        <span
-                          className={`${styles.pillBadge} ${
-                            space.rulesetType === 'SIM_PUBLIC' ||
-                            space.rulesetType === 'REALISM'
-                              ? styles.pillBadgeRealism
-                              : space.rulesetType === 'TRAINING_EXAM' ||
-                                  space.rulesetType === 'EXAM'
-                                ? styles.pillBadgeExam
-                                : space.rulesetType === 'PRIVATE_SANDBOX' ||
-                                    space.rulesetType === 'CUSTOM'
-                                  ? styles.pillBadgeSandbox
-                                  : styles.pillBadgeCasual
-                          }`}
-                        >
-                          {space.rulesetType || 'CASUAL'}
-                        </span>
+                      </button>
+                    ))}
+                    {!spacesLoading && spaces.length === 0 ? (
+                      <span className={styles.helperText}>
+                        No public spaces yet
                       </span>
-                    </button>
-                  ))}
-                  {!spacesLoading && spaces.length === 0 ? (
-                    <span className={styles.helperText}>
-                      No public spaces yet
-                    </span>
-                  ) : null}
-                  {(knownSpaces?.length || 0) > 0 ? (
-                    <span className={styles.helperText}>
-                      Known spaces: {knownSpaces.length}
-                    </span>
-                  ) : null}
+                    ) : null}
+                    {(knownSpaces?.length || 0) > 0 ? (
+                      <span className={styles.helperText}>
+                        Known spaces: {knownSpaces.length}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 {spaces.length > 0 ? (

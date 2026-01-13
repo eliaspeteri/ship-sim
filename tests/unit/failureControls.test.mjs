@@ -6,9 +6,7 @@ import createJiti from 'jiti';
 const __filename = fileURLToPath(import.meta.url);
 const jiti = createJiti(__filename);
 
-const { applyFailureControlLimits } = jiti(
-  '../../src/lib/failureControls.ts',
-);
+const { applyFailureControlLimits } = jiti('../../src/lib/failureControls.ts');
 
 describe('failureControls', () => {
   it('forces throttle and rudder on failures', () => {

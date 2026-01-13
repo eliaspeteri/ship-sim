@@ -9,11 +9,9 @@ const jiti = createJiti(__filename);
 const { DEFAULT_DAMAGE_STATE, computeRepairCost, applyRepair } = jiti(
   '../../src/lib/damage.ts',
 );
-const {
-  applyCollisionDamage,
-  applyGroundingDamage,
-  applyFailureWear,
-} = jiti('../../src/server/damageModel.ts');
+const { applyCollisionDamage, applyGroundingDamage, applyFailureWear } = jiti(
+  '../../src/server/damageModel.ts',
+);
 
 describe('damageModel', () => {
   it('applies collision damage', () => {

@@ -463,9 +463,7 @@ const AdminPage: React.FC = () => {
                   <span>{space.vessels}</span>
                   <span>{space.aiVessels}</span>
                   <span>{space.playerVessels}</span>
-                  <span>
-                    {new Date(space.updatedAt).toLocaleTimeString()}
-                  </span>
+                  <span>{new Date(space.updatedAt).toLocaleTimeString()}</span>
                 </div>
               ))}
             </div>

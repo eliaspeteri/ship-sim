@@ -39,7 +39,11 @@ import {
 } from '../lib/position';
 import { prisma } from '../lib/prisma';
 import { RUDDER_MAX_ANGLE_RAD } from '../constants/vessel';
-import { recordMetric, setConnectedClients, updateSpaceMetrics } from './metrics';
+import {
+  recordMetric,
+  setConnectedClients,
+  updateSpaceMetrics,
+} from './metrics';
 import { getBathymetryDepth, loadBathymetry } from './bathymetry';
 import {
   getEconomyProfile,
@@ -586,7 +590,8 @@ async function loadVesselsFromDb() {
       damageState: mergeDamageState({
         hullIntegrity: (row as { hullIntegrity?: number }).hullIntegrity ?? 1,
         engineHealth: (row as { engineHealth?: number }).engineHealth ?? 1,
-        steeringHealth: (row as { steeringHealth?: number }).steeringHealth ?? 1,
+        steeringHealth:
+          (row as { steeringHealth?: number }).steeringHealth ?? 1,
         electricalHealth:
           (row as { electricalHealth?: number }).electricalHealth ?? 1,
         floodingDamage:
@@ -2074,7 +2079,10 @@ io.on('connection', async socket => {
     const isCrew = target.crewIds.has(currentUserId);
     const isAdmin = hasAdminRole(socket);
     if (!isCrew && !isAdmin) {
-      callback?.({ ok: false, message: 'Not authorized to repair this vessel' });
+      callback?.({
+        ok: false,
+        message: 'Not authorized to repair this vessel',
+      });
       return;
     }
 

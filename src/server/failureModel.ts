@@ -40,7 +40,9 @@ const STEERING_REPAIR_MEAN_SEC = 25 * 60;
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
-const ensureFailureState = (state?: Partial<FailureState> | null): FailureState => ({
+const ensureFailureState = (
+  state?: Partial<FailureState> | null,
+): FailureState => ({
   engineFailure: Boolean(state?.engineFailure),
   steeringFailure: Boolean(state?.steeringFailure),
   floodingLevel: clamp01(state?.floodingLevel ?? 0),
@@ -99,11 +101,7 @@ export const updateFailureState = (
       state.floodingLevel = next;
       triggered.flooding = true;
     }
-  } else if (
-    state.floodingLevel > 0 &&
-    throttle < 0.1 &&
-    speed < 0.2
-  ) {
+  } else if (state.floodingLevel > 0 && throttle < 0.1 && speed < 0.2) {
     state.floodingLevel = clamp01(
       state.floodingLevel - FLOODING_DRAIN_RATE * input.dt,
     );
