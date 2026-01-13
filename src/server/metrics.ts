@@ -11,6 +11,18 @@ export type ServerMetrics = {
   ai: MetricBucket;
   socketLatency: MetricBucket;
   sockets: { connected: number };
+  spaces: Record<string, SpaceMetric>;
+  updatedAt: number;
+};
+
+export type SpaceMetric = {
+  spaceId: string;
+  name: string;
+  connected: number;
+  vessels: number;
+  aiVessels: number;
+  playerVessels: number;
+  lastBroadcastAt: number;
   updatedAt: number;
 };
 
@@ -27,6 +39,7 @@ export const serverMetrics: ServerMetrics = {
   ai: createBucket(),
   socketLatency: createBucket(),
   sockets: { connected: 0 },
+  spaces: {},
   updatedAt: Date.now(),
 };
 
@@ -46,5 +59,14 @@ export const recordMetric = (bucket: keyof ServerMetrics, ms: number) => {
 
 export const setConnectedClients = (count: number) => {
   serverMetrics.sockets.connected = count;
+  serverMetrics.updatedAt = Date.now();
+};
+
+export const updateSpaceMetrics = (metrics: SpaceMetric[]) => {
+  const next: Record<string, SpaceMetric> = {};
+  for (const metric of metrics) {
+    next[metric.spaceId] = metric;
+  }
+  serverMetrics.spaces = next;
   serverMetrics.updatedAt = Date.now();
 };

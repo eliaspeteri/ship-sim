@@ -17,6 +17,19 @@ type ServerMetrics = {
   ai: MetricBucket;
   socketLatency: MetricBucket;
   sockets: { connected: number };
+  spaces: Record<
+    string,
+    {
+      spaceId: string;
+      name: string;
+      connected: number;
+      vessels: number;
+      aiVessels: number;
+      playerVessels: number;
+      lastBroadcastAt: number;
+      updatedAt: number;
+    }
+  >;
   updatedAt: number;
 };
 
@@ -368,6 +381,11 @@ const AdminPage: React.FC = () => {
         },
       ]
     : [];
+  const spaceMetrics = metrics
+    ? Object.values(metrics.spaces || {}).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      )
+    : [];
 
   return (
     <div className={styles.page}>
@@ -421,6 +439,37 @@ const AdminPage: React.FC = () => {
               </div>
             </div>
           ) : null}
+        </div>
+        <div className={styles.spaceSection}>
+          <div className={styles.sectionTitle}>Space health</div>
+          {spaceMetrics.length === 0 ? (
+            <div className={`${styles.notice} ${styles.noticeInfo}`}>
+              No space metrics available yet.
+            </div>
+          ) : (
+            <div className={styles.spaceTable}>
+              <div className={styles.spaceHeader}>
+                <span>Space</span>
+                <span>Users</span>
+                <span>Vessels</span>
+                <span>AI</span>
+                <span>Players</span>
+                <span>Updated</span>
+              </div>
+              {spaceMetrics.map(space => (
+                <div key={space.spaceId} className={styles.spaceRow}>
+                  <span>{space.name}</span>
+                  <span>{space.connected}</span>
+                  <span>{space.vessels}</span>
+                  <span>{space.aiVessels}</span>
+                  <span>{space.playerVessels}</span>
+                  <span>
+                    {new Date(space.updatedAt).toLocaleTimeString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
