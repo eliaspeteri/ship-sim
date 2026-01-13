@@ -44,7 +44,7 @@ export const computeRepairCost = (state: DamageState): number => {
   return Math.max(0, Math.round(cost));
 };
 
-export const applyRepair = (state: DamageState): DamageState => ({
+export const applyRepair = (): DamageState => ({
   hullIntegrity: 1,
   engineHealth: 1,
   steeringHealth: 1,
