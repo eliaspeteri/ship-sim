@@ -9,6 +9,8 @@ import { EnvironmentState } from '../types/environment.types';
 import { prisma } from '../lib/prisma';
 import { ensurePosition, positionFromXY } from '../lib/position';
 import { recordMetric, serverMetrics } from './metrics';
+import { recordLog } from './observability';
+import { buildRulesetAuditEntry } from '../lib/rulesetAudit';
 import { getEconomyProfile } from './economy';
 import type {
   MissionAssignmentData,
@@ -179,6 +181,10 @@ let environmentState: InMemoryEnvironmentState = {
   current: { speed: 0.5, direction: Math.PI / 4, variability: 0 },
   seaState: 3,
   timeOfDay: 12,
+  tideHeight: 0,
+  tideRange: 0,
+  tidePhase: 0,
+  tideTrend: 'rising',
 };
 
 // Apply authentication middleware to all routes
@@ -1036,6 +1042,22 @@ router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
       where: { id: spaceId },
       data: updates,
     });
+    const auditEntry = buildRulesetAuditEntry({
+      spaceId,
+      spaceName: updated.name,
+      previousRulesetType: space.rulesetType,
+      nextRulesetType:
+        typeof updates.rulesetType === 'string'
+          ? (updates.rulesetType as string)
+          : updated.rulesetType,
+      previousRules: (space.rules as Rules) ?? null,
+      nextRules:
+        updates.rules !== undefined ? (updates.rules as Rules) : space.rules,
+      changedBy: req.user?.userId ?? null,
+    });
+    if (auditEntry) {
+      recordLog({ level: 'info', source: 'ruleset', ...auditEntry });
+    }
     res.json(serializeSpace(updated));
   } catch (err) {
     console.error('Failed to update space', err);

@@ -13,7 +13,9 @@ import { positionFromXY, positionToXY } from '../lib/position';
 import { getScenarios, ScenarioDefinition } from '../lib/scenarios';
 import { getApiBase } from '../lib/api';
 import styles from './SimPage.module.css';
+import { getDefaultRules, mapToRulesetType, Rules } from '../types/rules.types';
 import { bboxAroundLatLon } from '../lib/geo';
+import { applyFailureControlLimits } from '../lib/failureControls';
 
 const PORTS = [
   { name: 'Harbor Alpha', position: positionFromXY({ x: 0, y: 0 }) },
@@ -63,6 +65,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     visibility: string;
     inviteToken?: string;
     rulesetType?: string;
+    rules?: Rules | null;
   };
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -119,6 +122,17 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const [scenarioLoadingId, setScenarioLoadingId] = React.useState<
     string | null
   >(null);
+
+  const selectedSpace = React.useMemo(
+    () => spaces.find(space => space.id === spaceInput),
+    [spaceInput, spaces],
+  );
+  const selectedSpaceRules = React.useMemo(() => {
+    if (!selectedSpace) return null;
+    if (selectedSpace.rules) return selectedSpace.rules;
+    const type = mapToRulesetType(selectedSpace.rulesetType || 'CASUAL');
+    return getDefaultRules(type);
+  }, [selectedSpace]);
   const [scenarioError, setScenarioError] = React.useState<string | null>(null);
   const joinableVessels = React.useMemo(() => {
     return Object.entries(otherVessels || {})
@@ -717,11 +731,16 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         if (canAdjustRudder) {
           nextControls.rudderAngle = rudder;
         }
-        simulationLoop.applyControls(nextControls);
+        const limitedControls = applyFailureControlLimits(
+          nextControls,
+          state.vessel.failureState,
+          state.vessel.damageState,
+        );
+        simulationLoop.applyControls(limitedControls);
         socketManager.sendControlUpdate(
-          nextControls.throttle,
-          nextControls.rudderAngle,
-          nextControls.ballast,
+          limitedControls.throttle,
+          limitedControls.rudderAngle,
+          limitedControls.ballast,
         );
       } catch (error) {
         console.error('Error applying keyboard controls:', error);
@@ -920,7 +939,8 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                     Back
                   </button>
                 </div>
-                <div className={styles.pillRow}>
+                <div className={styles.pillScroller}>
+                  <div className={styles.pillRow}>
                   {spacesLoading ? <span>Loading spaces...</span> : null}
                   {spaces.map(space => (
                     <button
@@ -935,9 +955,27 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                           : `Public space - ${space.rulesetType || 'CASUAL'}`
                       }
                     >
-                      {space.name}{' '}
-                      <span className="uppercase text-[10px]">
-                        {space.visibility === 'private' ? 'Private' : 'Public'}
+                      <span className={styles.pillName}>{space.name}</span>
+                      <span className={styles.pillBadges}>
+                        <span className={styles.pillBadge}>
+                          {space.visibility === 'private' ? 'Private' : 'Public'}
+                        </span>
+                        <span
+                          className={`${styles.pillBadge} ${
+                            space.rulesetType === 'SIM_PUBLIC' ||
+                            space.rulesetType === 'REALISM'
+                              ? styles.pillBadgeRealism
+                              : space.rulesetType === 'TRAINING_EXAM' ||
+                                  space.rulesetType === 'EXAM'
+                                ? styles.pillBadgeExam
+                                : space.rulesetType === 'PRIVATE_SANDBOX' ||
+                                    space.rulesetType === 'CUSTOM'
+                                  ? styles.pillBadgeSandbox
+                                  : styles.pillBadgeCasual
+                          }`}
+                        >
+                          {space.rulesetType || 'CASUAL'}
+                        </span>
                       </span>
                     </button>
                   ))}
@@ -951,6 +989,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                       Known spaces: {knownSpaces.length}
                     </span>
                   ) : null}
+                  </div>
                 </div>
                 {spaces.length > 0 ? (
                   <div className={styles.detailsCard}>
@@ -984,6 +1023,106 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                       {spaces.find(s => s.id === spaceInput)?.inviteToken ||
                         '—'}
                     </div>
+                    {selectedSpaceRules ? (
+                      <div className={styles.rulesGrid}>
+                        <div className={styles.rulesRow}>
+                          <span className={styles.rulesLabel}>Assists</span>
+                          <span className={styles.rulesBadges}>
+                            <span
+                              className={`${styles.rulesBadge} ${
+                                selectedSpaceRules.assists.stability
+                                  ? styles.rulesBadgeOn
+                                  : styles.rulesBadgeOff
+                              }`}
+                            >
+                              Stability
+                            </span>
+                            <span
+                              className={`${styles.rulesBadge} ${
+                                selectedSpaceRules.assists.autopilot
+                                  ? styles.rulesBadgeOn
+                                  : styles.rulesBadgeOff
+                              }`}
+                            >
+                              Autopilot
+                            </span>
+                            <span
+                              className={`${styles.rulesBadge} ${
+                                selectedSpaceRules.assists.docking
+                                  ? styles.rulesBadgeOn
+                                  : styles.rulesBadgeOff
+                              }`}
+                            >
+                              Docking
+                            </span>
+                          </span>
+                        </div>
+                        <div className={styles.rulesRow}>
+                          <span className={styles.rulesLabel}>Realism</span>
+                          <span className={styles.rulesBadges}>
+                            <span
+                              className={`${styles.rulesBadge} ${
+                                selectedSpaceRules.realism.damage
+                                  ? styles.rulesBadgeWarn
+                                  : styles.rulesBadgeOff
+                              }`}
+                            >
+                              Damage
+                            </span>
+                            <span
+                              className={`${styles.rulesBadge} ${
+                                selectedSpaceRules.realism.wear
+                                  ? styles.rulesBadgeWarn
+                                  : styles.rulesBadgeOff
+                              }`}
+                            >
+                              Wear
+                            </span>
+                            <span
+                              className={`${styles.rulesBadge} ${
+                                selectedSpaceRules.realism.failures
+                                  ? styles.rulesBadgeWarn
+                                  : styles.rulesBadgeOff
+                              }`}
+                            >
+                              Failures
+                            </span>
+                          </span>
+                        </div>
+                        <div className={styles.rulesRow}>
+                          <span className={styles.rulesLabel}>Enforcement</span>
+                          <span className={styles.rulesBadges}>
+                            <span
+                              className={`${styles.rulesBadge} ${
+                                selectedSpaceRules.enforcement.colregs
+                                  ? styles.rulesBadgeWarn
+                                  : styles.rulesBadgeOff
+                              }`}
+                            >
+                              COLREG
+                            </span>
+                            <span
+                              className={`${styles.rulesBadge} ${
+                                selectedSpaceRules.enforcement.penalties
+                                  ? styles.rulesBadgeWarn
+                                  : styles.rulesBadgeOff
+                              }`}
+                            >
+                              Penalties
+                            </span>
+                            <span
+                              className={`${styles.rulesBadge} ${
+                                selectedSpaceRules.enforcement.investigations
+                                  ? styles.rulesBadgeWarn
+                                  : styles.rulesBadgeOff
+                              }`}
+                            >
+                              Investigations
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
                 <div className={styles.formRow}>

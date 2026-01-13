@@ -230,6 +230,27 @@
   margin-bottom: 12px;
 }
 
+.pillScroller {
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-bottom: 12px;
+}
+
+.pillScroller::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pillScroller::-webkit-scrollbar-track {
+  background: rgba(8, 18, 30, 0.4);
+  border-radius: 999px;
+}
+
+.pillScroller::-webkit-scrollbar-thumb {
+  background: rgba(80, 110, 128, 0.7);
+  border-radius: 999px;
+}
+
 .pill {
   border-radius: 999px;
   padding: 4px 10px;
@@ -240,11 +261,55 @@
   background: rgba(12, 28, 44, 0.7);
   color: #e6f2f6;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .pillPrivate {
   border-color: rgba(162, 66, 120, 0.7);
   background: rgba(92, 28, 60, 0.7);
+}
+
+.pillName {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.pillBadges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pillBadge {
+  border-radius: 999px;
+  padding: 2px 6px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  border: 1px solid rgba(70, 96, 112, 0.7);
+  background: rgba(18, 32, 48, 0.85);
+  color: rgba(220, 234, 240, 0.9);
+}
+
+.pillBadgeCasual {
+  border-color: rgba(40, 150, 140, 0.7);
+  background: rgba(12, 48, 46, 0.7);
+}
+
+.pillBadgeRealism {
+  border-color: rgba(190, 126, 40, 0.7);
+  background: rgba(72, 40, 12, 0.75);
+}
+
+.pillBadgeSandbox {
+  border-color: rgba(120, 110, 200, 0.7);
+  background: rgba(36, 32, 80, 0.7);
+}
+
+.pillBadgeExam {
+  border-color: rgba(190, 60, 70, 0.7);
+  background: rgba(70, 16, 24, 0.75);
 }
 
 .detailsCard {
@@ -255,6 +320,58 @@
   font-size: 12px;
   color: rgba(210, 222, 230, 0.9);
   margin-bottom: 12px;
+}
+
+.rulesGrid {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.rulesRow {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.6fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.rulesLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: rgba(160, 179, 192, 0.7);
+}
+
+.rulesBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rulesBadge {
+  border-radius: 999px;
+  padding: 2px 6px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  border: 1px solid rgba(70, 96, 112, 0.7);
+  background: rgba(18, 32, 48, 0.85);
+  color: rgba(220, 234, 240, 0.9);
+}
+
+.rulesBadgeOn {
+  border-color: rgba(40, 150, 140, 0.7);
+  background: rgba(12, 48, 46, 0.7);
+}
+
+.rulesBadgeWarn {
+  border-color: rgba(190, 126, 40, 0.7);
+  background: rgba(72, 40, 12, 0.75);
+}
+
+.rulesBadgeOff {
+  border-color: rgba(70, 96, 112, 0.45);
+  background: rgba(18, 32, 48, 0.4);
+  color: rgba(180, 196, 206, 0.7);
 }
 
 .detailsHeader {
