@@ -16,7 +16,7 @@
 - [x] Server-driven weather per space + persisted state
 - [x] Server-driven day/night cycle + local time from lat/lon
 - [x] Timed events triggering environment presets
-- [ ] Tide system (Earth-data-driven, regional or global)
+- [x] Tide system (Earth-data-driven, regional or global)
 - [ ] Ice systems (freeze-over, drift ice, vessel immobilization)
 - [ ] Seasonal variation (weather, daylight, port accessibility)
 
@@ -37,7 +37,7 @@
 
 - [x] Metrics endpoint + socket latency sampling + centralized logs
 - [x] Performance budgets (60 Hz sim + smooth rendering)
-- [ ] Server health dashboards per space
+- [x] Server health dashboards per space
 
 ---
 
@@ -58,7 +58,7 @@
 - [x] Physics realism upgrades (hydro constants, waves, hull form/buoyancy)
 - [x] Mission system + basic economy (costs, fuel, port fees, earnings)
 - [ ] Failure modeling (engine, steering, flooding)
-- [ ] Damage persistence and repair workflows
+- [x] Damage persistence and repair workflows
 
 ---
 
@@ -107,10 +107,10 @@
 
 ### Ruleset UX
 
-- [ ] Ruleset badges in server browser
-- [ ] Assist disclosure + run tagging
+- [x] Ruleset badges in server browser
+- [x] Assist disclosure + run tagging
 - [ ] Ruleset migration warnings
-- [ ] Ruleset change audit logs
+- [x] Ruleset change audit logs
 
 ---
 
