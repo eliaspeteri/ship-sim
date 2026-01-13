@@ -10,7 +10,7 @@
     "db:start": "docker start ship-sim-postgres 2>/dev/null || docker run --name ship-sim-postgres -p ${POSTGRES_PORT:-5432}:5432 --env-file ${DB_ENV_FILE:-.env.db} -d postgres && npx prisma migrate dev",
     "db:stop": "docker stop ship-sim-postgres 2>/dev/null || true",
     "test": "echo \"Jest disabled; use npm run test:unit or npm run test:e2e\"",
-    "test:unit": "node --test tests/unit",
+    "test:unit": "node --test tests/unit/*.mjs",
     "test:e2e": "SMOKE_E2E=true node --test tests/e2e",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
