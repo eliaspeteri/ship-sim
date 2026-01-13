@@ -18,6 +18,11 @@ const navLinks = [
   { href: '/globe', label: 'Map', tag: 'beta' },
 ];
 
+const economyLinks = [
+  { href: '/economy', label: 'Economy & Company' },
+  { href: '/sim', label: 'Return to Simulator' },
+];
+
 const Layout: React.FC<LayoutProps> = ({ children, fullBleed = false }) => {
   const { pathname } = useRouter();
   const { status, data: session } = useSession();
@@ -41,6 +46,7 @@ const Layout: React.FC<LayoutProps> = ({ children, fullBleed = false }) => {
     href === '/'
       ? pathname === href
       : pathname === href || pathname.startsWith(`${href}/`);
+  const economyActive = pathname === '/economy';
 
   return (
     <div
@@ -62,6 +68,7 @@ const Layout: React.FC<LayoutProps> = ({ children, fullBleed = false }) => {
           <nav className={styles.navLinksMobile}>
             {[
               ...navLinks,
+              { href: '/economy', label: 'Economy' },
               ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
             ].map(link => (
               <Link
@@ -93,6 +100,24 @@ const Layout: React.FC<LayoutProps> = ({ children, fullBleed = false }) => {
                 ) : null}
               </Link>
             ))}
+            <div
+              className={`${styles.navDropdown} ${
+                economyActive ? styles.navDropdownActive : ''
+              }`}
+            >
+              <span className={styles.navDropdownLabel}>Operations</span>
+              <div className={styles.navDropdownMenu}>
+                {economyLinks.map(link => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={styles.navDropdownItem}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
           </nav>
 
           <div className={styles.userArea}>
