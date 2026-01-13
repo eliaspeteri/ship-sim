@@ -30,5 +30,9 @@ export interface EnvironmentState {
   timeOfDay: number;
   precipitation?: 'none' | 'rain' | 'snow' | 'fog';
   precipitationIntensity?: number;
+  tideHeight?: number;
+  tideRange?: number;
+  tidePhase?: number;
+  tideTrend?: 'rising' | 'falling';
   name?: string;
 }
