@@ -68,7 +68,7 @@ model Vessel {
     id          String   @id
     spaceId     String   @default("global")
     ownerId     String?
-    mode        String   // 'ai' | 'player'
+    mode        String // 'ai' | 'player'
     desiredMode String   @default("player") // intended mode when unattended
     lastCrewAt  DateTime @default(now()) // last time a crew member was attached
     lat         Float
@@ -82,9 +82,9 @@ model Vessel {
     heave       Float
     throttle    Float
     rudderAngle Float
-    ballast     Float     @default(0.5)
-    bowThruster Float     @default(0.0)
-    yawRate     Float     @default(0.0)
+    ballast     Float    @default(0.5)
+    bowThruster Float    @default(0.0)
+    yawRate     Float    @default(0.0)
     mass        Float
     length      Float
     beam        Float
@@ -136,6 +136,7 @@ model Space {
     passwordHash String?
     kind         String   @default("free") // 'free' | 'tutorial' | 'scenario'
     rankRequired Int      @default(1)
+    rulesetType  String?  @default("CASUAL")
     rules        Json?
     createdBy    String?
     createdAt    DateTime @default(now())
@@ -158,14 +159,14 @@ model SpaceAccess {
 }
 
 model Ban {
-    id        String   @id @default(cuid())
+    id        String    @id @default(cuid())
     userId    String?
     username  String?
-    spaceId   String   @default("global")
+    spaceId   String    @default("global")
     reason    String?
     createdBy String?
     expiresAt DateTime?
-    createdAt DateTime @default(now())
+    createdAt DateTime  @default(now())
 
     @@index([spaceId])
     @@index([userId])
@@ -173,14 +174,14 @@ model Ban {
 }
 
 model Mute {
-    id        String   @id @default(cuid())
+    id        String    @id @default(cuid())
     userId    String?
     username  String?
-    spaceId   String   @default("global")
+    spaceId   String    @default("global")
     reason    String?
     createdBy String?
     expiresAt DateTime?
-    createdAt DateTime @default(now())
+    createdAt DateTime  @default(now())
 
     @@index([spaceId])
     @@index([userId])
@@ -188,8 +189,8 @@ model Mute {
 }
 
 model EnvironmentEvent {
-    id         String   @id @default(cuid())
-    spaceId    String   @default("global")
+    id         String    @id @default(cuid())
+    spaceId    String    @default("global")
     name       String?
     pattern    String?
     payload    Json?
@@ -198,10 +199,10 @@ model EnvironmentEvent {
     endPayload Json?
     executedAt DateTime?
     endedAt    DateTime?
-    enabled    Boolean  @default(true)
+    enabled    Boolean   @default(true)
     createdBy  String?
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt
+    createdAt  DateTime  @default(now())
+    updatedAt  DateTime  @updatedAt
 
     @@index([spaceId, runAt])
 }
@@ -230,15 +231,15 @@ model Mission {
 }
 
 model MissionAssignment {
-    id          String   @id @default(cuid())
+    id          String    @id @default(cuid())
     missionId   String
     userId      String
     vesselId    String?
-    status      String   @default("assigned") // assigned | in_progress | completed | failed | canceled
+    status      String    @default("assigned") // assigned | in_progress | completed | failed | canceled
     progress    Json?
-    startedAt   DateTime @default(now())
+    startedAt   DateTime  @default(now())
     completedAt DateTime?
-    updatedAt   DateTime @updatedAt
+    updatedAt   DateTime  @updatedAt
 
     mission Mission @relation(fields: [missionId], references: [id])
 

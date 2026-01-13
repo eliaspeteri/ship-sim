@@ -62,6 +62,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     name: string;
     visibility: string;
     inviteToken?: string;
+    rulesetType?: string;
   };
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -103,6 +104,8 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const [newSpaceVisibility, setNewSpaceVisibility] = React.useState<
     'public' | 'private'
   >('public');
+  const [newSpaceRulesetType, setNewSpaceRulesetType] =
+    React.useState('CASUAL');
   const [newSpacePassword, setNewSpacePassword] = React.useState('');
   const [spaceModalOpen, setSpaceModalOpen] = React.useState(false);
   const [hasChosenSpace, setHasChosenSpace] = React.useState(false);
@@ -319,6 +322,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         body: JSON.stringify({
           name,
           visibility: newSpaceVisibility,
+          rulesetType: newSpaceRulesetType,
           password: newSpacePassword || undefined,
         }),
         credentials: 'include',
@@ -334,6 +338,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       mergeSpaces([created]);
       setKnownSpaces(prev => mergeSpaceLists(prev, [created]));
       setNewSpaceName('');
+      setNewSpaceRulesetType('CASUAL');
       setNewSpacePassword('');
       void saveKnownSpace(created.id, created.inviteToken);
       joinSpace(created.id);
@@ -926,8 +931,8 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                       onClick={() => joinSpace(space.id)}
                       title={
                         space.visibility === 'private'
-                          ? 'Private space'
-                          : 'Public space'
+                          ? `Private space - ${space.rulesetType || 'CASUAL'}`
+                          : `Public space - ${space.rulesetType || 'CASUAL'}`
                       }
                     >
                       {space.name}{' '}
@@ -1041,6 +1046,16 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
                   >
                     <option value="public">Public</option>
                     <option value="private">Private</option>
+                  </select>
+                  <select
+                    className={styles.select}
+                    value={newSpaceRulesetType}
+                    onChange={e => setNewSpaceRulesetType(e.target.value)}
+                  >
+                    <option value="CASUAL">Casual</option>
+                    <option value="REALISM">Realism</option>
+                    <option value="CUSTOM">Custom</option>
+                    <option value="EXAM">Exam</option>
                   </select>
                   <input
                     className={styles.input}

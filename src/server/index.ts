@@ -27,6 +27,7 @@ import {
   VesselVelocity,
 } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
+import { getDefaultRules, mapToRulesetType } from '../types/rules.types';
 import {
   ensurePosition,
   mergePosition,
@@ -82,6 +83,7 @@ type SpaceMeta = {
   visibility: string;
   kind: string;
   rankRequired: number;
+  rulesetType?: string | null;
   rules?: Record<string, unknown> | null;
   createdBy?: string | null;
 };
@@ -154,6 +156,7 @@ const toSpaceMeta = (space: {
   visibility: string;
   kind?: string | null;
   rankRequired?: number | null;
+  rulesetType?: string | null;
   rules?: Record<string, unknown> | null;
   createdBy?: string | null;
 }): SpaceMeta => ({
@@ -162,6 +165,7 @@ const toSpaceMeta = (space: {
   visibility: space.visibility,
   kind: space.kind || 'free',
   rankRequired: space.rankRequired ?? 1,
+  rulesetType: space.rulesetType ?? null,
   rules: space.rules ?? null,
   createdBy: space.createdBy || null,
 });
@@ -181,10 +185,11 @@ const getSpaceMeta = async (spaceId: string): Promise<SpaceMeta> => {
   }
   const fallback: SpaceMeta = {
     id: spaceId,
-    name: spaceId,
+    name: spaceId === 'global' ? 'Global Ocean' : spaceId,
     visibility: 'public',
     kind: 'free',
     rankRequired: 1,
+    rulesetType: 'CASUAL',
     rules: null,
     createdBy: null,
   };
@@ -1673,7 +1678,9 @@ io.on('connection', async socket => {
         visibility: spaceMeta.visibility,
         kind: spaceMeta.kind,
         rankRequired: spaceMeta.rankRequired,
-        rules: spaceMeta.rules ?? null,
+        rules: spaceMeta.rulesetType
+          ? getDefaultRules(mapToRulesetType(spaceMeta.rulesetType))
+          : spaceMeta.rules,
         role: socket.data.spaceRole || 'member',
       },
       chatHistory,

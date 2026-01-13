@@ -662,6 +662,7 @@ const serializeSpace = (space: {
   passwordHash?: string | null;
   kind?: string | null;
   rankRequired?: number | null;
+  rulesetType?: string | null;
   rules?: unknown;
   createdBy?: string | null;
 }) => ({
@@ -671,6 +672,7 @@ const serializeSpace = (space: {
   inviteToken: space.inviteToken || undefined,
   kind: space.kind || 'free',
   rankRequired: space.rankRequired ?? 1,
+  rulesetType: space.rulesetType || undefined,
   rules: normalizeRules(space.rules),
   createdBy: space.createdBy || undefined,
 });
@@ -777,6 +779,7 @@ router.post('/spaces', requireAuth, async (req, res) => {
     req.user?.roles?.includes('admin') && req.body?.rules
       ? req.body.rules
       : null;
+  const rulesetType = req.body?.rulesetType;
   const password =
     typeof req.body?.password === 'string' ? req.body.password : undefined;
   const inviteToken =
@@ -803,6 +806,7 @@ router.post('/spaces', requireAuth, async (req, res) => {
         passwordHash,
         kind,
         rankRequired,
+        rulesetType: rulesetType || 'CASUAL',
         rules,
         createdBy: req.user?.userId || null,
       },
@@ -961,6 +965,7 @@ router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
     const requestedKind = req.body?.kind;
     const requestedRank = Number(req.body?.rankRequired);
     const requestedRules = req.body?.rules;
+    const requestedRulesetType = req.body?.rulesetType;
 
     const nextVisibility =
       visibility === 'public' || visibility === 'private'
@@ -1005,6 +1010,21 @@ router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
     }
     if (requestedRules && (await canManageSpace(req, spaceId))) {
       updates.rules = requestedRules;
+    }
+    if (
+      requestedRulesetType &&
+      [
+        'CASUAL',
+        'REALISM',
+        'CUSTOM',
+        'EXAM',
+        'CASUAL_PUBLIC', // legacy
+        'SIM_PUBLIC', // legacy
+        'PRIVATE_SANDBOX', // legacy
+        'TRAINING_EXAM', // legacy
+      ].includes(requestedRulesetType)
+    ) {
+      updates.rulesetType = requestedRulesetType;
     }
 
     if (Object.keys(updates).length === 0) {

@@ -16,11 +16,13 @@ type ManagedSpace = {
   passwordProtected?: boolean;
   totalVessels?: number;
   activeVessels?: number;
+  rulesetType?: string;
 };
 
 type SpaceDraft = {
   name: string;
   visibility: SpaceVisibility;
+  rulesetType: string;
   password: string;
   saving?: boolean;
   error?: string | null;
@@ -44,6 +46,7 @@ const SpacesPage: React.FC = () => {
         next[space.id] = {
           name: space.name,
           visibility: space.visibility,
+          rulesetType: space.rulesetType || 'CASUAL',
           password: prev[space.id]?.password || '',
           saving: prev[space.id]?.saving || false,
           error: prev[space.id]?.error || null,
@@ -147,6 +150,7 @@ const SpacesPage: React.FC = () => {
       const payload: Record<string, unknown> = {
         name: draft.name.trim(),
         visibility: draft.visibility,
+        rulesetType: draft.rulesetType,
       };
       if (draft.password.trim().length > 0) {
         payload.password = draft.password;
@@ -322,6 +326,9 @@ const SpacesPage: React.FC = () => {
                   >
                     {space.visibility}
                   </span>
+                  <span className={styles.tag}>
+                    {space.rulesetType || 'CASUAL'}
+                  </span>
                   {space.passwordProtected ? (
                     <span className={styles.tag}>Password</span>
                   ) : null}
@@ -362,6 +369,26 @@ const SpacesPage: React.FC = () => {
                   >
                     <option value="public">Public</option>
                     <option value="private">Private</option>
+                  </select>
+                </label>
+
+                <label className={styles.cardMeta}>
+                  Ruleset
+                  <select
+                    className={styles.select}
+                    value={
+                      draft?.rulesetType || space.rulesetType || 'CASUAL_PUBLIC'
+                    }
+                    onChange={e =>
+                      updateDraft(space.id, {
+                        rulesetType: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="CASUAL">Casual</option>
+                    <option value="REALISM">Realism</option>
+                    <option value="CUSTOM">Custom</option>
+                    <option value="EXAM">Exam</option>
                   </select>
                 </label>
 
