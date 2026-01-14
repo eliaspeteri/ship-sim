@@ -290,7 +290,7 @@ const EconomyPage = () => {
         if (!res.ok) return;
         const data = await res.json();
         setSpaces(Array.isArray(data?.spaces) ? data.spaces : []);
-      } catch (_err) {
+      } catch {
         setSpaces([]);
       }
     };

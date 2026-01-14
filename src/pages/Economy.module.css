@@ -9,7 +9,11 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 24px;
-  background: linear-gradient(120deg, rgba(14, 28, 48, 0.9), rgba(8, 18, 32, 0.9));
+  background: linear-gradient(
+    120deg,
+    rgba(14, 28, 48, 0.9),
+    rgba(8, 18, 32, 0.9)
+  );
   border: 1px solid rgba(32, 58, 86, 0.6);
   border-radius: 20px;
   padding: 28px;
@@ -55,7 +59,9 @@
   font-weight: 600;
   text-decoration: none;
   text-align: center;
-  transition: transform 0.2s ease, background 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
 }
 
 .primaryButton {

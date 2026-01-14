@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import EnvironmentControls from './EnvironmentControls';
 import useStore from '../store';
 import { getSimulationLoop } from '../simulation';
 import socketManager from '../networking/socket';
@@ -10,24 +9,13 @@ import {
   DEFAULT_ARPA_SETTINGS,
   EBL,
   GuardZone,
-  RadarDisplay,
   RadarSettings,
   RadarTarget,
   VRM,
 } from './radar';
-import { TelegraphLever } from './TelegraphLever';
-import { HelmControl } from './HelmControl';
-import RudderAngleIndicator from './RudderAngleIndicator';
-import { RUDDER_STALL_ANGLE_DEG, clampRudderAngle } from '../constants/vessel';
-import { ChatPanel } from './ChatPanel';
-import EventLog from './EventLog';
-import { MarineRadio } from './radio/index';
-import { ConningDisplay } from './bridge/ConningDisplay';
-import { AlarmIndicator } from './alarms/AlarmIndicator';
 import {
   courseFromWorldVelocity,
   distanceMeters,
-  positionFromXY,
   positionToXY,
   speedFromWorldVelocity,
   worldVelocityFromBody,
@@ -40,124 +28,93 @@ import {
 } from '../lib/time';
 import { applyFailureControlLimits } from '../lib/failureControls';
 import { computeRepairCost, normalizeDamageState } from '../lib/damage';
+import { clampRudderAngle } from '../constants/vessel';
 import styles from './HudDrawer.module.css';
-import { EcdisDisplay } from './navigation/EcdisDisplay';
-import DepthSounder from './DepthSounder';
-
-type HudTab =
-  | 'vessels'
-  | 'navigation'
-  | 'ecdis'
-  | 'sounder'
-  | 'conning'
-  | 'weather'
-  | 'systems'
-  | 'missions'
-  | 'replay'
-  | 'spaces'
-  | 'chat'
-  | 'events'
-  | 'radio'
-  | 'radar'
-  | 'alarms'
-  | 'admin';
-
-const tabs: { id: HudTab; label: string }[] = [
-  { id: 'vessels', label: 'Vessels' },
-  { id: 'navigation', label: 'Navigation' },
-  { id: 'ecdis', label: 'ECDIS' },
-  { id: 'sounder', label: 'Echo sounder' },
-  { id: 'conning', label: 'Conning' },
-  { id: 'weather', label: 'Weather' },
-  { id: 'systems', label: 'Systems' },
-  { id: 'missions', label: 'Missions' },
-  { id: 'replay', label: 'Replay' },
-  { id: 'spaces', label: 'Spaces' },
-  { id: 'chat', label: 'Chat' },
-  { id: 'events', label: 'Events' },
-  { id: 'radio', label: 'Radio' },
-  { id: 'radar', label: 'Radar' },
-  { id: 'alarms', label: 'Alarms' },
-  { id: 'admin', label: 'Admin' },
-];
-
-type FleetVessel = {
-  id: string;
-  status?: string | null;
-  storagePortId?: string | null;
-  spaceId?: string | null;
-  ownerId?: string | null;
-  chartererId?: string | null;
-  leaseeId?: string | null;
-  lat: number;
-  lon: number;
-  z: number;
-  lastUpdate: string | Date;
-};
-
-type EconomyPort = {
-  id: string;
-  name: string;
-  position: { lat: number; lon: number; z?: number };
-};
-
-const HUD_PORTS = [
-  {
-    id: 'harbor-alpha',
-    name: 'Harbor Alpha',
-    position: positionFromXY({ x: 0, y: 0 }),
-  },
-  {
-    id: 'bay-delta',
-    name: 'Bay Delta',
-    position: positionFromXY({ x: 2000, y: -1500 }),
-  },
-  {
-    id: 'island-anchorage',
-    name: 'Island Anchorage',
-    position: positionFromXY({ x: -2500, y: 1200 }),
-  },
-  {
-    id: 'channel-gate',
-    name: 'Channel Gate',
-    position: positionFromXY({ x: 800, y: 2400 }),
-  },
-];
-
-const formatDegrees = (rad?: number) => {
-  if (rad === undefined) return '—';
-  const deg = (rad * 180) / Math.PI;
-  const normalized = ((deg % 360) + 360) % 360;
-  return `${Math.round(normalized)}°`;
-};
-
-const toDegrees = (rad?: number) => ((rad ?? 0) * 180) / Math.PI;
-
-const formatBearing = (deg?: number) => {
-  if (deg === undefined || Number.isNaN(deg)) return '—';
-  const normalized = ((deg % 360) + 360) % 360;
-  return `${Math.round(normalized)}°`;
-};
-
-const formatKnots = (val?: number) =>
-  `${((val || 0) * 1.94384).toFixed(1)} kts`;
-const formatKnotsValue = (val?: number) => `${(val || 0).toFixed(1)} kts`;
-
-const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
-const COURSE_SPEED_THRESHOLD = 0.05;
+import {
+  HudAdminPanel,
+  HudAlarmsPanel,
+  HudChatPanel,
+  HudConningPanel,
+  HudEcdisPanel,
+  HudEventsPanel,
+  HudMissionsPanel,
+  HudNavigationPanel,
+  HudRadarPanel,
+  HudRadioPanel,
+  HudReplayPanel,
+  HudSounderPanel,
+  HudSystemsPanel,
+  HudVesselsPanel,
+  HudWeatherPanel,
+} from './hud/HudPanels';
+import {
+  COMPASS_ZERO_OFFSET_DEG,
+  COURSE_SPEED_THRESHOLD_MS,
+  DEFAULT_BALLAST,
+  DEFAULT_GUARD_ZONE,
+  DEFAULT_RADAR_EBL,
+  DEFAULT_RADAR_SETTINGS,
+  DEFAULT_RADAR_VRM,
+  DEFAULT_SPACE_ID,
+  DEG_PER_RAD,
+  DRAFT_DIVISOR_EPSILON,
+  DRAFT_MASS_BALLAST_FACTOR,
+  DRAFT_MASS_BASE_FACTOR,
+  DRAFT_NEUTRAL_SCALE_BASE,
+  DRAFT_NEUTRAL_SCALE_RANGE,
+  DRAFT_WATER_DENSITY,
+  ENGINE_RUNNING_THROTTLE_THRESHOLD,
+  FULL_CIRCLE_DEG,
+  HUD_PORTS,
+  HUD_TABS,
+  KNOTS_PER_MS,
+  LAT_LON_DECIMALS,
+  METERS_PER_NM,
+  MIN_RANK_XP,
+  MINUTES_PER_HOUR,
+  NAV_BALLAST_DECIMALS,
+  NAV_RUDDER_DECIMALS,
+  NAV_THROTTLE_DECIMALS,
+  NAV_YAW_RATE_DECIMALS,
+  OIL_PRESSURE_SCALE,
+  PERCENT_SCALE,
+  PITCH_MAX,
+  PITCH_MIN,
+  PITCH_THROTTLE_OFFSET,
+  PITCH_THROTTLE_SCALE,
+  RADAR_MIN_DISTANCE_M,
+  RADAR_RAIN_INTENSITY_MAX,
+  RADAR_RAIN_SCALE,
+  RADAR_SEA_STATE_MAX,
+  RADAR_TARGET_SIZE_DEFAULT_METERS,
+  RADAR_TARGET_SIZE_MAX,
+  RADAR_TARGET_SIZE_MIN,
+  RADAR_TARGET_SIZE_SCALE_METERS,
+  RADAR_VISIBILITY_DEFAULT,
+  RANK_XP_MULTIPLIER,
+  RATE_OF_TURN_MAX,
+  RATE_OF_TURN_SCALE,
+  REPLAY_MIN_FRAMES,
+  WAVE_HEIGHT_DECIMALS,
+} from './hud/constants';
+import {
+  clamp01,
+  formatBearing,
+  formatDegrees,
+  formatKnots,
+  formatKnotsValue,
+  toDegrees,
+} from './hud/format';
+import {
+  EconomyPort,
+  EconomyTransaction,
+  FleetVessel,
+  HudTab,
+} from './hud/types';
 
 interface HudDrawerProps {
   onOpenSpaces?: () => void;
 }
-
-type EconomyTransaction = {
-  id: string;
-  amount: number;
-  reason: string;
-  createdAt: string;
-  vesselId?: string | null;
-  meta?: Record<string, unknown> | null;
-};
 
 export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const [tab, setTab] = useState<HudTab | null>(null);
@@ -191,36 +148,15 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const helm = vessel.helm;
   const stations = vessel.stations;
   const controls = useStore(state => state.vessel.controls);
-  const baseRadarSettings = useMemo(
-    () => ({
-      range: 6,
-      gain: 70,
-      seaClutter: 50,
-      rainClutter: 50,
-      heading: 0,
-      orientation: 'head-up' as const,
-      trails: true,
-      trailDuration: 30,
-      nightMode: false,
-    }),
-    [],
-  );
+  const baseRadarSettings = useMemo(() => DEFAULT_RADAR_SETTINGS, []);
   const [radarSettings, setRadarSettings] = useState<RadarSettings>({
     ...baseRadarSettings,
     band: 'X',
   });
-  const [radarEbl, setRadarEbl] = useState<EBL>({ active: false, angle: 0 });
-  const [radarVrm, setRadarVrm] = useState<VRM>({
-    active: false,
-    distance: 0,
-  });
-  const [radarGuardZone, setRadarGuardZone] = useState<GuardZone>({
-    active: false,
-    startAngle: 320,
-    endAngle: 40,
-    innerRange: 0.5,
-    outerRange: 3,
-  });
+  const [radarEbl, setRadarEbl] = useState<EBL>(DEFAULT_RADAR_EBL);
+  const [radarVrm, setRadarVrm] = useState<VRM>(DEFAULT_RADAR_VRM);
+  const [radarGuardZone, setRadarGuardZone] =
+    useState<GuardZone>(DEFAULT_GUARD_ZONE);
   const [radarArpaSettings, setRadarArpaSettings] = useState<ARPASettings>(
     DEFAULT_ARPA_SETTINGS,
   );
@@ -230,7 +166,9 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const [rudderAngleLocal, setRudderAngleLocal] = useState(
     controls?.rudderAngle || 0,
   );
-  const [ballastLocal, setBallastLocal] = useState(controls?.ballast ?? 0.5);
+  const [ballastLocal, setBallastLocal] = useState(
+    controls?.ballast ?? DEFAULT_BALLAST,
+  );
   const [adminTargetId, setAdminTargetId] = useState<string>('');
   const [adminLat, setAdminLat] = useState('');
   const [adminLon, setAdminLon] = useState('');
@@ -250,12 +188,6 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     (id: string) => (id.length > 10 ? `${id.slice(0, 10)}…` : id),
     [],
   );
-  const formatDistance = React.useCallback((meters: number) => {
-    if (!Number.isFinite(meters)) return '--';
-    const nm = meters / 1852;
-    if (nm >= 1) return `${nm.toFixed(1)} nm`;
-    return `${Math.round(meters)} m`;
-  }, []);
   const resolveNearestPort = React.useCallback(
     (lat: number, lon: number) => {
       let nearest: EconomyPort | null = null;
@@ -277,12 +209,12 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     },
     [fleetPorts],
   );
-  const normalizedSpaceId = spaceId || 'global';
+  const normalizedSpaceId = spaceId || DEFAULT_SPACE_ID;
   const fleetInSpace = fleet.filter(
-    entry => (entry.spaceId || 'global') === normalizedSpaceId,
+    entry => (entry.spaceId || DEFAULT_SPACE_ID) === normalizedSpaceId,
   );
   const fleetOtherSpace = fleet.filter(
-    entry => (entry.spaceId || 'global') !== normalizedSpaceId,
+    entry => (entry.spaceId || DEFAULT_SPACE_ID) !== normalizedSpaceId,
   );
   const helmStation = stations?.helm || helm;
   const engineStation = stations?.engine;
@@ -329,11 +261,14 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       return vessel.properties.draft ?? 0;
     }
     const ballast = clamp01(ballastLocal);
-    const density = 1025;
-    const effectiveMass = mass * (0.9 + ballast * 0.4);
+    const effectiveMass =
+      mass * (DRAFT_MASS_BASE_FACTOR + ballast * DRAFT_MASS_BALLAST_FACTOR);
     const neutralDraft =
-      effectiveMass / (density * length * beam * block + 1e-6);
-    const targetDraft = neutralDraft * (0.7 + ballast * 0.5);
+      effectiveMass /
+      (DRAFT_WATER_DENSITY * length * beam * block + DRAFT_DIVISOR_EPSILON);
+    const targetDraft =
+      neutralDraft *
+      (DRAFT_NEUTRAL_SCALE_BASE + ballast * DRAFT_NEUTRAL_SCALE_RANGE);
     return Number.isFinite(targetDraft)
       ? targetDraft
       : (vessel.properties.draft ?? 0);
@@ -356,8 +291,8 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const underKeel =
     waterDepth !== undefined ? waterDepth - draftForUnderKeel : undefined;
   const engineRunning =
-    Boolean(engineState?.running) || (vessel.controls.throttle ?? 0) > 0.05;
-  const generatorOnline = Boolean(electrical?.generatorRunning);
+    Boolean(engineState?.running) ||
+    (vessel.controls.throttle ?? 0) > ENGINE_RUNNING_THROTTLE_THRESHOLD;
   const powerBalance =
     (electrical?.generatorOutput ?? 0) - (electrical?.powerConsumption ?? 0);
   const crewRoster = useMemo(() => {
@@ -414,11 +349,16 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const timeZoneLabel = timeZone?.label || 'UTC';
   const ownShipData = useMemo(() => {
     const headingRad = vessel.orientation.heading || 0;
-    const headingDeg = ((toDegrees(headingRad) % 360) + 360) % 360;
-    const headingCompass = (((90 - headingDeg) % 360) + 360) % 360;
+    const headingDeg =
+      ((toDegrees(headingRad) % FULL_CIRCLE_DEG) + FULL_CIRCLE_DEG) %
+      FULL_CIRCLE_DEG;
+    const headingCompass =
+      (((COMPASS_ZERO_OFFSET_DEG - headingDeg) % FULL_CIRCLE_DEG) +
+        FULL_CIRCLE_DEG) %
+      FULL_CIRCLE_DEG;
     const { speed: speedMs, course: courseDeg } = toWorldVelocity(vessel);
     const stableCourse =
-      speedMs > COURSE_SPEED_THRESHOLD && Number.isFinite(courseDeg)
+      speedMs > COURSE_SPEED_THRESHOLD_MS && Number.isFinite(courseDeg)
         ? courseDeg
         : headingCompass;
     return {
@@ -427,7 +367,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
         lon: vessel.position.lon ?? 0,
       },
       heading: headingCompass,
-      speed: Number.isFinite(speedMs) ? speedMs * 1.94384 : 0,
+      speed: Number.isFinite(speedMs) ? speedMs * KNOTS_PER_MS : 0,
       course: Number.isFinite(stableCourse) ? stableCourse : headingCompass,
     };
   }, [
@@ -439,15 +379,20 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
 
   const radarEnvironment = useMemo(
     () => ({
-      seaState: Math.max(0, Math.min(10, environment.seaState ?? 0)),
+      seaState: Math.max(
+        0,
+        Math.min(RADAR_SEA_STATE_MAX, environment.seaState ?? 0),
+      ),
       rainIntensity: Math.max(
         0,
         Math.min(
-          10,
-          Math.round((environment.precipitationIntensity ?? 0) * 10),
+          RADAR_RAIN_INTENSITY_MAX,
+          Math.round(
+            (environment.precipitationIntensity ?? 0) * RADAR_RAIN_SCALE,
+          ),
         ),
       ),
-      visibility: environment.visibility ?? 10,
+      visibility: environment.visibility ?? RADAR_VISIBILITY_DEFAULT,
     }),
     [
       environment.precipitationIntensity,
@@ -467,8 +412,8 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       if (!other) return;
       if (id === currentVesselId) return;
       const targetSpace =
-        (other as { spaceId?: string }).spaceId || spaceId || 'global';
-      if (targetSpace !== (spaceId || 'global')) return;
+        (other as { spaceId?: string }).spaceId || spaceId || DEFAULT_SPACE_ID;
+      if (targetSpace !== (spaceId || DEFAULT_SPACE_ID)) return;
 
       const properties = (
         other as { properties?: { length?: number; beam?: number } }
@@ -481,17 +426,25 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       const deltaX = otherXY.x - ownXY.x;
       const deltaY = otherXY.y - ownXY.y;
       const distanceMeters = Math.sqrt(deltaX ** 2 + deltaY ** 2);
-      if (!Number.isFinite(distanceMeters) || distanceMeters < 1) return;
+      if (
+        !Number.isFinite(distanceMeters) ||
+        distanceMeters < RADAR_MIN_DISTANCE_M
+      )
+        return;
 
-      const distanceNm = distanceMeters / 1852;
-      const bearingDeg =
-        ((Math.atan2(deltaX, deltaY) * 180) / Math.PI + 360) % 360;
+      const distanceNm = distanceMeters / METERS_PER_NM;
+      const bearingDeg = ((Math.atan2(deltaX, deltaY) * DEG_PER_RAD +
+        FULL_CIRCLE_DEG) %
+        FULL_CIRCLE_DEG) as number;
       const { speed, course } = toWorldVelocity(other);
       const size = Math.min(
-        1,
+        RADAR_TARGET_SIZE_MAX,
         Math.max(
-          0.25,
-          ((properties?.length ?? properties?.beam ?? 80) as number) / 250,
+          RADAR_TARGET_SIZE_MIN,
+          ((properties?.length ??
+            properties?.beam ??
+            RADAR_TARGET_SIZE_DEFAULT_METERS) as number) /
+            RADAR_TARGET_SIZE_SCALE_METERS,
         ),
       );
 
@@ -500,7 +453,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
         distance: distanceNm,
         bearing: bearingDeg,
         size,
-        speed: speed * 1.94384,
+        speed: speed * KNOTS_PER_MS,
         course,
         type: 'ship',
         isTracked: false,
@@ -529,8 +482,8 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       if (!other) return;
       if (id === currentVesselId) return;
       const targetSpace =
-        (other as { spaceId?: string }).spaceId || spaceId || 'global';
-      if (targetSpace !== (spaceId || 'global')) return;
+        (other as { spaceId?: string }).spaceId || spaceId || DEFAULT_SPACE_ID;
+      if (targetSpace !== (spaceId || DEFAULT_SPACE_ID)) return;
 
       const otherXY = positionToXY({
         lat: other.position?.lat ?? vessel.position.lat,
@@ -539,15 +492,25 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       const deltaX = otherXY.x - ownXY.x;
       const deltaY = otherXY.y - ownXY.y;
       const distanceMeters = Math.sqrt(deltaX ** 2 + deltaY ** 2);
-      if (!Number.isFinite(distanceMeters) || distanceMeters < 1) return;
+      if (
+        !Number.isFinite(distanceMeters) ||
+        distanceMeters < RADAR_MIN_DISTANCE_M
+      )
+        return;
 
-      const distanceNm = distanceMeters / 1852;
-      const bearingDeg =
-        ((Math.atan2(deltaX, deltaY) * 180) / Math.PI + 360) % 360;
+      const distanceNm = distanceMeters / METERS_PER_NM;
+      const bearingDeg = ((Math.atan2(deltaX, deltaY) * DEG_PER_RAD +
+        FULL_CIRCLE_DEG) %
+        FULL_CIRCLE_DEG) as number;
       const { speed, course } = toWorldVelocity(other);
       const headingDeg =
-        ((toDegrees(other.orientation?.heading ?? 0) % 360) + 360) % 360;
-      const headingCompass = (((90 - headingDeg) % 360) + 360) % 360;
+        ((toDegrees(other.orientation?.heading ?? 0) % FULL_CIRCLE_DEG) +
+          FULL_CIRCLE_DEG) %
+        FULL_CIRCLE_DEG;
+      const headingCompass =
+        (((COMPASS_ZERO_OFFSET_DEG - headingDeg) % FULL_CIRCLE_DEG) +
+          FULL_CIRCLE_DEG) %
+        FULL_CIRCLE_DEG;
       const label =
         other.helm?.username ||
         (other as { properties?: { name?: string } }).properties?.name ||
@@ -559,7 +522,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
         distance: distanceNm,
         bearing: bearingDeg,
         course,
-        speed: speed * 1.94384,
+        speed: speed * KNOTS_PER_MS,
         heading: headingCompass,
         vesselType: 'ship',
       });
@@ -579,22 +542,45 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const conningData = useMemo(() => {
     const now = new Date();
     const timeOfDay =
-      environment.timeOfDay ?? now.getUTCHours() + now.getUTCMinutes() / 60;
+      environment.timeOfDay ??
+      now.getUTCHours() + now.getUTCMinutes() / MINUTES_PER_HOUR;
     const headingDeg =
-      ((toDegrees(vessel.orientation.heading) % 360) + 360) % 360;
-    const headingCompass = (((90 - headingDeg) % 360) + 360) % 360;
-    const windDeg = ((toDegrees(environment.wind.direction) % 360) + 360) % 360;
-    const windCompass = (((90 - windDeg) % 360) + 360) % 360;
+      ((toDegrees(vessel.orientation.heading) % FULL_CIRCLE_DEG) +
+        FULL_CIRCLE_DEG) %
+      FULL_CIRCLE_DEG;
+    const headingCompass =
+      (((COMPASS_ZERO_OFFSET_DEG - headingDeg) % FULL_CIRCLE_DEG) +
+        FULL_CIRCLE_DEG) %
+      FULL_CIRCLE_DEG;
+    const windDeg =
+      ((toDegrees(environment.wind.direction) % FULL_CIRCLE_DEG) +
+        FULL_CIRCLE_DEG) %
+      FULL_CIRCLE_DEG;
+    const windCompass =
+      (((COMPASS_ZERO_OFFSET_DEG - windDeg) % FULL_CIRCLE_DEG) +
+        FULL_CIRCLE_DEG) %
+      FULL_CIRCLE_DEG;
     const { speed: speedMs } = toWorldVelocity(vessel);
-    const speedKts = speedMs * 1.94384;
+    const speedKts = speedMs * KNOTS_PER_MS;
     const yawRateDeg = toDegrees(vessel.angularVelocity?.yaw ?? 0);
     const rudderDeg = toDegrees(vessel.controls.rudderAngle ?? 0);
     const throttle = vessel.controls.throttle ?? 0;
-    const pitch = Math.round(Math.min(100, Math.max(0, (throttle + 1) * 50)));
+    const pitch = Math.round(
+      Math.min(
+        PITCH_MAX,
+        Math.max(
+          PITCH_MIN,
+          (throttle + PITCH_THROTTLE_OFFSET) * PITCH_THROTTLE_SCALE,
+        ),
+      ),
+    );
     const rpm = vessel.engineState?.rpm ?? 0;
-    const rateOfTurn = Math.min(100, Math.abs(yawRateDeg) * 4);
+    const rateOfTurn = Math.min(
+      RATE_OF_TURN_MAX,
+      Math.abs(yawRateDeg) * RATE_OF_TURN_SCALE,
+    );
 
-    const windSpeedKts = (environment.wind.speed ?? 0) * 1.94384;
+    const windSpeedKts = (environment.wind.speed ?? 0) * KNOTS_PER_MS;
 
     return {
       date: now.toISOString().slice(0, 10),
@@ -624,7 +610,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       ],
       dials: [
         Math.round(vessel.engineState?.temperature ?? 0),
-        Math.round((vessel.engineState?.oilPressure ?? 0) * 10),
+        Math.round((vessel.engineState?.oilPressure ?? 0) * OIL_PRESSURE_SCALE),
       ],
     };
   }, [
@@ -723,8 +709,8 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     Object.entries(otherVessels || {}).forEach(([id, other]) => {
       if (!other) return;
       const targetSpace =
-        (other as { spaceId?: string }).spaceId || spaceId || 'global';
-      if (targetSpace !== (spaceId || 'global')) return;
+        (other as { spaceId?: string }).spaceId || spaceId || DEFAULT_SPACE_ID;
+      if (targetSpace !== (spaceId || DEFAULT_SPACE_ID)) return;
       const otherXY = positionToXY({
         lat: other.position?.lat ?? vessel.position.lat,
         lon: other.position?.lon ?? vessel.position.lon,
@@ -755,9 +741,6 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     [adminTargetId, adminTargets],
   );
 
-  const formatCoord = (value?: number, digits = 1) =>
-    Number.isFinite(value) ? (value as number).toFixed(digits) : '—';
-
   React.useEffect(() => {
     if (!isAdmin) return;
     if (!adminTargetId && adminTargets.length > 0) {
@@ -781,7 +764,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     if (!controls) return;
     setThrottleLocal(controls.throttle ?? 0);
     setRudderAngleLocal(controls.rudderAngle ?? 0);
-    setBallastLocal(controls.ballast ?? 0.5);
+    setBallastLocal(controls.ballast ?? DEFAULT_BALLAST);
   }, [controls?.throttle, controls?.rudderAngle, controls?.ballast, controls]);
 
   // apply controls to sim + server
@@ -841,35 +824,44 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       },
       {
         label: 'Rudder',
-        value: `${((vessel.controls.rudderAngle || 0) * 180) / Math.PI > 0 ? '+' : ''}${(
-          ((vessel.controls.rudderAngle || 0) * 180) /
-          Math.PI
-        ).toFixed(1)}°`,
+        value: `${
+          (vessel.controls.rudderAngle || 0) * DEG_PER_RAD > 0 ? '+' : ''
+        }${((vessel.controls.rudderAngle || 0) * DEG_PER_RAD).toFixed(
+          NAV_RUDDER_DECIMALS,
+        )}°`,
       },
       {
         label: 'Throttle',
-        value: `${((vessel.controls.throttle || 0) * 100).toFixed(0)}%`,
+        value: `${((vessel.controls.throttle || 0) * PERCENT_SCALE).toFixed(
+          NAV_THROTTLE_DECIMALS,
+        )}%`,
       },
       {
         label: 'Ballast',
-        value: `${((vessel.controls.ballast ?? 0.5) * 100).toFixed(0)}%`,
+        value: `${(
+          (vessel.controls.ballast ?? DEFAULT_BALLAST) * PERCENT_SCALE
+        ).toFixed(NAV_BALLAST_DECIMALS)}%`,
       },
       {
         label: 'Lat',
-        value: vessel.position.lat.toFixed(6),
+        value: vessel.position.lat.toFixed(LAT_LON_DECIMALS),
       },
       {
         label: 'Lon',
-        value: vessel.position.lon.toFixed(6),
+        value: vessel.position.lon.toFixed(LAT_LON_DECIMALS),
       },
       {
         label: 'Yaw rate',
-        value: `${toDegrees(vessel.angularVelocity?.yaw ?? 0).toFixed(2)}°/s`,
+        value: `${toDegrees(vessel.angularVelocity?.yaw ?? 0).toFixed(
+          NAV_YAW_RATE_DECIMALS,
+        )}°/s`,
       },
       {
         label: 'Sea state',
         value: `${Math.round(environment.seaState ?? 0)}`,
-        detail: `${(environment.waveHeight ?? 0).toFixed(1)} m waves`,
+        detail: `${(environment.waveHeight ?? 0).toFixed(
+          WAVE_HEIGHT_DECIMALS,
+        )} m waves`,
       },
       {
         label: 'Time',
@@ -918,13 +910,13 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     [missionAssignments],
   );
 
-  const nextRankAt = Math.max(1000, account.rank * 1000);
+  const nextRankAt = Math.max(MIN_RANK_XP, account.rank * RANK_XP_MULTIPLIER);
   const rankProgress =
     nextRankAt > 0 ? Math.min(account.experience / nextRankAt, 1) : 0;
   const xpToNext = Math.max(0, nextRankAt - account.experience);
 
   const replayDuration = useMemo(() => {
-    if (replay.frames.length < 2) return 0;
+    if (replay.frames.length < REPLAY_MIN_FRAMES) return 0;
     const start = replay.frames[0]?.timestamp ?? 0;
     const end = replay.frames[replay.frames.length - 1]?.timestamp ?? 0;
     return Math.max(0, end - start);
@@ -940,7 +932,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   };
 
   const visibleTabs = useMemo(
-    () => (isAdmin ? tabs : tabs.filter(t => t.id !== 'admin')),
+    () => (isAdmin ? HUD_TABS : HUD_TABS.filter(t => t.id !== 'admin')),
     [isAdmin],
   );
 
@@ -1100,950 +1092,156 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       {tab ? (
         <div className={styles.hudPanel}>
           {tab === 'vessels' ? (
-            <div className={styles.sectionGrid}>
-              <div className={styles.sectionHeader}>
-                <div>
-                  <div className={styles.sectionTitle}>Fleet control</div>
-                  <div className={styles.sectionSub}>
-                    Join chartered and leased vessels directly from here.
-                  </div>
-                </div>
-                {fleetLoading ? (
-                  <div className={styles.noticeText}>Loading fleet...</div>
-                ) : null}
-              </div>
-              {fleetError ? (
-                <div className={styles.noticeText}>{fleetError}</div>
-              ) : null}
-              <div className={styles.fleetGrid}>
-                {fleetInSpace.length === 0 ? (
-                  <div className={styles.noticeText}>
-                    No vessels in this space. Charter one from the economy page.
-                  </div>
-                ) : (
-                  fleetInSpace.map(entry => {
-                    const { port, distance } = resolveNearestPort(
-                      entry.lat,
-                      entry.lon,
-                    );
-                    const isStored = entry.status === 'stored';
-                    return (
-                      <div key={entry.id} className={styles.fleetRow}>
-                        <div>
-                          <div className={styles.fleetTitle}>
-                            {shortId(entry.id)}
-                          </div>
-                          <div className={styles.fleetMeta}>
-                            Status {entry.status || 'active'}
-                            {entry.spaceId
-                              ? ` · Space ${entry.spaceId}`
-                              : ` · Space ${normalizedSpaceId}`}
-                            {port
-                              ? ` · Nearest port ${port.name} (${formatDistance(
-                                  distance ?? 0,
-                                )})`
-                              : ''}
-                          </div>
-                          <div className={styles.fleetMeta}>
-                            Lat {entry.lat.toFixed(4)} · Lon{' '}
-                            {entry.lon.toFixed(4)}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          className={styles.fleetButton}
-                          disabled={isStored}
-                          onClick={() => {
-                            if (isStored) return;
-                            socketManager.setJoinPreference('player', true);
-                            socketManager.requestJoinVessel(entry.id);
-                          }}
-                        >
-                          {isStored ? 'Stored' : 'Join'}
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              {fleetOtherSpace.length > 0 ? (
-                <div className={styles.sectionCard}>
-                  <div className={styles.sectionTitle}>Other spaces</div>
-                  <div className={styles.noticeText}>
-                    These vessels are in other spaces and cannot be joined from
-                    here.
-                  </div>
-                  <div className={styles.fleetGrid}>
-                    {fleetOtherSpace.map(entry => (
-                      <div key={entry.id} className={styles.fleetRow}>
-                        <div>
-                          <div className={styles.fleetTitle}>
-                            {shortId(entry.id)}
-                          </div>
-                          <div className={styles.fleetMeta}>
-                            Space {entry.spaceId || 'global'} · Status{' '}
-                            {entry.status || 'active'}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          className={styles.fleetButton}
-                          disabled
-                        >
-                          Not in space
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              <div className={styles.sectionHeader}>
-                <div>
-                  <div className={styles.sectionTitle}>Other vessels</div>
-                  <div className={styles.sectionSub}>
-                    Vessels currently broadcasting in your space.
-                  </div>
-                </div>
-              </div>
-              <div className={styles.fleetGrid}>
-                {Object.values(otherVessels || {}).length === 0 ? (
-                  <div className={styles.noticeText}>No nearby vessels.</div>
-                ) : (
-                  Object.values(otherVessels || {}).map(entry => (
-                    <div key={entry.id} className={styles.fleetRow}>
-                      <div>
-                        <div className={styles.fleetTitle}>
-                          {entry.properties?.name || shortId(entry.id)}
-                        </div>
-                        <div className={styles.fleetMeta}>
-                          {entry.crewCount ?? 0} crew · Heading{' '}
-                          {Math.round(entry.orientation?.heading ?? 0)}°
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className={styles.fleetButton}
-                        onClick={() => {
-                          socketManager.setJoinPreference('player', true);
-                          socketManager.requestJoinVessel(entry.id);
-                        }}
-                      >
-                        Request join
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+            <HudVesselsPanel
+              fleetLoading={fleetLoading}
+              fleetError={fleetError}
+              fleetInSpace={fleetInSpace}
+              fleetOtherSpace={fleetOtherSpace}
+              resolveNearestPort={resolveNearestPort}
+              shortId={shortId}
+              normalizedSpaceId={normalizedSpaceId}
+              otherVessels={otherVessels || {}}
+              onJoinVessel={id => {
+                socketManager.setJoinPreference('player', true);
+                socketManager.requestJoinVessel(id);
+              }}
+            />
           ) : null}
           {tab === 'navigation' ? (
-            <div className={styles.sectionGrid}>
-              <div className={`${styles.sectionGrid} ${styles.twoCol}`}>
-                <div className={styles.statGrid}>
-                  {navStats.map(stat => (
-                    <div key={stat.label} className={styles.statCard}>
-                      <div className={styles.statLabel}>{stat.label}</div>
-                      <div className={styles.statValue}>{stat.value}</div>
-                      {stat.detail ? (
-                        <div className={styles.statDetail}>{stat.detail}</div>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-                <div className={styles.controlCluster}>
-                  <TelegraphLever
-                    label="Throttle"
-                    value={throttleLocal}
-                    min={-1}
-                    max={1}
-                    onChange={setThrottleLocal}
-                    disabled={!canAdjustThrottle}
-                    scale={[
-                      { label: 'F.Astern', value: -1, major: true },
-                      { label: 'H.Astern', value: -0.5 },
-                      { label: 'S.Astern', value: -0.25 },
-                      { label: 'Stop', value: 0, major: true },
-                      { label: 'S.Ahead', value: 0.25 },
-                      { label: 'H.Ahead', value: 0.5 },
-                      { label: 'F.Ahead', value: 1, major: true },
-                    ]}
-                  />
-                  <HelmControl
-                    value={(rudderAngleLocal * 180) / Math.PI}
-                    minAngle={-RUDDER_STALL_ANGLE_DEG}
-                    maxAngle={RUDDER_STALL_ANGLE_DEG}
-                    onChange={deg =>
-                      setRudderAngleLocal(
-                        clampRudderAngle((deg * Math.PI) / 180),
-                      )
-                    }
-                    disabled={!canAdjustRudder}
-                  />
-                  <RudderAngleIndicator
-                    angle={(rudderAngleLocal * 180) / Math.PI}
-                    maxAngle={RUDDER_STALL_ANGLE_DEG}
-                    size={160}
-                  />
-                  <div className="flex flex-col space-y-1">
-                    <div className="text-gray-400 text-xs">Ballast</div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={ballastLocal}
-                      disabled={!canAdjustThrottle}
-                      onChange={e => {
-                        const next = parseFloat(e.target.value);
-                        setBallastLocal(Number.isNaN(next) ? 0.5 : next);
-                      }}
-                      className={`w-40 accent-blue-500 ${!canAdjustThrottle ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    />
-                    <div className="text-xs text-gray-300">
-                      {(ballastLocal * 100).toFixed(0)}%
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className={styles.sectionCard}>
-                <div className="flex items-center justify-between">
-                  <div className={styles.sectionTitle}>Crew & stations</div>
-                  <div className={styles.sectionSub}>
-                    {crewRoster.length || 0} aboard
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <div className={styles.sectionTitle}>Roster</div>
-                    <div className="mt-2 space-y-2">
-                      {crewRoster.length === 0 ? (
-                        <div className="text-xs text-gray-500">
-                          Awaiting crew assignments.
-                        </div>
-                      ) : (
-                        crewRoster.map(member => (
-                          <div key={member.id} className={styles.crewRow}>
-                            <div className="text-sm font-semibold text-white">
-                              {member.name}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              {(stationByUser.get(member.id) || []).map(
-                                station => (
-                                  <span
-                                    key={`${member.id}-${station}`}
-                                    className={styles.badge}
-                                  >
-                                    {station}
-                                  </span>
-                                ),
-                              )}
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <div className={styles.sectionTitle}>Stations</div>
-                    <div className="mt-2 space-y-2">
-                      {[
-                        {
-                          key: 'helm',
-                          label: 'Helm',
-                          station: helmStation,
-                          description: 'Steer the vessel and manage heading.',
-                        },
-                        {
-                          key: 'engine',
-                          label: 'Engine',
-                          station: engineStation,
-                          description: 'Throttle and ballast controls.',
-                        },
-                        {
-                          key: 'radio',
-                          label: 'Radio',
-                          station: radioStation,
-                          description: 'Communications and broadcasts.',
-                        },
-                      ].map(item => {
-                        const holderId = item.station?.userId || null;
-                        const holderName =
-                          item.station?.username || holderId || 'Unassigned';
-                        const isSelf =
-                          sessionUserId && holderId === sessionUserId;
-                        const canClaim =
-                          (sessionUserId && crewIds.includes(sessionUserId)) ||
-                          isAdmin;
-                        const isHeldByOther = Boolean(
-                          holderId &&
-                            sessionUserId &&
-                            holderId !== sessionUserId,
-                        );
-                        const action: 'claim' | 'release' = isSelf
-                          ? 'release'
-                          : 'claim';
-                        const disabled =
-                          !canClaim || (isHeldByOther && !isAdmin);
-                        return (
-                          <div key={item.key} className={styles.crewRow}>
-                            <div>
-                              <div className="text-sm font-semibold text-white">
-                                {item.label}
-                              </div>
-                              <div className="text-[11px] text-gray-400">
-                                {holderId
-                                  ? `Held by ${holderName}`
-                                  : 'Unassigned'}
-                              </div>
-                              <div className={styles.stationHint}>
-                                {item.description}
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              disabled={disabled}
-                              onClick={() =>
-                                socketManager.requestStation(
-                                  item.key as 'helm' | 'engine' | 'radio',
-                                  action,
-                                )
-                              }
-                              className={`${styles.stationButton} ${
-                                disabled ? styles.stationButtonDisabled : ''
-                              }`}
-                            >
-                              {isSelf ? 'Release' : 'Claim'}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <HudNavigationPanel
+              navStats={navStats}
+              throttleLocal={throttleLocal}
+              setThrottleLocal={setThrottleLocal}
+              rudderAngleLocal={rudderAngleLocal}
+              setRudderAngleLocal={setRudderAngleLocal}
+              ballastLocal={ballastLocal}
+              setBallastLocal={setBallastLocal}
+              canAdjustThrottle={canAdjustThrottle}
+              canAdjustRudder={canAdjustRudder}
+              crewRoster={crewRoster}
+              stationByUser={stationByUser}
+              helmStation={helmStation}
+              engineStation={engineStation}
+              radioStation={radioStation}
+              sessionUserId={sessionUserId}
+              crewIds={crewIds}
+              isAdmin={isAdmin}
+              onRequestStation={(station, action) =>
+                socketManager.requestStation(station, action)
+              }
+            />
           ) : null}
           {tab === 'ecdis' ? (
-            <EcdisDisplay
+            <HudEcdisPanel
               shipPosition={vessel.position}
               heading={vessel.orientation.heading}
             />
           ) : null}
           {tab === 'conning' ? (
-            <div className={styles.sectionCard}>
-              <div className="overflow-x-auto">
-                <div className="min-w-[820px]">
-                  <ConningDisplay data={conningData} />
-                </div>
-              </div>
-            </div>
+            <HudConningPanel conningData={conningData} />
           ) : null}
           {tab === 'sounder' ? (
-            <div className={styles.sectionCard}>
-              {depthValue !== undefined ? (
-                <DepthSounder depth={depthValue} />
-              ) : (
-                <div className={styles.noticeText}>
-                  Depth data unavailable for this position.
-                </div>
-              )}
-            </div>
+            <HudSounderPanel depthValue={depthValue} />
           ) : null}
-          {tab === 'weather' ? <EnvironmentControls /> : null}
+          {tab === 'weather' ? <HudWeatherPanel /> : null}
           {tab === 'systems' ? (
-            <div className={styles.sectionGrid}>
-              <div className={styles.sectionCard}>
-                <div className={styles.sectionHeader}>
-                  <div className={styles.sectionTitle}>Propulsion & fuel</div>
-                  <span className={styles.badge}>
-                    {engineRunning ? 'Engine online' : 'Engine idle'}
-                  </span>
-                </div>
-                <div className={styles.systemGrid}>
-                  <SystemMeter
-                    label="Fuel"
-                    value={`${(fuelPercent * 100).toFixed(0)}%`}
-                    detail={`${engineState.fuelConsumption.toFixed(1)} kg/h`}
-                    percent={fuelPercent}
-                  />
-                  <SystemMeter
-                    label="Engine load"
-                    value={`${(loadPercent * 100).toFixed(0)}%`}
-                    detail={`${engineState.rpm.toFixed(0)} rpm`}
-                    percent={loadPercent}
-                  />
-                  <SystemMeter
-                    label="Temperature"
-                    value={`${engineState.temperature.toFixed(0)}°C`}
-                    detail={`Oil ${engineState.oilPressure.toFixed(1)} bar`}
-                  />
-                  <div className={styles.systemCard}>
-                    <div className={styles.systemLabel}>Ballast</div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={ballastPercent}
-                      disabled={!canAdjustThrottle}
-                      onChange={e => {
-                        const next = parseFloat(e.target.value);
-                        setBallastLocal(Number.isNaN(next) ? 0.5 : next);
-                      }}
-                      className={styles.systemRange}
-                    />
-                    <div className={styles.systemMeta}>
-                      {(ballastPercent * 100).toFixed(0)}% ballast
-                    </div>
-                  </div>
-                </div>
-                {!canAdjustThrottle ? (
-                  <div className={styles.sectionSub}>
-                    Claim the engine station to adjust ballast and throttle.
-                  </div>
-                ) : null}
-              </div>
-              <div className={styles.sectionCard}>
-                <div className={styles.sectionHeader}>
-                  <div className={styles.sectionTitle}>Electrical</div>
-                  <span className={styles.badge}>
-                    {generatorOnline ? 'Generator online' : 'Generator offline'}
-                  </span>
-                </div>
-                <div className={styles.systemGrid}>
-                  <SystemMeter
-                    label="Battery"
-                    value={`${(batteryPercent * 100).toFixed(0)}%`}
-                    detail={`${electrical.mainBusVoltage.toFixed(0)} V bus`}
-                    percent={batteryPercent}
-                  />
-                  <SystemMeter
-                    label="Generation"
-                    value={`${electrical.generatorOutput.toFixed(0)} kW`}
-                    detail={`Load ${electrical.powerConsumption.toFixed(0)} kW`}
-                  />
-                  <SystemMeter
-                    label="Balance"
-                    value={`${powerBalance.toFixed(0)} kW`}
-                    detail={
-                      powerBalance >= 0 ? 'Surplus power' : 'Power deficit'
-                    }
-                  />
-                </div>
-              </div>
-              <div className={styles.sectionCard}>
-                <div className={styles.sectionHeader}>
-                  <div className={styles.sectionTitle}>Damage & repairs</div>
-                  <span className={styles.badge}>
-                    {damageState.hullIntegrity < 0.4
-                      ? 'Critical'
-                      : repairCost > 0
-                        ? 'Maintenance'
-                        : 'Healthy'}
-                  </span>
-                </div>
-                <div className={styles.systemGrid}>
-                  <SystemMeter
-                    label="Hull"
-                    value={`${Math.round(damageState.hullIntegrity * 100)}%`}
-                    percent={damageState.hullIntegrity}
-                  />
-                  <SystemMeter
-                    label="Engine"
-                    value={`${Math.round(damageState.engineHealth * 100)}%`}
-                    percent={damageState.engineHealth}
-                  />
-                  <SystemMeter
-                    label="Steering"
-                    value={`${Math.round(damageState.steeringHealth * 100)}%`}
-                    percent={damageState.steeringHealth}
-                  />
-                  <SystemMeter
-                    label="Electrical"
-                    value={`${Math.round(damageState.electricalHealth * 100)}%`}
-                    percent={damageState.electricalHealth}
-                  />
-                  <SystemMeter
-                    label="Flooding"
-                    value={`${Math.round(damageState.floodingDamage * 100)}%`}
-                    percent={1 - damageState.floodingDamage}
-                  />
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <div className={styles.sectionSub}>
-                    {repairCost > 0
-                      ? `Estimated repair cost: ${repairCost} cr`
-                      : 'No repairs needed'}
-                  </div>
-                  <button
-                    type="button"
-                    className={`${styles.stationButton} ${
-                      repairCost <= 0 || speedMs > 0.2
-                        ? styles.stationButtonDisabled
-                        : ''
-                    }`}
-                    disabled={repairCost <= 0 || speedMs > 0.2}
-                    onClick={() =>
-                      socketManager.requestRepair(currentVesselId || undefined)
-                    }
-                  >
-                    Request repair
-                  </button>
-                </div>
-                {speedMs > 0.2 ? (
-                  <div className={styles.sectionSub}>
-                    Stop the vessel to begin repairs.
-                  </div>
-                ) : null}
-              </div>
-              <div className={styles.sectionCard}>
-                <div className={styles.sectionHeader}>
-                  <div className={styles.sectionTitle}>Stability & load</div>
-                  <span className={styles.badge}>
-                    Draft (est) {draftEstimate.toFixed(1)} m
-                  </span>
-                </div>
-                <div className={styles.statGrid}>
-                  {[
-                    {
-                      label: 'GM',
-                      value: `${stability.metacentricHeight.toFixed(2)} m`,
-                    },
-                    {
-                      label: 'Trim',
-                      value: `${stability.trim.toFixed(2)}°`,
-                    },
-                    {
-                      label: 'List',
-                      value: `${stability.list.toFixed(2)}°`,
-                    },
-                    {
-                      label: 'Displacement',
-                      value: `${(vessel.properties.mass / 1000).toFixed(0)} t`,
-                    },
-                    {
-                      label: 'Block coeff',
-                      value: vessel.properties.blockCoefficient.toFixed(2),
-                    },
-                    {
-                      label: 'Depth',
-                      value:
-                        waterDepth !== undefined
-                          ? `${waterDepth.toFixed(1)} m`
-                          : '—',
-                    },
-                    {
-                      label: 'Under keel',
-                      value:
-                        underKeel !== undefined
-                          ? `${underKeel.toFixed(1)} m`
-                          : '—',
-                    },
-                    {
-                      label: 'Beam',
-                      value: `${vessel.properties.beam.toFixed(1)} m`,
-                    },
-                  ].map(stat => (
-                    <div key={stat.label} className={styles.statCard}>
-                      <div className={styles.statLabel}>{stat.label}</div>
-                      <div className={styles.statValue}>{stat.value}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <HudSystemsPanel
+              engineRunning={engineRunning}
+              fuelPercent={fuelPercent}
+              loadPercent={loadPercent}
+              batteryPercent={batteryPercent}
+              ballastPercent={ballastPercent}
+              canAdjustThrottle={canAdjustThrottle}
+              engineState={engineState}
+              electrical={electrical}
+              powerBalance={powerBalance}
+              damageState={damageState}
+              repairCost={repairCost}
+              speedMs={speedMs}
+              draftEstimate={draftEstimate}
+              stability={stability}
+              vesselProperties={vessel.properties}
+              waterDepth={waterDepth}
+              underKeel={underKeel}
+              setBallastLocal={setBallastLocal}
+              onRequestRepair={() =>
+                socketManager.requestRepair(currentVesselId || undefined)
+              }
+            />
           ) : null}
           {tab === 'missions' ? (
-            <div className={styles.sectionGrid}>
-              <div className={styles.sectionCard}>
-                <div className={styles.sectionTitle}>Account snapshot</div>
-                <div className={styles.accountGrid}>
-                  <div className={styles.accountCard}>
-                    <div className={styles.accountLabel}>Rank</div>
-                    <div className={styles.accountValue}>{account.rank}</div>
-                  </div>
-                  <div className={styles.accountCard}>
-                    <div className={styles.accountLabel}>Credits</div>
-                    <div className={styles.accountValue}>
-                      {account.credits.toFixed(0)}
-                    </div>
-                  </div>
-                  <div className={styles.accountCard}>
-                    <div className={styles.accountLabel}>Experience</div>
-                    <div className={styles.accountValue}>
-                      {account.experience.toFixed(0)}
-                    </div>
-                  </div>
-                  <div className={styles.accountCard}>
-                    <div className={styles.accountLabel}>Safety</div>
-                    <div className={styles.accountValue}>
-                      {account.safetyScore.toFixed(2)}
-                    </div>
-                  </div>
-                  <div className={styles.accountCard}>
-                    <div className={styles.accountLabel}>Latency</div>
-                    <div className={styles.accountValue}>
-                      {socketLatencyMs !== null
-                        ? `${Math.round(socketLatencyMs)} ms`
-                        : '—'}
-                    </div>
-                  </div>
-                </div>
-                <div className={styles.progressRow}>
-                  <div className={styles.progressTrack}>
-                    <div
-                      className={styles.progressFill}
-                      style={{ width: `${(rankProgress * 100).toFixed(0)}%` }}
-                    />
-                  </div>
-                  <div className={styles.progressMeta}>
-                    Next rank in {xpToNext.toFixed(0)} XP
-                  </div>
-                </div>
-                <div className={styles.sectionSub}>
-                  Missions award credits and XP. Operating costs and port fees
-                  deduct credits while you sail; safety penalties apply for
-                  collisions or speed violations in regulated spaces.
-                </div>
-              </div>
-              <div className={styles.sectionCard}>
-                <div className={styles.sectionTitle}>Recent activity</div>
-                {economyLoading ? (
-                  <div className={styles.sectionSub}>Loading economy...</div>
-                ) : null}
-                {economyError ? (
-                  <div className={styles.sectionSub}>{economyError}</div>
-                ) : null}
-                {!economyLoading && economyTransactions.length === 0 ? (
-                  <div className={styles.sectionSub}>
-                    No recent economy activity yet.
-                  </div>
-                ) : null}
-                {economyTransactions.length > 0 ? (
-                  <div className={styles.transactionList}>
-                    {economyTransactions.slice(0, 8).map(tx => (
-                      <div key={tx.id} className={styles.transactionRow}>
-                        <div>
-                          <div className={styles.transactionLabel}>
-                            {formatTransactionReason(tx.reason)}
-                          </div>
-                          <div className={styles.transactionMeta}>
-                            {new Date(tx.createdAt).toLocaleString()}
-                          </div>
-                        </div>
-                        <div
-                          className={`${styles.transactionAmount} ${
-                            tx.amount >= 0
-                              ? styles.transactionPositive
-                              : styles.transactionNegative
-                          }`}
-                        >
-                          {tx.amount >= 0 ? '+' : ''}
-                          {tx.amount.toFixed(0)} cr
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-              <div className={styles.sectionCard}>
-                <div className={styles.sectionTitle}>Active assignments</div>
-                {activeAssignments.length === 0 ? (
-                  <div className={styles.sectionSub}>
-                    No active missions. Accept a contract to start.
-                  </div>
-                ) : (
-                  <div className={styles.assignmentList}>
-                    {activeAssignments.map(assignment => {
-                      const mission =
-                        assignment.mission ||
-                        missions.find(m => m.id === assignment.missionId);
-                      return (
-                        <div
-                          key={assignment.id}
-                          className={styles.assignmentCard}
-                        >
-                          <div>
-                            <div className={styles.assignmentTitle}>
-                              {mission?.name || 'Mission'}
-                            </div>
-                            <div className={styles.assignmentMeta}>
-                              Status: {assignment.status.replace('_', ' ')}
-                            </div>
-                          </div>
-                          <div className={styles.assignmentMeta}>
-                            Reward: {mission?.rewardCredits ?? 0} cr
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-              <div className={styles.sectionCard}>
-                <div className={styles.sectionTitle}>Available missions</div>
-                {missionError ? (
-                  <div className={styles.sectionSub}>{missionError}</div>
-                ) : null}
-                {missions.length === 0 ? (
-                  <div className={styles.sectionSub}>
-                    No contracts published for this space yet.
-                  </div>
-                ) : (
-                  <div className={styles.missionList}>
-                    {missions.map(mission => {
-                      const assignment = assignmentsByMission.get(mission.id);
-                      const locked = account.rank < mission.requiredRank;
-                      const disabled =
-                        !canAcceptMissions ||
-                        locked ||
-                        Boolean(assignment) ||
-                        missionBusyId === mission.id;
-                      return (
-                        <div key={mission.id} className={styles.missionCard}>
-                          <div className={styles.missionHeader}>
-                            <div>
-                              <div className={styles.missionTitle}>
-                                {mission.name}
-                              </div>
-                              <div className={styles.missionMeta}>
-                                {mission.description || '—'}
-                              </div>
-                            </div>
-                            <div className={styles.missionMeta}>
-                              Rank {mission.requiredRank}
-                            </div>
-                          </div>
-                          <div className={styles.missionFooter}>
-                            <div className={styles.missionMeta}>
-                              Reward {mission.rewardCredits} cr
-                            </div>
-                            <button
-                              type="button"
-                              className={styles.missionButton}
-                              disabled={disabled}
-                              onClick={() =>
-                                void handleAssignMission(mission.id)
-                              }
-                            >
-                              {assignment
-                                ? 'Assigned'
-                                : locked
-                                  ? 'Locked'
-                                  : missionBusyId === mission.id
-                                    ? 'Assigning…'
-                                    : 'Accept'}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
+            <HudMissionsPanel
+              account={account}
+              socketLatencyMs={socketLatencyMs}
+              rankProgress={rankProgress}
+              xpToNext={xpToNext}
+              economyLoading={economyLoading}
+              economyError={economyError}
+              economyTransactions={economyTransactions}
+              activeAssignments={activeAssignments}
+              missions={missions}
+              assignmentsByMission={assignmentsByMission}
+              canAcceptMissions={canAcceptMissions}
+              missionError={missionError}
+              missionBusyId={missionBusyId}
+              onAssignMission={missionId => void handleAssignMission(missionId)}
+            />
           ) : null}
           {tab === 'replay' ? (
-            <div className={styles.sectionGrid}>
-              <div className={styles.sectionCard}>
-                <div className={styles.sectionTitle}>Replay console</div>
-                <div className={styles.replayMeta}>
-                  {replay.frames.length} frames •{' '}
-                  {(replayDuration / 1000).toFixed(1)}s recorded
-                </div>
-                <div className={styles.replayControls}>
-                  <button
-                    type="button"
-                    className={styles.replayButton}
-                    onClick={
-                      replay.recording
-                        ? stopReplayRecording
-                        : startReplayRecording
-                    }
-                    disabled={replay.playing}
-                  >
-                    {replay.recording ? 'Stop recording' : 'Start recording'}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.replayButtonSecondary}
-                    onClick={
-                      replay.playing ? stopReplayPlayback : startReplayPlayback
-                    }
-                    disabled={replay.frames.length < 2 || replay.recording}
-                  >
-                    {replay.playing ? 'Stop playback' : 'Play ghost'}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.replayButtonDanger}
-                    onClick={clearReplay}
-                    disabled={replay.recording || replay.frames.length === 0}
-                  >
-                    Clear recording
-                  </button>
-                </div>
-                <div className={styles.sectionSub}>
-                  Record a run, stop, then play ghost to overlay the last
-                  capture. Playback freezes live control updates while active.
-                </div>
-              </div>
-            </div>
+            <HudReplayPanel
+              replay={replay}
+              replayDuration={replayDuration}
+              startReplayRecording={startReplayRecording}
+              stopReplayRecording={stopReplayRecording}
+              startReplayPlayback={startReplayPlayback}
+              stopReplayPlayback={stopReplayPlayback}
+              clearReplay={clearReplay}
+            />
           ) : null}
           {tab === 'chat' ? (
-            <div className={styles.sectionCard}>
-              <ChatPanel
-                spaceId={useStore.getState().spaceId}
-                vesselChannel={
-                  useStore.getState().currentVesselId
-                    ? `vessel:${
-                        useStore.getState().currentVesselId?.split('_')[0] || ''
-                      }`
-                    : null
-                }
-              />
-            </div>
+            <HudChatPanel
+              spaceId={useStore.getState().spaceId || undefined}
+              currentVesselId={useStore.getState().currentVesselId || undefined}
+            />
           ) : null}
-          {tab === 'events' ? (
-            <div className={styles.sectionCard}>
-              <EventLog />
-            </div>
-          ) : null}
-          {tab === 'radio' ? (
-            <div className={styles.sectionCard}>
-              <div className="flex justify-center">
-                <div className="scale-90 md:scale-95 origin-top">
-                  <MarineRadio width={440} height={320} />
-                </div>
-              </div>
-            </div>
-          ) : null}
+          {tab === 'events' ? <HudEventsPanel /> : null}
+          {tab === 'radio' ? <HudRadioPanel /> : null}
           {tab === 'radar' ? (
-            <div className={styles.sectionCard}>
-              <div className={styles.radarGrid}>
-                <div className="space-y-2">
-                  <div className={styles.radarTitle}>Radar</div>
-                  <RadarDisplay
-                    size={360}
-                    className="max-w-[920px] mx-auto"
-                    initialSettings={radarSettings}
-                    onSettingsChange={setRadarSettings}
-                    ebl={radarEbl}
-                    onEblChange={setRadarEbl}
-                    vrm={radarVrm}
-                    onVrmChange={setRadarVrm}
-                    guardZone={radarGuardZone}
-                    onGuardZoneChange={setRadarGuardZone}
-                    arpaSettings={radarArpaSettings}
-                    onArpaSettingsChange={setRadarArpaSettings}
-                    arpaEnabled={radarArpaEnabled}
-                    onArpaEnabledChange={setRadarArpaEnabled}
-                    arpaTargets={radarArpaTargets}
-                    onArpaTargetsChange={setRadarArpaTargets}
-                    liveTargets={radarTargets}
-                    aisTargets={aisTargets}
-                    environment={radarEnvironment}
-                    ownShipData={ownShipData}
-                  />
-                </div>
-              </div>
-            </div>
+            <HudRadarPanel
+              radarSettings={radarSettings}
+              setRadarSettings={setRadarSettings}
+              radarEbl={radarEbl}
+              setRadarEbl={setRadarEbl}
+              radarVrm={radarVrm}
+              setRadarVrm={setRadarVrm}
+              radarGuardZone={radarGuardZone}
+              setRadarGuardZone={setRadarGuardZone}
+              radarArpaSettings={radarArpaSettings}
+              setRadarArpaSettings={setRadarArpaSettings}
+              radarArpaEnabled={radarArpaEnabled}
+              setRadarArpaEnabled={setRadarArpaEnabled}
+              radarArpaTargets={radarArpaTargets}
+              setRadarArpaTargets={setRadarArpaTargets}
+              radarTargets={radarTargets}
+              aisTargets={aisTargets}
+              radarEnvironment={radarEnvironment}
+              ownShipData={ownShipData}
+            />
           ) : null}
-          {tab === 'alarms' ? (
-            <div className={styles.sectionCard}>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {alarmItems.map(item => (
-                  <div
-                    key={item.key}
-                    className="rounded-lg border border-gray-800/60 bg-gray-900/40 px-3 py-2"
-                  >
-                    <AlarmIndicator
-                      active={item.active}
-                      label={item.label}
-                      severity={item.severity}
-                      size={18}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
+          {tab === 'alarms' ? <HudAlarmsPanel alarmItems={alarmItems} /> : null}
           {tab === 'admin' && isAdmin ? (
-            <div className={styles.sectionCard}>
-              <div className={styles.adminPanel}>
-                <div>
-                  <div className={styles.sectionTitle}>Vessel Selection</div>
-                  <select
-                    className={styles.adminSelect}
-                    value={adminTargetId}
-                    onChange={e => setAdminTargetId(e.target.value)}
-                  >
-                    {adminTargets.map(target => (
-                      <option key={target.id} value={target.id}>
-                        {target.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className={styles.adminGrid}>
-                  <label className={styles.adminLabel}>
-                    Latitude
-                    <input
-                      className={styles.adminInput}
-                      value={adminLat}
-                      onChange={e => setAdminLat(e.target.value)}
-                      placeholder={formatCoord(
-                        selectedAdminTarget?.position.lat,
-                        6,
-                      )}
-                    />
-                    <div className={styles.adminHint}>
-                      Current:{' '}
-                      {formatCoord(selectedAdminTarget?.position.lat, 6)}
-                    </div>
-                  </label>
-                  <label className={styles.adminLabel}>
-                    Longitude
-                    <input
-                      className={styles.adminInput}
-                      value={adminLon}
-                      onChange={e => setAdminLon(e.target.value)}
-                      placeholder={formatCoord(
-                        selectedAdminTarget?.position.lon,
-                        6,
-                      )}
-                    />
-                    <div className={styles.adminHint}>
-                      Current:{' '}
-                      {formatCoord(selectedAdminTarget?.position.lon, 6)}
-                    </div>
-                  </label>
-                </div>
-
-                <div className={styles.adminActions}>
-                  <button
-                    type="button"
-                    className={styles.adminButton}
-                    onClick={handleAdminMove}
-                  >
-                    Move vessel
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.adminButtonSecondary}
-                    onClick={handleAdminMoveToSelf}
-                  >
-                    Move to my position
-                  </button>
-                </div>
-
-                <div className={styles.sectionSub}>
-                  Drag-and-drop moves for spectator mode are planned; this panel
-                  is the temporary admin move tool.
-                </div>
-              </div>
-            </div>
+            <HudAdminPanel
+              adminTargets={adminTargets}
+              adminTargetId={adminTargetId}
+              setAdminTargetId={setAdminTargetId}
+              adminLat={adminLat}
+              setAdminLat={setAdminLat}
+              adminLon={adminLon}
+              setAdminLon={setAdminLon}
+              selectedAdminTarget={selectedAdminTarget}
+              onMove={handleAdminMove}
+              onMoveToSelf={handleAdminMoveToSelf}
+            />
           ) : null}
         </div>
       ) : null}
@@ -2077,56 +1275,3 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     </div>
   );
 }
-
-const TRANSACTION_REASON_LABELS: Record<string, string> = {
-  operating_cost: 'Operating cost',
-  port_fee: 'Port fee',
-  collision: 'Collision penalty',
-  speed_violation: 'Speed violation',
-  near_miss: 'Near miss',
-  mission_reward: 'Mission reward',
-  repair: 'Repairs',
-};
-
-const formatTransactionReason = (reason?: string) => {
-  if (!reason) return 'Economy update';
-  return TRANSACTION_REASON_LABELS[reason] || reason.replace(/_/g, ' ');
-};
-
-const SystemMeter = ({
-  label,
-  value,
-  detail,
-  percent,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-  percent?: number;
-}) => {
-  const clamped = percent !== undefined ? clamp01(percent) : undefined;
-  const tone =
-    clamped !== undefined
-      ? clamped <= 0.15
-        ? styles.meterFillDanger
-        : clamped <= 0.35
-          ? styles.meterFillWarn
-          : styles.meterFillOk
-      : undefined;
-
-  return (
-    <div className={styles.systemCard}>
-      <div className={styles.systemLabel}>{label}</div>
-      <div className={styles.systemValue}>{value}</div>
-      {clamped !== undefined ? (
-        <div className={styles.meter}>
-          <div
-            className={`${styles.meterFill} ${tone || ''}`}
-            style={{ width: `${Math.round(clamped * 100)}%` }}
-          />
-        </div>
-      ) : null}
-      {detail ? <div className={styles.systemMeta}>{detail}</div> : null}
-    </div>
-  );
-};

@@ -4,7 +4,10 @@ import type {
   MissionAssignmentData,
   MissionDefinition,
 } from '../types/mission.types';
-import { applyEconomyAdjustmentWithRevenueShare, ECONOMY_PORTS } from './economy';
+import {
+  applyEconomyAdjustmentWithRevenueShare,
+  ECONOMY_PORTS,
+} from './economy';
 import { bumpReputation, addCareerExperience, CareerKey } from './careers';
 import { distanceMeters } from '../lib/position';
 
@@ -228,7 +231,10 @@ export async function updateMissionAssignments(params: {
               ? { id: port.id, distance: dist }
               : closest;
           },
-          { id: ECONOMY_PORTS[0]?.id || 'unknown', distance: Number.POSITIVE_INFINITY },
+          {
+            id: ECONOMY_PORTS[0]?.id || 'unknown',
+            distance: Number.POSITIVE_INFINITY,
+          },
         );
         if (nearestPort.id && nearestPort.distance < 1500) {
           await bumpReputation({

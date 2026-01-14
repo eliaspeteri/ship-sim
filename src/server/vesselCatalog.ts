@@ -2,9 +2,17 @@ import fs from 'fs';
 import path from 'path';
 import { DEFAULT_HYDRO } from '../constants/vessel';
 import { ShipType } from '../types/vessel.types';
-import type { VesselCatalog, VesselCatalogEntry } from '../types/vesselCatalog.types';
+import type {
+  VesselCatalog,
+  VesselCatalogEntry,
+} from '../types/vesselCatalog.types';
 
-const CATALOG_PATH = path.join(process.cwd(), 'data', 'vessels', 'catalog.json');
+const CATALOG_PATH = path.join(
+  process.cwd(),
+  'data',
+  'vessels',
+  'catalog.json',
+);
 const MODS_DIR = path.join(process.cwd(), 'data', 'vessels', 'mods');
 const DEFAULT_TEMPLATE_ID = 'starter-container';
 
@@ -81,23 +89,26 @@ export const resolveVesselTemplate = (
   if (templateId && byId.has(templateId)) {
     return byId.get(templateId)!;
   }
-  return byId.get(DEFAULT_TEMPLATE_ID) || entries[0] || {
-    id: DEFAULT_TEMPLATE_ID,
-    name: 'Default Vessel',
-    shipType: ShipType.DEFAULT,
-    modelPath: null,
-    properties: {
-      mass: 1_000_000,
-      length: 120,
-      beam: 20,
-      draft: 6,
-      blockCoefficient: 0.8,
-      maxSpeed: 20,
-    },
-    hydrodynamics: {},
-    commerce: {},
-    tags: [],
-  };
+  return (
+    byId.get(DEFAULT_TEMPLATE_ID) ||
+    entries[0] || {
+      id: DEFAULT_TEMPLATE_ID,
+      name: 'Default Vessel',
+      shipType: ShipType.DEFAULT,
+      modelPath: null,
+      properties: {
+        mass: 1_000_000,
+        length: 120,
+        beam: 20,
+        draft: 6,
+        blockCoefficient: 0.8,
+        maxSpeed: 20,
+      },
+      hydrodynamics: {},
+      commerce: {},
+      tags: [],
+    }
+  );
 };
 
 export const buildHydrodynamics = (template: VesselCatalogEntry) => ({

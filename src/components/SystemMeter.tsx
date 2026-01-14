@@ -1,4 +1,6 @@
 import styles from './HudDrawer.module.css';
+import { METER_DANGER_THRESHOLD, METER_WARN_THRESHOLD } from './hud/constants';
+import { clamp01 } from './hud/format';
 
 export const SystemMeter = ({
   label,
@@ -11,13 +13,12 @@ export const SystemMeter = ({
   detail?: string;
   percent?: number;
 }) => {
-  const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
   const clamped = percent !== undefined ? clamp01(percent) : undefined;
   const tone =
     clamped !== undefined
-      ? clamped <= 0.15
+      ? clamped <= METER_DANGER_THRESHOLD
         ? styles.meterFillDanger
-        : clamped <= 0.35
+        : clamped <= METER_WARN_THRESHOLD
           ? styles.meterFillWarn
           : styles.meterFillOk
       : undefined;

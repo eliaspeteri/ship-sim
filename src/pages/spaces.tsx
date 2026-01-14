@@ -708,7 +708,9 @@ const SpacesPage: React.FC = () => {
                   ) : (
                     <div className={styles.formRow}>
                       <div className={styles.cardMeta}>
-                        Using {draft?.rulesetType || space.rulesetType || 'CASUAL'} defaults.
+                        Using{' '}
+                        {draft?.rulesetType || space.rulesetType || 'CASUAL'}{' '}
+                        defaults.
                       </div>
                       <button
                         type="button"

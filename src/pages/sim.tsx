@@ -9,64 +9,40 @@ import socketManager from '../networking/socket';
 import { initializeSimulation, startSimulation } from '../simulation';
 import { getSimulationLoop } from '../simulation';
 import { MAX_CREW, RUDDER_MAX_ANGLE_RAD } from '../constants/vessel';
-import { positionFromXY, positionToXY } from '../lib/position';
+import { positionToXY } from '../lib/position';
 import { getScenarios, ScenarioDefinition } from '../lib/scenarios';
 import { getApiBase } from '../lib/api';
 import styles from './SimPage.module.css';
-import { getDefaultRules, mapToRulesetType, Rules } from '../types/rules.types';
+import { getDefaultRules, mapToRulesetType } from '../types/rules.types';
 import { bboxAroundLatLon } from '../lib/geo';
 import { applyFailureControlLimits } from '../lib/failureControls';
-
-const PORTS = [
-  { name: 'Harbor Alpha', position: positionFromXY({ x: 0, y: 0 }) },
-  { name: 'Bay Delta', position: positionFromXY({ x: 2000, y: -1500 }) },
-  { name: 'Island Anchorage', position: positionFromXY({ x: -2500, y: 1200 }) },
-  { name: 'Channel Gate', position: positionFromXY({ x: 800, y: 2400 }) },
-];
-
-const SEAMARK_RADIUS_M = 25_000;
-const REQUERY_DISTANCE_M = 5_000; // tune
-const REQUERY_MIN_MS = 2000; // tune
-
-function haversineMeters(
-  a: { lat: number; lon: number },
-  b: { lat: number; lon: number },
-) {
-  const R = 6371000;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLon = ((b.lon - a.lon) * Math.PI) / 180;
-  const lat1 = (a.lat * Math.PI) / 180;
-  const lat2 = (b.lat * Math.PI) / 180;
-  const s1 = Math.sin(dLat / 2);
-  const s2 = Math.sin(dLon / 2);
-  const h = s1 * s1 + Math.cos(lat1) * Math.cos(lat2) * s2 * s2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
-}
-
-function bboxKey(b: {
-  south: number;
-  west: number;
-  north: number;
-  east: number;
-}) {
-  // quantize to reduce churn
-  const q = (n: number) => n.toFixed(5);
-  return `${q(b.south)}:${q(b.west)}:${q(b.north)}:${q(b.east)}`;
-}
+import {
+  DEFAULT_SPACE_ID,
+  NOTICE_CLEAR_MS,
+  PORTS,
+  REQUERY_DISTANCE_M,
+  REQUERY_MIN_MS,
+  RUDDER_STEP,
+  SEAMARK_RADIUS_M,
+  SEAMARK_REQUEST_LIMIT,
+  STORAGE_ACTIVE_VESSEL_KEY,
+  STORAGE_JOIN_CHOICE_KEY,
+  STORAGE_SPACE_KEY,
+  STORAGE_SPACE_SELECTED_KEY,
+  THROTTLE_MAX,
+  THROTTLE_MIN,
+  THROTTLE_STEP,
+} from '../features/sim/constants';
+import { haversineMeters, bboxKey } from '../features/sim/utils';
+import { SpaceSummary } from '../features/sim/types';
+import { SpaceModal } from '../features/sim/SpaceModal';
+import { JoinChoiceModal } from '../features/sim/JoinChoiceModal';
 
 /**
  * Simulation page for Ship Simulator.
  * Requires authentication. Shows the simulation UI if authenticated.
  */
 const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
-  type SpaceSummary = {
-    id: string;
-    name: string;
-    visibility: string;
-    inviteToken?: string;
-    rulesetType?: string;
-    rules?: Rules | null;
-  };
   const { data: session, status } = useSession();
   const router = useRouter();
   const vessel = useStore(state => state.vessel);
@@ -98,7 +74,9 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const userId = (session?.user as { id?: string })?.id;
   const [showJoinChoice, setShowJoinChoice] = React.useState(false);
   const [selectedPort, setSelectedPort] = React.useState(PORTS[0].name);
-  const [spaceInput, setSpaceInput] = React.useState(spaceId || 'global');
+  const [spaceInput, setSpaceInput] = React.useState(
+    spaceId || DEFAULT_SPACE_ID,
+  );
   const [spaces, setSpaces] = React.useState<SpaceSummary[]>([]);
   const [spacesLoading, setSpacesLoading] = React.useState(false);
   const [spaceError, setSpaceError] = React.useState<string | null>(null);
@@ -155,14 +133,14 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
 
   const joinSpace = React.useCallback(
     (next: string) => {
-      const normalized = next.trim().toLowerCase() || 'global';
+      const normalized = next.trim().toLowerCase() || DEFAULT_SPACE_ID;
       setSpaceInput(normalized);
       setSpaceId(normalized);
       setChatMessages([]);
       socketManager.switchSpace(normalized);
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem('ship-sim-space', normalized);
-        window.localStorage.setItem('ship-sim-space-selected', 'true');
+        window.localStorage.setItem(STORAGE_SPACE_KEY, normalized);
+        window.localStorage.setItem(STORAGE_SPACE_SELECTED_KEY, 'true');
       }
       setHasChosenSpace(true);
       setSpaceModalOpen(false);
@@ -412,7 +390,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       radiusMeters: SEAMARK_RADIUS_M,
       bbox,
       bboxKey: key,
-      limit: 5000,
+      limit: SEAMARK_REQUEST_LIMIT,
     });
   }, [
     vessel.position.lat,
@@ -428,14 +406,14 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   }, [userId, setSessionUserId]);
 
   useEffect(() => {
-    setSpaceInput(spaceId || 'global');
+    setSpaceInput(spaceId || DEFAULT_SPACE_ID);
   }, [spaceId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const savedSpace = window.localStorage.getItem('ship-sim-space');
+    const savedSpace = window.localStorage.getItem(STORAGE_SPACE_KEY);
     const savedSelected = window.localStorage.getItem(
-      'ship-sim-space-selected',
+      STORAGE_SPACE_SELECTED_KEY,
     );
     if (savedSpace) {
       setSpaceId(savedSpace);
@@ -459,8 +437,8 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       setChatMessages([]);
       setHasChosenSpace(true);
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem('ship-sim-space', querySpace);
-        window.localStorage.setItem('ship-sim-space-selected', 'true');
+        window.localStorage.setItem(STORAGE_SPACE_KEY, querySpace);
+        window.localStorage.setItem(STORAGE_SPACE_SELECTED_KEY, 'true');
       }
     }
   }, [router.query.space, setSpaceId, spaceId, setChatMessages]);
@@ -510,7 +488,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     if (!hasChosenSpace) return;
     const seen =
       typeof window !== 'undefined' &&
-      sessionStorage.getItem('ship-sim-join-choice');
+      sessionStorage.getItem(STORAGE_JOIN_CHOICE_KEY);
     if (seen || showJoinChoice) return;
 
     let cancelled = false;
@@ -561,7 +539,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         socketManager.setJoinPreference('player', true);
         socketManager.requestJoinVessel(vesselId);
         if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('ship-sim-active-vessel');
+          sessionStorage.removeItem(STORAGE_ACTIVE_VESSEL_KEY);
         }
         if (router.isReady && typeof router.query.vesselId === 'string') {
           router.replace('/sim', undefined, { shallow: true });
@@ -579,7 +557,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
 
   useEffect(() => {
     if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), 5000);
+    const timer = setTimeout(() => setNotice(null), NOTICE_CLEAR_MS);
     return () => clearTimeout(timer);
   }, [notice, setNotice]);
 
@@ -592,7 +570,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       return;
     }
     if (typeof window === 'undefined') return;
-    const stored = sessionStorage.getItem('ship-sim-active-vessel');
+    const stored = sessionStorage.getItem(STORAGE_ACTIVE_VESSEL_KEY);
     if (stored) {
       pendingJoinRef.current = stored;
     }
@@ -622,7 +600,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       socketManager.setAuthToken(socketToken, userId, username);
     }
     if (typeof window !== 'undefined') {
-      const joinChoice = sessionStorage.getItem('ship-sim-join-choice');
+      const joinChoice = sessionStorage.getItem(STORAGE_JOIN_CHOICE_KEY);
       if (!joinChoice) {
         socketManager.setJoinPreference('spectator', false);
       } else if (joinChoice === 'spectate') {
@@ -693,8 +671,8 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
 
       let throttle = controls.throttle ?? 0;
       let rudder = controls.rudderAngle ?? 0;
-      const throttleStep = 0.05;
-      const rudderStep = 0.05;
+      const throttleStep = THROTTLE_STEP;
+      const rudderStep = RUDDER_STEP;
       let changed = false;
       const sessionUserId = state.sessionUserId;
       const helmStation = state.vessel.stations?.helm || state.vessel.helm;
@@ -711,7 +689,11 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         case 'W':
         case 'ArrowUp':
           if (canAdjustThrottle) {
-            throttle = clamp(throttle + throttleStep, -1, 1);
+            throttle = clamp(
+              throttle + throttleStep,
+              THROTTLE_MIN,
+              THROTTLE_MAX,
+            );
             changed = true;
           }
           break;
@@ -719,7 +701,11 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         case 'S':
         case 'ArrowDown':
           if (canAdjustThrottle) {
-            throttle = clamp(throttle - throttleStep, -1, 1);
+            throttle = clamp(
+              throttle - throttleStep,
+              THROTTLE_MIN,
+              THROTTLE_MAX,
+            );
             changed = true;
           }
           break;
@@ -891,383 +877,35 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
           {mode === 'player' ? 'Player' : 'Spectator'}
         </button>
       </div>
-      {spaceModalOpen && (
-        <div
-          className={styles.modalOverlay}
-          onClick={() => {
-            setSpaceModalOpen(false);
-            setSpaceFlow('choice');
-            setSpaceError(null);
-          }}
-        >
-          <div className={styles.modalCard} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <div className={styles.modalHeaderLeft}>
-                {spaceFlow !== 'choice' ? (
-                  <button
-                    className={styles.modalBack}
-                    onClick={() => {
-                      setSpaceFlow('choice');
-                      setSpaceError(null);
-                    }}
-                  >
-                    <span aria-hidden="true">←</span>
-                    Back
-                  </button>
-                ) : (
-                  <div className={styles.modalSpacer} />
-                )}
-                <div className={styles.modalTitle}>Choose a space</div>
-              </div>
-              <button
-                className={styles.modalClose}
-                onClick={() => {
-                  setSpaceModalOpen(false);
-                  setSpaceFlow('choice');
-                  setSpaceError(null);
-                }}
-              >
-                ✕ Close
-              </button>
-            </div>
-            {spaceFlow === 'choice' ? (
-              <div className={styles.choiceGrid}>
-                <button
-                  className={`${styles.choiceButton} ${styles.choiceButtonPrimary}`}
-                  onClick={() => {
-                    setSpaceFlow('join');
-                    setSpaceError(null);
-                  }}
-                >
-                  Join space
-                </button>
-                <button
-                  className={styles.choiceButton}
-                  onClick={() => {
-                    setSpaceFlow('create');
-                    setSpaceError(null);
-                  }}
-                >
-                  Create space
-                </button>
-              </div>
-            ) : null}
-
-            {spaceFlow === 'join' ? (
-              <>
-                <div className={styles.formRow}>
-                  <span className={styles.modeLabel}>Space</span>
-                  <input
-                    className={styles.input}
-                    value={spaceInput}
-                    onChange={e => setSpaceInput(e.target.value)}
-                    placeholder="global"
-                  />
-                  <button
-                    type="button"
-                    className={`${styles.button} ${styles.buttonPrimary}`}
-                    onClick={() => {
-                      setSpaceError(null);
-                      joinSpace(spaceInput);
-                    }}
-                  >
-                    Join
-                  </button>
-                  <button
-                    className={`${styles.button} ${styles.buttonNeutral}`}
-                    onClick={() => {
-                      setSpaceFlow('choice');
-                      setSpaceError(null);
-                    }}
-                  >
-                    Back
-                  </button>
-                </div>
-                <div className={styles.pillScroller}>
-                  <div className={styles.pillRow}>
-                    {spacesLoading ? <span>Loading spaces...</span> : null}
-                    {spaces.map(space => (
-                      <button
-                        key={space.id}
-                        className={`${styles.pill} ${
-                          space.visibility === 'private'
-                            ? styles.pillPrivate
-                            : ''
-                        }`}
-                        onClick={() => joinSpace(space.id)}
-                        title={
-                          space.visibility === 'private'
-                            ? `Private space - ${space.rulesetType || 'CASUAL'}`
-                            : `Public space - ${space.rulesetType || 'CASUAL'}`
-                        }
-                      >
-                        <span className={styles.pillName}>{space.name}</span>
-                        <span className={styles.pillBadges}>
-                          <span className={styles.pillBadge}>
-                            {space.visibility === 'private'
-                              ? 'Private'
-                              : 'Public'}
-                          </span>
-                          <span
-                            className={`${styles.pillBadge} ${
-                              space.rulesetType === 'SIM_PUBLIC' ||
-                              space.rulesetType === 'REALISM'
-                                ? styles.pillBadgeRealism
-                                : space.rulesetType === 'TRAINING_EXAM' ||
-                                    space.rulesetType === 'EXAM'
-                                  ? styles.pillBadgeExam
-                                  : space.rulesetType === 'PRIVATE_SANDBOX' ||
-                                      space.rulesetType === 'CUSTOM'
-                                    ? styles.pillBadgeSandbox
-                                    : styles.pillBadgeCasual
-                            }`}
-                          >
-                            {space.rulesetType || 'CASUAL'}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
-                    {!spacesLoading && spaces.length === 0 ? (
-                      <span className={styles.helperText}>
-                        No public spaces yet
-                      </span>
-                    ) : null}
-                    {(knownSpaces?.length || 0) > 0 ? (
-                      <span className={styles.helperText}>
-                        Known spaces: {knownSpaces.length}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-                {spaces.length > 0 ? (
-                  <div className={styles.detailsCard}>
-                    <div className={styles.detailsHeader}>
-                      <span>
-                        Details for: <strong>{spaceInput || '—'}</strong>
-                      </span>
-                      {spaces.find(s => s.id === spaceInput)?.inviteToken ? (
-                        <button
-                          className={`${styles.button} ${styles.buttonSecondary}`}
-                          onClick={async () => {
-                            const invite = spaces.find(
-                              s => s.id === spaceInput,
-                            )?.inviteToken;
-                            if (invite) {
-                              try {
-                                await navigator.clipboard.writeText(invite);
-                                setSpaceError(null);
-                              } catch {
-                                setSpaceError('Failed to copy invite token');
-                              }
-                            }
-                          }}
-                        >
-                          Copy invite token
-                        </button>
-                      ) : null}
-                    </div>
-                    <div className={styles.helperText}>
-                      Invite token:{' '}
-                      {spaces.find(s => s.id === spaceInput)?.inviteToken ||
-                        '—'}
-                    </div>
-                    {selectedSpaceRules ? (
-                      <div className={styles.rulesGrid}>
-                        <div className={styles.rulesRow}>
-                          <span className={styles.rulesLabel}>Assists</span>
-                          <span className={styles.rulesBadges}>
-                            <span
-                              className={`${styles.rulesBadge} ${
-                                selectedSpaceRules.assists.stability
-                                  ? styles.rulesBadgeOn
-                                  : styles.rulesBadgeOff
-                              }`}
-                            >
-                              Stability
-                            </span>
-                            <span
-                              className={`${styles.rulesBadge} ${
-                                selectedSpaceRules.assists.autopilot
-                                  ? styles.rulesBadgeOn
-                                  : styles.rulesBadgeOff
-                              }`}
-                            >
-                              Autopilot
-                            </span>
-                            <span
-                              className={`${styles.rulesBadge} ${
-                                selectedSpaceRules.assists.docking
-                                  ? styles.rulesBadgeOn
-                                  : styles.rulesBadgeOff
-                              }`}
-                            >
-                              Docking
-                            </span>
-                          </span>
-                        </div>
-                        <div className={styles.rulesRow}>
-                          <span className={styles.rulesLabel}>Realism</span>
-                          <span className={styles.rulesBadges}>
-                            <span
-                              className={`${styles.rulesBadge} ${
-                                selectedSpaceRules.realism.damage
-                                  ? styles.rulesBadgeWarn
-                                  : styles.rulesBadgeOff
-                              }`}
-                            >
-                              Damage
-                            </span>
-                            <span
-                              className={`${styles.rulesBadge} ${
-                                selectedSpaceRules.realism.wear
-                                  ? styles.rulesBadgeWarn
-                                  : styles.rulesBadgeOff
-                              }`}
-                            >
-                              Wear
-                            </span>
-                            <span
-                              className={`${styles.rulesBadge} ${
-                                selectedSpaceRules.realism.failures
-                                  ? styles.rulesBadgeWarn
-                                  : styles.rulesBadgeOff
-                              }`}
-                            >
-                              Failures
-                            </span>
-                          </span>
-                        </div>
-                        <div className={styles.rulesRow}>
-                          <span className={styles.rulesLabel}>Enforcement</span>
-                          <span className={styles.rulesBadges}>
-                            <span
-                              className={`${styles.rulesBadge} ${
-                                selectedSpaceRules.enforcement.colregs
-                                  ? styles.rulesBadgeWarn
-                                  : styles.rulesBadgeOff
-                              }`}
-                            >
-                              COLREG
-                            </span>
-                            <span
-                              className={`${styles.rulesBadge} ${
-                                selectedSpaceRules.enforcement.penalties
-                                  ? styles.rulesBadgeWarn
-                                  : styles.rulesBadgeOff
-                              }`}
-                            >
-                              Penalties
-                            </span>
-                            <span
-                              className={`${styles.rulesBadge} ${
-                                selectedSpaceRules.enforcement.investigations
-                                  ? styles.rulesBadgeWarn
-                                  : styles.rulesBadgeOff
-                              }`}
-                            >
-                              Investigations
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-                <div className={styles.formRow}>
-                  <input
-                    className={styles.input}
-                    value={inviteToken}
-                    onChange={e => setInviteToken(e.target.value)}
-                    placeholder="Invite code"
-                  />
-                  <input
-                    className={styles.input}
-                    value={invitePassword}
-                    onChange={e => setInvitePassword(e.target.value)}
-                    type="password"
-                    placeholder="Invite password"
-                  />
-                  <button
-                    type="button"
-                    className={`${styles.button} ${styles.buttonSecondary}`}
-                    onClick={() => {
-                      setSpaceError(null);
-                      fetchSpaces({ inviteToken, password: invitePassword });
-                    }}
-                  >
-                    Use invite
-                  </button>
-                </div>
-              </>
-            ) : null}
-
-            {spaceFlow === 'create' ? (
-              <>
-                <div className={styles.formRow}>
-                  <span className={styles.modeLabel}>Create a new space</span>
-                  <button
-                    className={`${styles.button} ${styles.buttonNeutral}`}
-                    onClick={() => {
-                      setSpaceFlow('choice');
-                      setSpaceError(null);
-                    }}
-                  >
-                    Back
-                  </button>
-                </div>
-                <div className={styles.formRow}>
-                  <input
-                    className={`${styles.input}`}
-                    value={newSpaceName}
-                    onChange={e => setNewSpaceName(e.target.value)}
-                    placeholder="New space name"
-                  />
-                  <select
-                    className={styles.select}
-                    value={newSpaceVisibility}
-                    onChange={e =>
-                      setNewSpaceVisibility(
-                        e.target.value === 'private' ? 'private' : 'public',
-                      )
-                    }
-                  >
-                    <option value="public">Public</option>
-                    <option value="private">Private</option>
-                  </select>
-                  <select
-                    className={styles.select}
-                    value={newSpaceRulesetType}
-                    onChange={e => setNewSpaceRulesetType(e.target.value)}
-                  >
-                    <option value="CASUAL">Casual</option>
-                    <option value="REALISM">Realism</option>
-                    <option value="CUSTOM">Custom</option>
-                    <option value="EXAM">Exam</option>
-                  </select>
-                  <input
-                    className={styles.input}
-                    value={newSpacePassword}
-                    onChange={e => setNewSpacePassword(e.target.value)}
-                    type="password"
-                    placeholder="Password (optional)"
-                  />
-                  <button
-                    type="button"
-                    className={`${styles.button} ${styles.buttonPrimary}`}
-                    onClick={() => void handleCreateSpace()}
-                  >
-                    Create
-                  </button>
-                </div>
-              </>
-            ) : null}
-
-            {spaceError ? (
-              <div className={styles.errorText}>{spaceError}</div>
-            ) : null}
-          </div>
-        </div>
-      )}
+      <SpaceModal
+        isOpen={spaceModalOpen}
+        flow={spaceFlow}
+        spaces={spaces}
+        spacesLoading={spacesLoading}
+        spaceInput={spaceInput}
+        setSpaceInput={setSpaceInput}
+        selectedSpaceRules={selectedSpaceRules}
+        knownSpaces={knownSpaces}
+        inviteToken={inviteToken}
+        setInviteToken={setInviteToken}
+        invitePassword={invitePassword}
+        setInvitePassword={setInvitePassword}
+        newSpaceName={newSpaceName}
+        setNewSpaceName={setNewSpaceName}
+        newSpaceVisibility={newSpaceVisibility}
+        setNewSpaceVisibility={setNewSpaceVisibility}
+        newSpaceRulesetType={newSpaceRulesetType}
+        setNewSpaceRulesetType={setNewSpaceRulesetType}
+        newSpacePassword={newSpacePassword}
+        setNewSpacePassword={setNewSpacePassword}
+        spaceError={spaceError}
+        setSpaceError={setSpaceError}
+        onJoinSpace={joinSpace}
+        onFetchSpaces={fetchSpaces}
+        onCreateSpace={handleCreateSpace}
+        onClose={() => setSpaceModalOpen(false)}
+        onFlowChange={setSpaceFlow}
+      />
 
       {mode !== 'spectator' ? <Dashboard /> : null}
       <Scene vesselPosition={vesselPosition} mode={mode} />
@@ -1278,170 +916,64 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
           setSpaceFlow('choice');
         }}
       />
-      {showJoinChoice && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalCard}>
-            <h2 className={styles.modalTitle}>Choose how to join</h2>
-            <p className={styles.helperText}>
-              You can join an available vessel with open crew slots or start
-              your own.
-            </p>
-            <div className="flex flex-col gap-3">
-              <label className={styles.helperText}>
-                Spawn location
-                <select
-                  className={styles.select}
-                  value={selectedPort}
-                  onChange={e => setSelectedPort(e.target.value)}
-                >
-                  {PORTS.map(port => (
-                    <option key={port.name} value={port.name}>
-                      {port.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {canEnterPlayerMode ? (
-                <>
-                  <div className={styles.detailsCard}>
-                    <div className={styles.modeLabel}>Join an active crew</div>
-                    <div className="flex max-h-40 flex-col gap-2 overflow-y-auto">
-                      {joinableVessels.length === 0 ? (
-                        <div className={styles.helperText}>
-                          No open crews. Create your own vessel instead.
-                        </div>
-                      ) : (
-                        joinableVessels.map(vessel => (
-                          <button
-                            key={vessel.id}
-                            className={`${styles.button} ${styles.buttonPrimary}`}
-                            onClick={() => {
-                              socketManager.setJoinPreference('player', true);
-                              socketManager.requestJoinVessel(vessel.id);
-                              setMode('player');
-                              setShowJoinChoice(false);
-                              if (typeof window !== 'undefined') {
-                                sessionStorage.setItem(
-                                  'ship-sim-join-choice',
-                                  'join',
-                                );
-                              }
-                            }}
-                          >
-                            {vessel.label} • {vessel.crewCount}/{MAX_CREW} crew
-                          </button>
-                        ))
-                      )}
-                    </div>
-                    {joinableVessels.length > 0 ? (
-                      <button
-                        className={`${styles.button} ${styles.buttonSecondary}`}
-                        onClick={() => {
-                          socketManager.setJoinPreference('player', true);
-                          socketManager.requestJoinVessel();
-                          setMode('player');
-                          setShowJoinChoice(false);
-                          if (typeof window !== 'undefined') {
-                            sessionStorage.setItem(
-                              'ship-sim-join-choice',
-                              'join',
-                            );
-                          }
-                        }}
-                      >
-                        Quick join smallest crew
-                      </button>
-                    ) : null}
-                  </div>
-                </>
-              ) : null}
-              {canEnterPlayerMode ? (
-                <button
-                  className={`${styles.button} ${styles.buttonPrimary}`}
-                  onClick={() => {
-                    const port =
-                      PORTS.find(p => p.name === selectedPort) || PORTS[0];
-                    socketManager.setJoinPreference('player', true);
-                    socketManager.requestNewVessel({
-                      lat: port.position.lat,
-                      lon: port.position.lon,
-                    });
-                    setMode('player');
-                    setShowJoinChoice(false);
-                    if (typeof window !== 'undefined') {
-                      sessionStorage.setItem('ship-sim-join-choice', 'create');
-                    }
-                  }}
-                >
-                  Create my own vessel
-                </button>
-              ) : (
-                <div className={styles.detailsCard}>
-                  Your role is spectator-only in this space.
-                </div>
-              )}
-              <button
-                className={`${styles.button} ${styles.buttonNeutral}`}
-                onClick={() => {
-                  setMode('spectator');
-                  socketManager.setJoinPreference('spectator', false);
-                  socketManager.notifyModeChange('spectator');
-                  setShowJoinChoice(false);
-                  if (typeof window !== 'undefined') {
-                    sessionStorage.setItem('ship-sim-join-choice', 'spectate');
-                  }
-                  setNotice({
-                    type: 'info',
-                    message: 'Spectator mode enabled.',
-                  });
-                }}
-              >
-                Spectate the world
-              </button>
-              <div className={styles.detailsCard}>
-                <div className={styles.modeLabel}>Quick-start scenarios</div>
-                {scenarioError ? (
-                  <div className={styles.errorText}>{scenarioError}</div>
-                ) : null}
-                <div className={styles.scenarioGrid}>
-                  {scenarios.map(scenario => {
-                    const locked = account.rank < scenario.rankRequired;
-                    const loading = scenarioLoadingId === scenario.id;
-                    return (
-                      <div key={scenario.id} className={styles.scenarioCard}>
-                        <div className={styles.scenarioHeader}>
-                          <div>
-                            <div className={styles.scenarioTitle}>
-                              {scenario.name}
-                            </div>
-                            <div className={styles.scenarioMeta}>
-                              {scenario.description}
-                            </div>
-                          </div>
-                          <div className={styles.scenarioMeta}>
-                            Rank {scenario.rankRequired}
-                          </div>
-                        </div>
-                        <button
-                          className={`${styles.button} ${styles.buttonPrimary} ${styles.scenarioAction}`}
-                          disabled={locked || loading}
-                          onClick={() => void startScenario(scenario)}
-                        >
-                          {locked
-                            ? 'Locked'
-                            : loading
-                              ? 'Starting…'
-                              : 'Start scenario'}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <JoinChoiceModal
+        isOpen={showJoinChoice}
+        ports={PORTS}
+        selectedPort={selectedPort}
+        onSelectPort={setSelectedPort}
+        joinableVessels={joinableVessels}
+        maxCrew={MAX_CREW}
+        canEnterPlayerMode={canEnterPlayerMode}
+        onJoinVessel={vesselId => {
+          socketManager.setJoinPreference('player', true);
+          socketManager.requestJoinVessel(vesselId);
+          setMode('player');
+          setShowJoinChoice(false);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem(STORAGE_JOIN_CHOICE_KEY, 'join');
+          }
+        }}
+        onQuickJoin={() => {
+          socketManager.setJoinPreference('player', true);
+          socketManager.requestJoinVessel();
+          setMode('player');
+          setShowJoinChoice(false);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem(STORAGE_JOIN_CHOICE_KEY, 'join');
+          }
+        }}
+        onCreateVessel={portName => {
+          const port = PORTS.find(p => p.name === portName) || PORTS[0];
+          socketManager.setJoinPreference('player', true);
+          socketManager.requestNewVessel({
+            lat: port.position.lat,
+            lon: port.position.lon,
+          });
+          setMode('player');
+          setShowJoinChoice(false);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem(STORAGE_JOIN_CHOICE_KEY, 'create');
+          }
+        }}
+        onSpectate={() => {
+          setMode('spectator');
+          socketManager.setJoinPreference('spectator', false);
+          socketManager.notifyModeChange('spectator');
+          setShowJoinChoice(false);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem(STORAGE_JOIN_CHOICE_KEY, 'spectate');
+          }
+          setNotice({
+            type: 'info',
+            message: 'Spectator mode enabled.',
+          });
+        }}
+        scenarios={scenarios}
+        scenarioLoadingId={scenarioLoadingId}
+        scenarioError={scenarioError}
+        accountRank={account.rank}
+        onStartScenario={startScenario}
+      />
     </div>
   );
 };

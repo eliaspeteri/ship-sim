@@ -163,7 +163,9 @@ export const addCareerExperience = async (params: {
 }) => {
   await ensureUserCareers(params.userId);
   const career = await prisma.userCareer.findUnique({
-    where: { userId_careerId: { userId: params.userId, careerId: params.careerId } },
+    where: {
+      userId_careerId: { userId: params.userId, careerId: params.careerId },
+    },
   });
   if (!career) return;
   const nextExperience = career.experience + params.experience;
@@ -203,7 +205,9 @@ export const issueLicense = async (params: {
   licenseKey: string;
   durationDays: number;
 }) => {
-  const expiresAt = new Date(Date.now() + params.durationDays * 24 * 60 * 60 * 1000);
+  const expiresAt = new Date(
+    Date.now() + params.durationDays * 24 * 60 * 60 * 1000,
+  );
   await prisma.license.create({
     data: {
       userId: params.userId,

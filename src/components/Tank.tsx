@@ -149,6 +149,7 @@ export const Tank: React.FC<{
 
         {/* Needle */}
         <g
+          data-testid="tank-needle"
           transform={`translate(${size / 2}, ${size / 2}) rotate(${needleAngle})`}
         >
           <line

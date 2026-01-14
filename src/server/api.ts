@@ -1020,7 +1020,7 @@ router.post('/economy/vessels/lease', requireAuth, async (req, res) => {
           type: leaseType,
           ratePerHour: rate,
           revenueShare:
-            leaseType === 'lease' ? template.commerce?.revenueShare ?? 0 : 0,
+            leaseType === 'lease' ? (template.commerce?.revenueShare ?? 0) : 0,
           status: 'active',
           startedAt: new Date(),
           endsAt: new Date(Date.now() + termHours * 60 * 60 * 1000),
