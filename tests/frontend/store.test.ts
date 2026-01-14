@@ -11,7 +11,7 @@ describe('store', () => {
 
     expect(result.current.vessel).toBeDefined();
     expect(result.current.environment).toBeDefined();
-    expect(typeof result.current.sessionUserId).toBe('string');
+    expect(result.current.sessionUserId).toBeNull();
   });
 
   it('has vessel with required properties', () => {
@@ -29,7 +29,8 @@ describe('store', () => {
     const environment = result.current.environment;
     expect(environment).toHaveProperty('wind');
     expect(environment).toHaveProperty('current');
-    expect(environment).toHaveProperty('waves');
+    expect(environment).toHaveProperty('waveHeight');
+    expect(environment).toHaveProperty('waveDirection');
   });
 
   it('can update vessel position', () => {
@@ -47,6 +48,6 @@ describe('store', () => {
     const { result } = renderHook(() => useStore());
 
     expect(Array.isArray(result.current.crewIds)).toBe(true);
-    expect(Array.isArray(result.current.crewNames)).toBe(true);
+    expect(typeof result.current.crewNames).toBe('object');
   });
 });

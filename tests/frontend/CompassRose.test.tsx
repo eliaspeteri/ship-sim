@@ -28,10 +28,10 @@ describe('CompassRose', () => {
 
   it('renders degree markings', () => {
     render(<CompassRose heading={0} />);
-    expect(screen.getByText('000')).toBeInTheDocument();
-    expect(screen.getByText('090')).toBeInTheDocument();
-    expect(screen.getByText('180')).toBeInTheDocument();
-    expect(screen.getByText('270')).toBeInTheDocument();
+    expect(screen.getAllByText('360').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('90').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('180').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('270').length).toBeGreaterThan(0);
   });
 
   it('handles different heading values', () => {

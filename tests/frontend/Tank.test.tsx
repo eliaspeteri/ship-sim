@@ -32,8 +32,7 @@ describe('Tank', () => {
   it('renders needle with correct rotation for level', () => {
     render(<Tank x={0} y={0} level={0.5} />);
     // Level 0.5 should be 225 + 0.5 * 270 = 225 + 135 = 360 degrees
-    const needle = document.querySelector('line[stroke="red"]');
-    expect(needle).toBeInTheDocument();
+    const needle = screen.getByTestId('tank-needle');
     expect(needle).toHaveAttribute(
       'transform',
       expect.stringContaining('rotate(360'),
@@ -42,7 +41,7 @@ describe('Tank', () => {
 
   it('handles level 0', () => {
     render(<Tank x={0} y={0} level={0} />);
-    const needle = document.querySelector('line[stroke="red"]');
+    const needle = screen.getByTestId('tank-needle');
     expect(needle).toHaveAttribute(
       'transform',
       expect.stringContaining('rotate(225'),
@@ -51,7 +50,7 @@ describe('Tank', () => {
 
   it('handles level 1', () => {
     render(<Tank x={0} y={0} level={1} />);
-    const needle = document.querySelector('line[stroke="red"]');
+    const needle = screen.getByTestId('tank-needle');
     expect(needle).toHaveAttribute(
       'transform',
       expect.stringContaining('rotate(495'),
@@ -60,7 +59,7 @@ describe('Tank', () => {
 
   it('applies custom color', () => {
     render(<Tank x={0} y={0} level={0.5} color="#00ff00" />);
-    const needle = document.querySelector('line[stroke="#00ff00"]');
-    expect(needle).toBeInTheDocument();
+    const needleLine = document.querySelector('line[stroke="#00ff00"]');
+    expect(needleLine).toBeInTheDocument();
   });
 });
