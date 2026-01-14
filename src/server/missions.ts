@@ -4,7 +4,9 @@ import type {
   MissionAssignmentData,
   MissionDefinition,
 } from '../types/mission.types';
-import { applyEconomyAdjustmentWithRevenueShare } from './economy';
+import { applyEconomyAdjustmentWithRevenueShare, ECONOMY_PORTS } from './economy';
+import { bumpReputation, addCareerExperience, CareerKey } from './careers';
+import { distanceMeters } from '../lib/position';
 
 type MissionSeed = Omit<
   MissionDefinition,
@@ -208,6 +210,40 @@ export async function updateMissionAssignments(params: {
           reason: 'mission_reward',
           meta: { missionId: mission.id, name: mission.name },
         });
+        const careerKey =
+          mission.type === 'delivery' || mission.type === 'harbor-entry'
+            ? 'cargo'
+            : mission.type === 'towing'
+              ? 'tug'
+              : 'pilotage';
+        await addCareerExperience({
+          userId: assignment.userId,
+          careerId: careerKey as CareerKey,
+          experience: Math.round(mission.rewardCredits),
+        });
+        const nearestPort = ECONOMY_PORTS.reduce(
+          (closest, port) => {
+            const dist = distanceMeters(vessel.position, port.position);
+            return dist < closest.distance
+              ? { id: port.id, distance: dist }
+              : closest;
+          },
+          { id: ECONOMY_PORTS[0]?.id || 'unknown', distance: Number.POSITIVE_INFINITY },
+        );
+        if (nearestPort.id && nearestPort.distance < 1500) {
+          await bumpReputation({
+            userId: assignment.userId,
+            scopeType: 'port',
+            scopeId: nearestPort.id,
+            delta: 1,
+          });
+          await bumpReputation({
+            userId: assignment.userId,
+            scopeType: 'region',
+            scopeId: 'global',
+            delta: 0.5,
+          });
+        }
         params.emitUpdate?.(assignment.userId, { ...updated, mission });
         params.emitEconomyUpdate?.(assignment.userId, profile);
         params.emitUpdate?.(assignment.userId, {

@@ -54,6 +54,17 @@ import {
   updateEconomyForVessel,
 } from './economy';
 import { seedDefaultMissions, updateMissionAssignments } from './missions';
+import { seedCareerDefinitions } from './careers';
+import {
+  computeTurnaroundDelayMs,
+  ensureCargoAvailability,
+  ensurePassengerAvailability,
+  getPortCongestion,
+  sweepExpiredCargo,
+  sweepExpiredPassengers,
+  updateCargoDeliveries,
+  updatePassengerDeliveries,
+} from './logistics';
 import { recordLog } from './observability';
 import {
   bboxAroundLatLonGeodesic,
@@ -75,6 +86,7 @@ import {
   mergeDamageState,
 } from './damageModel';
 import { applyFailureControlLimits } from '../lib/failureControls';
+import { buildHydrodynamics, resolveVesselTemplate } from './vesselCatalog';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
@@ -124,10 +136,7 @@ const DEFAULT_ECONOMY_PROFILE = {
 };
 
 type VesselMode = 'player' | 'ai';
-type CoreVesselProperties = Pick<
-  VesselState['properties'],
-  'mass' | 'length' | 'beam' | 'draft'
->;
+type CoreVesselProperties = VesselState['properties'];
 export interface VesselRecord {
   id: string;
   spaceId?: string;
@@ -149,10 +158,13 @@ export interface VesselRecord {
   desiredMode: VesselMode;
   lastCrewAt: number;
   yawRate?: number;
+  templateId?: string | null;
   position: VesselPose['position'];
   orientation: VesselPose['orientation'];
   velocity: VesselVelocity;
   properties: CoreVesselProperties;
+  hydrodynamics?: VesselState['hydrodynamics'];
+  render?: VesselState['render'];
   controls: Pick<
     VesselControls,
     'throttle' | 'rudderAngle' | 'ballast' | 'bowThruster'
@@ -479,6 +491,7 @@ export async function persistVesselToDb(
         storedAt: vessel.storedAt ? new Date(vessel.storedAt) : null,
         chartererId: vessel.chartererId ?? null,
         leaseeId: vessel.leaseeId ?? null,
+        templateId: vessel.templateId ?? null,
         mode: vessel.mode,
         desiredMode: vessel.desiredMode || 'player',
         lat: pos.lat ?? 0,
@@ -517,6 +530,7 @@ export async function persistVesselToDb(
         storedAt: vessel.storedAt ? new Date(vessel.storedAt) : null,
         chartererId: vessel.chartererId ?? null,
         leaseeId: vessel.leaseeId ?? null,
+        templateId: vessel.templateId ?? null,
         mode: vessel.mode,
         desiredMode: vessel.desiredMode || 'player',
         lat: pos.lat ?? 0,
@@ -552,82 +566,122 @@ export async function persistVesselToDb(
   }
 }
 
+const buildVesselRecordFromRow = (row: {
+  id: string;
+  spaceId?: string | null;
+  ownerId?: string | null;
+  status?: string | null;
+  storagePortId?: string | null;
+  storedAt?: Date | null;
+  chartererId?: string | null;
+  leaseeId?: string | null;
+  mode?: string | null;
+  desiredMode?: string | null;
+  lastCrewAt?: Date | null;
+  lat: number;
+  lon: number;
+  z: number;
+  heading: number;
+  roll: number;
+  pitch: number;
+  surge: number;
+  sway: number;
+  heave: number;
+  yawRate?: number | null;
+  throttle: number;
+  rudderAngle: number;
+  ballast?: number | null;
+  bowThruster?: number | null;
+  mass: number;
+  length: number;
+  beam: number;
+  draft: number;
+  hullIntegrity?: number | null;
+  engineHealth?: number | null;
+  steeringHealth?: number | null;
+  electricalHealth?: number | null;
+  floodingDamage?: number | null;
+  lastUpdate: Date;
+  templateId?: string | null;
+}): VesselRecord => {
+  const template = resolveVesselTemplate(row.templateId ?? null);
+  return {
+    id: row.id,
+    spaceId: row.spaceId || DEFAULT_SPACE_ID,
+    ownerId: row.ownerId ?? null,
+    status: row.status || 'active',
+    storagePortId: row.storagePortId ?? null,
+    storedAt: row.storedAt ? row.storedAt.getTime() : null,
+    chartererId: row.chartererId ?? null,
+    leaseeId: row.leaseeId ?? null,
+    crewIds: new Set<string>(),
+    crewNames: new Map<string, string>(),
+    helmUserId: null,
+    helmUsername: null,
+    engineUserId: null,
+    engineUsername: null,
+    radioUserId: null,
+    radioUsername: null,
+    mode: (row.mode as VesselMode) || 'ai',
+    desiredMode: (row.desiredMode as VesselMode) || 'player',
+    lastCrewAt: row.lastCrewAt?.getTime() || Date.now(),
+    templateId: template.id,
+    position: positionFromLatLon({ lat: row.lat, lon: row.lon, z: row.z }),
+    orientation: {
+      heading: row.heading,
+      roll: row.roll,
+      pitch: row.pitch,
+    },
+    velocity: {
+      surge: row.surge,
+      sway: row.sway,
+      heave: row.heave,
+    },
+    yawRate: row.yawRate ?? 0,
+    properties: {
+      name: template.name,
+      type: template.shipType,
+      templateId: template.id,
+      modelPath: template.modelPath ?? null,
+      mass: row.mass,
+      length: row.length,
+      beam: row.beam,
+      draft: row.draft,
+      blockCoefficient: template.properties.blockCoefficient,
+      maxSpeed: template.properties.maxSpeed,
+    },
+    hydrodynamics: buildHydrodynamics(template),
+    render: template.render,
+    controls: {
+      throttle: row.throttle,
+      rudderAngle: row.rudderAngle,
+      ballast: row.ballast ?? 0.5,
+      bowThruster: row.bowThruster ?? 0,
+    },
+    failureState: {
+      engineFailure: false,
+      steeringFailure: false,
+      floodingLevel: 0,
+      engineFailureAt: null,
+      steeringFailureAt: null,
+    },
+    damageState: mergeDamageState({
+      hullIntegrity: row.hullIntegrity ?? 1,
+      engineHealth: row.engineHealth ?? 1,
+      steeringHealth: row.steeringHealth ?? 1,
+      electricalHealth: row.electricalHealth ?? 1,
+      floodingDamage: row.floodingDamage ?? 0,
+    }),
+    lastUpdate: row.lastUpdate.getTime(),
+  };
+};
+
 async function loadVesselsFromDb() {
   const rows = await prisma.vessel.findMany();
   if (!rows.length) return;
 
   rows.forEach(row => {
-    const vessel: VesselRecord = {
-      id: row.id,
-      spaceId:
-        (row as unknown as { spaceId?: string }).spaceId || DEFAULT_SPACE_ID,
-      ownerId: row.ownerId,
-      status: (row as unknown as { status?: string }).status || 'active',
-      storagePortId:
-        (row as unknown as { storagePortId?: string | null }).storagePortId ??
-        null,
-      storedAt: (row as unknown as { storedAt?: Date | null }).storedAt
-        ? (row as unknown as { storedAt?: Date | null }).storedAt?.getTime() ||
-          null
-        : null,
-      chartererId:
-        (row as unknown as { chartererId?: string | null }).chartererId ?? null,
-      leaseeId:
-        (row as unknown as { leaseeId?: string | null }).leaseeId ?? null,
-      crewIds: new Set<string>(),
-      crewNames: new Map<string, string>(),
-      helmUserId: null,
-      helmUsername: null,
-      engineUserId: null,
-      engineUsername: null,
-      radioUserId: null,
-      radioUsername: null,
-      mode: (row.mode as VesselMode) || 'ai',
-      desiredMode: (row.desiredMode as VesselMode) || 'player',
-      lastCrewAt: row.lastCrewAt?.getTime() || Date.now(),
-      position: positionFromLatLon({ lat: row.lat, lon: row.lon, z: row.z }),
-      orientation: {
-        heading: row.heading,
-        roll: row.roll,
-        pitch: row.pitch,
-      },
-      velocity: {
-        surge: row.surge,
-        sway: row.sway,
-        heave: row.heave,
-      },
-      yawRate: row.yawRate ?? 0,
-      properties: {
-        mass: row.mass,
-        length: row.length,
-        beam: row.beam,
-        draft: row.draft,
-      },
-      controls: {
-        throttle: row.throttle,
-        rudderAngle: row.rudderAngle,
-        ballast: row.ballast ?? 0.5,
-        bowThruster: row.bowThruster ?? 0,
-      },
-      failureState: {
-        engineFailure: false,
-        steeringFailure: false,
-        floodingLevel: 0,
-        engineFailureAt: null,
-        steeringFailureAt: null,
-      },
-      damageState: mergeDamageState({
-        hullIntegrity: (row as { hullIntegrity?: number }).hullIntegrity ?? 1,
-        engineHealth: (row as { engineHealth?: number }).engineHealth ?? 1,
-        steeringHealth:
-          (row as { steeringHealth?: number }).steeringHealth ?? 1,
-        electricalHealth:
-          (row as { electricalHealth?: number }).electricalHealth ?? 1,
-        floodingDamage:
-          (row as { floodingDamage?: number }).floodingDamage ?? 0,
-      }),
-      lastUpdate: row.lastUpdate.getTime(),
-    };
+    const vessel = buildVesselRecordFromRow(row);
     if (vessel.mode === 'player' && vessel.crewIds.size === 0) {
       vessel.mode = 'ai';
     }
@@ -695,6 +749,10 @@ async function loadEnvironmentFromDb(spaceId = DEFAULT_SPACE_ID) {
   }
 }
 
+void seedCareerDefinitions().catch(err => {
+  console.warn('Failed to seed career definitions', err);
+});
+
 async function persistEnvironmentToDb(
   opts: { force?: boolean; spaceId?: string } = {},
 ) {
@@ -753,10 +811,14 @@ async function persistEnvironmentToDb(
 function createNewVesselForUser(
   userId: string,
   username: string,
-  position: Partial<VesselPose['position']> = {},
+  payload: Partial<VesselPose['position']> & {
+    position?: Partial<VesselPose['position']>;
+    templateId?: string;
+  } = {},
   spaceId: string = DEFAULT_SPACE_ID,
 ): VesselRecord {
-  const nextPosition = ensurePosition(position);
+  const template = resolveVesselTemplate(payload.templateId);
+  const nextPosition = ensurePosition(payload.position || payload);
   const vessel: VesselRecord = {
     id: `${userId}_${Date.now()}`,
     spaceId,
@@ -777,15 +839,24 @@ function createNewVesselForUser(
     mode: 'player',
     desiredMode: 'player',
     lastCrewAt: Date.now(),
+    templateId: template.id,
     position: nextPosition,
     orientation: { heading: 0, roll: 0, pitch: 0 },
     velocity: { surge: 0, sway: 0, heave: 0 },
     properties: {
-      mass: 1_200_000,
-      length: 150,
-      beam: 24,
-      draft: 7,
+      name: template.name,
+      type: template.shipType,
+      templateId: template.id,
+      modelPath: template.modelPath ?? null,
+      mass: template.properties.mass,
+      length: template.properties.length,
+      beam: template.properties.beam,
+      draft: template.properties.draft,
+      blockCoefficient: template.properties.blockCoefficient,
+      maxSpeed: template.properties.maxSpeed,
     },
+    hydrodynamics: buildHydrodynamics(template),
+    render: template.render,
     controls: { throttle: 0, rudderAngle: 0, ballast: 0.5, bowThruster: 0 },
     failureState: {
       engineFailure: false,
@@ -1262,7 +1333,11 @@ function ensureVesselForUser(
 
   // Try to reuse a vessel owned by this user (persisted)
   const owned = Array.from(globalState.vessels.values()).find(
-    v => v.ownerId === userId && (v.spaceId || DEFAULT_SPACE_ID) === spaceId,
+    v =>
+      (v.ownerId === userId ||
+        v.leaseeId === userId ||
+        v.chartererId === userId) &&
+      (v.spaceId || DEFAULT_SPACE_ID) === spaceId,
   );
   if (owned) {
     console.info(
@@ -1489,6 +1564,8 @@ const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => {
     velocity: v.velocity,
     controls: v.controls,
     properties: v.properties,
+    hydrodynamics: v.hydrodynamics,
+    render: v.render,
     angularVelocity: { yaw: v.yawRate ?? 0 },
     waterDepth,
     failureState,
@@ -2247,7 +2324,7 @@ io.on('connection', async socket => {
     });
   });
 
-  socket.on('vessel:join', data => {
+  socket.on('vessel:join', async data => {
     const currentUserId = socket.data.userId || effectiveUserId;
     const currentUsername = socket.data.username || effectiveUsername;
     const rankEligible =
@@ -2266,6 +2343,32 @@ io.on('connection', async socket => {
     const targetId =
       typeof data?.vesselId === 'string' ? data.vesselId : undefined;
     let target = targetId ? findVesselInSpace(targetId, spaceId) : null;
+    if (!target && targetId) {
+      const row = await prisma.vessel.findUnique({ where: { id: targetId } });
+      if (!row) {
+        socket.emit('error', 'Vessel not found');
+        return;
+      }
+      const isOperator =
+        row.ownerId === currentUserId ||
+        row.chartererId === currentUserId ||
+        row.leaseeId === currentUserId;
+      if (!isOperator && !hasAdminRole(socket)) {
+        socket.emit('error', 'Not authorized to join this vessel');
+        return;
+      }
+      const hydrated = buildVesselRecordFromRow(row);
+      if ((hydrated.spaceId || DEFAULT_SPACE_ID) !== spaceId) {
+        socket.emit('error', 'Vessel not available in this space');
+        return;
+      }
+      if (hydrated.status === 'stored' || hydrated.status === 'repossession') {
+        socket.emit('error', 'Vessel is stored');
+        return;
+      }
+      globalState.vessels.set(hydrated.id, hydrated);
+      target = hydrated;
+    }
     if (!target) {
       target = findJoinableVessel(currentUserId, spaceId);
     }
@@ -2380,8 +2483,11 @@ io.on('connection', async socket => {
       return;
     }
     const isAdmin = hasAdminRole(socket);
-    const isOwner = vessel.ownerId === currentUserId;
-    if (!isOwner && !isAdmin) {
+    const isOperator =
+      vessel.ownerId === currentUserId ||
+      vessel.chartererId === currentUserId ||
+      vessel.leaseeId === currentUserId;
+    if (!isOperator && !isAdmin) {
       socket.emit('error', 'Not authorized to store this vessel');
       return;
     }
@@ -2901,12 +3007,25 @@ io.on('connection', async socket => {
         socket.emit('error', 'Invalid cargo weight');
         return;
       }
+      const rewardCredits = Number(data?.rewardCredits ?? value);
+      if (!Number.isFinite(rewardCredits) || rewardCredits <= 0) {
+        socket.emit('error', 'Invalid cargo reward');
+        return;
+      }
       const vesselId =
         data?.vesselId && typeof data.vesselId === 'string'
           ? data.vesselId
           : null;
       let portId =
         data?.portId && typeof data.portId === 'string' ? data.portId : null;
+      let originPortId =
+        data?.originPortId && typeof data.originPortId === 'string'
+          ? data.originPortId
+          : null;
+      const destinationPortId =
+        data?.destinationPortId && typeof data.destinationPortId === 'string'
+          ? data.destinationPortId
+          : null;
       if (vesselId) {
         const vessel = globalState.vessels.get(vesselId);
         if (!vessel) {
@@ -2925,26 +3044,39 @@ io.on('connection', async socket => {
           return;
         }
         portId = port.id;
+        originPortId = port.id;
       }
       if (!vesselId && !portId) {
         socket.emit('error', 'Missing port for cargo listing');
         return;
       }
+      const cargoType =
+        typeof data?.cargoType === 'string' ? data.cargoType : 'bulk';
+      const expiresAt =
+        Number.isFinite(data?.expiresAt) && Number(data.expiresAt) > 0
+          ? new Date(Number(data.expiresAt))
+          : null;
       const liabilityRate =
         data?.liabilityRate !== undefined ? Number(data.liabilityRate) : 0;
       await prisma.cargoLot.create({
         data: {
           ownerId: currentUserId,
+          carrierId: vesselId ? currentUserId : null,
           vesselId,
           portId,
+          originPortId,
+          destinationPortId,
           description:
             typeof data?.description === 'string' ? data.description : null,
+          cargoType,
           value,
+          rewardCredits,
           weightTons,
           liabilityRate:
             Number.isFinite(liabilityRate) && liabilityRate > 0
               ? liabilityRate
               : 0,
+          expiresAt,
           status: vesselId ? 'loaded' : 'listed',
         },
       });
@@ -2967,12 +3099,16 @@ io.on('connection', async socket => {
       const cargo = await prisma.cargoLot.findUnique({
         where: { id: cargoId },
       });
-      if (!cargo || cargo.ownerId !== currentUserId) {
+      if (!cargo || (cargo.ownerId && cargo.ownerId !== currentUserId)) {
         socket.emit('error', 'Cargo not found');
         return;
       }
       if (cargo.status !== 'listed') {
         socket.emit('error', 'Cargo not available');
+        return;
+      }
+      if (cargo.expiresAt && cargo.expiresAt.getTime() < Date.now()) {
+        socket.emit('error', 'Cargo offer expired');
         return;
       }
       const vessel = globalState.vessels.get(vesselId);
@@ -2986,7 +3122,7 @@ io.on('connection', async socket => {
         return;
       }
       const loadedCargo = await prisma.cargoLot.aggregate({
-        where: { vesselId, status: 'loaded' },
+        where: { vesselId, status: { in: ['loaded', 'loading'] } },
         _sum: { weightTons: true },
       });
       const currentWeight = loadedCargo._sum.weightTons ?? 0;
@@ -2995,9 +3131,19 @@ io.on('connection', async socket => {
         socket.emit('error', 'Cargo exceeds vessel capacity');
         return;
       }
+      const congestion = await getPortCongestion();
+      const portCongestion =
+        congestion.find(item => item.portId === port.id)?.congestion ?? 0;
+      const readyAt = new Date(Date.now() + computeTurnaroundDelayMs(portCongestion));
       await prisma.cargoLot.update({
         where: { id: cargo.id },
-        data: { vesselId, status: 'loaded' },
+        data: {
+          vesselId,
+          carrierId: currentUserId,
+          status: 'loading',
+          readyAt,
+          portId: null,
+        },
       });
     })().catch(err => {
       console.error('Failed to assign cargo', err);
@@ -3890,8 +4036,15 @@ setInterval(() => {
           void syncUserSocketsEconomy(userId, profile);
         },
       });
+      void updateCargoDeliveries({ vessels: vesselMap });
+      void updatePassengerDeliveries({ vessels: vesselMap });
     }
   }
+
+  void ensureCargoAvailability(now);
+  void ensurePassengerAvailability(now);
+  void sweepExpiredCargo(now);
+  void sweepExpiredPassengers(now);
 
   for (const sid of positionsBySpace.keys()) {
     void applyColregsRules(sid, now);

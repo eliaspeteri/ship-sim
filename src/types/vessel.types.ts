@@ -54,6 +54,8 @@ export interface VesselState {
   properties: {
     name: string;
     type: ShipType;
+    templateId?: string;
+    modelPath?: string | null;
     mass: number;
     length: number;
     beam: number;
@@ -105,6 +107,13 @@ export interface VesselState {
     list: number; // List in degrees
   };
 
+  // Render-only tuning
+  render?: {
+    modelYawDeg?: number;
+    sinkFactor?: number;
+    heaveScale?: number;
+  };
+
   // Alarms and status
   alarms: {
     engineOverheat: boolean;
@@ -152,9 +161,10 @@ export type VesselSnapshot = VesselPose & {
   properties?: Partial<
     Pick<
       VesselState['properties'],
-      'name' | 'type' | 'length' | 'beam' | 'draft'
+      'name' | 'type' | 'templateId' | 'modelPath' | 'length' | 'beam' | 'draft'
     >
   >;
+  render?: VesselState['render'];
   mode?: 'player' | 'ai';
   desiredMode?: 'player' | 'ai';
   lastCrewAt?: number;

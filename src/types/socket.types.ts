@@ -134,6 +134,7 @@ export type ClientToServerEvents = {
     z?: number;
     x?: number;
     y?: number;
+    templateId?: string;
   }) => void;
   'vessel:helm': (data: { action: 'claim' | 'release' }) => void;
   'vessel:station': (data: {
@@ -201,10 +202,15 @@ export type ClientToServerEvents = {
   'cargo:create': (data: {
     vesselId?: string;
     portId?: string;
+    originPortId?: string;
+    destinationPortId?: string;
     description?: string;
+    cargoType?: string;
     value: number;
+    rewardCredits?: number;
     weightTons?: number;
     liabilityRate?: number;
+    expiresAt?: number;
   }) => void;
   'cargo:assign': (data: { cargoId: string; vesselId: string }) => void;
   'cargo:release': (data: { cargoId: string }) => void;

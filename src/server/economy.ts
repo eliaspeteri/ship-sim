@@ -66,30 +66,49 @@ export const calculateVesselCreationCost = (rank: number) =>
   VESSEL_CREATION_BASE_COST +
   Math.max(0, rank - 1) * VESSEL_CREATION_RANK_MULTIPLIER;
 
+export const estimateCargoCapacityTons = (massKg: number) =>
+  (massKg * VESSEL_CARGO_CAPACITY_RATIO) / 1000;
+
+export const estimatePassengerCapacity = (length: number) =>
+  Math.max(4, Math.round(length * 0.6));
+
 export const getVesselCargoCapacityTons = (vessel: VesselRecord) => {
   const massKg = vessel.properties.mass || 1_000_000;
-  return (massKg * VESSEL_CARGO_CAPACITY_RATIO) / 1000;
+  return estimateCargoCapacityTons(massKg);
+};
+
+export const getVesselPassengerCapacity = (vessel: VesselRecord) => {
+  const length = vessel.properties.length || 120;
+  return estimatePassengerCapacity(length);
 };
 
 const PORTS = [
   {
     id: 'harbor-alpha',
     name: 'Harbor Alpha',
+    size: 'large',
+    region: 'north',
     position: positionFromXY({ x: 0, y: 0 }),
   },
   {
     id: 'bay-delta',
     name: 'Bay Delta',
+    size: 'medium',
+    region: 'south',
     position: positionFromXY({ x: 2000, y: -1500 }),
   },
   {
     id: 'island-anchorage',
     name: 'Island Anchorage',
+    size: 'small',
+    region: 'islands',
     position: positionFromXY({ x: -2500, y: 1200 }),
   },
   {
     id: 'channel-gate',
     name: 'Channel Gate',
+    size: 'medium',
+    region: 'east',
     position: positionFromXY({ x: 800, y: 2400 }),
   },
 ];
@@ -97,6 +116,8 @@ const PORTS = [
 export const ECONOMY_PORTS = PORTS.map(port => ({
   id: port.id,
   name: port.name,
+  size: port.size,
+  region: port.region,
   position: port.position,
 }));
 
@@ -456,6 +477,44 @@ const applyLeaseCharges = async (
   });
 };
 
+const expireLeaseIfNeeded = async (
+  vessel: VesselRecord,
+  now: number,
+  io: Server,
+) => {
+  const lease = await prisma.vesselLease.findFirst({
+    where: { vesselId: vessel.id, status: 'active' },
+  });
+  if (!lease?.endsAt || lease.endsAt.getTime() > now) return false;
+  const port = resolvePortForPosition(vessel.position);
+  const stored = Boolean(port);
+  vessel.status = stored ? 'stored' : 'active';
+  vessel.storagePortId = stored ? port!.id : null;
+  vessel.storedAt = stored ? now : null;
+  vessel.chartererId = null;
+  vessel.leaseeId = null;
+  vessel.mode = 'ai';
+  vessel.desiredMode = 'ai';
+  vessel.controls.throttle = 0;
+  vessel.controls.rudderAngle = 0;
+  vessel.controls.bowThruster = 0;
+  vessel.crewIds.clear();
+  vessel.crewNames.clear();
+  vessel.helmUserId = null;
+  vessel.helmUsername = null;
+  vessel.engineUserId = null;
+  vessel.engineUsername = null;
+  vessel.radioUserId = null;
+  vessel.radioUsername = null;
+  vessel.lastUpdate = now;
+  await prisma.vesselLease.update({
+    where: { id: lease.id },
+    data: { status: 'completed', endsAt: new Date(now) },
+  });
+  void persistVesselToDb(vessel, { force: true });
+  return true;
+};
+
 const applyCargoLiability = async (
   vessel: VesselRecord,
   intervals: number,
@@ -467,6 +526,7 @@ const applyCargoLiability = async (
   });
   for (const lot of cargo) {
     if ((lot.liabilityRate ?? 0) <= 0) continue;
+    if (!lot.ownerId) continue;
     const cost = lot.value * lot.liabilityRate * intervals;
     if (cost <= 0) continue;
     const profile = await applyEconomyAdjustment({
@@ -583,7 +643,10 @@ export const updateEconomyForVessel = async (
     await enforceLoanRepossession(vessel, now);
   }
   await applyInsurancePremiums(vessel, now, io);
-  await applyLeaseCharges(vessel, now, io);
+  const leaseExpired = await expireLeaseIfNeeded(vessel, now, io);
+  if (!leaseExpired) {
+    await applyLeaseCharges(vessel, now, io);
+  }
 
   // --- Determine op state ---
   const opState = classifyVesselOpState(vessel);

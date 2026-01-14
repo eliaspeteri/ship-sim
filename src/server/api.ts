@@ -19,8 +19,12 @@ import {
   ECONOMY_PORTS,
   getEconomyProfile,
   getVesselCargoCapacityTons,
+  getVesselPassengerCapacity,
+  estimateCargoCapacityTons,
+  estimatePassengerCapacity,
   resolvePortForPosition,
 } from './economy';
+import { computeTurnaroundDelayMs, getPortCongestion } from './logistics';
 import type {
   MissionAssignmentData,
   MissionDefinition,
@@ -29,6 +33,13 @@ import { seedDefaultMissions } from './missions';
 import { clearLogs, getLogs } from './observability';
 import { getScenarios } from '../lib/scenarios';
 import { Rules } from '../types/rules.types';
+import {
+  CAREERS,
+  getExamDefinitions,
+  ensureUserCareers,
+  issueLicense,
+} from './careers';
+import { getVesselCatalog, resolveVesselTemplate } from './vesselCatalog';
 
 // First, define proper types for the database models
 interface DBVesselState {
@@ -194,6 +205,98 @@ let environmentState: InMemoryEnvironmentState = {
   tideRange: 0,
   tidePhase: 0,
   tideTrend: 'rising',
+};
+
+const SHIPYARD_USER_ID = 'system_shipyard';
+const DEFAULT_CHARTER_TERM_HOURS = 48;
+const DEFAULT_LEASE_TERM_HOURS = 168;
+const MAX_TERM_HOURS = 24 * 30;
+
+const ensureShipyardUser = async () => {
+  const existing = await prisma.user.findUnique({
+    where: { id: SHIPYARD_USER_ID },
+  });
+  if (existing) return existing;
+  return prisma.user.create({
+    data: {
+      id: SHIPYARD_USER_ID,
+      name: 'Shipyard',
+      role: 'system',
+      credits: 0,
+    },
+  });
+};
+
+const resolvePortById = (portId?: string | null) =>
+  ECONOMY_PORTS.find(port => port.id === portId) || ECONOMY_PORTS[0];
+
+const buildVesselCreateData = ({
+  id,
+  templateId,
+  spaceId,
+  ownerId,
+  status,
+  storagePortId,
+  storedAt,
+  chartererId,
+  leaseeId,
+  portId,
+}: {
+  id: string;
+  templateId: string;
+  spaceId: string;
+  ownerId: string | null;
+  status: string;
+  storagePortId?: string | null;
+  storedAt?: Date | null;
+  chartererId?: string | null;
+  leaseeId?: string | null;
+  portId?: string | null;
+}) => {
+  const template = resolveVesselTemplate(templateId);
+  const port = resolvePortById(portId);
+  const position = port?.position || positionFromXY({ x: 0, y: 0 });
+  const now = new Date();
+  const storedAtValue = status === 'stored' ? (storedAt ?? now) : null;
+  return {
+    id,
+    spaceId,
+    ownerId,
+    status,
+    storagePortId: storagePortId ?? port?.id ?? null,
+    storedAt: storedAtValue,
+    chartererId: chartererId ?? null,
+    leaseeId: leaseeId ?? null,
+    templateId: template.id,
+    mode: 'ai',
+    desiredMode: 'player',
+    lastCrewAt: now,
+    lat: position.lat ?? 0,
+    lon: position.lon ?? 0,
+    z: position.z ?? 0,
+    heading: 0,
+    roll: 0,
+    pitch: 0,
+    surge: 0,
+    sway: 0,
+    heave: 0,
+    throttle: 0,
+    rudderAngle: 0,
+    ballast: 0.5,
+    bowThruster: 0,
+    yawRate: 0,
+    mass: template.properties.mass,
+    length: template.properties.length,
+    beam: template.properties.beam,
+    draft: template.properties.draft,
+    lastUpdate: now,
+    isAi: true,
+    hullIntegrity: 1,
+    engineHealth: 1,
+    steeringHealth: 1,
+    electricalHealth: 1,
+    floodingDamage: 0,
+  };
 };
 
 // Apply authentication middleware to all routes
@@ -642,11 +745,7 @@ router.get(
   },
 );
 
-const toVesselPosition = (vessel: {
-  lat: number;
-  lon: number;
-  z: number;
-}) =>
+const toVesselPosition = (vessel: { lat: number; lon: number; z: number }) =>
   positionFromLatLon({ lat: vessel.lat, lon: vessel.lon, z: vessel.z || 0 });
 
 const loadUserFleet = async (userId: string) =>
@@ -669,12 +768,24 @@ router.get(
       const currentPort = activeVessel
         ? resolvePortForPosition(toVesselPosition(activeVessel))
         : null;
+      const congestion = await getPortCongestion();
+      const congestionMap = new Map(
+        congestion.map(item => [item.portId, item.congestion]),
+      );
       const ports = await Promise.all(
         ECONOMY_PORTS.map(async port => {
           const listed = await prisma.cargoLot.count({
             where: { portId: port.id, status: 'listed' },
           });
-          return { ...port, listedCargo: listed };
+          const pax = await prisma.passengerContract.count({
+            where: { originPortId: port.id, status: 'listed' },
+          });
+          return {
+            ...port,
+            listedCargo: listed,
+            listedPassengers: pax,
+            congestion: congestionMap.get(port.id) ?? 0,
+          };
         }),
       );
       const loans = await prisma.loan.findMany({
@@ -686,12 +797,23 @@ router.get(
         orderBy: { createdAt: 'desc' },
       });
       const leases = await prisma.vesselLease.findMany({
-        where: { OR: [{ ownerId: req.user!.userId }, { lesseeId: req.user!.userId }] },
+        where: {
+          OR: [{ ownerId: req.user!.userId }, { lesseeId: req.user!.userId }],
+        },
         orderBy: { createdAt: 'desc' },
       });
       const sales = await prisma.vesselSale.findMany({
-        where: { OR: [{ sellerId: req.user!.userId }, { buyerId: req.user!.userId }] },
+        where: {
+          OR: [{ sellerId: req.user!.userId }, { buyerId: req.user!.userId }],
+        },
         orderBy: { createdAt: 'desc' },
+      });
+      const passengerContracts = await prisma.passengerContract.findMany({
+        where: {
+          OR: [{ operatorId: req.user!.userId }, { status: 'listed' }],
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
       });
       const missions = await prisma.mission.findMany({
         where: { spaceId: req.user?.spaceId || 'global', active: true },
@@ -708,6 +830,7 @@ router.get(
         insurance,
         leases,
         sales,
+        passengerContracts,
         missions,
       });
     } catch (err) {
@@ -723,12 +846,24 @@ router.get(
   requirePermission('economy', 'read'),
   async (_req, res) => {
     try {
+      const congestion = await getPortCongestion();
+      const congestionMap = new Map(
+        congestion.map(item => [item.portId, item.congestion]),
+      );
       const ports = await Promise.all(
         ECONOMY_PORTS.map(async port => {
           const listed = await prisma.cargoLot.count({
             where: { portId: port.id, status: 'listed' },
           });
-          return { ...port, listedCargo: listed };
+          const pax = await prisma.passengerContract.count({
+            where: { originPortId: port.id, status: 'listed' },
+          });
+          return {
+            ...port,
+            listedCargo: listed,
+            listedPassengers: pax,
+            congestion: congestionMap.get(port.id) ?? 0,
+          };
         }),
       );
       res.json({ ports });
@@ -738,6 +873,166 @@ router.get(
     }
   },
 );
+
+router.get('/economy/vessels/catalog', requireAuth, async (_req, res) => {
+  try {
+    const { entries } = getVesselCatalog();
+    const vessels = entries.map(entry => ({
+      ...entry,
+      capacities: {
+        cargoTons: estimateCargoCapacityTons(entry.properties.mass),
+        passengers: estimatePassengerCapacity(entry.properties.length),
+      },
+    }));
+    res.json({ vessels });
+  } catch (err) {
+    console.error('Failed to load vessel catalog', err);
+    res.status(500).json({ error: 'Failed to load vessel catalog' });
+  }
+});
+
+router.post('/economy/vessels/purchase', requireAuth, async (req, res) => {
+  try {
+    const templateId =
+      typeof req.body?.templateId === 'string' ? req.body.templateId : null;
+    const portId =
+      typeof req.body?.portId === 'string' ? req.body.portId : null;
+    const spaceId =
+      typeof req.body?.spaceId === 'string' ? req.body.spaceId : 'global';
+    if (!templateId) {
+      res.status(400).json({ error: 'Missing vessel template' });
+      return;
+    }
+    const catalog = getVesselCatalog();
+    const template = catalog.byId.get(templateId);
+    if (!template) {
+      res.status(404).json({ error: 'Unknown vessel template' });
+      return;
+    }
+    const price = template.commerce?.purchasePrice ?? 0;
+    if (!price) {
+      res.status(400).json({ error: 'Vessel not available for purchase' });
+      return;
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { credits: true, rank: true },
+    });
+    if ((user?.rank ?? 1) < (template.commerce?.minRank ?? 1)) {
+      res.status(403).json({ error: 'Rank too low for this vessel' });
+      return;
+    }
+    if ((user?.credits ?? 0) < price) {
+      res.status(400).json({ error: 'Insufficient credits' });
+      return;
+    }
+    const vesselId = randomUUID();
+    const vesselData = buildVesselCreateData({
+      id: vesselId,
+      templateId: template.id,
+      spaceId,
+      ownerId: req.user!.userId,
+      status: 'stored',
+      storagePortId: portId,
+      portId,
+    });
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: req.user!.userId },
+        data: { credits: { decrement: price } },
+      }),
+      prisma.vessel.create({ data: vesselData }),
+    ]);
+    res.json({ vesselId, templateId: template.id });
+  } catch (err) {
+    console.error('Failed to purchase vessel', err);
+    res.status(500).json({ error: 'Failed to purchase vessel' });
+  }
+});
+
+router.post('/economy/vessels/lease', requireAuth, async (req, res) => {
+  try {
+    const templateId =
+      typeof req.body?.templateId === 'string' ? req.body.templateId : null;
+    const leaseType = req.body?.type === 'lease' ? 'lease' : 'charter';
+    const portId =
+      typeof req.body?.portId === 'string' ? req.body.portId : null;
+    const spaceId =
+      typeof req.body?.spaceId === 'string' ? req.body.spaceId : 'global';
+    const requestedTerm =
+      typeof req.body?.termHours === 'number' ? req.body.termHours : null;
+    const termHours = Math.min(
+      Math.max(
+        1,
+        requestedTerm ??
+          (leaseType === 'lease'
+            ? DEFAULT_LEASE_TERM_HOURS
+            : DEFAULT_CHARTER_TERM_HOURS),
+      ),
+      MAX_TERM_HOURS,
+    );
+    if (!templateId) {
+      res.status(400).json({ error: 'Missing vessel template' });
+      return;
+    }
+    const catalog = getVesselCatalog();
+    const template = catalog.byId.get(templateId);
+    if (!template) {
+      res.status(404).json({ error: 'Unknown vessel template' });
+      return;
+    }
+    const rate =
+      leaseType === 'lease'
+        ? template.commerce?.leaseRatePerHour
+        : template.commerce?.charterRatePerHour;
+    if (!rate) {
+      res.status(400).json({ error: 'Vessel not available for lease' });
+      return;
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { rank: true },
+    });
+    if ((user?.rank ?? 1) < (template.commerce?.minRank ?? 1)) {
+      res.status(403).json({ error: 'Rank too low for this vessel' });
+      return;
+    }
+    const shipyard = await ensureShipyardUser();
+    const vesselId = randomUUID();
+    const vesselData = buildVesselCreateData({
+      id: vesselId,
+      templateId: template.id,
+      spaceId,
+      ownerId: shipyard.id,
+      status: leaseType === 'lease' ? 'leased' : 'chartered',
+      storagePortId: portId,
+      portId,
+      chartererId: leaseType === 'charter' ? req.user!.userId : null,
+      leaseeId: leaseType === 'lease' ? req.user!.userId : null,
+    });
+    const lease = await prisma.$transaction(async tx => {
+      await tx.vessel.create({ data: vesselData });
+      return tx.vesselLease.create({
+        data: {
+          vesselId,
+          ownerId: shipyard.id,
+          lesseeId: req.user!.userId,
+          type: leaseType,
+          ratePerHour: rate,
+          revenueShare:
+            leaseType === 'lease' ? template.commerce?.revenueShare ?? 0 : 0,
+          status: 'active',
+          startedAt: new Date(),
+          endsAt: new Date(Date.now() + termHours * 60 * 60 * 1000),
+        },
+      });
+    });
+    res.json({ leaseId: lease.id, vesselId, templateId: template.id });
+  } catch (err) {
+    console.error('Failed to create lease', err);
+    res.status(500).json({ error: 'Failed to create lease' });
+  }
+});
 
 router.get(
   '/economy/cargo',
@@ -779,8 +1074,16 @@ router.get(
             desiredMode: (vessel.desiredMode as 'player' | 'ai') || 'player',
             lastCrewAt: vessel.lastCrewAt?.getTime() || Date.now(),
             position: toVesselPosition(vessel),
-            orientation: { heading: vessel.heading, roll: vessel.roll, pitch: vessel.pitch },
-            velocity: { surge: vessel.surge, sway: vessel.sway, heave: vessel.heave },
+            orientation: {
+              heading: vessel.heading,
+              roll: vessel.roll,
+              pitch: vessel.pitch,
+            },
+            velocity: {
+              surge: vessel.surge,
+              sway: vessel.sway,
+              heave: vessel.heave,
+            },
             properties: {
               mass: vessel.mass,
               length: vessel.length,
@@ -819,12 +1122,16 @@ router.post('/economy/cargo/assign', requireAuth, async (req, res) => {
       return;
     }
     const cargo = await prisma.cargoLot.findUnique({ where: { id: cargoId } });
-    if (!cargo || cargo.ownerId !== req.user!.userId) {
+    if (!cargo || (cargo.ownerId && cargo.ownerId !== req.user!.userId)) {
       res.status(404).json({ error: 'Cargo not found' });
       return;
     }
     if (cargo.status !== 'listed') {
       res.status(400).json({ error: 'Cargo not available' });
+      return;
+    }
+    if (cargo.expiresAt && cargo.expiresAt.getTime() < Date.now()) {
+      res.status(400).json({ error: 'Cargo offer expired' });
       return;
     }
     const vessel = await prisma.vessel.findUnique({ where: { id: vesselId } });
@@ -838,7 +1145,7 @@ router.post('/economy/cargo/assign', requireAuth, async (req, res) => {
       return;
     }
     const loaded = await prisma.cargoLot.aggregate({
-      where: { vesselId, status: 'loaded' },
+      where: { vesselId, status: { in: ['loaded', 'loading'] } },
       _sum: { weightTons: true },
     });
     const capacityTons = getVesselCargoCapacityTons({
@@ -856,7 +1163,11 @@ router.post('/economy/cargo/assign', requireAuth, async (req, res) => {
       desiredMode: (vessel.desiredMode as 'player' | 'ai') || 'player',
       lastCrewAt: vessel.lastCrewAt?.getTime() || Date.now(),
       position: toVesselPosition(vessel),
-      orientation: { heading: vessel.heading, roll: vessel.roll, pitch: vessel.pitch },
+      orientation: {
+        heading: vessel.heading,
+        roll: vessel.roll,
+        pitch: vessel.pitch,
+      },
       velocity: { surge: vessel.surge, sway: vessel.sway, heave: vessel.heave },
       properties: {
         mass: vessel.mass,
@@ -877,9 +1188,21 @@ router.post('/economy/cargo/assign', requireAuth, async (req, res) => {
       res.status(400).json({ error: 'Cargo exceeds vessel capacity' });
       return;
     }
+    const congestion = await getPortCongestion();
+    const portCongestion =
+      congestion.find(item => item.portId === port.id)?.congestion ?? 0;
+    const readyAt = new Date(
+      Date.now() + computeTurnaroundDelayMs(portCongestion),
+    );
     await prisma.cargoLot.update({
       where: { id: cargo.id },
-      data: { vesselId, status: 'loaded' },
+      data: {
+        vesselId,
+        carrierId: req.user!.userId,
+        status: 'loading',
+        readyAt,
+        portId: null,
+      },
     });
     res.json({ ok: true });
   } catch (err) {
@@ -896,7 +1219,7 @@ router.post('/economy/cargo/release', requireAuth, async (req, res) => {
       return;
     }
     const cargo = await prisma.cargoLot.findUnique({ where: { id: cargoId } });
-    if (!cargo || cargo.ownerId !== req.user!.userId) {
+    if (!cargo || (cargo.ownerId && cargo.ownerId !== req.user!.userId)) {
       res.status(404).json({ error: 'Cargo not found' });
       return;
     }
@@ -908,6 +1231,177 @@ router.post('/economy/cargo/release', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Failed to release cargo', err);
     res.status(500).json({ error: 'Failed to release cargo' });
+  }
+});
+
+router.get('/economy/passengers', requireAuth, async (req, res) => {
+  try {
+    const portId =
+      typeof req.query.portId === 'string' ? req.query.portId : undefined;
+    const vesselId =
+      typeof req.query.vesselId === 'string' ? req.query.vesselId : undefined;
+    const where = portId
+      ? { originPortId: portId, status: 'listed' }
+      : undefined;
+    const contracts = await prisma.passengerContract.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    if (vesselId) {
+      const vessel = await prisma.vessel.findUnique({
+        where: { id: vesselId },
+      });
+      if (vessel) {
+        const onboard = await prisma.passengerContract.aggregate({
+          where: { vesselId, status: 'in_progress' },
+          _sum: { paxCount: true },
+        });
+        const capacity = getVesselPassengerCapacity({
+          id: vessel.id,
+          spaceId: vessel.spaceId || 'global',
+          ownerId: vessel.ownerId ?? null,
+          status: vessel.status || 'active',
+          storagePortId: vessel.storagePortId ?? null,
+          storedAt: vessel.storedAt?.getTime() || null,
+          chartererId: vessel.chartererId ?? null,
+          leaseeId: vessel.leaseeId ?? null,
+          crewIds: new Set<string>(),
+          crewNames: new Map<string, string>(),
+          mode: (vessel.mode as 'player' | 'ai') || 'ai',
+          desiredMode: (vessel.desiredMode as 'player' | 'ai') || 'player',
+          lastCrewAt: vessel.lastCrewAt?.getTime() || Date.now(),
+          position: toVesselPosition(vessel),
+          orientation: {
+            heading: vessel.heading,
+            roll: vessel.roll,
+            pitch: vessel.pitch,
+          },
+          velocity: {
+            surge: vessel.surge,
+            sway: vessel.sway,
+            heave: vessel.heave,
+          },
+          properties: {
+            mass: vessel.mass,
+            length: vessel.length,
+            beam: vessel.beam,
+            draft: vessel.draft,
+          },
+          controls: {
+            throttle: vessel.throttle,
+            rudderAngle: vessel.rudderAngle,
+            ballast: vessel.ballast ?? 0.5,
+            bowThruster: vessel.bowThruster ?? 0,
+          },
+          lastUpdate: vessel.lastUpdate.getTime(),
+        });
+        res.json({
+          contracts,
+          capacity,
+          onboard: onboard._sum.paxCount ?? 0,
+        });
+        return;
+      }
+    }
+    res.json({ contracts });
+  } catch (err) {
+    console.error('Failed to load passenger contracts', err);
+    res.status(500).json({ error: 'Failed to load passenger contracts' });
+  }
+});
+
+router.post('/economy/passengers/accept', requireAuth, async (req, res) => {
+  try {
+    const { contractId, vesselId } = req.body || {};
+    if (!contractId || !vesselId) {
+      res.status(400).json({ error: 'Missing contract or vessel id' });
+      return;
+    }
+    const contract = await prisma.passengerContract.findUnique({
+      where: { id: contractId },
+    });
+    if (!contract || contract.status !== 'listed') {
+      res.status(404).json({ error: 'Passenger contract not available' });
+      return;
+    }
+    if (contract.expiresAt && contract.expiresAt.getTime() < Date.now()) {
+      res.status(400).json({ error: 'Passenger contract expired' });
+      return;
+    }
+    const vessel = await prisma.vessel.findUnique({ where: { id: vesselId } });
+    if (!vessel) {
+      res.status(404).json({ error: 'Vessel not found' });
+      return;
+    }
+    const port = resolvePortForPosition(toVesselPosition(vessel));
+    if (!port || port.id !== contract.originPortId) {
+      res.status(400).json({ error: 'Vessel must be at the origin port' });
+      return;
+    }
+    const onboard = await prisma.passengerContract.aggregate({
+      where: { vesselId, status: { in: ['in_progress', 'boarding'] } },
+      _sum: { paxCount: true },
+    });
+    const capacity = getVesselPassengerCapacity({
+      id: vessel.id,
+      spaceId: vessel.spaceId || 'global',
+      ownerId: vessel.ownerId ?? null,
+      status: vessel.status || 'active',
+      storagePortId: vessel.storagePortId ?? null,
+      storedAt: vessel.storedAt?.getTime() || null,
+      chartererId: vessel.chartererId ?? null,
+      leaseeId: vessel.leaseeId ?? null,
+      crewIds: new Set<string>(),
+      crewNames: new Map<string, string>(),
+      mode: (vessel.mode as 'player' | 'ai') || 'ai',
+      desiredMode: (vessel.desiredMode as 'player' | 'ai') || 'player',
+      lastCrewAt: vessel.lastCrewAt?.getTime() || Date.now(),
+      position: toVesselPosition(vessel),
+      orientation: {
+        heading: vessel.heading,
+        roll: vessel.roll,
+        pitch: vessel.pitch,
+      },
+      velocity: { surge: vessel.surge, sway: vessel.sway, heave: vessel.heave },
+      properties: {
+        mass: vessel.mass,
+        length: vessel.length,
+        beam: vessel.beam,
+        draft: vessel.draft,
+      },
+      controls: {
+        throttle: vessel.throttle,
+        rudderAngle: vessel.rudderAngle,
+        ballast: vessel.ballast ?? 0.5,
+        bowThruster: vessel.bowThruster ?? 0,
+      },
+      lastUpdate: vessel.lastUpdate.getTime(),
+    });
+    const current = onboard._sum.paxCount ?? 0;
+    if (current + contract.paxCount > capacity) {
+      res.status(400).json({ error: 'Passenger load exceeds capacity' });
+      return;
+    }
+    const congestion = await getPortCongestion();
+    const portCongestion =
+      congestion.find(item => item.portId === port.id)?.congestion ?? 0;
+    const readyAt = new Date(
+      Date.now() + computeTurnaroundDelayMs(portCongestion),
+    );
+    const updated = await prisma.passengerContract.update({
+      where: { id: contract.id },
+      data: {
+        vesselId,
+        operatorId: req.user!.userId,
+        status: 'boarding',
+        readyAt,
+      },
+    });
+    res.json({ contract: updated });
+  } catch (err) {
+    console.error('Failed to accept passenger contract', err);
+    res.status(500).json({ error: 'Failed to accept passenger contract' });
   }
 });
 
@@ -1174,12 +1668,74 @@ router.post('/economy/leases/accept', requireAuth, async (req, res) => {
       data:
         updated.type === 'lease'
           ? { status: 'leased', leaseeId: req.user!.userId, chartererId: null }
-          : { status: 'chartered', chartererId: req.user!.userId, leaseeId: null },
+          : {
+              status: 'chartered',
+              chartererId: req.user!.userId,
+              leaseeId: null,
+            },
     });
     res.json({ lease: updated });
   } catch (err) {
     console.error('Failed to accept lease', err);
     res.status(500).json({ error: 'Failed to accept lease' });
+  }
+});
+
+router.post('/economy/leases/end', requireAuth, async (req, res) => {
+  try {
+    const leaseId = req.body?.leaseId;
+    if (!leaseId) {
+      res.status(400).json({ error: 'Missing lease id' });
+      return;
+    }
+    const lease = await prisma.vesselLease.findUnique({
+      where: { id: leaseId },
+    });
+    if (!lease || lease.status !== 'active') {
+      res.status(404).json({ error: 'Lease not active' });
+      return;
+    }
+    const userId = req.user!.userId;
+    const canEnd = lease.lesseeId === userId || lease.ownerId === userId;
+    if (!canEnd) {
+      res.status(403).json({ error: 'Not authorized to end lease' });
+      return;
+    }
+    const vessel = await prisma.vessel.findUnique({
+      where: { id: lease.vesselId },
+    });
+    const now = new Date();
+    const position = vessel
+      ? positionFromLatLon({
+          lat: vessel.lat,
+          lon: vessel.lon,
+          z: vessel.z,
+        })
+      : null;
+    const port = position ? resolvePortForPosition(position) : null;
+    const stored = Boolean(port);
+    await prisma.$transaction([
+      prisma.vesselLease.update({
+        where: { id: lease.id },
+        data: { status: 'completed', endsAt: now },
+      }),
+      prisma.vessel.update({
+        where: { id: lease.vesselId },
+        data: {
+          status: stored ? 'stored' : 'active',
+          storagePortId: stored ? port!.id : null,
+          storedAt: stored ? now : null,
+          chartererId: null,
+          leaseeId: null,
+          mode: 'ai',
+          desiredMode: 'ai',
+        },
+      }),
+    ]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Failed to end lease', err);
+    res.status(500).json({ error: 'Failed to end lease' });
   }
 });
 
@@ -1216,7 +1772,9 @@ router.post('/economy/sales', requireAuth, async (req, res) => {
         sellerId: req.user!.userId,
         type: req.body?.type === 'auction' ? 'auction' : 'sale',
         price: Number(price),
-        reservePrice: req.body?.reservePrice ? Number(req.body.reservePrice) : null,
+        reservePrice: req.body?.reservePrice
+          ? Number(req.body.reservePrice)
+          : null,
         endsAt: req.body?.endsAt ? new Date(req.body.endsAt) : null,
       },
     });
@@ -1291,7 +1849,11 @@ router.post('/economy/vessels/storage', requireAuth, async (req, res) => {
       return;
     }
     const vessel = await prisma.vessel.findUnique({ where: { id: vesselId } });
-    if (!vessel || vessel.ownerId !== req.user!.userId) {
+    const isOperator =
+      vessel?.ownerId === req.user!.userId ||
+      vessel?.chartererId === req.user!.userId ||
+      vessel?.leaseeId === req.user!.userId;
+    if (!vessel || !isOperator) {
       res.status(404).json({ error: 'Vessel not found' });
       return;
     }
@@ -1342,6 +1904,140 @@ router.get(
     }
   },
 );
+
+router.get('/careers', requireAuth, async (_req, res) => {
+  res.json({ careers: CAREERS });
+});
+
+router.get('/careers/status', requireAuth, async (req, res) => {
+  try {
+    await ensureUserCareers(req.user!.userId);
+    const careers = await prisma.userCareer.findMany({
+      where: { userId: req.user!.userId },
+      include: { career: true },
+      orderBy: { careerId: 'asc' },
+    });
+    res.json({ careers });
+  } catch (err) {
+    console.error('Failed to load career status', err);
+    res.status(500).json({ error: 'Failed to load career status' });
+  }
+});
+
+router.post('/careers/activate', requireAuth, async (req, res) => {
+  try {
+    const careerId = req.body?.careerId;
+    if (!careerId) {
+      res.status(400).json({ error: 'Missing career id' });
+      return;
+    }
+    await ensureUserCareers(req.user!.userId);
+    await prisma.userCareer.updateMany({
+      where: { userId: req.user!.userId },
+      data: { active: false },
+    });
+    const updated = await prisma.userCareer.update({
+      where: {
+        userId_careerId: { userId: req.user!.userId, careerId },
+      },
+      data: { active: true },
+    });
+    res.json({ career: updated });
+  } catch (err) {
+    console.error('Failed to activate career', err);
+    res.status(500).json({ error: 'Failed to activate career' });
+  }
+});
+
+router.get('/licenses', requireAuth, async (req, res) => {
+  try {
+    const licenses = await prisma.license.findMany({
+      where: { userId: req.user!.userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ licenses });
+  } catch (err) {
+    console.error('Failed to load licenses', err);
+    res.status(500).json({ error: 'Failed to load licenses' });
+  }
+});
+
+router.post('/licenses/renew', requireAuth, async (req, res) => {
+  try {
+    const licenseKey = req.body?.licenseKey;
+    if (!licenseKey) {
+      res.status(400).json({ error: 'Missing license key' });
+      return;
+    }
+    const durationDays =
+      Number.isFinite(req.body?.durationDays) &&
+      Number(req.body.durationDays) > 0
+        ? Number(req.body.durationDays)
+        : 90;
+    await issueLicense({
+      userId: req.user!.userId,
+      licenseKey,
+      durationDays,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Failed to renew license', err);
+    res.status(500).json({ error: 'Failed to renew license' });
+  }
+});
+
+router.get('/exams', requireAuth, async (_req, res) => {
+  res.json({ exams: getExamDefinitions() });
+});
+
+router.post('/exams/:id/attempt', requireAuth, async (req, res) => {
+  try {
+    const examId = req.params.id;
+    const score = Number(req.body?.score);
+    if (!Number.isFinite(score)) {
+      res.status(400).json({ error: 'Missing exam score' });
+      return;
+    }
+    const exam = await prisma.exam.findUnique({ where: { id: examId } });
+    if (!exam) {
+      res.status(404).json({ error: 'Exam not found' });
+      return;
+    }
+    const passed = score >= (exam.minScore ?? 70);
+    const attempt = await prisma.examAttempt.create({
+      data: {
+        examId: exam.id,
+        userId: req.user!.userId,
+        score,
+        passed,
+      },
+    });
+    if (passed && exam.licenseKey) {
+      await issueLicense({
+        userId: req.user!.userId,
+        licenseKey: exam.licenseKey,
+        durationDays: 180,
+      });
+    }
+    res.json({ attempt, passed });
+  } catch (err) {
+    console.error('Failed to record exam attempt', err);
+    res.status(500).json({ error: 'Failed to record exam attempt' });
+  }
+});
+
+router.get('/reputation', requireAuth, async (req, res) => {
+  try {
+    const reputation = await prisma.reputation.findMany({
+      where: { userId: req.user!.userId },
+      orderBy: { scopeType: 'asc' },
+    });
+    res.json({ reputation });
+  } catch (err) {
+    console.error('Failed to load reputation', err);
+    res.status(500).json({ error: 'Failed to load reputation' });
+  }
+});
 
 const normalizeRules = (value: unknown): Rules | null => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -1746,7 +2442,9 @@ router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
           : updated.rulesetType,
       previousRules: normalizeRules(space.rules),
       nextRules:
-        updates.rules !== undefined ? normalizeRules(updates.rules) : normalizeRules(space.rules),
+        updates.rules !== undefined
+          ? normalizeRules(updates.rules)
+          : normalizeRules(space.rules),
       changedBy: req.user?.userId ?? null,
     });
     if (auditEntry) {
