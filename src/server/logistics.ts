@@ -13,8 +13,6 @@ const DELIVERY_RADIUS_M = 260;
 const TURNAROUND_BASE_MINUTES = 6;
 const TURNAROUND_CONGESTION_MINUTES = 18;
 
-type PortMeta = (typeof ECONOMY_PORTS)[number];
-
 const PORT_CAPACITY = {
   small: { min: 4, max: 8 },
   medium: { min: 6, max: 14 },
@@ -40,7 +38,7 @@ const SMALL_CRAFT_TYPES = ['fish', 'parcels', 'supplies'];
 const randBetween = (min: number, max: number) =>
   Math.floor(min + Math.random() * (max - min + 1));
 
-const pick = <T,>(list: T[]) => list[Math.floor(Math.random() * list.length)];
+const pick = <T>(list: T[]) => list[Math.floor(Math.random() * list.length)];
 
 const portById = new Map(ECONOMY_PORTS.map(port => [port.id, port]));
 
@@ -137,8 +135,8 @@ export const ensureCargoAvailability = async (now: number) => {
     });
     const needed = Math.max(0, target - existing);
     if (needed === 0) continue;
-    const cargoTypes = REGION_CARGO_TYPES[port.region] ||
-      REGION_CARGO_TYPES.default;
+    const cargoTypes =
+      REGION_CARGO_TYPES[port.region] || REGION_CARGO_TYPES.default;
     const createData = Array.from({ length: needed }).map(() => {
       const cargoType = pick(cargoTypes);
       const weightTons = buildCargoWeight(cargoType);
@@ -165,12 +163,14 @@ export const ensureCargoAvailability = async (now: number) => {
 };
 
 export const ensurePassengerAvailability = async (now: number) => {
-  if (now - lastPassengerGenerationAt < PASSENGER_GENERATION_INTERVAL_MS) return;
+  if (now - lastPassengerGenerationAt < PASSENGER_GENERATION_INTERVAL_MS)
+    return;
   lastPassengerGenerationAt = now;
   const passengerTypes = ['ferry', 'water_bus', 'water_taxi'];
 
   for (const port of ECONOMY_PORTS) {
-    const caps = PASSENGER_CAPACITY[port.size as keyof typeof PASSENGER_CAPACITY];
+    const caps =
+      PASSENGER_CAPACITY[port.size as keyof typeof PASSENGER_CAPACITY];
     const target = caps?.min ?? 4;
     const existing = await prisma.passengerContract.count({
       where: { originPortId: port.id, status: 'listed' },

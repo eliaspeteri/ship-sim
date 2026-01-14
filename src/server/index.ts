@@ -1517,7 +1517,8 @@ const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => {
   const tideHeight = env.tideHeight ?? 0;
   const waterDepth = Math.max(
     0,
-    getBathymetryDepth(mergedPosition.lat, mergedPosition.lon) + tideHeight,
+    (getBathymetryDepth(mergedPosition.lat, mergedPosition.lon) ?? 0) +
+      tideHeight,
   );
   const failureState = v.failureState
     ? {
@@ -2269,7 +2270,7 @@ io.on('connection', async socket => {
         reason: 'repair',
         meta: { cost: costToCharge },
       });
-      target.damageState = applyRepair(damageState);
+      target.damageState = applyRepair();
       if (target.failureState) {
         target.failureState.floodingLevel = 0;
         target.failureState.engineFailure = false;
@@ -2566,12 +2567,14 @@ io.on('connection', async socket => {
       }
       const type = data?.type === 'auction' ? 'auction' : 'sale';
       const reservePrice =
-        data?.reservePrice !== undefined ? Number(data.reservePrice) : undefined;
+        data?.reservePrice !== undefined
+          ? Number(data.reservePrice)
+          : undefined;
       const endsAt =
         data?.endsAt && Number.isFinite(data.endsAt)
           ? new Date(Number(data.endsAt))
           : null;
-      const sale = await prisma.vesselSale.create({
+      await prisma.vesselSale.create({
         data: {
           vesselId: vessel.id,
           sellerId: currentUserId,
@@ -2612,7 +2615,9 @@ io.on('connection', async socket => {
         socket.emit('error', 'Missing sale id');
         return;
       }
-      const sale = await prisma.vesselSale.findUnique({ where: { id: saleId } });
+      const sale = await prisma.vesselSale.findUnique({
+        where: { id: saleId },
+      });
       if (!sale || sale.status !== 'open') {
         socket.emit('error', 'Sale not available');
         return;
@@ -2942,7 +2947,10 @@ io.on('connection', async socket => {
         data: {
           vesselId,
           ownerId: currentUserId,
-          type: data?.type === 'loss' || data?.type === 'salvage' ? data.type : 'damage',
+          type:
+            data?.type === 'loss' || data?.type === 'salvage'
+              ? data.type
+              : 'damage',
           coverage,
           deductible,
           premiumRate,
@@ -3134,7 +3142,9 @@ io.on('connection', async socket => {
       const congestion = await getPortCongestion();
       const portCongestion =
         congestion.find(item => item.portId === port.id)?.congestion ?? 0;
-      const readyAt = new Date(Date.now() + computeTurnaroundDelayMs(portCongestion));
+      const readyAt = new Date(
+        Date.now() + computeTurnaroundDelayMs(portCongestion),
+      );
       await prisma.cargoLot.update({
         where: { id: cargo.id },
         data: {
@@ -3853,7 +3863,8 @@ setInterval(() => {
       const mergedPosition = mergePosition(v.position);
       const waterDepth = Math.max(
         0,
-        getBathymetryDepth(mergedPosition.lat, mergedPosition.lon) + tideHeight,
+        (getBathymetryDepth(mergedPosition.lat, mergedPosition.lon) ?? 0) +
+          tideHeight,
       );
       const speed = Math.hypot(v.velocity.surge, v.velocity.sway);
       const failureUpdate = updateFailureState({

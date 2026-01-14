@@ -59,7 +59,6 @@ const DEFAULT_ECONOMY: EconomyProfile = {
 
 const loanAccrualLedger = new Map<string, number>();
 const insuranceChargeLedger = new Map<string, number>();
-const leaseChargeLedger = new Map<string, number>();
 const repossessionLedger = new Map<string, number>();
 
 export const calculateVesselCreationCost = (rank: number) =>
@@ -262,8 +261,7 @@ const ensureCrewContracts = async (vessel: VesselRecord) => {
       vesselId: vessel.id,
       userId,
       wageRate: userId === vessel.ownerId ? 0 : ECONOMY_DEFAULT_CREW_WAGE,
-      revenueShare:
-        userId === vessel.ownerId ? 0 : ECONOMY_DEFAULT_CREW_SHARE,
+      revenueShare: userId === vessel.ownerId ? 0 : ECONOMY_DEFAULT_CREW_SHARE,
       status: 'draft',
     }));
   if (createData.length > 0) {
@@ -477,11 +475,7 @@ const applyLeaseCharges = async (
   });
 };
 
-const expireLeaseIfNeeded = async (
-  vessel: VesselRecord,
-  now: number,
-  io: Server,
-) => {
+const expireLeaseIfNeeded = async (vessel: VesselRecord, now: number) => {
   const lease = await prisma.vesselLease.findFirst({
     where: { vesselId: vessel.id, status: 'active' },
   });
@@ -643,7 +637,7 @@ export const updateEconomyForVessel = async (
     await enforceLoanRepossession(vessel, now);
   }
   await applyInsurancePremiums(vessel, now, io);
-  const leaseExpired = await expireLeaseIfNeeded(vessel, now, io);
+  const leaseExpired = await expireLeaseIfNeeded(vessel, now);
   if (!leaseExpired) {
     await applyLeaseCharges(vessel, now, io);
   }
