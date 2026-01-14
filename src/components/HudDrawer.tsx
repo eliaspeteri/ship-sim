@@ -26,6 +26,8 @@ import { ConningDisplay } from './bridge/ConningDisplay';
 import { AlarmIndicator } from './alarms/AlarmIndicator';
 import {
   courseFromWorldVelocity,
+  distanceMeters,
+  positionFromXY,
   positionToXY,
   speedFromWorldVelocity,
   worldVelocityFromBody,
@@ -39,13 +41,14 @@ import {
 import { applyFailureControlLimits } from '../lib/failureControls';
 import { computeRepairCost, normalizeDamageState } from '../lib/damage';
 import styles from './HudDrawer.module.css';
-import { VesselList } from './VesselList';
 import { EcdisDisplay } from './navigation/EcdisDisplay';
+import DepthSounder from './DepthSounder';
 
 type HudTab =
   | 'vessels'
   | 'navigation'
   | 'ecdis'
+  | 'sounder'
   | 'conning'
   | 'weather'
   | 'systems'
@@ -63,6 +66,7 @@ const tabs: { id: HudTab; label: string }[] = [
   { id: 'vessels', label: 'Vessels' },
   { id: 'navigation', label: 'Navigation' },
   { id: 'ecdis', label: 'ECDIS' },
+  { id: 'sounder', label: 'Echo sounder' },
   { id: 'conning', label: 'Conning' },
   { id: 'weather', label: 'Weather' },
   { id: 'systems', label: 'Systems' },
@@ -75,6 +79,49 @@ const tabs: { id: HudTab; label: string }[] = [
   { id: 'radar', label: 'Radar' },
   { id: 'alarms', label: 'Alarms' },
   { id: 'admin', label: 'Admin' },
+];
+
+type FleetVessel = {
+  id: string;
+  status?: string | null;
+  storagePortId?: string | null;
+  spaceId?: string | null;
+  ownerId?: string | null;
+  chartererId?: string | null;
+  leaseeId?: string | null;
+  lat: number;
+  lon: number;
+  z: number;
+  lastUpdate: string | Date;
+};
+
+type EconomyPort = {
+  id: string;
+  name: string;
+  position: { lat: number; lon: number; z?: number };
+};
+
+const HUD_PORTS = [
+  {
+    id: 'harbor-alpha',
+    name: 'Harbor Alpha',
+    position: positionFromXY({ x: 0, y: 0 }),
+  },
+  {
+    id: 'bay-delta',
+    name: 'Bay Delta',
+    position: positionFromXY({ x: 2000, y: -1500 }),
+  },
+  {
+    id: 'island-anchorage',
+    name: 'Island Anchorage',
+    position: positionFromXY({ x: -2500, y: 1200 }),
+  },
+  {
+    id: 'channel-gate',
+    name: 'Channel Gate',
+    position: positionFromXY({ x: 800, y: 2400 }),
+  },
 ];
 
 const formatDegrees = (rad?: number) => {
@@ -194,10 +241,48 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   >([]);
   const [economyLoading, setEconomyLoading] = useState(false);
   const [economyError, setEconomyError] = useState<string | null>(null);
+  const [fleet, setFleet] = useState<FleetVessel[]>([]);
+  const [fleetLoading, setFleetLoading] = useState(false);
+  const [fleetError, setFleetError] = useState<string | null>(null);
+  const [fleetPorts, setFleetPorts] = useState<EconomyPort[]>(HUD_PORTS);
   const apiBase = useMemo(() => getApiBase(), []);
   const shortId = React.useCallback(
     (id: string) => (id.length > 10 ? `${id.slice(0, 10)}…` : id),
     [],
+  );
+  const formatDistance = React.useCallback((meters: number) => {
+    if (!Number.isFinite(meters)) return '--';
+    const nm = meters / 1852;
+    if (nm >= 1) return `${nm.toFixed(1)} nm`;
+    return `${Math.round(meters)} m`;
+  }, []);
+  const resolveNearestPort = React.useCallback(
+    (lat: number, lon: number) => {
+      let nearest: EconomyPort | null = null;
+      let nearestDistance = Infinity;
+      for (const port of fleetPorts) {
+        const dist = distanceMeters(
+          { lat, lon },
+          { lat: port.position.lat, lon: port.position.lon },
+        );
+        if (dist < nearestDistance) {
+          nearestDistance = dist;
+          nearest = port;
+        }
+      }
+      return {
+        port: nearest,
+        distance: Number.isFinite(nearestDistance) ? nearestDistance : null,
+      };
+    },
+    [fleetPorts],
+  );
+  const normalizedSpaceId = spaceId || 'global';
+  const fleetInSpace = fleet.filter(
+    entry => (entry.spaceId || 'global') === normalizedSpaceId,
+  );
+  const fleetOtherSpace = fleet.filter(
+    entry => (entry.spaceId || 'global') !== normalizedSpaceId,
   );
   const helmStation = stations?.helm || helm;
   const engineStation = stations?.engine;
@@ -261,6 +346,10 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     vessel.properties.mass,
   ]);
   const waterDepth = vessel.waterDepth ?? environment.waterDepth;
+  const depthValue =
+    waterDepth !== undefined && Number.isFinite(waterDepth)
+      ? waterDepth
+      : undefined;
   const draftForUnderKeel = Number.isFinite(draftEstimate)
     ? draftEstimate
     : (vessel.properties.draft ?? 0);
@@ -930,6 +1019,49 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     };
   }, [apiBase, setAccount, tab]);
 
+  React.useEffect(() => {
+    if (tab !== 'vessels') return;
+    let active = true;
+    const loadFleet = async () => {
+      setFleetLoading(true);
+      setFleetError(null);
+      try {
+        const [fleetRes, portsRes] = await Promise.all([
+          fetch(`${apiBase}/api/economy/fleet`, { credentials: 'include' }),
+          fetch(`${apiBase}/api/economy/ports`, { credentials: 'include' }),
+        ]);
+        const responses = [fleetRes, portsRes];
+        for (const res of responses) {
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data?.error || `Request failed: ${res.status}`);
+          }
+        }
+        const fleetData = await fleetRes.json();
+        const portData = await portsRes.json();
+        if (!active) return;
+        setFleet(Array.isArray(fleetData?.fleet) ? fleetData.fleet : []);
+        setFleetPorts(
+          Array.isArray(portData?.ports) && portData.ports.length > 0
+            ? portData.ports
+            : HUD_PORTS,
+        );
+      } catch (err) {
+        if (!active) return;
+        console.error('Failed to load fleet', err);
+        setFleetError(
+          err instanceof Error ? err.message : 'Unable to load fleet.',
+        );
+      } finally {
+        if (active) setFleetLoading(false);
+      }
+    };
+    void loadFleet();
+    return () => {
+      active = false;
+    };
+  }, [apiBase, tab]);
+
   const handleAdminMove = () => {
     if (!adminTargetId) return;
     const hasEmpty = adminLat.trim() === '' || adminLon.trim() === '';
@@ -968,9 +1100,140 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       {tab ? (
         <div className={styles.hudPanel}>
           {tab === 'vessels' ? (
-            <div className={styles.vesselList}>
-              <div className={styles.sectionTitle}>Vessels in space</div>
-              <VesselList vessels={otherVessels} />
+            <div className={styles.sectionGrid}>
+              <div className={styles.sectionHeader}>
+                <div>
+                  <div className={styles.sectionTitle}>Fleet control</div>
+                  <div className={styles.sectionSub}>
+                    Join chartered and leased vessels directly from here.
+                  </div>
+                </div>
+                {fleetLoading ? (
+                  <div className={styles.noticeText}>Loading fleet...</div>
+                ) : null}
+              </div>
+              {fleetError ? (
+                <div className={styles.noticeText}>{fleetError}</div>
+              ) : null}
+              <div className={styles.fleetGrid}>
+                {fleetInSpace.length === 0 ? (
+                  <div className={styles.noticeText}>
+                    No vessels in this space. Charter one from the economy page.
+                  </div>
+                ) : (
+                  fleetInSpace.map(entry => {
+                    const { port, distance } = resolveNearestPort(
+                      entry.lat,
+                      entry.lon,
+                    );
+                    const isStored = entry.status === 'stored';
+                    return (
+                      <div key={entry.id} className={styles.fleetRow}>
+                        <div>
+                          <div className={styles.fleetTitle}>
+                            {shortId(entry.id)}
+                          </div>
+                          <div className={styles.fleetMeta}>
+                            Status {entry.status || 'active'}
+                            {entry.spaceId
+                              ? ` · Space ${entry.spaceId}`
+                              : ` · Space ${normalizedSpaceId}`}
+                            {port
+                              ? ` · Nearest port ${port.name} (${formatDistance(
+                                  distance ?? 0,
+                                )})`
+                              : ''}
+                          </div>
+                          <div className={styles.fleetMeta}>
+                            Lat {entry.lat.toFixed(4)} · Lon{' '}
+                            {entry.lon.toFixed(4)}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className={styles.fleetButton}
+                          disabled={isStored}
+                          onClick={() => {
+                            if (isStored) return;
+                            socketManager.setJoinPreference('player', true);
+                            socketManager.requestJoinVessel(entry.id);
+                          }}
+                        >
+                          {isStored ? 'Stored' : 'Join'}
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              {fleetOtherSpace.length > 0 ? (
+                <div className={styles.sectionCard}>
+                  <div className={styles.sectionTitle}>Other spaces</div>
+                  <div className={styles.noticeText}>
+                    These vessels are in other spaces and cannot be joined from
+                    here.
+                  </div>
+                  <div className={styles.fleetGrid}>
+                    {fleetOtherSpace.map(entry => (
+                      <div key={entry.id} className={styles.fleetRow}>
+                        <div>
+                          <div className={styles.fleetTitle}>
+                            {shortId(entry.id)}
+                          </div>
+                          <div className={styles.fleetMeta}>
+                            Space {entry.spaceId || 'global'} · Status{' '}
+                            {entry.status || 'active'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className={styles.fleetButton}
+                          disabled
+                        >
+                          Not in space
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              <div className={styles.sectionHeader}>
+                <div>
+                  <div className={styles.sectionTitle}>Other vessels</div>
+                  <div className={styles.sectionSub}>
+                    Vessels currently broadcasting in your space.
+                  </div>
+                </div>
+              </div>
+              <div className={styles.fleetGrid}>
+                {Object.values(otherVessels || {}).length === 0 ? (
+                  <div className={styles.noticeText}>No nearby vessels.</div>
+                ) : (
+                  Object.values(otherVessels || {}).map(entry => (
+                    <div key={entry.id} className={styles.fleetRow}>
+                      <div>
+                        <div className={styles.fleetTitle}>
+                          {entry.properties?.name || shortId(entry.id)}
+                        </div>
+                        <div className={styles.fleetMeta}>
+                          {entry.crewCount ?? 0} crew · Heading{' '}
+                          {Math.round(entry.orientation?.heading ?? 0)}°
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.fleetButton}
+                        onClick={() => {
+                          socketManager.setJoinPreference('player', true);
+                          socketManager.requestJoinVessel(entry.id);
+                        }}
+                      >
+                        Request join
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           ) : null}
           {tab === 'navigation' ? (
@@ -1173,6 +1436,17 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                   <ConningDisplay data={conningData} />
                 </div>
               </div>
+            </div>
+          ) : null}
+          {tab === 'sounder' ? (
+            <div className={styles.sectionCard}>
+              {depthValue !== undefined ? (
+                <DepthSounder depth={depthValue} />
+              ) : (
+                <div className={styles.noticeText}>
+                  Depth data unavailable for this position.
+                </div>
+              )}
             </div>
           ) : null}
           {tab === 'weather' ? <EnvironmentControls /> : null}

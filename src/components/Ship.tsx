@@ -9,6 +9,12 @@ interface ShipProps {
   position: { x: number; y: number; z: number };
   heading: number;
   shipType?: 'CONTAINER' | 'TANKER' | 'CARGO' | 'DEFAULT';
+  modelPath?: string | null;
+  renderOptions?: {
+    modelYawDeg?: number;
+    sinkFactor?: number;
+    heaveScale?: number;
+  };
   ballast?: number;
   draft?: number;
   length?: number;
@@ -30,6 +36,8 @@ const Ship: React.FC<ShipProps> = ({
   position,
   heading,
   shipType = 'DEFAULT',
+  modelPath = null,
+  renderOptions,
   ballast = 0.5,
   draft = 6,
   length = 150,
@@ -40,7 +48,8 @@ const Ship: React.FC<ShipProps> = ({
 }) => {
   const shipRef = useRef<THREE.Group>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
-  const model = SHIP_MODELS[shipType] ? useGLTF(SHIP_MODELS[shipType]) : null;
+  const resolvedModelPath = modelPath || SHIP_MODELS[shipType] || null;
+  const model = resolvedModelPath ? useGLTF(resolvedModelPath) : null;
   const orientation = useStore(state => state.vessel.orientation);
   const markerOffset = length / 2;
   useEffect(() => {
@@ -84,15 +93,19 @@ const Ship: React.FC<ShipProps> = ({
   useFrame(() => {
     const obj = shipRef.current;
     if (obj) {
-      const sink = -draft * (0.4 + 0.4 * ballast); // simple visual offset
-      const yPos = position.y !== undefined ? position.y + sink : sink;
+      const sinkFactor = renderOptions?.sinkFactor ?? 0.4;
+      const heaveScale = renderOptions?.heaveScale ?? 1;
+      const sink = -draft * (sinkFactor + sinkFactor * ballast);
+      const yPos =
+        position.y !== undefined ? position.y * heaveScale + sink : sink;
       // Position from props and physics state (use heave in y plus sink offset)
       obj.position.set(position.x, yPos, position.z);
 
       const rollAngle = roll ?? orientation?.roll ?? 0;
       const pitchAngle = pitch ?? orientation?.pitch ?? 0;
       // Render heading: model forward (+Z) vs physics forward (+X). Rotate +90° to align axes.
-      const renderHeading = Math.PI / 2 - heading;
+      const modelYaw = ((renderOptions?.modelYawDeg ?? 0) * Math.PI) / 180;
+      const renderHeading = Math.PI / 2 - heading + modelYaw;
 
       // Apply heading, roll, and pitch (roll/pitch from physics; heading from store)
       obj.rotation.set(pitchAngle, renderHeading, rollAngle);

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { getApiBase } from '../lib/api';
+import { getDefaultRules, mapToRulesetType, Rules } from '../types/rules.types';
 import styles from './Spaces.module.css';
 
 type SpaceVisibility = 'public' | 'private';
@@ -17,16 +18,35 @@ type ManagedSpace = {
   totalVessels?: number;
   activeVessels?: number;
   rulesetType?: string;
+  rules?: Rules | null;
 };
 
 type SpaceDraft = {
   name: string;
   visibility: SpaceVisibility;
   rulesetType: string;
+  rules: Rules | null;
   password: string;
   saving?: boolean;
+  rulesTouched?: boolean;
   error?: string | null;
 };
+
+const rulesetLabels: Record<string, string> = {
+  CASUAL: 'Casual',
+  REALISM: 'Realism',
+  CUSTOM: 'Custom',
+  EXAM: 'Exam',
+};
+
+const cloneRules = (rules: Rules): Rules =>
+  JSON.parse(JSON.stringify(rules)) as Rules;
+
+const parseListInput = (value: string) =>
+  value
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
 
 const SpacesPage: React.FC = () => {
   const { status, data: session } = useSession();
@@ -47,8 +67,10 @@ const SpacesPage: React.FC = () => {
           name: space.name,
           visibility: space.visibility,
           rulesetType: space.rulesetType || 'CASUAL',
+          rules: space.rules ? cloneRules(space.rules) : null,
           password: prev[space.id]?.password || '',
           saving: prev[space.id]?.saving || false,
+          rulesTouched: false,
           error: prev[space.id]?.error || null,
         };
       });
@@ -105,6 +127,36 @@ const SpacesPage: React.FC = () => {
     [],
   );
 
+  const ensureCustomRules = useCallback(
+    (spaceId: string, rulesetType: string) => {
+      const base = getDefaultRules(mapToRulesetType(rulesetType));
+      updateDraft(spaceId, {
+        rules: cloneRules(base),
+        rulesTouched: true,
+      });
+    },
+    [updateDraft],
+  );
+
+  const updateRules = useCallback(
+    (spaceId: string, updater: (rules: Rules) => Rules) => {
+      setDrafts(prev => {
+        const current = prev[spaceId];
+        if (!current?.rules) return prev;
+        const nextRules = updater(cloneRules(current.rules));
+        return {
+          ...prev,
+          [spaceId]: {
+            ...current,
+            rules: nextRules,
+            rulesTouched: true,
+          },
+        };
+      });
+    },
+    [],
+  );
+
   const updateSpace = useCallback(
     async (
       spaceId: string,
@@ -147,17 +199,37 @@ const SpacesPage: React.FC = () => {
     async (spaceId: string) => {
       const draft = drafts[spaceId];
       if (!draft) return;
+      const space = spaces.find(item => item.id === spaceId);
+      const currentRuleset = space?.rulesetType || 'CASUAL';
+      const nextRuleset = draft.rulesetType || currentRuleset;
+      if (space && currentRuleset !== nextRuleset) {
+        const currentLabel = rulesetLabels[currentRuleset] || currentRuleset;
+        const nextLabel = rulesetLabels[nextRuleset] || nextRuleset;
+        const activeNotice =
+          (space.activeVessels || 0) > 0
+            ? ' Active vessels in this space will feel the change immediately.'
+            : '';
+        if (typeof window !== 'undefined') {
+          const ok = window.confirm(
+            `Change ruleset from ${currentLabel} to ${nextLabel}? This can change assists, HUD limits, and enforcement behavior.${activeNotice}`,
+          );
+          if (!ok) return;
+        }
+      }
       const payload: Record<string, unknown> = {
         name: draft.name.trim(),
         visibility: draft.visibility,
         rulesetType: draft.rulesetType,
       };
+      if (draft.rulesTouched) {
+        payload.rules = draft.rules;
+      }
       if (draft.password.trim().length > 0) {
         payload.password = draft.password;
       }
       await updateSpace(spaceId, payload, 'Space updated.');
     },
-    [drafts, updateSpace],
+    [drafts, spaces, updateSpace],
   );
 
   const handleRegenerateInvite = useCallback(
@@ -405,6 +477,255 @@ const SpacesPage: React.FC = () => {
                   />
                 </label>
               </div>
+
+              {isAdmin ? (
+                <div className={styles.rulesSection}>
+                  <div className={styles.cardMeta}>Rules overrides</div>
+                  {draft?.rules ? (
+                    <>
+                      <div className={styles.rulesGrid}>
+                        <div className={styles.rulesGroup}>
+                          <div className={styles.cardMeta}>Assists</div>
+                          <label className={styles.checkboxRow}>
+                            <input
+                              type="checkbox"
+                              checked={draft.rules.assists.stability}
+                              onChange={e =>
+                                updateRules(space.id, rules => ({
+                                  ...rules,
+                                  assists: {
+                                    ...rules.assists,
+                                    stability: e.target.checked,
+                                  },
+                                }))
+                              }
+                            />
+                            <span>Stability</span>
+                          </label>
+                          <label className={styles.checkboxRow}>
+                            <input
+                              type="checkbox"
+                              checked={draft.rules.assists.autopilot}
+                              onChange={e =>
+                                updateRules(space.id, rules => ({
+                                  ...rules,
+                                  assists: {
+                                    ...rules.assists,
+                                    autopilot: e.target.checked,
+                                  },
+                                }))
+                              }
+                            />
+                            <span>Autopilot</span>
+                          </label>
+                          <label className={styles.checkboxRow}>
+                            <input
+                              type="checkbox"
+                              checked={draft.rules.assists.docking}
+                              onChange={e =>
+                                updateRules(space.id, rules => ({
+                                  ...rules,
+                                  assists: {
+                                    ...rules.assists,
+                                    docking: e.target.checked,
+                                  },
+                                }))
+                              }
+                            />
+                            <span>Docking</span>
+                          </label>
+                        </div>
+
+                        <div className={styles.rulesGroup}>
+                          <div className={styles.cardMeta}>Realism</div>
+                          <label className={styles.checkboxRow}>
+                            <input
+                              type="checkbox"
+                              checked={draft.rules.realism.damage}
+                              onChange={e =>
+                                updateRules(space.id, rules => ({
+                                  ...rules,
+                                  realism: {
+                                    ...rules.realism,
+                                    damage: e.target.checked,
+                                  },
+                                }))
+                              }
+                            />
+                            <span>Damage</span>
+                          </label>
+                          <label className={styles.checkboxRow}>
+                            <input
+                              type="checkbox"
+                              checked={draft.rules.realism.wear}
+                              onChange={e =>
+                                updateRules(space.id, rules => ({
+                                  ...rules,
+                                  realism: {
+                                    ...rules.realism,
+                                    wear: e.target.checked,
+                                  },
+                                }))
+                              }
+                            />
+                            <span>Wear</span>
+                          </label>
+                          <label className={styles.checkboxRow}>
+                            <input
+                              type="checkbox"
+                              checked={draft.rules.realism.failures}
+                              onChange={e =>
+                                updateRules(space.id, rules => ({
+                                  ...rules,
+                                  realism: {
+                                    ...rules.realism,
+                                    failures: e.target.checked,
+                                  },
+                                }))
+                              }
+                            />
+                            <span>Failures</span>
+                          </label>
+                        </div>
+
+                        <div className={styles.rulesGroup}>
+                          <div className={styles.cardMeta}>Enforcement</div>
+                          <label className={styles.checkboxRow}>
+                            <input
+                              type="checkbox"
+                              checked={draft.rules.enforcement.colregs}
+                              onChange={e =>
+                                updateRules(space.id, rules => ({
+                                  ...rules,
+                                  enforcement: {
+                                    ...rules.enforcement,
+                                    colregs: e.target.checked,
+                                  },
+                                }))
+                              }
+                            />
+                            <span>COLREGS</span>
+                          </label>
+                          <label className={styles.checkboxRow}>
+                            <input
+                              type="checkbox"
+                              checked={draft.rules.enforcement.penalties}
+                              onChange={e =>
+                                updateRules(space.id, rules => ({
+                                  ...rules,
+                                  enforcement: {
+                                    ...rules.enforcement,
+                                    penalties: e.target.checked,
+                                  },
+                                }))
+                              }
+                            />
+                            <span>Penalties</span>
+                          </label>
+                          <label className={styles.checkboxRow}>
+                            <input
+                              type="checkbox"
+                              checked={draft.rules.enforcement.investigations}
+                              onChange={e =>
+                                updateRules(space.id, rules => ({
+                                  ...rules,
+                                  enforcement: {
+                                    ...rules.enforcement,
+                                    investigations: e.target.checked,
+                                  },
+                                }))
+                              }
+                            />
+                            <span>Investigations</span>
+                          </label>
+                        </div>
+
+                        <div className={styles.rulesGroup}>
+                          <div className={styles.cardMeta}>Progression</div>
+                          <label className={styles.checkboxRow}>
+                            <input
+                              type="checkbox"
+                              checked={draft.rules.progression.scoring}
+                              onChange={e =>
+                                updateRules(space.id, rules => ({
+                                  ...rules,
+                                  progression: {
+                                    ...rules.progression,
+                                    scoring: e.target.checked,
+                                  },
+                                }))
+                              }
+                            />
+                            <span>Scoring</span>
+                          </label>
+                        </div>
+                      </div>
+                      <div className={styles.rulesInputs}>
+                        <label className={styles.cardMeta}>
+                          Allowed vessels
+                          <input
+                            className={styles.input}
+                            value={draft.rules.allowedVessels.join(', ')}
+                            onChange={e =>
+                              updateRules(space.id, rules => ({
+                                ...rules,
+                                allowedVessels: parseListInput(e.target.value),
+                              }))
+                            }
+                            placeholder="cargo, tug, ferry"
+                          />
+                        </label>
+                        <label className={styles.cardMeta}>
+                          Allowed mods
+                          <input
+                            className={styles.input}
+                            value={draft.rules.allowedMods.join(', ')}
+                            onChange={e =>
+                              updateRules(space.id, rules => ({
+                                ...rules,
+                                allowedMods: parseListInput(e.target.value),
+                              }))
+                            }
+                            placeholder="mod-id, mod-id-2"
+                          />
+                        </label>
+                      </div>
+                      <div className={styles.formRow}>
+                        <button
+                          type="button"
+                          className={`${styles.button} ${styles.buttonSecondary}`}
+                          onClick={() =>
+                            updateDraft(space.id, {
+                              rules: null,
+                              rulesTouched: true,
+                            })
+                          }
+                        >
+                          Clear overrides
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className={styles.formRow}>
+                      <div className={styles.cardMeta}>
+                        Using {draft?.rulesetType || space.rulesetType || 'CASUAL'} defaults.
+                      </div>
+                      <button
+                        type="button"
+                        className={`${styles.button} ${styles.buttonSecondary}`}
+                        onClick={() =>
+                          ensureCustomRules(
+                            space.id,
+                            draft?.rulesetType || space.rulesetType || 'CASUAL',
+                          )
+                        }
+                      >
+                        Customize rules
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : null}
 
               <div className={styles.formRow}>
                 <div className={styles.cardMeta}>

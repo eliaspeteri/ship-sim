@@ -529,6 +529,9 @@ class SocketManager {
           waterDepth: normalized.waterDepth,
           failureState: normalized.failureState ?? store.vessel.failureState,
           damageState: normalized.damageState ?? store.vessel.damageState,
+          properties: normalized.properties,
+          hydrodynamics: normalized.hydrodynamics,
+          render: normalized.render,
           controls: normalized.controls
             ? {
                 ...store.vessel.controls,

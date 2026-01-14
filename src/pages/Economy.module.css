@@ -41,6 +41,12 @@
   flex-wrap: wrap;
 }
 
+.spaceSelect {
+  display: grid;
+  gap: 6px;
+  min-width: 200px;
+}
+
 .primaryButton,
 .secondaryButton {
   padding: 10px 16px;
@@ -152,6 +158,12 @@
   border: 1px solid rgba(34, 58, 82, 0.5);
 }
 
+.leaseActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .listTitle {
   font-weight: 600;
   font-size: 14px;
@@ -238,6 +250,14 @@
   gap: 12px;
 }
 
+.passengerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
 .noticeInline {
   font-size: 12px;
   color: rgba(238, 210, 128, 0.9);
@@ -265,6 +285,75 @@
   padding: 10px 0;
 }
 
+.catalogHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.catalogGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.catalogCard {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(12, 24, 40, 0.9);
+  border: 1px solid rgba(36, 62, 86, 0.6);
+  display: grid;
+  gap: 12px;
+}
+
+.catalogTitleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.tagRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  background: rgba(28, 58, 76, 0.7);
+  color: rgba(206, 226, 234, 0.85);
+}
+
+.catalogStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.statValueSmall {
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.catalogActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.buttonDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 1024px) {
   .header {
     flex-direction: column;
@@ -285,6 +374,10 @@
   .portRow {
     grid-template-columns: 1fr;
   }
+
+  .catalogGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -299,6 +392,15 @@
 
   .statsRow,
   .statusRow {
+    grid-template-columns: 1fr;
+  }
+
+  .catalogGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .catalogStats,
+  .catalogActions {
     grid-template-columns: 1fr;
   }
 }

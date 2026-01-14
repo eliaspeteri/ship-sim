@@ -986,6 +986,8 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           }}
           heading={vesselPosition.heading}
           shipType={vesselProperties.type}
+          modelPath={vesselProperties.modelPath}
+          renderOptions={vesselState.render}
           ballast={vesselControls.ballast}
           draft={vesselProperties.draft}
           length={vesselProperties.length}
@@ -1016,7 +1018,9 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
               z: dragPreviewPositions[id]?.y ?? v.position.y ?? 0,
             }}
             heading={v.orientation.heading}
-            shipType={vesselProperties.type}
+            shipType={v.properties?.type ?? vesselProperties.type}
+            modelPath={v.properties?.modelPath ?? null}
+            renderOptions={v.render}
             ballast={v.controls?.ballast ?? 0.5}
             draft={v.properties?.draft ?? vesselProperties.draft}
             length={v.properties?.length ?? vesselProperties.length}

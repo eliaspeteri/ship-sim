@@ -88,6 +88,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const seamarks = useStore(state => state.seamarks);
   const setSeamarks = useStore(state => state.setSeamarks);
   const hasStartedRef = useRef(false);
+  const pendingJoinRef = useRef<string | null>(null);
   const sessionRole = (session?.user as { role?: string })?.role;
   const canEnterPlayerMode =
     sessionRole === 'admin' ||
@@ -549,10 +550,53 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   }, [session, status, router]);
 
   useEffect(() => {
+    if (!pendingJoinRef.current || !canEnterPlayerMode) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await socketManager.waitForConnection();
+        if (cancelled) return;
+        const vesselId = pendingJoinRef.current;
+        if (!vesselId) return;
+        socketManager.setJoinPreference('player', true);
+        socketManager.requestJoinVessel(vesselId);
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('ship-sim-active-vessel');
+        }
+        if (router.isReady && typeof router.query.vesselId === 'string') {
+          router.replace('/sim', undefined, { shallow: true });
+        }
+        pendingJoinRef.current = null;
+      } catch (error) {
+        console.warn('Failed to auto-join selected vessel:', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canEnterPlayerMode, router, status]);
+
+  useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(null), 5000);
     return () => clearTimeout(timer);
   }, [notice, setNotice]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    const queryVesselId =
+      typeof router.query.vesselId === 'string' ? router.query.vesselId : null;
+    if (queryVesselId) {
+      pendingJoinRef.current = queryVesselId;
+      return;
+    }
+    if (typeof window === 'undefined') return;
+    const stored = sessionStorage.getItem('ship-sim-active-vessel');
+    if (stored) {
+      pendingJoinRef.current = stored;
+    }
+  }, [router.isReady, router.query.vesselId]);
 
   // Start simulation after hydrating from the first self snapshot over the socket
   useEffect(() => {

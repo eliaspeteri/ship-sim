@@ -362,6 +362,7 @@ const defaultVesselState: VesselState = {
     blackout: false,
     otherAlarms: {},
   },
+  render: {},
   failureState: {
     engineFailure: false,
     steeringFailure: false,
@@ -650,6 +651,20 @@ const useStore = create<SimulationState>()((set, get) => ({
           updatedVessel.properties = {
             ...updatedVessel.properties,
             ...vesselUpdate.properties,
+          };
+        }
+
+        if (vesselUpdate.hydrodynamics) {
+          updatedVessel.hydrodynamics = {
+            ...updatedVessel.hydrodynamics,
+            ...vesselUpdate.hydrodynamics,
+          };
+        }
+
+        if (vesselUpdate.render) {
+          updatedVessel.render = {
+            ...(updatedVessel.render || {}),
+            ...vesselUpdate.render,
           };
         }
 

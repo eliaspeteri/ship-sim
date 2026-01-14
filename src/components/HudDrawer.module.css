@@ -100,6 +100,53 @@
   color: rgba(185, 206, 216, 0.7);
 }
 
+.noticeText {
+  font-size: 12px;
+  color: rgba(185, 206, 216, 0.7);
+}
+
+.fleetGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.fleetRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(40, 60, 80, 0.6);
+  background: rgba(9, 18, 30, 0.75);
+}
+
+.fleetTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f2f7f8;
+}
+
+.fleetMeta {
+  font-size: 12px;
+  color: rgba(170, 186, 198, 0.7);
+}
+
+.fleetButton {
+  border: 1px solid rgba(27, 154, 170, 0.6);
+  background: rgba(14, 30, 46, 0.9);
+  color: #f0f7f8;
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.fleetButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .systemGrid {
   margin-top: 12px;
   display: grid;
