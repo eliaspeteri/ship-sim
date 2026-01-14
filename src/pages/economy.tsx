@@ -290,7 +290,7 @@ const EconomyPage = () => {
         if (!res.ok) return;
         const data = await res.json();
         setSpaces(Array.isArray(data?.spaces) ? data.spaces : []);
-      } catch (err) {
+      } catch (_err) {
         setSpaces([]);
       }
     };
@@ -581,10 +581,7 @@ const EconomyPage = () => {
                   setSelectedVesselId(next);
                   if (typeof window !== 'undefined') {
                     if (next) {
-                      sessionStorage.setItem(
-                        'ship-sim-active-vessel',
-                        next,
-                      );
+                      sessionStorage.setItem('ship-sim-active-vessel', next);
                     } else {
                       sessionStorage.removeItem('ship-sim-active-vessel');
                     }
