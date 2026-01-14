@@ -141,7 +141,10 @@ export type ClientToServerEvents = {
     station: CrewStation;
     action: 'claim' | 'release';
   }) => void;
-  'vessel:repair': (data: { vesselId?: string }) => void;
+  'vessel:repair': (
+    data: { vesselId?: string },
+    callback: (callbackData: { ok: boolean; message: string }) => void,
+  ) => void;
   'simulation:state': (data: { isRunning: boolean }) => void;
   'admin:weather': (data: {
     pattern?: string;
