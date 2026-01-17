@@ -949,7 +949,10 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           mieDirectionalG={0.8}
         />
 
-        <Environment preset="sunset" />
+        <Environment
+          preset="sunset"
+          environmentIntensity={0.05 + daylight * 0.95}
+        />
         <ambientLight intensity={lightIntensity.ambient} />
         <hemisphereLight args={['#6fa6ff', '#0b1e2d', lightIntensity.hemi]} />
         <directionalLight
@@ -967,7 +970,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
         {!isSpectator ? <FarWater centerRef={focusRef} /> : null}
         <OceanPatch
           centerRef={focusRef}
-          size={4000}
+          size={12000}
           segments={512}
           wave={waveState}
           sunDirection={sunDirection}
