@@ -6,7 +6,11 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import apiRoutes from './api';
 import jwt from 'jsonwebtoken';
-import { getWeatherPattern, WeatherPattern } from './weatherSystem';
+import {
+  applyWeatherPattern,
+  getWeatherPattern,
+  WeatherPattern,
+} from './weatherSystem';
 import { Role, expandRoles, permissionsForRoles } from './roles';
 import {
   ClientToServerEvents,
@@ -179,7 +183,7 @@ const environmentPersistAt = new Map<string, number>();
 let nextAutoWeatherAt = Date.now() + WEATHER_AUTO_INTERVAL_MS;
 let lastMissionUpdateAt = 0;
 
-const currentUtcTimeOfDay = () => {
+export const currentUtcTimeOfDay = () => {
   const now = new Date();
   return (
     (now.getUTCHours() +
@@ -703,7 +707,7 @@ async function loadEnvironmentFromDb(spaceId = DEFAULT_SPACE_ID) {
     if (!row) {
       const pattern = getWeatherPattern();
       pattern.timeOfDay = currentUtcTimeOfDay();
-      const env = applyWeatherPattern(spaceId, pattern);
+      const env = applyWeatherPattern(spaceId, pattern, globalState);
       env.name = 'Auto weather';
       globalState.environmentBySpace.set(spaceId, env);
       await persistEnvironmentToDb({ force: true, spaceId });
@@ -981,39 +985,6 @@ const getDefaultEnvironment = (name = 'Global'): EnvironmentState => ({
   name,
 });
 
-const applyWeatherPattern = (
-  spaceId: string,
-  pattern: WeatherPattern,
-): EnvironmentState => {
-  const env = getEnvironmentForSpace(spaceId);
-  const next: EnvironmentState = {
-    wind: {
-      speed: pattern.wind.speed,
-      direction: pattern.wind.direction,
-      gusting: pattern.wind.gusting,
-      gustFactor: pattern.wind.gustFactor,
-    },
-    current: {
-      speed: pattern.current.speed,
-      direction: pattern.current.direction,
-      variability: pattern.current.variability,
-    },
-    seaState: Math.round(pattern.seaState),
-    waterDepth: pattern.waterDepth,
-    visibility: pattern.visibility,
-    timeOfDay: pattern.timeOfDay ?? env.timeOfDay ?? currentUtcTimeOfDay(),
-    precipitation: pattern.precipitation,
-    precipitationIntensity: pattern.precipitationIntensity,
-    tideHeight: env.tideHeight,
-    tideRange: env.tideRange,
-    tidePhase: env.tidePhase,
-    tideTrend: env.tideTrend,
-    name: pattern.name || 'Weather',
-  };
-  globalState.environmentBySpace.set(spaceId, next);
-  return next;
-};
-
 const applyEnvironmentOverrides = (
   spaceId: string,
   overrides: Partial<EnvironmentState>,
@@ -1064,7 +1035,7 @@ const globalState = {
   ]),
 };
 
-const getEnvironmentForSpace = (spaceId: string): EnvironmentState => {
+export const getEnvironmentForSpace = (spaceId: string): EnvironmentState => {
   const existing = globalState.environmentBySpace.get(spaceId);
   if (existing) return existing;
   const env = getDefaultEnvironment(spaceId);
@@ -2144,7 +2115,7 @@ async function processEnvironmentEvents() {
       if (event.pattern) {
         const pattern = getWeatherPattern(event.pattern);
         pattern.timeOfDay = env.timeOfDay ?? currentUtcTimeOfDay();
-        env = applyWeatherPattern(spaceId, pattern);
+        env = applyWeatherPattern(spaceId, pattern, globalState);
       }
       if (event.payload) {
         env = applyEnvironmentOverrides(
@@ -2191,7 +2162,7 @@ async function processEnvironmentEvents() {
       } else {
         const pattern = getWeatherPattern();
         pattern.timeOfDay = env.timeOfDay ?? currentUtcTimeOfDay();
-        env = applyWeatherPattern(spaceId, pattern);
+        env = applyWeatherPattern(spaceId, pattern, globalState);
       }
       io.to(`space:${spaceId}`).emit('environment:update', env);
       await prisma.environmentEvent.update({
@@ -2272,7 +2243,7 @@ setInterval(() => {
     if (now >= nextAutoWeatherAt) {
       const autoPattern = getWeatherPattern();
       autoPattern.timeOfDay = currentUtcTimeOfDay();
-      applyWeatherPattern(DEFAULT_SPACE_ID, autoPattern);
+      applyWeatherPattern(DEFAULT_SPACE_ID, autoPattern, globalState);
       nextAutoWeatherAt = now + WEATHER_AUTO_INTERVAL_MS;
       environmentChanged = true;
       console.info(

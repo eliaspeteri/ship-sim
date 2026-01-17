@@ -3,6 +3,10 @@
  * Handles server-side weather generation and changes
  */
 
+import { currentUtcTimeOfDay, getEnvironmentForSpace } from '.';
+import { EnvironmentState } from '../types/environment.types';
+import { GlobalState } from './socketHandlers/context';
+
 // Weather pattern definitions
 export interface WeatherPattern {
   name: string;
@@ -21,6 +25,39 @@ export interface WeatherPattern {
   precipitationIntensity: number;
 }
 
+export const applyWeatherPattern = (
+  spaceId: string,
+  pattern: WeatherPattern,
+  globalState: GlobalState,
+): EnvironmentState => {
+  const env = getEnvironmentForSpace(spaceId);
+  const next: EnvironmentState = {
+    wind: {
+      speed: pattern.wind.speed,
+      direction: pattern.wind.direction,
+      gusting: pattern.wind.gusting,
+      gustFactor: pattern.wind.gustFactor,
+    },
+    current: {
+      speed: pattern.current.speed,
+      direction: pattern.current.direction,
+      variability: pattern.current.variability,
+    },
+    seaState: Math.round(pattern.seaState),
+    waterDepth: pattern.waterDepth,
+    visibility: pattern.visibility,
+    timeOfDay: pattern.timeOfDay ?? env.timeOfDay ?? currentUtcTimeOfDay(),
+    precipitation: pattern.precipitation,
+    precipitationIntensity: pattern.precipitationIntensity,
+    tideHeight: env.tideHeight,
+    tideRange: env.tideRange,
+    tidePhase: env.tidePhase,
+    tideTrend: env.tideTrend,
+    name: pattern.name || 'Weather',
+  };
+  globalState.environmentBySpace.set(spaceId, next);
+  return next;
+};
 // Preset weather patterns
 export const weatherPresets: Record<string, WeatherPattern> = {
   calm: {

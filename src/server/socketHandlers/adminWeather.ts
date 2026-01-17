@@ -16,6 +16,7 @@ export function registerAdminWeatherHandler({
   currentUtcTimeOfDay,
   weatherAutoIntervalMs,
   persistEnvironmentToDb,
+  globalState,
 }: SocketHandlerContext) {
   socket.on('admin:weather', async data => {
     const spaceId = getSpaceIdForSocket(socket);
@@ -32,7 +33,7 @@ export function registerAdminWeatherHandler({
       weather.setTarget(null);
       const pattern = getWeatherPattern();
       pattern.timeOfDay = currentUtcTimeOfDay();
-      const env = applyWeatherPattern(spaceId, pattern);
+      const env = applyWeatherPattern(spaceId, pattern, globalState);
       weather.setNextAuto(Date.now() + weatherAutoIntervalMs);
       io.to(`space:${spaceId}`).emit('environment:update', env);
       void persistEnvironmentToDb({ force: true, spaceId });
@@ -45,7 +46,7 @@ export function registerAdminWeatherHandler({
     weather.setMode('manual');
     if (data.pattern) {
       const nextPattern = getWeatherPattern(data.pattern);
-      const env = applyWeatherPattern(spaceId, nextPattern);
+      const env = applyWeatherPattern(spaceId, nextPattern, globalState);
       weather.setTarget(nextPattern);
       io.to(`space:${spaceId}`).emit('environment:update', env);
       void persistEnvironmentToDb({ force: true, spaceId });
@@ -57,7 +58,7 @@ export function registerAdminWeatherHandler({
         data.coordinates.lat,
         data.coordinates.lng,
       );
-      const env = applyWeatherPattern(spaceId, nextPattern);
+      const env = applyWeatherPattern(spaceId, nextPattern, globalState);
       weather.setTarget(nextPattern);
       io.to(`space:${spaceId}`).emit('environment:update', env);
       void persistEnvironmentToDb({ force: true, spaceId });
