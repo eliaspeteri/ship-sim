@@ -6,3 +6,6 @@
 .next
 .env
 .env.db
+.env.frontend
+.env.geoserver
+.env.tiles
