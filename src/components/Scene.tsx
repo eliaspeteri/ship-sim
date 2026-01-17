@@ -708,7 +708,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
   }, [selectedSnapshot, selectedVesselId]);
 
   // Simple sun direction derived from time of day (0-24). Kept adaptable for future lat/season logic.
-  const { sunDirection, lightIntensity } = useMemo(() => {
+  const { sunDirection, lightIntensity, daylight } = useMemo(() => {
     const t = envTime ?? 12;
     const normalized = ((t % 24) + 24) / 24; // 0..1
     // Simple solar model: elevation crosses horizon at ~06:00/18:00, peaks at noon, negative at night.
@@ -967,7 +967,9 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
         />
         <RendererPerfMonitor enabled={perfLoggingEnabled} />
         <fog attach="fog" args={['#091623', 6000, 40000]} />
-        {!isSpectator ? <FarWater centerRef={focusRef} /> : null}
+        {!isSpectator ? (
+          <FarWater centerRef={focusRef} sunDirection={sunDirection} />
+        ) : null}
         <OceanPatch
           centerRef={focusRef}
           size={12000}
@@ -1027,6 +1029,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
             ballast={v.controls?.ballast ?? 0.5}
             draft={v.properties?.draft ?? vesselProperties.draft}
             length={v.properties?.length ?? vesselProperties.length}
+            horizonOcclusion={{ enabled: true }}
             showDebugMarkers={isSpectator && selectedVesselId === id}
             onSelect={isSpectator ? handleSelectVessel : undefined}
           />

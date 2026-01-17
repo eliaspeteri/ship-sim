@@ -142,7 +142,6 @@ void heightAndDerivs(in vec2 xz, in float fadeMul, out float dhdx, out float dhd
 }
 
 void main() {
-  // Square-distance edge (same as your vertex)
   vec2 dXZ = vWorldPos.xz - uCenter;
   float dSquare = max(abs(dXZ.x), abs(dXZ.y));
   float edge = smoothstep(uFadeStart, uFadeEnd, dSquare);
@@ -202,7 +201,7 @@ export function OceanPatch({
 
   const material = useMemo(() => {
     const uniforms = THREE.UniformsUtils.merge([
-      THREE.UniformsLib.fog, // <-- THIS fixes fogColor undefined
+      THREE.UniformsLib.fog,
       {
         uTime: { value: 0 },
         uWaveCount: { value: WAVE_COUNT },
@@ -269,12 +268,14 @@ export function OceanPatch({
 
     const daylight = Math.max(0, sunDirection.y);
     material.uniforms.uSunDirection.value.copy(sunDirection).normalize();
-    material.uniforms.uSkyColor.value.setRGB(
-      0.35 + daylight * 0.45,
-      0.45 + daylight * 0.45,
-      0.55 + daylight * 0.4,
-    );
-    material.uniforms.uAmbient.value = 0.08 * daylight * 0.25;
+    const deep = new THREE.Color(0x0b2b3d);
+    const bright = new THREE.Color(0x1c5a80);
+    const waterMixed = deep
+      .clone()
+      .lerp(bright, THREE.MathUtils.clamp(daylight, 0, 1) * 0.8);
+    material.uniforms.uWaterColor.value.copy(waterMixed);
+    material.uniforms.uFarColor.value.copy(waterMixed);
+    material.uniforms.uAmbient.value = 0.12 + 0.25 * daylight;
 
     material.toneMapped = true;
   }, [material, wave.amplitude, wave.k, wave.omega, wave.direction]);

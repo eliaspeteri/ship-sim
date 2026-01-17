@@ -20,6 +20,12 @@ interface ShipProps {
   length?: number;
   roll?: number;
   pitch?: number;
+  horizonOcclusion?: {
+    enabled: boolean;
+    dropStart?: number;
+    dropEnd?: number;
+    planetRadius?: number;
+  };
   showDebugMarkers?: boolean;
   onSelect?: (id: string) => void;
 }
@@ -43,6 +49,7 @@ const Ship: React.FC<ShipProps> = ({
   length = 150,
   roll,
   pitch,
+  horizonOcclusion,
   showDebugMarkers = false,
   onSelect,
 }) => {
@@ -90,14 +97,38 @@ const Ship: React.FC<ShipProps> = ({
     };
   }, [model]);
 
-  useFrame(() => {
+  useFrame(({ camera }) => {
     const obj = shipRef.current;
     if (obj) {
       const sinkFactor = renderOptions?.sinkFactor ?? 0.4;
       const heaveScale = renderOptions?.heaveScale ?? 1;
       const sink = -draft * (sinkFactor + sinkFactor * ballast);
+
+      let drop = 0;
+      if (horizonOcclusion?.enabled) {
+        const dropStart = horizonOcclusion.dropStart ?? 3_800;
+        const dropEnd = horizonOcclusion.dropEnd ?? 6_800;
+        const R = horizonOcclusion.planetRadius ?? 6_371_000;
+        const dx = position.x - camera.position.x;
+        const dz = position.z - camera.position.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist > dropStart) {
+          const h = Math.max(camera.position.y, 1);
+          const rawDrop = (dist * dist) / (2 * R);
+          const t = THREE.MathUtils.clamp(
+            (dist - dropStart) / Math.max(1, dropEnd - dropStart),
+            0,
+            1,
+          );
+          // Slightly reduce drop when viewer is very low to avoid harsh pop
+          const heightScale = THREE.MathUtils.clamp(h / 50, 0.35, 1);
+          drop = rawDrop * t * heightScale;
+        }
+      }
+
       const yPos =
-        position.y !== undefined ? position.y * heaveScale + sink : sink;
+        (position.y !== undefined ? position.y * heaveScale + sink : sink) -
+        drop;
       // Position from props and physics state (use heave in y plus sink offset)
       obj.position.set(position.x, yPos, position.z);
 
