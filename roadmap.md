@@ -57,7 +57,7 @@
 - [x] Globe/ocean rendering from Earth tiles + bathymetry grounding
 - [x] Physics realism upgrades (hydro constants, waves, hull form/buoyancy)
 - [x] Mission system + basic economy (costs, fuel, port fees, earnings)
-- [ ] Failure modeling (engine, steering, flooding)
+- [x] Failure modeling (engine, steering, flooding)
 - [x] Damage persistence and repair workflows
 
 ---
@@ -66,14 +66,14 @@
 
 ### Ruleset fundamentals
 
-- [ ] Ruleset is a first-class space setting
-- [ ] Ruleset controls:
-  - [ ] Assists (stability, autopilot, docking helpers)
-  - [ ] Realism toggles (damage, wear, failures)
-  - [ ] Enforcement (COLREG penalties, investigations)
-  - [ ] HUD limitations
-  - [ ] Allowed vessel/mod definitions
-  - [ ] Progression and scoring behavior
+- [x] Ruleset is a first-class space setting
+- [x] Ruleset controls:
+  - [x] Assists (stability, autopilot, docking helpers)
+  - [x] Realism toggles (damage, wear, failures)
+  - [x] Enforcement (COLREG penalties, investigations)
+  - [x] HUD limitations
+  - [x] Allowed vessel/mod definitions
+  - [x] Progression and scoring behavior
 
 ### Built-in rulesets
 
@@ -154,30 +154,30 @@
 
 ## Economy & ownership
 
-- [ ] Vessel creation cost (rank + currency gated)
-- [ ] Operating costs apply while underway (even offline)
-- [ ] Idle, drifting, and underway cost models
-- [ ] Crew wages and/or revenue share (locked per voyage)
-- [ ] Loans and central banking system
-- [ ] Insurance (loss, damage, salvage)
-- [ ] Vessel storage in dock (zero operating cost)
-- [ ] Auctions, repossession, voluntary sales
-- [ ] Leasing and chartering
-- [ ] Cargo ownership and liability
+- [x] Vessel creation cost (rank + currency gated)
+- [x] Operating costs apply while underway (even offline)
+- [x] Idle, drifting, and underway cost models
+- [x] Crew wages and/or revenue share (locked per voyage)
+- [x] Loans and central banking system
+- [x] Insurance (loss, damage, salvage)
+- [x] Vessel storage in dock (zero operating cost)
+- [x] Auctions, repossession, voluntary sales
+- [x] Leasing and chartering
+- [x] Cargo ownership and liability
 
 ---
 
 ## Cargo, passengers & logistics
 
-- [ ] Procedural cargo generation by port size and region
-- [ ] Cargo expiration and rerouting
-- [ ] Competition balanced by availability, not scarcity
-- [ ] Small-craft cargo (fish, parcels, supplies)
-- [ ] Passenger (pax) operations
-  - [ ] Ferries
-  - [ ] Water buses
-  - [ ] Water taxis
-- [ ] Port congestion effects on turnaround
+- [x] Procedural cargo generation by port size and region
+- [x] Cargo expiration and rerouting
+- [x] Competition balanced by availability, not scarcity
+- [x] Small-craft cargo (fish, parcels, supplies)
+- [x] Passenger (pax) operations
+  - [x] Ferries
+  - [x] Water buses
+  - [x] Water taxis
+- [x] Port congestion effects on turnaround
 
 ---
 
