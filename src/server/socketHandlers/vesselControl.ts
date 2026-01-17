@@ -30,10 +30,7 @@ export function registerVesselControlHandler({
     const vesselKey =
       getVesselIdForUser(currentUserId, spaceId) || currentUserId;
     const vesselRecord = globalState.vessels.get(vesselKey);
-    if (
-      !vesselRecord ||
-      (vesselRecord.spaceId || defaultSpaceId) !== spaceId
-    ) {
+    if (!vesselRecord || (vesselRecord.spaceId || defaultSpaceId) !== spaceId) {
       console.warn('No vessel for user, creating on control', currentUserId);
       ensureVesselForUser(currentUserId, effectiveUsername, spaceId);
     }

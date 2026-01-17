@@ -1,12 +1,6 @@
 import { prisma } from '../../lib/prisma';
-import {
-  computeTurnaroundDelayMs,
-  getPortCongestion,
-} from '../logistics';
-import {
-  getVesselCargoCapacityTons,
-  resolvePortForPosition,
-} from '../economy';
+import { computeTurnaroundDelayMs, getPortCongestion } from '../logistics';
+import { getVesselCargoCapacityTons, resolvePortForPosition } from '../economy';
 import type { SocketHandlerContext } from './context';
 
 export function registerCargoHandlers({

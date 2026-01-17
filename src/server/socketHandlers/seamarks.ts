@@ -1,7 +1,4 @@
-import {
-  bboxAroundLatLonGeodesic,
-  querySeamarksBBox,
-} from '../seamarks';
+import { bboxAroundLatLonGeodesic, querySeamarksBBox } from '../seamarks';
 import type { SocketHandlerContext } from './context';
 
 export function registerSeamarksHandler({ socket }: SocketHandlerContext) {

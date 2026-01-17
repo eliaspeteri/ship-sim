@@ -12,11 +12,11 @@ export function registerVesselSaleHandler(ctx: SocketHandlerContext) {
     socket,
     effectiveUserId,
     globalState,
-  hasAdminRole,
-  persistVesselToDb,
-  defaultSpaceId,
-  userSpaceKey,
-  syncUserSocketsEconomy,
+    hasAdminRole,
+    persistVesselToDb,
+    defaultSpaceId,
+    userSpaceKey,
+    syncUserSocketsEconomy,
   } = ctx;
 
   socket.on('vessel:sale:create', data => {

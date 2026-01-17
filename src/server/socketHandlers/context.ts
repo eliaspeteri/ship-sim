@@ -69,9 +69,7 @@ export type SocketHandlerContext = {
     userId: string,
     username: string,
     isAdmin: boolean,
-  ) =>
-    | { ok: true }
-    | { ok: false; message?: string | undefined };
+  ) => { ok: true } | { ok: false; message?: string | undefined };
   resolveChatChannel: (
     requestedChannel: string | undefined,
     vesselId: string | undefined,
@@ -87,18 +85,17 @@ export type SocketHandlerContext = {
     userId: string | undefined,
     username: string | undefined,
     spaceId: string,
-  ) => Promise<
-    | {
-        reason?: string | null;
-      }
-    | null
-  >;
-  getSpaceIdForSocket: (socket: Socket<
-    ClientToServerEvents,
-    ServerToClientEvents,
-    InterServerEvents,
-    SocketData
-  >) => string;
+  ) => Promise<{
+    reason?: string | null;
+  } | null>;
+  getSpaceIdForSocket: (
+    socket: Socket<
+      ClientToServerEvents,
+      ServerToClientEvents,
+      InterServerEvents,
+      SocketData
+    >,
+  ) => string;
   assignStationsForCrew: (
     vessel: VesselRecord,
     userId: string,
@@ -120,7 +117,10 @@ export type SocketHandlerContext = {
     vessel: VesselRecord,
     opts?: { force?: boolean },
   ) => Promise<void> | void;
-  persistEnvironmentToDb: (opts?: { force?: boolean; spaceId?: string }) => Promise<void> | void;
+  persistEnvironmentToDb: (opts?: {
+    force?: boolean;
+    spaceId?: string;
+  }) => Promise<void> | void;
   defaultSpaceId: string;
   aiControllers: Map<string, { heading: number; speed: number }>;
   hasAdminRole: (
@@ -151,7 +151,10 @@ export type SocketHandlerContext = {
     { lastChargeAt: number; accrued: number; lastPortId?: string }
   >;
   chatHistoryPageSize: number;
-  isSpaceHost: (userId: string | undefined, spaceId: string) => Promise<boolean>;
+  isSpaceHost: (
+    userId: string | undefined,
+    spaceId: string,
+  ) => Promise<boolean>;
   weather: {
     getMode: () => 'manual' | 'auto';
     setMode: (mode: 'manual' | 'auto') => void;
