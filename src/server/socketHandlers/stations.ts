@@ -1,0 +1,84 @@
+import type { SocketHandlerContext } from './context';
+
+export function registerStationHandlers({
+  io,
+  socket,
+  spaceId,
+  effectiveUserId,
+  effectiveUsername,
+  globalState,
+  getVesselIdForUser,
+  updateStationAssignment,
+  hasAdminRole,
+  toSimpleVesselState,
+  persistVesselToDb,
+  defaultSpaceId,
+}: SocketHandlerContext) {
+  socket.on('vessel:helm', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    const currentUsername = socket.data.username || effectiveUsername;
+    const vesselKey =
+      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
+    const vessel = globalState.vessels.get(vesselKey);
+    if (!vessel || (vessel.spaceId || defaultSpaceId) !== spaceId) return;
+    if (!vessel.crewIds.has(currentUserId)) {
+      socket.emit('error', 'You are not crew on this vessel');
+      return;
+    }
+    const result = updateStationAssignment(
+      vessel,
+      'helm',
+      data.action,
+      currentUserId,
+      currentUsername,
+      hasAdminRole(socket),
+    );
+    if (!result.ok) {
+      socket.emit('error', result.message || 'Unable to change helm');
+      return;
+    }
+    vessel.lastUpdate = Date.now();
+    void persistVesselToDb(vessel, { force: true });
+    io.to(`space:${spaceId}`).emit('simulation:update', {
+      vessels: { [vessel.id]: toSimpleVesselState(vessel) },
+      partial: true,
+      timestamp: Date.now(),
+    });
+  });
+
+  socket.on('vessel:station', data => {
+    const currentUserId = socket.data.userId || effectiveUserId;
+    const currentUsername = socket.data.username || effectiveUsername;
+    const vesselKey =
+      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
+    const vessel = globalState.vessels.get(vesselKey);
+    if (!vessel || (vessel.spaceId || defaultSpaceId) !== spaceId) return;
+    if (!vessel.crewIds.has(currentUserId) && !hasAdminRole(socket)) {
+      socket.emit('error', 'You are not crew on this vessel');
+      return;
+    }
+    const station =
+      data.station === 'engine' || data.station === 'radio'
+        ? data.station
+        : 'helm';
+    const result = updateStationAssignment(
+      vessel,
+      station,
+      data.action,
+      currentUserId,
+      currentUsername,
+      hasAdminRole(socket),
+    );
+    if (!result.ok) {
+      socket.emit('error', result.message || 'Unable to change station');
+      return;
+    }
+    vessel.lastUpdate = Date.now();
+    void persistVesselToDb(vessel, { force: true });
+    io.to(`space:${spaceId}`).emit('simulation:update', {
+      vessels: { [vessel.id]: toSimpleVesselState(vessel) },
+      partial: true,
+      timestamp: Date.now(),
+    });
+  });
+}

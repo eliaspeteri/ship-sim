@@ -6,12 +6,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import apiRoutes from './api';
 import jwt from 'jsonwebtoken';
-import {
-  getWeatherPattern,
-  getWeatherByCoordinates,
-  WeatherPattern,
-} from './weatherSystem';
-import { socketHasPermission } from './middleware/authorization';
+import { getWeatherPattern, WeatherPattern } from './weatherSystem';
 import { Role, expandRoles, permissionsForRoles } from './roles';
 import {
   ClientToServerEvents,
@@ -34,8 +29,6 @@ import {
   distanceMeters,
   positionFromLatLon,
   positionFromXY,
-  bodyVelocityFromWorld,
-  speedFromWorldVelocity,
 } from '../lib/position';
 import { prisma } from '../lib/prisma';
 import { RUDDER_MAX_ANGLE_RAD } from '../constants/vessel';
@@ -48,37 +41,23 @@ import { getBathymetryDepth, loadBathymetry } from './bathymetry';
 import {
   getEconomyProfile,
   applyEconomyAdjustment,
-  calculateVesselCreationCost,
-  getVesselCargoCapacityTons,
-  resolvePortForPosition,
   updateEconomyForVessel,
 } from './economy';
 import { seedDefaultMissions, updateMissionAssignments } from './missions';
 import { seedCareerDefinitions } from './careers';
 import {
-  computeTurnaroundDelayMs,
   ensureCargoAvailability,
   ensurePassengerAvailability,
-  getPortCongestion,
   sweepExpiredCargo,
   sweepExpiredPassengers,
   updateCargoDeliveries,
   updatePassengerDeliveries,
 } from './logistics';
 import { recordLog } from './observability';
-import {
-  bboxAroundLatLonGeodesic,
-  loadSeamarks,
-  querySeamarksBBox,
-} from './seamarks';
+import { loadSeamarks } from './seamarks';
 import { computeTideState } from '../lib/tides';
 import { updateFailureState, FailureState } from './failureModel';
-import {
-  DamageState,
-  DEFAULT_DAMAGE_STATE,
-  applyRepair,
-  computeRepairCost,
-} from '../lib/damage';
+import { DamageState, DEFAULT_DAMAGE_STATE } from '../lib/damage';
 import {
   applyCollisionDamage,
   applyFailureWear,
@@ -87,6 +66,26 @@ import {
 } from './damageModel';
 import { applyFailureControlLimits } from '../lib/failureControls';
 import { buildHydrodynamics, resolveVesselTemplate } from './vesselCatalog';
+import { registerVesselUpdateHandler } from './socketHandlers/vesselUpdate';
+import { registerUserModeHandler } from './socketHandlers/userMode';
+import { registerVesselControlHandler } from './socketHandlers/vesselControl';
+import { registerVesselRepairHandler } from './socketHandlers/vesselRepair';
+import { registerSimulationStateHandler } from './socketHandlers/simulationState';
+import { registerLatencyPingHandler } from './socketHandlers/latencyPing';
+import { registerClientLogHandler } from './socketHandlers/clientLog';
+import { registerVesselStorageHandler } from './socketHandlers/vesselStorage';
+import { registerVesselSaleHandler } from './socketHandlers/vesselSale';
+import { registerVesselJoinHandler } from './socketHandlers/vesselJoin';
+import { registerVesselLeaseHandler } from './socketHandlers/vesselLease';
+import { registerEconomyHandlers } from './socketHandlers/economy';
+import { registerCargoHandlers } from './socketHandlers/cargo';
+import { registerStationHandlers } from './socketHandlers/stations';
+import { registerAdminHandlers } from './socketHandlers/admin';
+import { registerChatHandlers } from './socketHandlers/chat';
+import { registerAdminWeatherHandler } from './socketHandlers/adminWeather';
+import { registerSeamarksHandler } from './socketHandlers/seamarks';
+import { registerDisconnectHandler } from './socketHandlers/disconnect';
+import type { SocketHandlerContext } from './socketHandlers/context';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
@@ -1874,6 +1873,114 @@ io.on('connection', async socket => {
     });
   }
 
+  const buildVesselRecordFromRowAdapter = (row: unknown): VesselRecord =>
+    buildVesselRecordFromRow(
+      row as Parameters<typeof buildVesselRecordFromRow>[0],
+    );
+
+  const createNewVesselForUserAdapter = (
+    userId: string,
+    username: string,
+    payload: unknown,
+    spaceId: string,
+  ): VesselRecord =>
+    createNewVesselForUser(
+      userId,
+      username,
+      payload as Parameters<typeof createNewVesselForUser>[2],
+      spaceId,
+    );
+
+  const updateStationAssignmentAdapter = (
+    vessel: VesselRecord,
+    station: 'helm' | 'engine' | 'radio',
+    action: string,
+    userId: string,
+    username: string,
+    isAdmin: boolean,
+  ): { ok: true } | { ok: false; message?: string } => {
+    const result = updateStationAssignment(
+      vessel,
+      station,
+      action as 'claim' | 'release',
+      userId,
+      username,
+      isAdmin,
+    );
+    return result.ok ? { ok: true } : result;
+  };
+
+  const handlerContext: SocketHandlerContext = {
+    io,
+    socket,
+    spaceId,
+    effectiveUserId,
+    effectiveUsername,
+    roleSet,
+    isPlayerOrHigher,
+    isSpectatorOnly,
+    isGuest,
+    spaceMeta: {
+      rankRequired: spaceMeta.rankRequired,
+      rulesetType: spaceMeta.rulesetType,
+      rules: spaceMeta.rules,
+      name: spaceMeta.name,
+      visibility: spaceMeta.visibility,
+      kind: spaceMeta.kind,
+    },
+    globalState,
+    getVesselIdForUser,
+    ensureVesselForUser,
+    buildVesselRecordFromRow: buildVesselRecordFromRowAdapter,
+    findVesselInSpace,
+    findJoinableVessel,
+    userSpaceKey,
+    maxCrew: MAX_CREW,
+    createNewVesselForUser: createNewVesselForUserAdapter,
+    updateStationAssignment: updateStationAssignmentAdapter,
+    resolveChatChannel,
+    normalizeVesselId,
+    loadChatHistory,
+    getActiveMute,
+    getSpaceIdForSocket,
+    assignStationsForCrew,
+    detachUserFromCurrentVessel,
+    updateSocketVesselRoom,
+    toSimpleVesselState,
+    persistVesselToDb,
+    persistEnvironmentToDb,
+    defaultSpaceId: DEFAULT_SPACE_ID,
+    aiControllers,
+    hasAdminRole,
+    clamp,
+    clampSigned,
+    clampHeading,
+    rudderMaxAngleRad: RUDDER_MAX_ANGLE_RAD,
+    resolveChargeUserId,
+    getRulesForSpace,
+    syncUserSocketsEconomy,
+    economyLedger,
+    chatHistoryPageSize: CHAT_HISTORY_PAGE_SIZE,
+    isSpaceHost,
+    weather: {
+      getMode: () => weatherMode,
+      setMode: mode => {
+        weatherMode = mode;
+      },
+      getTarget: () => targetWeather,
+      setTarget: pattern => {
+        targetWeather = pattern;
+      },
+      getNextAuto: () => nextAutoWeatherAt,
+      setNextAuto: value => {
+        nextAutoWeatherAt = value;
+      },
+    },
+    getEnvironmentForSpace,
+    currentUtcTimeOfDay,
+    weatherAutoIntervalMs: WEATHER_AUTO_INTERVAL_MS,
+  };
+
   // Send initial snapshot with recent chat history
   void (async () => {
     let chatHistory: {
@@ -1953,1688 +2060,43 @@ io.on('connection', async socket => {
     });
   })();
 
-  // Handle vessel:update events (from client sim)
-  socket.on('vessel:update', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) {
-      console.warn('Ignoring vessel:update from unidentified user');
+  registerVesselUpdateHandler(handlerContext);
 
-      return;
-    }
-    if (!isPlayerOrHigher) {
-      console.info('Ignoring vessel:update from non-player');
-      return;
-    }
-    if ((socket.data as { mode?: string }).mode === 'spectator') {
-      return;
-    }
-
-    const vesselKey =
-      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
-    const vesselRecord = globalState.vessels.get(vesselKey);
-    if (
-      !vesselRecord ||
-      (vesselRecord.spaceId || DEFAULT_SPACE_ID) !== spaceId
-    ) {
-      console.warn('No vessel for user, creating on update', currentUserId);
-      ensureVesselForUser(currentUserId, effectiveUsername, spaceId);
-    }
-    const target = globalState.vessels.get(
-      getVesselIdForUser(currentUserId, spaceId) || currentUserId,
-    );
-    if (!target || (target.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
-    const canSendUpdates =
-      hasAdminRole(socket) ||
-      target.helmUserId === currentUserId ||
-      target.ownerId === currentUserId;
-    if (!canSendUpdates) {
-      return;
-    }
-
-    const prevPosition = mergePosition(target.position);
-    const prevUpdate = target.lastUpdate || Date.now();
-    if (data.position) {
-      target.position = mergePosition(target.position, data.position);
-    }
-    if (data.orientation) {
-      target.orientation = {
-        ...target.orientation,
-        ...data.orientation,
-        heading: clampHeading(data.orientation.heading),
-      };
-    }
-    if (data.velocity) {
-      target.velocity = data.velocity;
-    }
-    if (data.position) {
-      const dt = (Date.now() - prevUpdate) / 1000;
-      if (dt > 0.1) {
-        const nextPosition = mergePosition(target.position);
-        const dx = (nextPosition.x ?? 0) - (prevPosition.x ?? 0);
-        const dy = (nextPosition.y ?? 0) - (prevPosition.y ?? 0);
-        const world = { x: dx / dt, y: dy / dt };
-        const derivedSpeed = speedFromWorldVelocity(world);
-        const reportedSpeed = data.velocity
-          ? Math.hypot(data.velocity.surge, data.velocity.sway)
-          : 0;
-        if (
-          Number.isFinite(derivedSpeed) &&
-          derivedSpeed > 0.05 &&
-          reportedSpeed < 0.01
-        ) {
-          const derivedBody = bodyVelocityFromWorld(
-            target.orientation.heading,
-            world,
-          );
-          target.velocity = {
-            ...target.velocity,
-            ...derivedBody,
-            heave: data.velocity?.heave ?? target.velocity.heave,
-          };
-        }
-      }
-    }
-    if (data.angularVelocity && typeof data.angularVelocity.yaw === 'number') {
-      target.yawRate = data.angularVelocity.yaw;
-    }
-    target.lastUpdate = Date.now();
-    void persistVesselToDb(target);
-
-    socket.to(`space:${spaceId}`).emit('simulation:update', {
-      vessels: {
-        [target.id]: toSimpleVesselState(target),
-      },
-      partial: true,
-      timestamp: target.lastUpdate,
-    });
-  });
-
-  // Handle mode changes (player -> spectator -> player)
-  socket.on('user:mode', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    const wantsPlayer = data.mode === 'player';
-    const rankEligible =
-      (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
-
-    if (wantsPlayer && !isPlayerOrHigher) {
-      socket.emit('error', 'Your role does not permit player mode');
-      return;
-    }
-    if (wantsPlayer && !rankEligible) {
-      socket.emit(
-        'error',
-        `Rank ${spaceMeta.rankRequired ?? 1} required for this space`,
-      );
-      return;
-    }
-
-    if (data.mode === 'spectator') {
-      detachUserFromCurrentVessel(currentUserId, spaceId);
-      updateSocketVesselRoom(socket, spaceId, null);
-      socket.data.mode = 'spectator';
-      return;
-    }
-
-    const targetId =
-      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
-    let target = globalState.vessels.get(targetId);
-    if (!target && wantsPlayer) {
-      target = ensureVesselForUser(currentUserId, effectiveUsername, spaceId);
-    }
-    if (!target || (target.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
-
-    target.crewIds.add(currentUserId);
-    target.crewNames.set(currentUserId, effectiveUsername);
-    assignStationsForCrew(target, currentUserId, effectiveUsername);
-    target.desiredMode = 'player';
-    target.mode = 'player';
-    aiControllers.delete(target.id);
-    target.lastCrewAt = Date.now();
-    target.lastUpdate = Date.now();
-    updateSocketVesselRoom(socket, spaceId, target.id);
-    socket.data.mode = 'player';
-    void persistVesselToDb(target, { force: true });
-
-    io.to(`space:${spaceId}`).emit('simulation:update', {
-      vessels: { [target.id]: toSimpleVesselState(target) },
-      partial: true,
-      timestamp: Date.now(),
-    });
-  });
+  registerUserModeHandler(handlerContext);
 
   // Handle vessel:control events
-  socket.on('vessel:control', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
-    if (!isPlayerOrHigher) {
-      socket.emit('error', 'Not authorized to control a vessel');
-      return;
-    }
-    if ((socket.data as { mode?: string }).mode === 'spectator') {
-      socket.emit('error', 'Spectator mode cannot control vessels');
-      return;
-    }
+  registerVesselControlHandler(handlerContext);
 
-    const vesselKey =
-      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
-    const vesselRecord = globalState.vessels.get(vesselKey);
-    if (
-      !vesselRecord ||
-      (vesselRecord.spaceId || DEFAULT_SPACE_ID) !== spaceId
-    ) {
-      console.warn('No vessel for user, creating on control', currentUserId);
-      ensureVesselForUser(currentUserId, effectiveUsername, spaceId);
-    }
-    const target = globalState.vessels.get(
-      getVesselIdForUser(currentUserId, spaceId) || currentUserId,
-    );
-    if (!target || (target.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
-
-    const isHelm = target.helmUserId === currentUserId;
-    const isEngine = target.engineUserId === currentUserId;
-    const isAdmin = hasAdminRole(socket);
-    const engineAvailable = !target.engineUserId || isEngine || isAdmin;
-
-    if (data.rudderAngle !== undefined && !isHelm && !isAdmin) {
-      socket.emit(
-        'error',
-        target.helmUserId
-          ? `Helm held by ${target.helmUsername || target.helmUserId}`
-          : 'Claim the helm to steer',
-      );
-      return;
-    }
-
-    if (
-      (data.throttle !== undefined || data.ballast !== undefined) &&
-      !engineAvailable
-    ) {
-      socket.emit(
-        'error',
-        target.engineUserId
-          ? `Engine station held by ${target.engineUsername || target.engineUserId}`
-          : 'Claim the engine station to adjust throttle/ballast',
-      );
-      return;
-    }
-
-    if (data.throttle !== undefined) {
-      target.controls.throttle = clamp(data.throttle, -1, 1);
-    }
-    if (data.rudderAngle !== undefined) {
-      target.controls.rudderAngle = clamp(
-        data.rudderAngle,
-        -RUDDER_MAX_ANGLE_RAD,
-        RUDDER_MAX_ANGLE_RAD,
-      );
-    }
-    if (data.ballast !== undefined) {
-      target.controls.ballast = clamp(data.ballast, 0, 1);
-    }
-    const limitedControls = applyFailureControlLimits(
-      target.controls,
-      target.failureState,
-      target.damageState,
-    );
-    target.controls = {
-      ...target.controls,
-      ...limitedControls,
-    };
-    target.lastUpdate = Date.now();
-
-    console.info(
-      `Control applied for ${currentUserId}: throttle=${target.controls.throttle.toFixed(2)} rudder=${target.controls.rudderAngle.toFixed(2)}`,
-    );
-  });
-
-  socket.on('vessel:repair', async (data, callback) => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
-    const vesselKey =
-      data?.vesselId ||
-      getVesselIdForUser(currentUserId, spaceId) ||
-      currentUserId;
-    const target = globalState.vessels.get(vesselKey);
-    if (!target || (target.spaceId || DEFAULT_SPACE_ID) !== spaceId) {
-      callback?.({ ok: false, message: 'Vessel not found' });
-      return;
-    }
-
-    const isCrew = target.crewIds.has(currentUserId);
-    const isAdmin = hasAdminRole(socket);
-    if (!isCrew && !isAdmin) {
-      callback?.({
-        ok: false,
-        message: 'Not authorized to repair this vessel',
-      });
-      return;
-    }
-
-    const speed = Math.hypot(target.velocity.surge, target.velocity.sway);
-    if (speed > 0.2) {
-      callback?.({ ok: false, message: 'Stop the vessel before repairs' });
-      return;
-    }
-
-    const damageState = mergeDamageState(target.damageState);
-    const cost = computeRepairCost(damageState);
-    if (cost <= 0) {
-      callback?.({ ok: true, message: 'No repairs needed' });
-      return;
-    }
-
-    const chargeUserId = resolveChargeUserId(target);
-    if (!chargeUserId) {
-      callback?.({ ok: false, message: 'Unable to bill repairs' });
-      return;
-    }
-
-    try {
-      let costToCharge = cost;
-      if (target.ownerId) {
-        const policy = await prisma.insurancePolicy.findFirst({
-          where: {
-            vesselId: target.id,
-            ownerId: target.ownerId,
-            status: 'active',
-            type: 'damage',
-          },
-        });
-        if (policy) {
-          const payout = Math.max(
-            0,
-            Math.min(cost - (policy.deductible ?? 0), policy.coverage ?? 0),
-          );
-          if (payout > 0) {
-            costToCharge = Math.max(0, cost - payout);
-            const payoutProfile = await applyEconomyAdjustment({
-              userId: target.ownerId,
-              vesselId: target.id,
-              deltaCredits: payout,
-              reason: 'insurance_payout',
-              meta: { policyId: policy.id, repairCost: cost },
-            });
-            io.to(`user:${target.ownerId}`).emit(
-              'economy:update',
-              payoutProfile,
-            );
-            void syncUserSocketsEconomy(target.ownerId, payoutProfile);
-          }
-        }
-      }
-      const profile = await applyEconomyAdjustment({
-        userId: chargeUserId,
-        vesselId: target.id,
-        deltaCredits: -costToCharge,
-        deltaSafetyScore: 0,
-        reason: 'repair',
-        meta: { cost: costToCharge },
-      });
-      target.damageState = applyRepair();
-      if (target.failureState) {
-        target.failureState.floodingLevel = 0;
-        target.failureState.engineFailure = false;
-        target.failureState.steeringFailure = false;
-      }
-      target.lastUpdate = Date.now();
-      void persistVesselToDb(target, { force: true });
-      io.to(`user:${chargeUserId}`).emit('economy:update', profile);
-      void syncUserSocketsEconomy(chargeUserId, profile);
-      io.to(`space:${spaceId}`).emit('simulation:update', {
-        vessels: { [target.id]: toSimpleVesselState(target) },
-        partial: true,
-        timestamp: Date.now(),
-      });
-      callback?.({ ok: true, message: `Repairs complete (${cost} cr)` });
-    } catch (err) {
-      console.error('Failed to repair vessel', err);
-      callback?.({ ok: false, message: 'Repair failed' });
-    }
-  });
+  registerVesselRepairHandler(handlerContext);
 
   // Handle simulation state changes
-  socket.on('simulation:state', data => {
-    if (!hasAdminRole(socket)) {
-      socket.emit('error', 'Not authorized to control simulation');
-      return;
-    }
-    console.info(`Simulation state update from ${socket.data.username}:`, data);
-    // Future: apply global sim changes
-  });
+  registerSimulationStateHandler(handlerContext);
+  registerLatencyPingHandler(handlerContext);
+  registerClientLogHandler(handlerContext);
 
-  socket.on('latency:ping', data => {
-    if (!data || typeof data.sentAt !== 'number') return;
-    socket.emit('latency:pong', {
-      sentAt: data.sentAt,
-      serverAt: Date.now(),
-    });
-    recordMetric('socketLatency', Date.now() - data.sentAt);
-  });
+  registerVesselJoinHandler(handlerContext);
 
-  socket.on('client:log', data => {
-    if (!data || typeof data.message !== 'string') return;
-    recordLog({
-      level: data.level || 'info',
-      source: data.source || 'client',
-      message: data.message,
-      meta: {
-        ...((data.meta as Record<string, unknown>) || {}),
-        userId: socket.data.userId || 'unknown',
-        spaceId: socket.data.spaceId || DEFAULT_SPACE_ID,
-      },
-    });
-  });
+  registerVesselStorageHandler(handlerContext);
 
-  socket.on('vessel:join', async data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    const currentUsername = socket.data.username || effectiveUsername;
-    const rankEligible =
-      (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
-    if (!isPlayerOrHigher) {
-      socket.emit('error', 'Not authorized to join a vessel');
-      return;
-    }
-    if (!rankEligible) {
-      socket.emit(
-        'error',
-        `Rank ${spaceMeta.rankRequired ?? 1} required for this space`,
-      );
-      return;
-    }
-    const targetId =
-      typeof data?.vesselId === 'string' ? data.vesselId : undefined;
-    let target = targetId ? findVesselInSpace(targetId, spaceId) : null;
-    if (!target && targetId) {
-      const row = await prisma.vessel.findUnique({ where: { id: targetId } });
-      if (!row) {
-        socket.emit('error', 'Vessel not found');
-        return;
-      }
-      const isOperator =
-        row.ownerId === currentUserId ||
-        row.chartererId === currentUserId ||
-        row.leaseeId === currentUserId;
-      if (!isOperator && !hasAdminRole(socket)) {
-        socket.emit('error', 'Not authorized to join this vessel');
-        return;
-      }
-      const hydrated = buildVesselRecordFromRow(row);
-      if ((hydrated.spaceId || DEFAULT_SPACE_ID) !== spaceId) {
-        socket.emit('error', 'Vessel not available in this space');
-        return;
-      }
-      if (hydrated.status === 'stored' || hydrated.status === 'repossession') {
-        socket.emit('error', 'Vessel is stored');
-        return;
-      }
-      globalState.vessels.set(hydrated.id, hydrated);
-      target = hydrated;
-    }
-    if (!target) {
-      target = findJoinableVessel(currentUserId, spaceId);
-    }
-    if (!target) {
-      socket.emit('error', 'No joinable vessels available');
-      return;
-    }
-    if (target.crewIds.size >= MAX_CREW) {
-      socket.emit('error', 'Selected vessel is at max crew');
-      return;
-    }
+  registerVesselSaleHandler(handlerContext);
 
-    detachUserFromCurrentVessel(currentUserId, spaceId);
-    target.crewIds.add(currentUserId);
-    target.crewNames.set(currentUserId, currentUsername);
-    assignStationsForCrew(target, currentUserId, currentUsername);
-    target.mode = 'player';
-    aiControllers.delete(target.id);
-    target.desiredMode = 'player';
-    target.spaceId = spaceId;
-    target.lastCrewAt = Date.now();
-    target.lastUpdate = Date.now();
-    globalState.userLastVessel.set(
-      userSpaceKey(currentUserId, spaceId),
-      target.id,
-    );
-    updateSocketVesselRoom(socket, spaceId, target.id);
-    socket.data.mode = 'player';
-    void persistVesselToDb(target, { force: true });
+  registerVesselLeaseHandler(handlerContext);
 
-    io.to(`space:${spaceId}`).emit('simulation:update', {
-      vessels: { [target.id]: toSimpleVesselState(target) },
-      partial: true,
-      timestamp: Date.now(),
-    });
-  });
+  registerEconomyHandlers(handlerContext);
 
-  socket.on('vessel:create', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    const currentUsername = socket.data.username || effectiveUsername;
-    const rankEligible =
-      (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
-    if (!isPlayerOrHigher) {
-      socket.emit('error', 'Not authorized to create a vessel');
-      return;
-    }
-    if (!rankEligible) {
-      socket.emit(
-        'error',
-        `Rank ${spaceMeta.rankRequired ?? 1} required for this space`,
-      );
-      return;
-    }
-    void (async () => {
-      const economyProfile = await getEconomyProfile(currentUserId);
-      const creationCost = calculateVesselCreationCost(economyProfile.rank);
-      if (economyProfile.credits < creationCost) {
-        socket.emit(
-          'error',
-          `Insufficient credits for vessel creation (${creationCost} cr required)`,
-        );
-        return;
-      }
-      const updatedProfile = await applyEconomyAdjustment({
-        userId: currentUserId,
-        deltaCredits: -creationCost,
-        reason: 'vessel_purchase',
-        meta: { cost: creationCost },
-      });
-      io.to(`user:${currentUserId}`).emit('economy:update', updatedProfile);
-      void syncUserSocketsEconomy(currentUserId, updatedProfile);
+  registerCargoHandlers(handlerContext);
 
-      detachUserFromCurrentVessel(currentUserId, spaceId);
-      const newVessel = createNewVesselForUser(
-        currentUserId,
-        currentUsername,
-        data || {},
-        spaceId,
-      );
-      globalState.vessels.set(newVessel.id, newVessel);
-      globalState.userLastVessel.set(
-        userSpaceKey(currentUserId, spaceId),
-        newVessel.id,
-      );
-      updateSocketVesselRoom(socket, spaceId, newVessel.id);
-      socket.data.mode = 'player';
-      void persistVesselToDb(newVessel, { force: true });
-      io.to(`space:${spaceId}`).emit('simulation:update', {
-        vessels: { [newVessel.id]: toSimpleVesselState(newVessel) },
-        partial: true,
-        timestamp: Date.now(),
-      });
-      console.info(
-        `Created new vessel ${newVessel.id} for ${currentUsername} (${currentUserId})`,
-      );
-    })().catch(err => {
-      console.error('Failed to create vessel', err);
-      socket.emit('error', 'Unable to create vessel');
-    });
-  });
+  registerStationHandlers(handlerContext);
 
-  socket.on('vessel:storage', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
-    const vesselKey =
-      data?.vesselId ||
-      getVesselIdForUser(currentUserId, spaceId) ||
-      currentUserId;
-    const vessel = globalState.vessels.get(vesselKey);
-    if (!vessel || (vessel.spaceId || DEFAULT_SPACE_ID) !== spaceId) {
-      socket.emit('error', 'Vessel not found');
-      return;
-    }
-    const isAdmin = hasAdminRole(socket);
-    const isOperator =
-      vessel.ownerId === currentUserId ||
-      vessel.chartererId === currentUserId ||
-      vessel.leaseeId === currentUserId;
-    if (!isOperator && !isAdmin) {
-      socket.emit('error', 'Not authorized to store this vessel');
-      return;
-    }
-    const action = data?.action === 'activate' ? 'activate' : 'store';
-    if (action === 'store') {
-      const port = resolvePortForPosition(vessel.position);
-      if (!port) {
-        socket.emit('error', 'Vessel must be in port to store');
-        return;
-      }
-      const speed = Math.hypot(vessel.velocity.surge, vessel.velocity.sway);
-      if (speed > 0.2) {
-        socket.emit('error', 'Stop the vessel before storing');
-        return;
-      }
-      vessel.status = 'stored';
-      vessel.storagePortId = port.id;
-      vessel.storedAt = Date.now();
-      vessel.mode = 'ai';
-      vessel.desiredMode = 'ai';
-      vessel.controls.throttle = 0;
-      vessel.controls.rudderAngle = 0;
-      vessel.controls.bowThruster = 0;
-      vessel.crewIds.clear();
-      vessel.crewNames.clear();
-      vessel.helmUserId = null;
-      vessel.helmUsername = null;
-      vessel.engineUserId = null;
-      vessel.engineUsername = null;
-      vessel.radioUserId = null;
-      vessel.radioUsername = null;
-    } else {
-      vessel.status = 'active';
-      vessel.storagePortId = null;
-      vessel.storedAt = null;
-      vessel.desiredMode = 'player';
-    }
-    vessel.lastUpdate = Date.now();
-    void persistVesselToDb(vessel, { force: true });
-    io.to(`space:${spaceId}`).emit('simulation:update', {
-      vessels: { [vessel.id]: toSimpleVesselState(vessel) },
-      partial: true,
-      timestamp: Date.now(),
-    });
-  });
+  registerAdminHandlers(handlerContext);
 
-  socket.on('vessel:sale:create', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
-    void (async () => {
-      const vesselId = data?.vesselId;
-      if (!vesselId || typeof vesselId !== 'string') {
-        socket.emit('error', 'Missing vessel id');
-        return;
-      }
-      const vessel = globalState.vessels.get(vesselId);
-      if (!vessel) {
-        socket.emit('error', 'Vessel not found');
-        return;
-      }
-      const isAdmin = hasAdminRole(socket);
-      const isOwner = vessel.ownerId === currentUserId;
-      if (!isOwner && !isAdmin) {
-        socket.emit('error', 'Not authorized to sell this vessel');
-        return;
-      }
-      const port = resolvePortForPosition(vessel.position);
-      if (!port) {
-        socket.emit('error', 'Vessel must be in port to list for sale');
-        return;
-      }
-      const price = Number(data?.price);
-      if (!Number.isFinite(price) || price <= 0) {
-        socket.emit('error', 'Invalid sale price');
-        return;
-      }
-      const type = data?.type === 'auction' ? 'auction' : 'sale';
-      const reservePrice =
-        data?.reservePrice !== undefined
-          ? Number(data.reservePrice)
-          : undefined;
-      const endsAt =
-        data?.endsAt && Number.isFinite(data.endsAt)
-          ? new Date(Number(data.endsAt))
-          : null;
-      await prisma.vesselSale.create({
-        data: {
-          vesselId: vessel.id,
-          sellerId: currentUserId,
-          type,
-          price,
-          reservePrice:
-            reservePrice !== undefined && !Number.isNaN(reservePrice)
-              ? reservePrice
-              : null,
-          endsAt,
-        },
-      });
-      vessel.status = type === 'auction' ? 'auction' : 'sale';
-      vessel.mode = 'ai';
-      vessel.desiredMode = 'ai';
-      vessel.crewIds.clear();
-      vessel.crewNames.clear();
-      vessel.helmUserId = null;
-      vessel.helmUsername = null;
-      vessel.engineUserId = null;
-      vessel.engineUsername = null;
-      vessel.radioUserId = null;
-      vessel.radioUsername = null;
-      vessel.lastUpdate = Date.now();
-      void persistVesselToDb(vessel, { force: true });
-    })().catch(err => {
-      console.error('Failed to create sale', err);
-      socket.emit('error', 'Unable to list vessel');
-    });
-  });
+  registerChatHandlers(handlerContext);
 
-  socket.on('vessel:sale:buy', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
-    void (async () => {
-      const saleId = data?.saleId;
-      if (!saleId || typeof saleId !== 'string') {
-        socket.emit('error', 'Missing sale id');
-        return;
-      }
-      const sale = await prisma.vesselSale.findUnique({
-        where: { id: saleId },
-      });
-      if (!sale || sale.status !== 'open') {
-        socket.emit('error', 'Sale not available');
-        return;
-      }
-      if (sale.reservePrice && sale.price < sale.reservePrice) {
-        socket.emit('error', 'Sale reserve not met');
-        return;
-      }
-      const buyerProfile = await getEconomyProfile(currentUserId);
-      if (buyerProfile.credits < sale.price) {
-        socket.emit('error', 'Insufficient credits to purchase vessel');
-        return;
-      }
-      const vessel = globalState.vessels.get(sale.vesselId);
-      if (vessel) {
-        vessel.ownerId = currentUserId;
-        vessel.status = 'active';
-        vessel.chartererId = null;
-        vessel.leaseeId = null;
-        vessel.desiredMode = 'player';
-        vessel.crewIds.clear();
-        vessel.crewNames.clear();
-        vessel.helmUserId = null;
-        vessel.helmUsername = null;
-        vessel.engineUserId = null;
-        vessel.engineUsername = null;
-        vessel.radioUserId = null;
-        vessel.radioUsername = null;
-        vessel.lastUpdate = Date.now();
-        globalState.userLastVessel.set(
-          userSpaceKey(currentUserId, vessel.spaceId || DEFAULT_SPACE_ID),
-          vessel.id,
-        );
-        void persistVesselToDb(vessel, { force: true });
-      } else {
-        await prisma.vessel.update({
-          where: { id: sale.vesselId },
-          data: {
-            ownerId: currentUserId,
-            status: 'active',
-            chartererId: null,
-            leaseeId: null,
-          },
-        });
-      }
-      await prisma.vesselSale.update({
-        where: { id: sale.id },
-        data: {
-          status: 'sold',
-          buyerId: currentUserId,
-          endsAt: new Date(),
-        },
-      });
-      const buyerNext = await applyEconomyAdjustment({
-        userId: currentUserId,
-        vesselId: sale.vesselId,
-        deltaCredits: -sale.price,
-        reason: 'vessel_purchase',
-        meta: { saleId: sale.id },
-      });
-      io.to(`user:${currentUserId}`).emit('economy:update', buyerNext);
-      void syncUserSocketsEconomy(currentUserId, buyerNext);
-      const sellerNext = await applyEconomyAdjustment({
-        userId: sale.sellerId,
-        vesselId: sale.vesselId,
-        deltaCredits: sale.price,
-        reason: 'vessel_sale',
-        meta: { saleId: sale.id },
-      });
-      io.to(`user:${sale.sellerId}`).emit('economy:update', sellerNext);
-      void syncUserSocketsEconomy(sale.sellerId, sellerNext);
-    })().catch(err => {
-      console.error('Failed to buy vessel', err);
-      socket.emit('error', 'Unable to purchase vessel');
-    });
-  });
+  registerAdminWeatherHandler(handlerContext);
 
-  socket.on('vessel:lease:create', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
-    void (async () => {
-      const vesselId = data?.vesselId;
-      if (!vesselId || typeof vesselId !== 'string') {
-        socket.emit('error', 'Missing vessel id');
-        return;
-      }
-      const vessel = globalState.vessels.get(vesselId);
-      if (!vessel) {
-        socket.emit('error', 'Vessel not found');
-        return;
-      }
-      const isAdmin = hasAdminRole(socket);
-      const isOwner = vessel.ownerId === currentUserId;
-      if (!isOwner && !isAdmin) {
-        socket.emit('error', 'Not authorized to lease this vessel');
-        return;
-      }
-      const ratePerHour = Number(data?.ratePerHour);
-      if (!Number.isFinite(ratePerHour) || ratePerHour <= 0) {
-        socket.emit('error', 'Invalid lease rate');
-        return;
-      }
-      const revenueShare =
-        data?.revenueShare !== undefined ? Number(data.revenueShare) : 0;
-      const leaseType = data?.type === 'lease' ? 'lease' : 'charter';
-      const endsAt =
-        data?.endsAt && Number.isFinite(data.endsAt)
-          ? new Date(Number(data.endsAt))
-          : null;
-      await prisma.vesselLease.create({
-        data: {
-          vesselId: vessel.id,
-          ownerId: currentUserId,
-          type: leaseType,
-          ratePerHour,
-          revenueShare:
-            Number.isFinite(revenueShare) && revenueShare > 0
-              ? revenueShare
-              : 0,
-          status: 'open',
-          endsAt,
-        },
-      });
-    })().catch(err => {
-      console.error('Failed to create lease', err);
-      socket.emit('error', 'Unable to create lease');
-    });
-  });
+  registerSeamarksHandler(handlerContext);
 
-  socket.on('vessel:lease:accept', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
-    void (async () => {
-      const leaseId = data?.leaseId;
-      if (!leaseId || typeof leaseId !== 'string') {
-        socket.emit('error', 'Missing lease id');
-        return;
-      }
-      const lease = await prisma.vesselLease.findUnique({
-        where: { id: leaseId },
-      });
-      if (!lease || lease.status !== 'open') {
-        socket.emit('error', 'Lease not available');
-        return;
-      }
-      const updated = await prisma.vesselLease.update({
-        where: { id: lease.id },
-        data: {
-          status: 'active',
-          lesseeId: currentUserId,
-          startedAt: new Date(),
-        },
-      });
-      const vessel = globalState.vessels.get(updated.vesselId);
-      if (vessel) {
-        if (updated.type === 'lease') {
-          vessel.leaseeId = currentUserId;
-          vessel.chartererId = null;
-          vessel.status = 'leased';
-        } else {
-          vessel.chartererId = currentUserId;
-          vessel.leaseeId = null;
-          vessel.status = 'chartered';
-        }
-        vessel.desiredMode = 'player';
-        vessel.lastUpdate = Date.now();
-        void persistVesselToDb(vessel, { force: true });
-      } else {
-        await prisma.vessel.update({
-          where: { id: updated.vesselId },
-          data:
-            updated.type === 'lease'
-              ? {
-                  status: 'leased',
-                  leaseeId: currentUserId,
-                  chartererId: null,
-                }
-              : {
-                  status: 'chartered',
-                  chartererId: currentUserId,
-                  leaseeId: null,
-                },
-        });
-      }
-    })().catch(err => {
-      console.error('Failed to accept lease', err);
-      socket.emit('error', 'Unable to accept lease');
-    });
-  });
-
-  socket.on('economy:loan:request', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
-    void (async () => {
-      const amount = Number(data?.amount);
-      if (!Number.isFinite(amount) || amount <= 0) {
-        socket.emit('error', 'Invalid loan amount');
-        return;
-      }
-      const rank = socket.data.rank ?? 1;
-      const maxLoan = 5000 + rank * 2000;
-      const existing = await prisma.loan.aggregate({
-        where: { userId: currentUserId, status: 'active' },
-        _sum: { balance: true },
-      });
-      const activeBalance = existing._sum.balance ?? 0;
-      if (activeBalance + amount > maxLoan) {
-        socket.emit('error', 'Loan request exceeds available credit');
-        return;
-      }
-      const termDays =
-        Number.isFinite(data?.termDays) && Number(data.termDays) > 0
-          ? Number(data.termDays)
-          : 14;
-      const interestRate =
-        Number.isFinite(data?.interestRate) && Number(data.interestRate) > 0
-          ? Number(data.interestRate)
-          : 0.08;
-      const loan = await prisma.loan.create({
-        data: {
-          userId: currentUserId,
-          principal: amount,
-          balance: amount,
-          interestRate,
-          issuedAt: new Date(),
-          dueAt: new Date(Date.now() + termDays * 24 * 60 * 60 * 1000),
-        },
-      });
-      const profile = await applyEconomyAdjustment({
-        userId: currentUserId,
-        deltaCredits: amount,
-        reason: 'loan_disbursement',
-        meta: { loanId: loan.id },
-      });
-      io.to(`user:${currentUserId}`).emit('economy:update', profile);
-      void syncUserSocketsEconomy(currentUserId, profile);
-    })().catch(err => {
-      console.error('Failed to issue loan', err);
-      socket.emit('error', 'Unable to issue loan');
-    });
-  });
-
-  socket.on('economy:loan:repay', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
-    void (async () => {
-      const loanId = data?.loanId;
-      const amount = Number(data?.amount);
-      if (!loanId || typeof loanId !== 'string') {
-        socket.emit('error', 'Missing loan id');
-        return;
-      }
-      if (!Number.isFinite(amount) || amount <= 0) {
-        socket.emit('error', 'Invalid repayment amount');
-        return;
-      }
-      const loan = await prisma.loan.findUnique({ where: { id: loanId } });
-      if (!loan || loan.userId !== currentUserId) {
-        socket.emit('error', 'Loan not found');
-        return;
-      }
-      if (loan.status !== 'active' && loan.status !== 'defaulted') {
-        socket.emit('error', 'Loan not active');
-        return;
-      }
-      const profile = await getEconomyProfile(currentUserId);
-      const payAmount = Math.min(amount, loan.balance, profile.credits);
-      if (payAmount <= 0) {
-        socket.emit('error', 'Insufficient credits');
-        return;
-      }
-      const updatedProfile = await applyEconomyAdjustment({
-        userId: currentUserId,
-        deltaCredits: -payAmount,
-        reason: 'loan_repayment',
-        meta: { loanId: loan.id },
-      });
-      const nextBalance = loan.balance - payAmount;
-      await prisma.loan.update({
-        where: { id: loan.id },
-        data: {
-          balance: nextBalance,
-          status: nextBalance <= 0 ? 'paid' : loan.status,
-        },
-      });
-      io.to(`user:${currentUserId}`).emit('economy:update', updatedProfile);
-      void syncUserSocketsEconomy(currentUserId, updatedProfile);
-    })().catch(err => {
-      console.error('Failed to repay loan', err);
-      socket.emit('error', 'Unable to repay loan');
-    });
-  });
-
-  socket.on('economy:insurance:purchase', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
-    void (async () => {
-      const vesselId = data?.vesselId;
-      if (!vesselId || typeof vesselId !== 'string') {
-        socket.emit('error', 'Missing vessel id');
-        return;
-      }
-      const vessel = globalState.vessels.get(vesselId);
-      if (!vessel || vessel.ownerId !== currentUserId) {
-        socket.emit('error', 'Not authorized to insure this vessel');
-        return;
-      }
-      const coverage = Number(data?.coverage);
-      const deductible = Number(data?.deductible);
-      const premiumRate = Number(data?.premiumRate);
-      if (
-        !Number.isFinite(coverage) ||
-        coverage <= 0 ||
-        !Number.isFinite(deductible) ||
-        deductible < 0 ||
-        !Number.isFinite(premiumRate) ||
-        premiumRate <= 0
-      ) {
-        socket.emit('error', 'Invalid insurance terms');
-        return;
-      }
-      const termDays =
-        Number.isFinite(data?.termDays) && Number(data.termDays) > 0
-          ? Number(data.termDays)
-          : 30;
-      const policy = await prisma.insurancePolicy.create({
-        data: {
-          vesselId,
-          ownerId: currentUserId,
-          type:
-            data?.type === 'loss' || data?.type === 'salvage'
-              ? data.type
-              : 'damage',
-          coverage,
-          deductible,
-          premiumRate,
-          status: 'active',
-          activeFrom: new Date(),
-          activeUntil: new Date(Date.now() + termDays * 24 * 60 * 60 * 1000),
-          lastChargedAt: new Date(),
-        },
-      });
-      const profile = await applyEconomyAdjustment({
-        userId: currentUserId,
-        vesselId,
-        deltaCredits: -premiumRate,
-        reason: 'insurance_premium',
-        meta: { policyId: policy.id },
-      });
-      io.to(`user:${currentUserId}`).emit('economy:update', profile);
-      void syncUserSocketsEconomy(currentUserId, profile);
-    })().catch(err => {
-      console.error('Failed to purchase insurance', err);
-      socket.emit('error', 'Unable to purchase insurance');
-    });
-  });
-
-  socket.on('economy:insurance:cancel', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
-    void (async () => {
-      const policyId = data?.policyId;
-      if (!policyId || typeof policyId !== 'string') {
-        socket.emit('error', 'Missing policy id');
-        return;
-      }
-      const policy = await prisma.insurancePolicy.findUnique({
-        where: { id: policyId },
-      });
-      if (!policy || policy.ownerId !== currentUserId) {
-        socket.emit('error', 'Policy not found');
-        return;
-      }
-      await prisma.insurancePolicy.update({
-        where: { id: policy.id },
-        data: { status: 'canceled', activeUntil: new Date() },
-      });
-    })().catch(err => {
-      console.error('Failed to cancel insurance', err);
-      socket.emit('error', 'Unable to cancel insurance');
-    });
-  });
-
-  socket.on('cargo:create', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
-    void (async () => {
-      const value = Number(data?.value);
-      if (!Number.isFinite(value) || value <= 0) {
-        socket.emit('error', 'Invalid cargo value');
-        return;
-      }
-      const weightTons = Number(data?.weightTons ?? 0);
-      if (!Number.isFinite(weightTons) || weightTons < 0) {
-        socket.emit('error', 'Invalid cargo weight');
-        return;
-      }
-      const rewardCredits = Number(data?.rewardCredits ?? value);
-      if (!Number.isFinite(rewardCredits) || rewardCredits <= 0) {
-        socket.emit('error', 'Invalid cargo reward');
-        return;
-      }
-      const vesselId =
-        data?.vesselId && typeof data.vesselId === 'string'
-          ? data.vesselId
-          : null;
-      let portId =
-        data?.portId && typeof data.portId === 'string' ? data.portId : null;
-      let originPortId =
-        data?.originPortId && typeof data.originPortId === 'string'
-          ? data.originPortId
-          : null;
-      const destinationPortId =
-        data?.destinationPortId && typeof data.destinationPortId === 'string'
-          ? data.destinationPortId
-          : null;
-      if (vesselId) {
-        const vessel = globalState.vessels.get(vesselId);
-        if (!vessel) {
-          socket.emit('error', 'Vessel not found');
-          return;
-        }
-        const isAdmin = hasAdminRole(socket);
-        const isOwner = vessel.ownerId === currentUserId;
-        if (!isOwner && !isAdmin) {
-          socket.emit('error', 'Not authorized to load cargo');
-          return;
-        }
-        const port = resolvePortForPosition(vessel.position);
-        if (!port) {
-          socket.emit('error', 'Vessel must be in port to load cargo');
-          return;
-        }
-        portId = port.id;
-        originPortId = port.id;
-      }
-      if (!vesselId && !portId) {
-        socket.emit('error', 'Missing port for cargo listing');
-        return;
-      }
-      const cargoType =
-        typeof data?.cargoType === 'string' ? data.cargoType : 'bulk';
-      const expiresAt =
-        Number.isFinite(data?.expiresAt) && Number(data.expiresAt) > 0
-          ? new Date(Number(data.expiresAt))
-          : null;
-      const liabilityRate =
-        data?.liabilityRate !== undefined ? Number(data.liabilityRate) : 0;
-      await prisma.cargoLot.create({
-        data: {
-          ownerId: currentUserId,
-          carrierId: vesselId ? currentUserId : null,
-          vesselId,
-          portId,
-          originPortId,
-          destinationPortId,
-          description:
-            typeof data?.description === 'string' ? data.description : null,
-          cargoType,
-          value,
-          rewardCredits,
-          weightTons,
-          liabilityRate:
-            Number.isFinite(liabilityRate) && liabilityRate > 0
-              ? liabilityRate
-              : 0,
-          expiresAt,
-          status: vesselId ? 'loaded' : 'listed',
-        },
-      });
-    })().catch(err => {
-      console.error('Failed to create cargo', err);
-      socket.emit('error', 'Unable to create cargo');
-    });
-  });
-
-  socket.on('cargo:assign', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
-    void (async () => {
-      const cargoId = data?.cargoId;
-      const vesselId = data?.vesselId;
-      if (!cargoId || !vesselId) {
-        socket.emit('error', 'Missing cargo or vessel id');
-        return;
-      }
-      const cargo = await prisma.cargoLot.findUnique({
-        where: { id: cargoId },
-      });
-      if (!cargo || (cargo.ownerId && cargo.ownerId !== currentUserId)) {
-        socket.emit('error', 'Cargo not found');
-        return;
-      }
-      if (cargo.status !== 'listed') {
-        socket.emit('error', 'Cargo not available');
-        return;
-      }
-      if (cargo.expiresAt && cargo.expiresAt.getTime() < Date.now()) {
-        socket.emit('error', 'Cargo offer expired');
-        return;
-      }
-      const vessel = globalState.vessels.get(vesselId);
-      if (!vessel) {
-        socket.emit('error', 'Vessel not found');
-        return;
-      }
-      const port = resolvePortForPosition(vessel.position);
-      if (!port || (cargo.portId && cargo.portId !== port.id)) {
-        socket.emit('error', 'Vessel must be in the cargo port');
-        return;
-      }
-      const loadedCargo = await prisma.cargoLot.aggregate({
-        where: { vesselId, status: { in: ['loaded', 'loading'] } },
-        _sum: { weightTons: true },
-      });
-      const currentWeight = loadedCargo._sum.weightTons ?? 0;
-      const capacityTons = getVesselCargoCapacityTons(vessel);
-      if (currentWeight + (cargo.weightTons ?? 0) > capacityTons) {
-        socket.emit('error', 'Cargo exceeds vessel capacity');
-        return;
-      }
-      const congestion = await getPortCongestion();
-      const portCongestion =
-        congestion.find(item => item.portId === port.id)?.congestion ?? 0;
-      const readyAt = new Date(
-        Date.now() + computeTurnaroundDelayMs(portCongestion),
-      );
-      await prisma.cargoLot.update({
-        where: { id: cargo.id },
-        data: {
-          vesselId,
-          carrierId: currentUserId,
-          status: 'loading',
-          readyAt,
-          portId: null,
-        },
-      });
-    })().catch(err => {
-      console.error('Failed to assign cargo', err);
-      socket.emit('error', 'Unable to assign cargo');
-    });
-  });
-
-  socket.on('cargo:release', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
-    void (async () => {
-      const cargoId = data?.cargoId;
-      if (!cargoId || typeof cargoId !== 'string') {
-        socket.emit('error', 'Missing cargo id');
-        return;
-      }
-      const cargo = await prisma.cargoLot.findUnique({
-        where: { id: cargoId },
-      });
-      if (!cargo || cargo.ownerId !== currentUserId) {
-        socket.emit('error', 'Cargo not found');
-        return;
-      }
-      await prisma.cargoLot.update({
-        where: { id: cargo.id },
-        data: { vesselId: null, status: 'delivered', portId: null },
-      });
-    })().catch(err => {
-      console.error('Failed to release cargo', err);
-      socket.emit('error', 'Unable to release cargo');
-    });
-  });
-
-  socket.on('vessel:helm', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    const currentUsername = socket.data.username || effectiveUsername;
-    const vesselKey =
-      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
-    const vessel = globalState.vessels.get(vesselKey);
-    if (!vessel || (vessel.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
-    if (!vessel.crewIds.has(currentUserId)) {
-      socket.emit('error', 'You are not crew on this vessel');
-      return;
-    }
-    const result = updateStationAssignment(
-      vessel,
-      'helm',
-      data.action,
-      currentUserId,
-      currentUsername,
-      hasAdminRole(socket),
-    );
-    if (!result.ok) {
-      socket.emit('error', result.message || 'Unable to change helm');
-      return;
-    }
-    vessel.lastUpdate = Date.now();
-    void persistVesselToDb(vessel, { force: true });
-    io.to(`space:${spaceId}`).emit('simulation:update', {
-      vessels: { [vessel.id]: toSimpleVesselState(vessel) },
-      partial: true,
-      timestamp: Date.now(),
-    });
-  });
-
-  socket.on('vessel:station', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    const currentUsername = socket.data.username || effectiveUsername;
-    const vesselKey =
-      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
-    const vessel = globalState.vessels.get(vesselKey);
-    if (!vessel || (vessel.spaceId || DEFAULT_SPACE_ID) !== spaceId) return;
-    if (!vessel.crewIds.has(currentUserId) && !hasAdminRole(socket)) {
-      socket.emit('error', 'You are not crew on this vessel');
-      return;
-    }
-    const station =
-      data.station === 'engine' || data.station === 'radio'
-        ? data.station
-        : 'helm';
-    const result = updateStationAssignment(
-      vessel,
-      station,
-      data.action,
-      currentUserId,
-      currentUsername,
-      hasAdminRole(socket),
-    );
-    if (!result.ok) {
-      socket.emit('error', result.message || 'Unable to change station');
-      return;
-    }
-    vessel.lastUpdate = Date.now();
-    void persistVesselToDb(vessel, { force: true });
-    io.to(`space:${spaceId}`).emit('simulation:update', {
-      vessels: { [vessel.id]: toSimpleVesselState(vessel) },
-      partial: true,
-      timestamp: Date.now(),
-    });
-  });
-
-  // Admin: force vessel desired mode (ai/player)
-  socket.on('admin:vesselMode', data => {
-    if (!hasAdminRole(socket)) {
-      socket.emit('error', 'Not authorized to change vessel mode');
-      return;
-    }
-    const target = globalState.vessels.get(data.vesselId);
-    if (!target) return;
-
-    if (data.mode === 'ai') {
-      target.desiredMode = 'ai';
-      target.mode = 'ai';
-      target.crewIds.clear();
-    } else {
-      target.desiredMode = 'player';
-      target.mode = 'player';
-      // crewIds unchanged; crew will rejoin on connect
-    }
-    target.lastUpdate = Date.now();
-    void persistVesselToDb(target, { force: true });
-  });
-
-  socket.on('admin:vessel:stop', data => {
-    if (!hasAdminRole(socket)) {
-      socket.emit('error', 'Not authorized to stop vessels');
-      return;
-    }
-    if (!data?.vesselId) {
-      socket.emit('error', 'Missing vessel id');
-      return;
-    }
-    const spaceId = getSpaceIdForSocket(socket);
-    const target = findVesselInSpace(data.vesselId, spaceId);
-    if (!target) {
-      socket.emit('error', 'Vessel not found');
-      return;
-    }
-    target.controls = {
-      ...target.controls,
-      throttle: 0,
-      rudderAngle: 0,
-      bowThruster: 0,
-    };
-    target.velocity = { surge: 0, sway: 0, heave: 0 };
-    target.yawRate = 0;
-    target.lastUpdate = Date.now();
-    void persistVesselToDb(target, { force: true });
-    io.to(`space:${spaceId}`).emit('simulation:update', {
-      vessels: { [target.id]: toSimpleVesselState(target) },
-      partial: true,
-      timestamp: Date.now(),
-    });
-  });
-
-  socket.on('admin:kick', async data => {
-    if (!hasAdminRole(socket)) {
-      socket.emit('error', 'Not authorized to kick users');
-      return;
-    }
-    if (!data?.userId) {
-      socket.emit('error', 'Missing user id for kick');
-      return;
-    }
-    try {
-      const sockets = await io.fetchSockets();
-      const reason = data.reason || 'Removed by admin';
-      sockets.forEach(targetSocket => {
-        if (targetSocket.data.userId === data.userId) {
-          targetSocket.emit('error', reason);
-          targetSocket.disconnect(true);
-        }
-      });
-      console.info(`Admin kick executed for ${data.userId}`);
-    } catch (err) {
-      console.error('Failed to kick user', err);
-      socket.emit('error', 'Failed to kick user');
-    }
-  });
-
-  socket.on('admin:vessel:remove', async data => {
-    if (!hasAdminRole(socket)) {
-      socket.emit('error', 'Not authorized to remove vessels');
-      return;
-    }
-    if (!data?.vesselId) {
-      socket.emit('error', 'Missing vessel id');
-      return;
-    }
-    const spaceId = getSpaceIdForSocket(socket);
-    const target = findVesselInSpace(data.vesselId, spaceId);
-    if (!target) {
-      socket.emit('error', 'Vessel not found');
-      return;
-    }
-    aiControllers.delete(target.id);
-    economyLedger.delete(target.id);
-    globalState.vessels.delete(target.id);
-    for (const [key, vesselId] of globalState.userLastVessel.entries()) {
-      if (vesselId === target.id) {
-        globalState.userLastVessel.delete(key);
-      }
-    }
-    try {
-      await prisma.vessel.delete({ where: { id: target.id } });
-    } catch (err) {
-      console.warn('Failed to delete vessel record', err);
-    }
-    console.info(`Admin removed vessel ${target.id} from space ${spaceId}`);
-  });
-
-  socket.on('admin:vessel:move', data => {
-    if (!hasAdminRole(socket)) {
-      socket.emit('error', 'Not authorized to move vessels');
-      return;
-    }
-    if (!data?.vesselId) {
-      socket.emit('error', 'Missing vessel id');
-      return;
-    }
-    const spaceId = getSpaceIdForSocket(socket);
-    const target = findVesselInSpace(data.vesselId, spaceId);
-    if (!target) {
-      socket.emit('error', 'Vessel not found');
-      return;
-    }
-    console.info(
-      `Admin move request from ${socket.data.username || 'unknown'} for vessel ${data.vesselId}`,
-      data.position,
-    );
-
-    const next = data.position;
-    if (
-      !next ||
-      (next.lat === undefined &&
-        next.lon === undefined &&
-        next.x === undefined &&
-        next.y === undefined)
-    ) {
-      socket.emit('error', 'Missing position data');
-      return;
-    }
-
-    target.position = mergePosition(target.position, next);
-
-    target.velocity = { surge: 0, sway: 0, heave: 0 };
-    target.yawRate = 0;
-    target.controls = {
-      ...target.controls,
-      throttle: 0,
-      rudderAngle: 0,
-      bowThruster: 0,
-    };
-    target.lastUpdate = Date.now();
-    void persistVesselToDb(target, { force: true });
-    io.to(`space:${spaceId}`).emit('vessel:teleport', {
-      vesselId: target.id,
-      position: target.position,
-      reset: true,
-    });
-    io.to(`space:${spaceId}`).emit('simulation:update', {
-      vessels: { [target.id]: toSimpleVesselState(target) },
-      partial: true,
-      timestamp: Date.now(),
-    });
-  });
-
-  // Handle admin weather control
-  socket.on('admin:weather', async data => {
-    const spaceId = getSpaceIdForSocket(socket);
-    const isHost = await isSpaceHost(socket.data.userId, spaceId);
-    if (!hasAdminRole(socket) && !isHost) {
-      socket.emit('error', 'Not authorized to change weather');
-      return;
-    }
-
-    const mode = data.mode === 'auto' ? 'auto' : 'manual';
-
-    if (mode === 'auto') {
-      weatherMode = 'auto';
-      targetWeather = null;
-      const pattern = getWeatherPattern();
-      pattern.timeOfDay = currentUtcTimeOfDay();
-      const env = applyWeatherPattern(spaceId, pattern);
-      nextAutoWeatherAt = Date.now() + WEATHER_AUTO_INTERVAL_MS;
-      io.to(`space:${spaceId}`).emit('environment:update', env);
-      void persistEnvironmentToDb({ force: true, spaceId });
-      console.info(
-        `Weather set to auto by ${socket.data.username}; next change at ${new Date(nextAutoWeatherAt).toISOString()}`,
-      );
-      return;
-    }
-
-    weatherMode = 'manual';
-    if (data.pattern) {
-      targetWeather = getWeatherPattern(data.pattern);
-      const env = applyWeatherPattern(spaceId, targetWeather);
-      io.to(`space:${spaceId}`).emit('environment:update', env);
-      void persistEnvironmentToDb({ force: true, spaceId });
-      console.info(
-        `Weather preset '${data.pattern}' applied by ${socket.data.username}`,
-      );
-    } else if (data.coordinates) {
-      targetWeather = getWeatherByCoordinates(
-        data.coordinates.lat,
-        data.coordinates.lng,
-      );
-      const env = applyWeatherPattern(spaceId, targetWeather);
-      io.to(`space:${spaceId}`).emit('environment:update', env);
-      void persistEnvironmentToDb({ force: true, spaceId });
-      console.info(
-        `Weather from coordinates applied by ${socket.data.username} (${data.coordinates.lat}, ${data.coordinates.lng})`,
-      );
-    } else {
-      io.to(`space:${spaceId}`).emit(
-        'environment:update',
-        getEnvironmentForSpace(spaceId),
-      );
-    }
-  });
-
-  // Handle chat messages
-  socket.on('chat:message', async data => {
-    if (!socketHasPermission(socket, 'chat', 'send')) {
-      socket.emit('error', 'Not authorized to send chat messages');
-      return;
-    }
-
-    const mute = await getActiveMute(
-      socket.data.userId,
-      socket.data.username,
-      spaceId,
-    );
-    if (mute) {
-      socket.emit('error', mute.reason || 'You are muted in this space');
-      return;
-    }
-
-    const message = (data.message || '').trim();
-    if (!message || message.length > 500) return;
-
-    const currentVesselId = normalizeVesselId(
-      getVesselIdForUser(socket.data.userId || effectiveUserId, spaceId),
-    );
-    const channel = resolveChatChannel(data.channel, currentVesselId, spaceId);
-    const payload = {
-      id: '',
-      userId: socket.data.userId || 'unknown',
-      username: socket.data.username || 'Guest',
-      message,
-      timestamp: Date.now(),
-      channel,
-    };
-
-    try {
-      const row = await prisma.chatMessage.create({
-        data: {
-          userId: payload.userId,
-          username: payload.username,
-          message: payload.message,
-          spaceId: spaceId || DEFAULT_SPACE_ID,
-          channel: payload.channel,
-        },
-      });
-      payload.id = row.id;
-      payload.timestamp = row.createdAt.getTime();
-    } catch (err) {
-      console.warn('Failed to persist chat message', err);
-    }
-
-    const room =
-      channel && channel.startsWith('space:')
-        ? channel
-        : `space:${spaceId}:global`;
-    io.to(room).emit('chat:message', payload);
-  });
-
-  socket.on('chat:history', async data => {
-    const currentVesselId = normalizeVesselId(
-      getVesselIdForUser(socket.data.userId || effectiveUserId, spaceId),
-    );
-    const channel = resolveChatChannel(data?.channel, currentVesselId, spaceId);
-    const before = typeof data?.before === 'number' ? data.before : undefined;
-    const limit =
-      typeof data?.limit === 'number' && !Number.isNaN(data.limit)
-        ? Math.min(Math.max(Math.floor(data.limit), 1), 50)
-        : CHAT_HISTORY_PAGE_SIZE;
-    try {
-      console.info(
-        `Loading chat history for channel ${channel} before ${before} limit ${limit}`,
-      );
-      const { messages, hasMore } = await loadChatHistory(
-        channel,
-        before,
-        limit,
-      );
-      socket.emit('chat:history', {
-        channel,
-        messages,
-        hasMore,
-        reset: !before,
-      });
-    } catch (err) {
-      console.warn('Failed to load chat history', err);
-      socket.emit('chat:history', {
-        channel,
-        messages: [],
-        hasMore: false,
-        reset: !before,
-      });
-    }
-  });
-
-  socket.on('seamarks:nearby', data => {
-    const lat = Number(data?.lat);
-    const lon = Number(data?.lon);
-    const radiusMeters = Number(data?.radiusMeters ?? 25_000);
-    const limit = Number(data?.limit ?? 5000);
-
-    if (![lat, lon, radiusMeters].every(Number.isFinite)) return;
-
-    const bbox = bboxAroundLatLonGeodesic({
-      lat,
-      lon,
-      radiusMeters,
-      corner: true,
-    });
-
-    const features = querySeamarksBBox({
-      ...bbox,
-      limit: Number.isFinite(limit) ? limit : 5000,
-    });
-
-    socket.emit('seamarks:data', {
-      type: 'FeatureCollection',
-      features,
-      meta: { lat, lon, radiusMeters, bbox },
-    });
-  });
-
-  // Handle disconnect
-  socket.on('disconnect', () => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    const currentUsername = socket.data.username || effectiveUsername;
-    console.info(`Socket disconnected: ${currentUsername} (${currentUserId})`);
-    setConnectedClients(io.engine.clientsCount);
-
-    if (!isGuest) {
-      const vesselId =
-        currentUserId && getVesselIdForUser(currentUserId, spaceId);
-      const vesselRecord = vesselId
-        ? globalState.vessels.get(vesselId)
-        : undefined;
-      if (vesselRecord) {
-        vesselRecord.crewIds.delete(currentUserId);
-        if (vesselRecord.helmUserId === currentUserId) {
-          vesselRecord.helmUserId = null;
-          vesselRecord.helmUsername = null;
-        }
-        if (vesselRecord.engineUserId === currentUserId) {
-          vesselRecord.engineUserId = null;
-          vesselRecord.engineUsername = null;
-        }
-        if (vesselRecord.radioUserId === currentUserId) {
-          vesselRecord.radioUserId = null;
-          vesselRecord.radioUsername = null;
-        }
-        if (vesselRecord.crewIds.size === 0) {
-          vesselRecord.mode = vesselRecord.desiredMode || 'player';
-          vesselRecord.lastCrewAt = Date.now();
-          // AI integrator will continue using existing controls/state if desiredMode is ai
-        }
-      }
-    }
-
-    if (currentUserId) {
-      socket
-        .to(`space:${spaceId}`)
-        .emit('vessel:left', { userId: currentUserId });
-    }
-  });
+  registerDisconnectHandler(handlerContext);
 });
 
 async function ensureDefaultSpaceExists() {
