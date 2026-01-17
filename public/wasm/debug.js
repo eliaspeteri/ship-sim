@@ -69,6 +69,7 @@ export const {
   getVesselRollRate,
   getVesselPitchRate,
   getVesselYawRate,
+  getVesselWaveTime,
   calculateSeaState,
   getWaveHeightForSeaState,
   resetGlobalVessel,

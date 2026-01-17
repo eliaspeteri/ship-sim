@@ -86,6 +86,7 @@
  (export "getVesselRollRate" (func $assembly/index/getVesselRollRate))
  (export "getVesselPitchRate" (func $assembly/index/getVesselPitchRate))
  (export "getVesselYawRate" (func $assembly/index/getVesselYawRate))
+ (export "getVesselWaveTime" (func $assembly/index/getVesselWaveTime))
  (export "calculateSeaState" (func $assembly/index/calculateSeaState))
  (export "getWaveHeightForSeaState" (func $assembly/index/getWaveHeightForSeaState))
  (export "resetGlobalVessel" (func $assembly/index/resetGlobalVessel))
@@ -5149,6 +5150,12 @@
   local.get $vesselPtr
   call $assembly/index/ensureVessel
   call $assembly/index/VesselState#get:r
+  return
+ )
+ (func $assembly/index/getVesselWaveTime (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/index/ensureVessel
+  call $assembly/index/VesselState#get:waveTime
   return
  )
  (func $assembly/index/calculateSeaState (param $windSpeed f64) (result f64)
