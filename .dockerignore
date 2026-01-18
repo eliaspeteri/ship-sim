@@ -1,0 +1,23 @@
+# Dependency and build artifacts
+node_modules
+.next
+build
+coverage
+output
+
+# Large data/cache directories
+geoserver_data_dir
+data
+
+# Local tooling/artifacts
+*.log
+npm-debug.log*
+.DS_Store
+
+# VCS
+.git
+.gitignore
+
+# Optional local/dev folders
+playground
+generated
