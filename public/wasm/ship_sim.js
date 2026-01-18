@@ -17,14 +17,14 @@ async function instantiate(module, imports = {}) {
   const { exports } = await WebAssembly.instantiate(module, adaptedImports);
   const memory = exports.memory || imports.env.memory;
   const adaptedExports = Object.setPrototypeOf({
-    createVessel(x, y, z, psi, _phi, _theta, u, v, w, r, _p, _q, throttle, rudderAngle, mass, length, beam, draft, blockCoefficient) {
-      // assembly/index/createVessel(f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64?) => usize
+    createVessel(x, y, z, psi, _phi, _theta, u, v, w, r, _p, _q, throttle, rudderAngle, mass, length, beam, draft, blockCoefficient, rudderForceCoefficient, rudderStallAngle, rudderMaxAngle, dragCoefficient, yawDamping, yawDampingQuad, swayDamping, maxThrust, maxSpeed, rollDamping, pitchDamping, heaveStiffness, heaveDamping) {
+      // assembly/index/createVessel(f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?) => usize
       exports.__setArgumentsLength(arguments.length);
-      return exports.createVessel(x, y, z, psi, _phi, _theta, u, v, w, r, _p, _q, throttle, rudderAngle, mass, length, beam, draft, blockCoefficient) >>> 0;
+      return exports.createVessel(x, y, z, psi, _phi, _theta, u, v, w, r, _p, _q, throttle, rudderAngle, mass, length, beam, draft, blockCoefficient, rudderForceCoefficient, rudderStallAngle, rudderMaxAngle, dragCoefficient, yawDamping, yawDampingQuad, swayDamping, maxThrust, maxSpeed, rollDamping, pitchDamping, heaveStiffness, heaveDamping) >>> 0;
     },
-    updateVesselState(vesselPtr, dt, windSpeed, windDirection, currentSpeed, currentDirection) {
-      // assembly/index/updateVesselState(usize, f64, f64, f64, f64, f64) => usize
-      return exports.updateVesselState(vesselPtr, dt, windSpeed, windDirection, currentSpeed, currentDirection) >>> 0;
+    updateVesselState(vesselPtr, dt, windSpeed, windDirection, currentSpeed, currentDirection, waveHeight, waveLength, waveDirection, waveSteepness) {
+      // assembly/index/updateVesselState(usize, f64, f64, f64, f64, f64, f64, f64, f64, f64) => usize
+      return exports.updateVesselState(vesselPtr, dt, windSpeed, windDirection, currentSpeed, currentDirection, waveHeight, waveLength, waveDirection, waveSteepness) >>> 0;
     },
   }, exports);
   function __liftString(pointer) {
@@ -44,6 +44,7 @@ export const {
   memory,
   table,
   createVessel,
+  destroyVessel,
   updateVesselState,
   setThrottle,
   setRudderAngle,

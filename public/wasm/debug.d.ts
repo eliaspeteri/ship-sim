@@ -198,12 +198,6 @@ export declare function getVesselPitchRate(_vesselPtr: number): number;
  */
 export declare function getVesselYawRate(vesselPtr: number): number;
 /**
- * assembly/index/getVesselWaveTime
- * @param vesselPtr `usize`
- * @returns `f64`
- */
-export declare function getVesselWaveTime(vesselPtr: number): number;
-/**
  * assembly/index/calculateSeaState
  * @param windSpeed `f64`
  * @returns `f64`
