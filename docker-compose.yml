@@ -28,6 +28,8 @@ services:
     env_file:
       - .env
       - .env.db
+    environment:
+      DATABASE_URL: postgresql://ship:password@db:5432/shipsim?schema=public
     volumes:
       - ./prisma:/app/prisma
       - ./scripts:/app/scripts

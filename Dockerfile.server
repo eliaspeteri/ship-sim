@@ -1,4 +1,4 @@
-FROM node:18-alpine AS deps
+FROM node:20-alpine AS deps
 
 # Install dependencies and netcat for connectivity checking
 RUN apk add --no-cache netcat-openbsd libc6-compat
@@ -11,7 +11,7 @@ RUN npm ci --production=false --no-audit --ignore-scripts && \
     npm cache clean --force
 
 # Build stage to generate Prisma client
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -20,7 +20,7 @@ COPY . .
 RUN npx prisma generate
 
 # Production image
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 # Install production dependencies only

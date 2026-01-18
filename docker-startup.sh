@@ -15,21 +15,21 @@ until nc -z -v -w30 db 5432; do
 done
 echo "Database is up and ready!"
 
-# Initialize Prisma
+# Initialize Prisma using explicit Prisma config
 echo "Generating Prisma client..."
-npx prisma generate
+npx prisma generate --config prisma.config.ts
 
 # Run database migrations
 echo "Running database migrations..."
 if [ ! -d "prisma/migrations" ] || [ -z "$(ls -A prisma/migrations 2>/dev/null)" ]; then
   echo "No migrations found. Creating initial migration..."
-  npx prisma migrate dev --name initial --create-only
+  npx prisma migrate dev --name initial --create-only --config prisma.config.ts
 fi
-npx prisma migrate deploy
+npx prisma migrate deploy --config prisma.config.ts
 
 # Create initial admin user if needed
 echo "Setting up initial admin user..."
-npx tsx scripts/create-admin.ts
+npx node scripts/seed-admin.js
 
 # Start the server
 echo "Starting server..."
