@@ -12,30 +12,37 @@ export interface XY {
 }
 
 const DEG_TO_RAD = Math.PI / 180;
+const METERS_PER_DEG_LAT = 111_320; // approximate at equator
+const R = 6371000;
+const deg2rad = (d: number) => (d * Math.PI) / 180;
+const rad2deg = (r: number) => (r * 180) / Math.PI;
 
 // Tunable origin and scale; adjust as needed for your world.
-const ORIGIN: LatLon = { lat: 0, lon: 0 };
-const METERS_PER_DEG_LAT = 111_320; // approximate at equator
-const METERS_PER_DEG_LON_AT_ORIGIN =
-  METERS_PER_DEG_LAT * Math.cos(ORIGIN.lat * DEG_TO_RAD);
+let ORIGIN: LatLon = { lat: 0, lon: 0 };
+
+export function setGeoOrigin(origin: LatLon) {
+  ORIGIN = origin;
+}
+
+function metersPerDegLonAtLat(latDeg: number) {
+  return METERS_PER_DEG_LAT * Math.cos(latDeg * DEG_TO_RAD);
+}
 
 export function xyToLatLon({ x, y }: XY): LatLon {
+  const mPerDegLon = metersPerDegLonAtLat(ORIGIN.lat);
   return {
     lat: ORIGIN.lat + y / METERS_PER_DEG_LAT,
-    lon: ORIGIN.lon + x / METERS_PER_DEG_LON_AT_ORIGIN,
+    lon: ORIGIN.lon + x / mPerDegLon,
   };
 }
 
 export function latLonToXY({ lat, lon }: LatLon): XY {
+  const mPerDegLon = metersPerDegLonAtLat(ORIGIN.lat);
   return {
-    x: (lon - ORIGIN.lon) * METERS_PER_DEG_LON_AT_ORIGIN,
+    x: (lon - ORIGIN.lon) * mPerDegLon,
     y: (lat - ORIGIN.lat) * METERS_PER_DEG_LAT,
   };
 }
-
-const R = 6371000;
-const deg2rad = (d: number) => (d * Math.PI) / 180;
-const rad2deg = (r: number) => (r * 180) / Math.PI;
 
 /**
  * Returns {south, west, north, east} around center.

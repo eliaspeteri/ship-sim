@@ -29,6 +29,7 @@ import { FarWater } from './FarWater';
 import { latLonToXY } from '../lib/geo';
 import * as GeoJSON from 'geojson';
 import SeamarkSprites from './SeamarkSprites';
+import { LandTiles } from './LandTiles';
 
 interface SceneProps {
   vesselPosition: {
@@ -39,6 +40,12 @@ interface SceneProps {
   };
   mode: 'player' | 'spectator';
 }
+
+const LAND_EPSILON_Y = 0.75;
+const OCEAN_EPSILON_Y = -0.25;
+const TERRAIN_HEIGHT_SCALE = 1;
+const TERRAIN_SEA_LEVEL = 0;
+const TERRAIN_ENABLED = true;
 
 function SpectatorController({
   mode,
@@ -856,12 +863,14 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
     }
     Object.entries(otherVessels || {}).forEach(([id, vessel]) => {
       if (!vessel?.position) return;
+      if (id === currentVesselId) return; // <-- prevents duplicate key
       targets.push({
         id,
         x: vessel.position.x ?? 0,
         y: vessel.position.y ?? 0,
       });
     });
+
     return targets;
   }, [
     currentVesselId,
@@ -949,10 +958,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           mieDirectionalG={0.8}
         />
 
-        <Environment
-          preset="sunset"
-          environmentIntensity={daylight * 0.9}
-        />
+        <Environment preset="sunset" environmentIntensity={daylight * 0.9} />
         <ambientLight intensity={lightIntensity.ambient} />
         <hemisphereLight args={['#6fa6ff', '#0b1e2d', lightIntensity.hemi]} />
         <directionalLight
@@ -976,6 +982,15 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           segments={512}
           wave={waveState}
           sunDirection={sunDirection}
+          yOffset={OCEAN_EPSILON_Y}
+        />
+        <LandTiles
+          focusRef={focusRef}
+          radius={2}
+          landY={LAND_EPSILON_Y}
+          heightScale={TERRAIN_HEIGHT_SCALE}
+          seaLevel={TERRAIN_SEA_LEVEL}
+          useTerrain={TERRAIN_ENABLED}
         />
 
         <Ship

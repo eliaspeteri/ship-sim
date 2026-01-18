@@ -181,6 +181,7 @@ export function OceanPatch({
   wave,
   timeRef,
   sunDirection,
+  yOffset = 0,
 }: {
   centerRef: React.MutableRefObject<{ x: number; y: number }>;
   size?: number;
@@ -188,6 +189,7 @@ export function OceanPatch({
   wave: WaveState;
   timeRef?: React.MutableRefObject<number>;
   sunDirection: THREE.Vector3;
+  yOffset?: number;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
 
@@ -296,7 +298,11 @@ export function OceanPatch({
 
   useFrame(({ camera }, delta) => {
     if (meshRef.current) {
-      meshRef.current.position.set(centerRef.current.x, 0, centerRef.current.y);
+      meshRef.current.position.set(
+        centerRef.current.x,
+        yOffset,
+        centerRef.current.y,
+      );
       // --- NEW: scale patch based on camera height ---
       const h = camera.position.y;
       const scale = THREE.MathUtils.clamp(h / 220, 1, 8); // tune: 220 and 8
