@@ -22,14 +22,17 @@ Multiplayer ship simulation in the browser with a WASM physics core, realtime so
 ```sh
 npm install
 
-# Start Postgres + run migrations (Docker)
-npm run db:start
+# Start infra services (PostGIS + pg_tileserv + GeoServer)
+npm run docker:infra:up
 
-# Start backend API (port 3001)
+# Start backend API (default port is 3001)
 npm run server
 
-# In a second terminal, start frontend + WASM build (port 3000)
+# In a second terminal, start frontend + WASM build (default port is 3000)
 npm run dev
+
+# Full stack in Docker (frontend + server + infra)
+npm run docker:up
 ```
 
 - Login/register at `http://localhost:3000/login` (defaults: admin/admin).
@@ -38,6 +41,11 @@ npm run dev
 ## Configuration
 
 - See `.env.example` for environment variables (database URL, NextAuth secrets, server URLs).
+
+## Dev vs Docker
+
+- Local dev (fastest HMR): run infra in Docker with `npm run docker:infra:up`, then run `npm run server` and `npm run dev` locally.
+- Full Docker stack (prod-like): run everything with `npm run docker:up` and stop with `npm run docker:down`.
 
 ## Testing & Quality
 
