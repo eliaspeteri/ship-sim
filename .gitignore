@@ -9,3 +9,26 @@
 .env.frontend
 .env.geoserver
 .env.tiles
+
+# downloaded zips, shapefiles, etc.
+*.zip
+*.7z
+*.tar
+*.gz
+*.tif
+*.tiff
+*.asc
+
+# GDAL / shapefile sidecars
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.qix
+*.fix
+*.sbn
+*.sbx
+
+# mbtiles caches (if you add later)
+*.mbtiles

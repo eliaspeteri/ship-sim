@@ -1,12 +1,14 @@
 services:
   db:
     image: postgis/postgis:16-3.4
+    container_name: ship-sim-db
     env_file:
       - .env.db
     ports:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
     deploy:
       resources:
         limits:
@@ -67,6 +69,16 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+  import_land:
+    image: ghcr.io/osgeo/gdal:latest
+    depends_on:
+      - db
+    networks:
+      - ship-sim-network
+    volumes:
+      - ./data/raw:/data:ro
+      - ./scripts:/scripts:ro
+    entrypoint: ['/bin/bash', '-lc', '/scripts/import-natural-earth.sh']
 
 networks:
   ship-sim-network:
