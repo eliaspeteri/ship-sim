@@ -23,7 +23,11 @@ export function FarWater({
     if (materialRef.current) {
       const daylight = Math.max(0, sunDirection.y);
       const t = THREE.MathUtils.clamp(daylight, 0, 1) * 0.8;
-      tempColor.current.copy(DEEP_COLOR).lerp(BRIGHT_COLOR, t);
+      const shade = THREE.MathUtils.lerp(0.35, 1, daylight);
+      tempColor.current
+        .copy(DEEP_COLOR)
+        .lerp(BRIGHT_COLOR, t)
+        .multiplyScalar(shade);
       materialRef.current.color.copy(tempColor.current);
     }
   });

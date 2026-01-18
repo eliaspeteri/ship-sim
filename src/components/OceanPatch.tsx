@@ -270,12 +270,15 @@ export function OceanPatch({
     material.uniforms.uSunDirection.value.copy(sunDirection).normalize();
     const deep = new THREE.Color(0x0b2b3d);
     const bright = new THREE.Color(0x1c5a80);
+    const shade = THREE.MathUtils.lerp(0.35, 1, daylight);
     const waterMixed = deep
       .clone()
-      .lerp(bright, THREE.MathUtils.clamp(daylight, 0, 1) * 0.8);
+      .lerp(bright, THREE.MathUtils.clamp(daylight, 0, 1) * 0.8)
+      .multiplyScalar(shade);
     material.uniforms.uWaterColor.value.copy(waterMixed);
     material.uniforms.uFarColor.value.copy(waterMixed);
-    material.uniforms.uAmbient.value = 0.12 + 0.25 * daylight;
+    material.uniforms.uAmbient.value = 0.03 + 0.25 * daylight;
+    material.uniforms.uSpecStrength.value = 0.02 + 0.12 * daylight;
 
     material.toneMapped = true;
   }, [material, wave.amplitude, wave.k, wave.omega, wave.direction]);

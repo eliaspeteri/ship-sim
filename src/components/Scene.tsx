@@ -725,9 +725,9 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
     ).normalize();
     const daylight = Math.max(0, elevation);
     const lightIntensity = {
-      directional: 0.15 + daylight * 0.95,
-      ambient: 0.12 + daylight * 0.45,
-      hemi: 0.1 + daylight * 0.35,
+      directional: daylight * 1.1,
+      ambient: daylight * 0.25,
+      hemi: daylight * 0.2,
     };
     return { sunDirection: dir, daylight, lightIntensity };
   }, [envTime]);
@@ -951,7 +951,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
 
         <Environment
           preset="sunset"
-          environmentIntensity={0.05 + daylight * 0.95}
+          environmentIntensity={daylight * 0.9}
         />
         <ambientLight intensity={lightIntensity.ambient} />
         <hemisphereLight args={['#6fa6ff', '#0b1e2d', lightIntensity.hemi]} />
