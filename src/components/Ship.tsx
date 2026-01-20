@@ -172,19 +172,19 @@ const Ship: React.FC<ShipProps> = ({
       {showDebugMarkers ? (
         <>
           <mesh position={[0, 2, markerOffset]}>
-            <sphereGeometry args={[16, 16, 16]} />
+            <sphereGeometry args={[length / 2, 16, 16]} />
             <meshBasicMaterial color="#ff3b30" />
           </mesh>
           <mesh position={[0, 2, -markerOffset]}>
-            <sphereGeometry args={[16, 16, 16]} />
+            <sphereGeometry args={[length / 2, 16, 16]} />
             <meshBasicMaterial color="#34c759" />
           </mesh>
           <mesh position={[markerOffset, 2, 0]}>
-            <sphereGeometry args={[16, 16, 16]} />
+            <sphereGeometry args={[length / 2, 16, 16]} />
             <meshBasicMaterial color="#007aff" />
           </mesh>
           <mesh position={[-markerOffset, 2, 0]}>
-            <sphereGeometry args={[16, 16, 16]} />
+            <sphereGeometry args={[length / 2, 16, 16]} />
             <meshBasicMaterial color="#ff9500" />
           </mesh>
         </>
