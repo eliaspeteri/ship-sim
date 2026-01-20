@@ -11,12 +11,10 @@ export default async function handler(
     return;
   }
 
-  const base =
-    process.env.TERRAIN_TILES_BASE_URL ??
-    process.env.TILES_BASE_URL ??
-    'http://localhost:7800';
-  const path = process.env.TERRAIN_TILES_PATH ?? 'public.terrain_rgb';
-  const url = `${base}/${path}/${z}/${x}/${y}.png`;
+  const base = process.env.TERRAIN_TILES_BASE_URL;
+  const url = `${base}/${z}/${x}/${y}`;
+
+  console.info(`Fetching terrain tile from ${url}`);
 
   const r = await fetch(url);
   if (!r.ok) {

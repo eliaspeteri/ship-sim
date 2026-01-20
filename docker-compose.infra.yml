@@ -79,6 +79,12 @@ services:
       - ./data/raw:/data:ro
       - ./scripts:/scripts:ro
     entrypoint: ['/bin/bash', '-lc', '/scripts/import-natural-earth.sh']
+  terrain_tiles:
+    image: nginx:alpine
+    ports:
+      - '8090:80'
+    volumes:
+      - ./data/dem/terrain_rgb:/usr/share/nginx/html:ro
 
 networks:
   ship-sim-network:

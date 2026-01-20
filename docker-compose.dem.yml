@@ -1,0 +1,19 @@
+services:
+  dem_terrainrgb:
+    build:
+      context: ./tools/dem
+    image: shipsim-dem-tools:latest
+    environment:
+      MIN_Z: '6'
+      MAX_Z: '12'
+      JOBS: '8'
+      # Optional: clip around Finland/Baltic to test fast
+      # CLIP_WGS84: "19 59 27 62"
+    command: ['/bin/bash', '/work/build-terrainrgb.sh']
+    working_dir: /work
+    # Copy script into container at run-time by bind-mounting tools folder:
+    volumes:
+      - ./tools/dem:/work
+      - ./data/dem/raw:/data/raw
+      - ./data/dem/work:/data/work
+      - ./data/dem/terrain_rgb:/data/out
