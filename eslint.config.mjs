@@ -103,6 +103,8 @@ export default [
         Buffer: 'readonly', // Added Buffer global
         URLSearchParams: 'readonly', // Added URLSearchParams global
         Event: 'readonly', // Added Event global
+        createImageBitmap: 'readonly', // Added createImageBitmap global
+        OffscreenCanvas: 'readonly', // Added OffscreenCanvas global
       },
       parserOptions: {
         ecmaFeatures: {
@@ -236,6 +238,8 @@ export default [
         localStorage: 'readonly',
         sessionStorage: 'readonly',
         AbortController: 'readonly',
+        createImageBitmap: 'readonly',
+        OffscreenCanvas: 'readonly',
       },
     },
   },
