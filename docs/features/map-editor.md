@@ -1,363 +1,571 @@
-# Map editor
+# Ship Simulator – Map Editor Design & Implementation Guide
 
-## Next.js pages
+This document defines the **architecture, concepts, workflows, and implementation details** for a fully fledged, in-browser map editor for _ship-sim_.  
+It is intended to serve both as **product documentation** and as **technical instructions** for building the system from start to finish.
 
-The map editor will be its own page in the main Next.js. Full list of pages:
+The editor is **Earth-data-backed**, **overlay-only**, **tile-streamed**, and designed for **online collaboration and curation**, not free-form world sculpting.
 
-- `/editor` - main editor UI
-- `/editor/packs` - pack list, create, update permissions
-- `/editor/packs/[packId]` - pack details, layers, upload/download
-- `/editor/review` - review changes from collaborators
+---
 
-## Map packs
+## Table of Contents
 
-Map packs can be defined as public or private. Public packs can be shared with the community, while private packs are only accessible to the creator and collaborators.
+1. [What the Map Editor Is (and Is Not)](#what-the-map-editor-is-and-is-not)
+2. [High-Level Goals](#high-level-goals)
+3. [System Overview](#system-overview)
+4. [Editor Pages & Routing](#editor-pages--routing)
+5. [Map Packs](#map-packs)
+   - Work Areas
+   - Visibility Levels
+   - Roles & Permissions
+6. [Core Concepts](#core-concepts)
+   - Layers
+   - Features
+   - Source vs Compiled Data
+7. [Coordinate Systems](#coordinate-systems)
+8. [Tiling & LOD Model](#tiling--lod-model)
+9. [Editor UI & Tooling](#editor-ui--tooling)
+10. [Layer Types](#layer-types)
+11. [Validation & Simulation Preview](#validation--simulation-preview)
+12. [Data Model & Storage](#data-model--storage)
+13. [Streaming & Runtime Integration](#streaming--runtime-integration)
+14. [Compilation Pipeline](#compilation-pipeline)
+15. [Collaboration Model](#collaboration-model)
+16. [Review & Publishing Workflow](#review--publishing-workflow)
+17. [Modding & Community Content](#modding--community-content)
+18. [Moderation & Safety](#moderation--safety)
+19. [Asset Creation & Usage](#asset-creation--usage)
+20. [Build-Out Phases](#build-out-phases)
+21. [Glossary of Concepts](#glossary-of-concepts)
 
-If a map pack is made public, it will appear in a list of community maps that other users can browse and download. These will be accessible in private spaces.
+---
 
-### Roles
+## What the Map Editor Is (and Is Not)
 
-Gated by:
+### The Map Editor **is**
 
-- server-side role checks
-- client-side UI restrictions
+- A **non-destructive overlay authoring tool**
+- Built directly into the **ship-sim frontend**
+- Backed by **real Earth terrain and bathymetry**
+- Designed for **ports, navigation aids, infrastructure, and rules**
+- **Server-authoritative** for published content
+- Built around **tile-based streaming and LOD**
+- Designed for **collaboration, review, and curation**
 
-#### Who can create or edit maps?
+### The Map Editor **is not**
 
-Map creators must have a player role or higher.
+- A terrain sculptor (no heightmap editing)
+- A general-purpose 3D modeling tool
+- A scripting or code-execution platform
+- A client-authoritative mod system
+- A free-for-all global editor without review
 
-#### Who can review maps?
+---
 
-There will be a new role called "reviewer" that can review and approve or request map changes. This is only if map pack is aimed as a change request for global.
+## High-Level Goals
 
-#### Who can publish maps?
+- Allow players to author **realistic maritime content**
+- Ensure **WYSIWYG parity** between editor and runtime
+- Scale to **planet-sized worlds**
+- Support **community contributions** without compromising integrity
+- Keep all authored content **data-driven and deterministic**
+- Enable **strong validation** for maritime correctness
 
-This would be limited to "admin" role for now. Admins can:
+---
 
-- create map packs aimed for "global". These packs can and should be reviewed by other reviewers.
-- assign "reviewer" roles to other users.
-- push approved packs to "global".
+## System Overview
 
-## Scope
+The editor operates on top of **read-only Earth tiles** and produces **overlay packs** that are streamed exactly like terrain and bathymetry.
+
+Key pillars:
+
+- **Layers** as the fundamental abstraction
+- **Map Packs** as units of authorship and distribution
+- **Tile-aligned compilation** for performance
+- **Server-side authority** for anything shared globally
+
+---
+
+## Editor Pages & Routing
+
+All editor functionality lives inside the main Next.js application.
+
+### Routes
+
+- `/editor/packs`
+  - List, create, and manage map packs
+- `/editor/packs/[packId]`
+  - Main editor workspace:
+    - 3D viewport
+    - Layer panel
+    - Tools
+    - Inspector
+- `/editor/review`
+  - Review queue for submissions
+  - Only accessible to reviewers and admins
+
+---
+
+## Map Packs
+
+A **Map Pack** is the primary unit of content creation and distribution.
+
+It contains:
+
+- One or more **work areas**
+- A set of **layers**
+- Versioned history (drafts, submissions, published)
+
+### Work Areas
+
+A work area defines:
+
+- Geographic bounds (polygon or bbox)
+- Tile sources (terrain, bathymetry, imagery)
+- Allowed zoom levels
+
+Purpose:
+
+- Restrict editing to a known region
+- Limit compilation scope
+- Optimize streaming and prefetching
+- Prevent accidental “edit half the planet” mistakes
+
+Editor behavior:
+
+- Warn on out-of-bounds edits
+- Clamp compilation to work area tiles
+
+### Visibility Levels
+
+Each pack has exactly one visibility state per version:
+
+1. **Private Draft**
+   - Only creator and collaborators
+2. **Published Public**
+   - Discoverable by all users
+   - Loadable in private sessions
+3. **Global Curated**
+   - Reviewed and approved
+   - Included in default global overlays
+
+### Roles & Permissions
+
+There are **two separate role systems**:
+
+#### Site Roles (platform-wide)
+
+- `player`
+- `reviewer`
+- `admin`
+
+#### Pack Roles (per-pack)
+
+- `owner`
+- `editor`
+- `viewer`
+
+Capabilities:
+
+| Capability         | Player | Reviewer | Admin |
+| ------------------ | ------ | -------- | ----- |
+| Create/edit packs  | ✅     | ✅       | ✅    |
+| Submit for review  | ✅     | ✅       | ✅    |
+| Review submissions | ❌     | ✅       | ✅    |
+| Publish to global  | ❌     | ❌       | ✅    |
+| Assign reviewers   | ❌     | ❌       | ✅    |
+
+All permissions are enforced:
+
+- Server-side (authoritative)
+- Client-side (UI gating)
+
+---
+
+## Core Concepts
 
 ### Layers
 
-The map editor sits on top of read-only Earth tiles terrain + bathymetry. It has several layers:
+Everything authored lives in a **layer**.
 
-- Terrain layer (read-only)
-- Decor layer (vegetation, props, masks, roads, buildings)
-- Infra layer (docks, piers, bridges, cables, clearance volumes)
-- Port definition layer (port boundaries, berths, mooring points, fenders)
-- Navigation layer (aids, constraints, rules, routes, areas)
+A layer defines:
 
-### WYSIWYG editing
+- A **type** (e.g. `NavAidLayer`)
+- A **geometry model**
+- **Style rules**
+- **Build rules**
 
-Runtime and editor use the same streaming + LOD system for terrain and bathymetry, so what you see in the editor is what you get in runtime.
+Layers are independent, composable, and streamable.
 
-## Mental model
+### Features
 
-Everything is a layer. You have a base layer, then you have overlays with a set structure:
+A **feature** is an atomic piece of authored data:
 
-- a type (e.g., BuoyLayer, PortLayer, VegetationMaskLayer)
-- a spatial representation (points/lines/polygons/rasters/instances/volumes)
-- style rules (how it renders in-editor and in-game)
-- build rules (how it compiles into runtime-friendly chunks)
+- A buoy
+- A speed zone polygon
+- A berth line
+- A clearance volume
 
-Finally you have compiled runtime artifacts that are optimized for streaming and rendering. So, editor takes in and saves source data, but compiles it into runtime data which has following properties:
+Features:
 
-- tile-aligned chunks for streaming
-- LOD levels for performance
-- packed metadata
-- fast spatial indices
+- Have stable UUIDs
+- Contain geometry + typed properties
+- Are the unit of diffing and validation
 
-## Coordinate system
+### Source vs Compiled Data
 
-Globally WGS84 lat/lon/alt coordinates. Locally, each tile uses a projected coordinate system (e.g., UTM or ENU) for accuracy. It should be anchored at the work area center to minimize floating point precision issues.
+- **Source data**
+  - Editable
+  - High fidelity
+  - Stored as features
+- **Compiled data**
+  - Tile-aligned
+  - LOD-reduced
+  - Indexed for fast queries
 
-Editor shows both global and local coordinates for reference. Tools operate in local coordinates for precision (snapping, distances, polygons).
+Source data is never used directly at runtime.
 
-## Tiling scheme
+---
 
-<!-- I don't understand this -->
+## Coordinate Systems
 
-Web Mercator slippy tiles (z/x/y). Can still store exact geometry in WGS84 and index it into tiles for streaming.
+### Global Coordinates
 
-<!-- I don't understand this -->
+- WGS84 latitude / longitude / altitude
+- Used for identity, storage, and interoperability
 
-Overlays are stored as features, but compiled per tile at target zoom levels.
+### Local Coordinates
 
-## Wishlist
+- Projected coordinate system per work area
+- ENU (East-North-Up) or UTM
+- Used by editor tools for:
+  - Snapping
+  - Distances
+  - Geometry math
+
+The editor displays both for clarity.
+
+---
+
+## Tiling & LOD Model
+
+### Web Mercator Slippy Tiles
+
+The world is divided into tiles using:
+
+- Zoom (`z`)
+- X index (`x`)
+- Y index (`y`)
+
+This matches:
+
+- Earth tile servers
+- Caching infrastructure
+- Mental model of map navigation
+
+### Feature-to-Tile Compilation
+
+Authoring model:
+
+- One feature = one logical object
+
+Runtime model:
+
+- Feature is split, simplified, and packed into per-tile chunks:
+  `/overlays/z12/x1234/y1533.nav.bin`
+
+Each chunk contains:
+
+- Geometry relevant to that tile
+- LOD-appropriate detail
+- A small spatial index
+
+---
+
+## Editor UI & Tooling
 
 ### Viewport
 
-- 3D world view (ship-sim renderer)
-- Minimap (2D top-down)
-- Tile boundary overlay + current loaded LOD
-- “Data inspector” tooltip under cursor (depth from bathy, clearance, zone membership, nearest nav aid)
+- 3D world view (same renderer as sim)
+- Optional 2D minimap
+- Tile grid + LOD overlay
+- Data inspector tooltip:
+- Depth
+- Clearance
+- Zone membership
+- Nearest nav aid
 
-### Layer panel
+### Layer Panel
 
-- Visibility / lock / opacity
-- Filter by type (Decor / Infra / Port / Nav)
-- Per-layer style overrides (icons, colors, label rules)
-- Validation status per layer (green/yellow/red)
+- Visibility toggle
+- Locking
+- Opacity
+- Type filtering
+- Validation status indicators
 
-### Tool system (mode-based)
+### Tool System (Mode-Based)
 
-A left toolbar with GIS-like tools:
+#### Common Tools
 
-#### Common
+- Select / multi-select / lasso
+- Move / rotate / scale
+- Duplicate / array
+- Measure distance, bearing, area
+- Snapping configuration
 
-- Select / Multi-select / Lasso
-- Move / Rotate / Scale (with snapping)
-- Duplicate / Array along path
-- Measure distance / bearing / area
-- Snap settings: grid / coastline / depth contour / existing geometry
+#### Geometry Authoring
 
-#### Geometry authoring
-
-- Point tool (buoy, beacon, tower)
-- Polyline tool (cables, pipelines, fairways)
-- Polygon tool (zones, masks, anchorages)
-- Volume tool (clearance volumes, bridge envelopes)
+- Point tool
+- Polyline tool
+- Polygon tool
+- Volume tool (3D)
 
 #### Painting
 
-- Biome brush (writes to raster mask)
+- Biome brush
 - No-decoration mask brush
-- Density brush for clutter
-- “Stamp” brush for prop sets (rocks, shoreline packs)
+- Density brush
+- Prop stamping
 
-#### Procedural helpers
+#### Procedural Helpers
 
 - Scatter along coastline
-- Scatter inside polygon with density map
-- Place along polyline at interval (buoy chains, posts)
-- “Generate dock edges” from a drawn quay line
+- Scatter within polygon
+- Place along polyline at interval
+- Generate dock edges from quay lines
 
-### Property inspector (the “truth panel”)
+### Property Inspector
 
-Select an object, edit typed properties:
+Typed UI per feature type:
 
-- Buoy: IALA region, light characteristics, topmark, radar reflector
-- Bridge: min vertical clearance, horizontal clearance corridor, span type
-- Cable: min clearance curve, sag model params (optional), warning zones
-- Port: name/region, services, VHF channels, rules, tug availability, etc.
+- Buoy: IALA region, light pattern
+- Bridge: clearance envelope
+- Cable: min clearance or sag params
+- Port: services, rules, metadata
 
-### Validation & simulation preview
+---
 
-This is where the editor becomes more than a placement tool.
+## Layer Types
 
-- Click “Validate”: checks constraints (see below)
-- Click “Preview”: spawn a test ship and run:
-  - “Can I transit here?” along a path
-  - Depth clearance along route vs draft
-  - Overhead clearance along route vs mast height
-  - Speed zone compliance overlay
+### Decor & Atmosphere
 
-Examples:
+- BiomePaintLayer
+- VegetationScatterLayer
+- ClutterLayer
+- NoDecorationMaskLayer
 
-- Buoy must have valid IALA region + light pattern format
-- Berths must be within a Port boundary
-- Bridge clearance envelope must not intersect terrain (unless supported)
-- Overhead cable must not dip below its stated minimum clearance
-- Speed zones should not overlap with contradictory rules (or must be ordered)
-- Restricted zones must declare “allowed vessel classes” or “exceptions”
-- Anchorage depth must be within [min,max] computed from bathymetry sampling
+Masks define **where and how much** content is allowed.
 
-Add a “Fix suggestions” panel:
+### Structures & Clearance
 
-- “Move buoy to nearest safe-depth contour”
-- “Extend speed zone to shoreline to avoid sliver gaps”
-- “Snap berth line to dock edge”
+- BridgeLayer
+- OverheadLineLayer
+- VerticalObstacleLayer
+- ClearanceZoneLayer
 
-## Data model: features + schemas (make it boring and strict)
+Clearance data is queryable at runtime.
 
-### Authoring format
+### Ports & Infrastructure
 
-Use something like:
+- PortLayer
+- BerthLayer
+- DockLayer
+- MooringLayer
+- AnchorageLayer
+- PortServiceLayer
 
-- project.json (work areas, tile sources, layer list, settings)
-- layers/\<layer-id>.geojson for vector features (points/lines/polys)
-- layers/\<layer-id>.mask.tiff or custom chunked raster for paint layers
-- assets/ for custom props/prefabs references
-- build/ for compiled artifacts
+Fenders are contact/impact elements on docks.
 
-GeoJSON great for early prototyping, later advance to binary format for big layers.
+### Navigation Aids & Constraints
 
-### Strong typing (don’t let “random JSON” creep in)
+- NavAidLayer
+- SpeedZoneLayer
+- RestrictedZoneLayer
+- DepthConstraintLayer
+- TrafficSeparationLayer (future)
 
-Define a schema per layer type:
+Constraints are rule-enforcing zones.
 
-- BuoyFeature
-- BerthFeature
-- ClearanceZoneFeature
-  etc.
+---
 
-Then your editor can:
+## Validation & Simulation Preview
 
-- show correct UI controls
-- validate reliably
-- compile deterministically
+### Validation
 
-### Core tables (Prisma-ish)
+- Runs live and on submit
+- Examples:
+- Invalid buoy configuration
+- Berth outside port
+- Clearance intersecting terrain
+- Conflicting speed zones
+- Depth violations
 
-- Pack (id, name, description, region bbox, ownerId, visibility)
-- PackMember (packId, userId, role: owner/editor/viewer)
-- PackVersion (packId, version, status: draft|submitted|published, createdAt, createdBy)
-- Layer (packVersionId, id, type, name, style, schemaVersion)
-- Feature (layerId, id, geometry, properties, updatedAt) — vector
-- RasterChunk (layerId, tileZXY, blobRef, metadata) — paint layers
-- BuildArtifact (packVersionId, tileZXY, blobRef, indexRef, buildMeta)
+### Fix Suggestions
+
+- Snap to safe depth
+- Extend zones
+- Align with dock edges
+
+### Simulation Preview
+
+- Spawn test vessel
+- Route probing
+- Clearance checks
+- Rule compliance overlays
+
+---
+
+## Data Model & Storage
+
+### Authoring Format
+
+- `project.json`
+- `layers/<layer-id>.geojson`
+- `layers/<layer-id>.mask.tiff`
+- `assets/`
+- `build/`
+
+### Database (Prisma-style)
+
+- Pack
+- PackMember
+- PackVersion
+- Layer
+- Feature
+- RasterChunk
+- BuildArtifact
 
 ### Storage
 
-- Postgres for metadata + vector features (JSONB is fine early)
-- Large blobs (compiled chunks, raster tiles) in object storage (S3/R2/etc.)
-- CDN in front for published content
+- Postgres for metadata + vectors
+- Object storage for blobs
+- CDN for published artifacts
 
-This also makes “global map overlays” just: “load all published pack artifacts that intersect the area”.
+---
 
-## Streaming + LOD: “tile-aligned everything”
+## Streaming & Runtime Integration
 
-This is the backbone of “Earth-data-backed” + large worlds.
+At runtime:
 
-### At runtime (and in editor)
+- Determine visible tiles
+- Load terrain/bathy
+- Load overlay chunks
+- Merge layers deterministically
 
-- Determine visible tiles at current camera + LOD.
-- For each tile:
-  - load base terrain/bathy (already in your assumptions)
-  - load overlay chunks for that tile (per layer or merged per category)
+Runtime and editor share the same loading logic.
 
-### LOD strategy (overlays)
+---
 
-- Points: cluster at low zoom, expand at high zoom
-- Lines/polys: simplify geometry per zoom (Douglas-Peucker-like)
-- Instances: density reduction at distance, impostors beyond a threshold
-- Rasters (masks): mipmapped tile pyramids
+## Compilation Pipeline
 
-## Layer types
+Two compilation modes:
 
-### Decor & atmosphere
+1. **Preview Compilation**
 
-- BiomePaintLayer (raster mask: biome id)
-- VegetationScatterLayer (procedural scatter rules + seeds)
-- ClutterLayer (instanced props, can be hand-placed or procedural)
-- NoDecorationMaskLayer (raster + polygon “exclusion”)
+- Client-side or worker-based
+- Fast iteration
 
-Practical trick: store procedural intent (seed + rules) rather than millions of instances; compile instances per-tile.
+1. **Final Compilation**
 
-### Structures & clearance
+- Server-side only
+- Required for publishing
+- Authoritative
 
-- BridgeLayer (bridge geometry + clearance envelope)
-- OverheadLineLayer (polyline with clearance curve and corridor width)
-- VerticalObstacleLayer (towers/masts/chimneys with height)
-- ClearanceZoneLayer (3D volumes or extruded polygons with min clearance)
+---
 
-Gameplay integration: clearance becomes a queryable field: “min overhead clearance at (x,y)”.
+## Collaboration Model
 
-### Ports & infrastructure
+### MVP
 
-- PortLayer (port entity + polygon boundary)
-- BerthLayer (berth polylines + metadata like max LOA, depth, fenders)
-- DockLayer (physical collision meshes / simplified shapes)
-- MooringLayer (points with type: bollard/cleat/mooring buoy)
-- AnchorageLayer (polygons with depth constraints, rules)
-- PortServiceLayer (service metadata attached to port or subareas)
+- Presence
+- Soft feature locks
+- Patch-based updates
+- Last-write-wins with warnings
 
-### Navigation aids & constraints
+### Future
 
-- NavAidLayer (buoys, beacons, lighthouses)
-- SpeedZoneLayer (polygons with speed limit, conditions)
-- RestrictedZoneLayer (polygons, rules, enforcement behavior)
-- DepthConstraintLayer (polygons/contours with min depth requirement)
-- TrafficSeparationLayer (optional later: lanes, directions)
+- Operation logs
+- Replay
+- CRDT-based merging (optional)
 
-## Collaboration & workflows (ultimate version)
+---
 
-- Overlay packs as units of distribution (a “Helsinki Port Pack”)
-- Layer-level ownership + locking
-- Git-friendly diffs (stable ordering, stable IDs, minimal noise)
-- Optional “live multi-user”: CRDT/OT is nice, but you can get far with:
-  - per-layer locks
-  - “pull latest + resolve conflicts” tooling
+## Review & Publishing Workflow
 
-### MVP collab model (works well)
+1. Draft editing
+2. Submit → immutable snapshot
+3. Validation + server compile
+4. Reviewer diff & preview
+5. Approve or request changes
+6. Publish or promote to global
 
-- Presence: who’s in the pack and where their camera is
-- Soft locks: when someone selects a feature, it’s “locked” for others
-- Change feed: broadcast feature edits as small patches
+Published versions are immutable.
 
-Conflicts become rare because:
+---
 
-- features are small atomic units (point/polyline/polygon)
-- soft locks + “last write wins” with warnings covers most cases
+## Modding & Community Content
 
-Later, if you want serious multi-user editing: add operation logs and replay, but don’t start there.
+Users can:
 
-## Review & publishing workflow
+- Create packs
+- Collaborate
+- Submit for review
+- Export/import data (optional)
 
-### Submission = immutable snapshot
+They cannot:
 
-When user submits:
+- Execute code
+- Bypass validation
+- Inject runtime logic
 
-- freeze a PackVersion as submitted
-- run validation + compile artifacts
-- create a review record: Submission(packVersionId, notes, status)
+All shared content is server-authoritative data.
 
-### Reviewer UI needs 3 things
+---
 
-1. Diff view vs last published (added/modified/deleted features)
-2. Validation report (errors/warnings)
-3. In-world preview (spawn in editor with that version loaded)
+## Moderation & Safety
 
-### Approval path
+- Submission rate limits
+- Automated checks (names, bounds)
+- Reviewer audit trail
+- Version history retention
 
-- Request changes → user continues from draft
-- Approve → status becomes published
-- Optional “promote to global curated set” flag
+---
 
-## Build-out plan
+## Asset Creation & Usage
 
-### Phase 1: MVP “Nav + Zones”
+Assets are:
 
-- Point tool: buoys/beacons/lighthouses
-- Polygon tool: speed zones, restricted zones
-- Property panel + basic validation
-- Save/load project, tile streaming integration
+- Referenced, not embedded
+- Instanced procedurally where possible
+- Versioned independently
+
+Editor does not replace a DCC tool.
+
+---
+
+## Build-Out Phases
+
+### Phase 1: Nav & Zones
 
 ### Phase 2: Ports
 
-- Port definitions + berths/docks/anchorages
-- Snapping + measuring tools
-- Query hooks used by gameplay (“nearest berth”, “is in port services area”)
-
 ### Phase 3: Clearance
 
-- Bridges + overhead lines + clearance zones
-- Runtime queries (“min clearance along route”)
-- Editor heatmap overlays for clearance conflicts
+### Phase 4: Decor Painting
 
-### Phase 4: Decor painting
+### Phase 5: Procedural Tools
 
-- No-decoration masks first (cheap + very useful)
-- Biome painting
-- Procedural scatter compilation per-tile
+---
 
-### Phase 5: Procedural power tools
+## Glossary of Concepts
 
-- Scatter along shoreline
-- Auto-place nav aids along fairway
-- Import external vector data (e.g., GeoJSON) into layers
+- **Layer**: Typed overlay category
+- **Feature**: Atomic authored object
+- **Work Area**: Bounded editing region
+- **Pack**: Unit of authorship
+- **Compiled Artifact**: Runtime-ready tile chunk
+- **Zone Membership**: Whether a point lies inside a rule zone
+- **CRDT**: Conflict-free replicated data type
 
-## Open questions
+---
 
-- What are masks in the decor layer?
-- What are clearance volumes in the infra layer?
-- What are fenders in the port definition layer?
-- What are constraints in the navigation layer?
-- What are UTM or ENU coordinate systems? And what are projected coordinate systems?
-- What is zone membership?
-- Different kind of sag model params for cables?
-- Isn't tug availability defined by port services? AKA players online and available in the port? Or does this refer to the AI services?
-  What is CRDT?
+**End of document.**
