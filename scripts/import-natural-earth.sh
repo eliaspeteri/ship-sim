@@ -8,6 +8,8 @@ DB_USER="${POSTGRES_USER:-ship}"
 # Your mounted path inside GDAL container (per compose: ./data/raw -> /data)
 LAND_SHP="/data/ne_10m_land.shp"
 LAKES_SHP="/data/ne_10m_lakes.shp"
+MINOR_ISLANDS_SHP="/data/ne_10m_minor_islands.shp"
+COASTLINE_SHP="/data/ne_10m_coastline.shp"
 
 if [ ! -f "$LAND_SHP" ]; then
   echo "ERROR: Missing $LAND_SHP"
@@ -37,6 +39,34 @@ if [ -f "$LAKES_SHP" ]; then
     -overwrite
 else
   echo "NOTE: lakes shapefile not found at $LAKES_SHP (skipping)."
+fi
+
+if [ -f "$MINOR_ISLANDS_SHP" ]; then
+  echo "Importing minor islands with ogr2ogr..."
+  ogr2ogr -f "PostgreSQL" \
+    "PG:host=db port=5432 dbname=$DB_NAME user=$DB_USER password=${POSTGRES_PASSWORD:-password}" \
+    "$MINOR_ISLANDS_SHP" \
+    -nln ne_minor_islands_10m \
+    -lco GEOMETRY_NAME=geom \
+    -lco FID=gid \
+    -nlt MULTIPOLYGON \
+    -overwrite
+else
+  echo "NOTE: minor islands shapefile not found at $MINOR_ISLANDS_SHP (skipping)."
+fi
+
+if [ -f "$COASTLINE_SHP" ]; then
+  echo "Importing coastline with ogr2ogr..."
+  ogr2ogr -f "PostgreSQL" \
+    "PG:host=db port=5432 dbname=$DB_NAME user=$DB_USER password=${POSTGRES_PASSWORD:-password}" \
+    "$COASTLINE_SHP" \
+    -nln ne_coastline_10m \
+    -lco GEOMETRY_NAME=geom \
+    -lco FID=gid \
+    -nlt MULTILINESTRING \
+    -overwrite
+else
+  echo "NOTE: coastline shapefile not found at $COASTLINE_SHP (skipping)."
 fi
 
 echo "Running SQL (index/simplify/function) inside Postgres container..."
