@@ -30,6 +30,7 @@ import { latLonToXY } from '../lib/geo';
 import * as GeoJSON from 'geojson';
 import SeamarkSprites from './SeamarkSprites';
 import { LandTiles } from './LandTiles';
+import CameraHeadingIndicator from './CameraHeadingIndicator';
 
 interface SceneProps {
   vesselPosition: {
@@ -615,6 +616,45 @@ function SeamarkGroup({
   );
 }
 
+function CameraHeadingTracker({
+  enabled,
+  onHeadingChange,
+}: {
+  enabled: boolean;
+  onHeadingChange: (headingDeg: number) => void;
+}) {
+  const { camera } = useThree();
+  const lastUpdateRef = useRef({ heading: 0, timestamp: 0 });
+  const directionRef = useRef(new THREE.Vector3());
+
+  useFrame(() => {
+    if (!enabled) return;
+    camera.getWorldDirection(directionRef.current).setY(0);
+    if (directionRef.current.lengthSq() === 0) return;
+    directionRef.current.normalize();
+
+    const headingRad = Math.atan2(
+      -directionRef.current.x,
+      directionRef.current.z,
+    );
+    const headingDeg = (THREE.MathUtils.radToDeg(headingRad) + 360) % 360;
+    const now = performance.now();
+
+    if (
+      Math.abs(headingDeg - lastUpdateRef.current.heading) < 0.5 &&
+      now - lastUpdateRef.current.timestamp < 120
+    ) {
+      return;
+    }
+
+    lastUpdateRef.current = { heading: headingDeg, timestamp: now };
+    onHeadingChange(headingDeg);
+  });
+
+  return null;
+}
+
+
 export default function Scene({ vesselPosition, mode }: SceneProps) {
   const isSpectator = mode === 'spectator';
   const vesselState = useStore(state => state.vessel);
@@ -633,6 +673,8 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
   const [selectedVesselId, setSelectedVesselId] = useState<string | null>(null);
   const [calloutOffset, setCalloutOffset] = useState({ x: 24, y: -24 });
   const [isDragging, setIsDragging] = useState(false);
+  const [cameraHeadingDeg, setCameraHeadingDeg] = useState(0);
+  const [hudOffset, setHudOffset] = useState(0);
   const [dragPreviewPositions, setDragPreviewPositions] = useState<
     Record<string, { x: number; y: number }>
   >({});
@@ -923,6 +965,25 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
     }
   }, [mode]);
 
+  useEffect(() => {
+    if (!isSpectator) return;
+    const hudRoot = document.querySelector('[data-hud-root]');
+    if (!hudRoot) return;
+
+    const updateOffset = () => {
+      const rect = hudRoot.getBoundingClientRect();
+      setHudOffset(rect.height || 0);
+    };
+
+    updateOffset();
+    const intervalId = window.setInterval(updateOffset, 500);
+    window.addEventListener('resize', updateOffset);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('resize', updateOffset);
+    };
+  }, [isSpectator]);
+
   return (
     <div
       style={{
@@ -1095,7 +1156,16 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
             controlsRef={orbitRef}
           />
         ) : null}
+        <CameraHeadingTracker
+          enabled={isSpectator}
+          onHeadingChange={setCameraHeadingDeg}
+        />
       </Canvas>
+      <CameraHeadingIndicator
+        enabled={isSpectator}
+        headingDeg={cameraHeadingDeg}
+        hudOffset={hudOffset}
+      />
     </div>
   );
 }

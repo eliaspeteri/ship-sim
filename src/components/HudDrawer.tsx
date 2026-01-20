@@ -1088,7 +1088,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   };
 
   return (
-    <div className={styles.hudRoot}>
+    <div className={styles.hudRoot} data-hud-root>
       {tab ? (
         <div className={styles.hudPanel}>
           {tab === 'vessels' ? (
