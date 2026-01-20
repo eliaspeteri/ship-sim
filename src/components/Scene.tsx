@@ -26,7 +26,7 @@ import {
 } from '../lib/position';
 import { OceanPatch } from './OceanPatch';
 import { FarWater } from './FarWater';
-import { latLonToXY } from '../lib/geo';
+import { latLonToXY, xyToLatLon } from '../lib/geo';
 import * as GeoJSON from 'geojson';
 import SeamarkSprites from './SeamarkSprites';
 import { LandTiles } from './LandTiles';
@@ -654,6 +654,128 @@ function CameraHeadingTracker({
   return null;
 }
 
+function GeoDebugMarkers({
+  enabled,
+  focusRef,
+}: {
+  enabled: boolean;
+  focusRef: React.MutableRefObject<{ x: number; y: number }>;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const northRef = useRef<THREE.Mesh>(null);
+  const eastRef = useRef<THREE.Mesh>(null);
+  const mariehamnRef = useRef<THREE.Mesh>(null);
+  const styrsoeRef = useRef<THREE.Mesh>(null);
+  const lemlandRef = useRef<THREE.Mesh>(null);
+  const djupetRef = useRef<THREE.Mesh>(null);
+  const tmpVec = useRef(new THREE.Vector3());
+  const markerHeight = 6;
+  const axesSize = 120;
+
+  useFrame(() => {
+    if (!enabled) return;
+    if (!groupRef.current) return;
+    groupRef.current.position.set(
+      focusRef.current.x,
+      markerHeight,
+      focusRef.current.y,
+    );
+
+    const { lat, lon } = xyToLatLon({
+      x: focusRef.current.x,
+      y: focusRef.current.y,
+    });
+    const north = latLonToXY({ lat: lat + 0.01, lon });
+    const east = latLonToXY({ lat, lon: lon + 0.01 });
+    const mariehamn = latLonToXY({ lat: 60.0973, lon: 19.9348 });
+
+    if (northRef.current) {
+      northRef.current.position.copy(
+        tmpVec.current.set(
+          north.x - focusRef.current.x,
+          0,
+          north.y - focusRef.current.y,
+        ),
+      );
+    }
+    if (eastRef.current) {
+      eastRef.current.position.copy(
+        tmpVec.current.set(
+          east.x - focusRef.current.x,
+          0,
+          east.y - focusRef.current.y,
+        ),
+      );
+    }
+
+    if (mariehamnRef.current) {
+      mariehamnRef.current.position.set(
+        mariehamn.x - focusRef.current.x,
+        0,
+        mariehamn.y - focusRef.current.y,
+      );
+    }
+
+    if (styrsoeRef.current) {
+      const styrsoe = latLonToXY({ lat: 60.053767, lon: 19.947895 });
+      styrsoeRef.current.position.set(
+        styrsoe.x - focusRef.current.x,
+        0,
+        styrsoe.y - focusRef.current.y,
+      );
+    }
+
+    if (lemlandRef.current) {
+      const lemland = latLonToXY({ lat: 60.032925, lon: 19.959889 });
+      lemlandRef.current.position.set(
+        lemland.x - focusRef.current.x,
+        0,
+        lemland.y - focusRef.current.y,
+      );
+    }
+
+    if (djupetRef.current) {
+      const djupet = latLonToXY({ lat: 60.012852, lon: 20.011629 });
+      djupetRef.current.position.set(
+        djupet.x - focusRef.current.x,
+        0,
+        djupet.y - focusRef.current.y,
+      );
+    }
+  });
+
+  if (!enabled) return null;
+
+  return (
+    <group ref={groupRef}>
+      <axesHelper args={[axesSize]} />
+      <mesh ref={northRef}>
+        <sphereGeometry args={[10, 14, 14]} />
+        <meshBasicMaterial color="#3da9ff" />
+      </mesh>
+      <mesh ref={eastRef}>
+        <sphereGeometry args={[10, 14, 14]} />
+        <meshBasicMaterial color="#ff6b6b" />
+      </mesh>
+      <mesh ref={mariehamnRef}>
+        <boxGeometry args={[150, 150, 150]} />
+        <meshBasicMaterial color="#ffd93d" />
+      </mesh>
+      <mesh ref={styrsoeRef}>
+        <boxGeometry args={[150, 150, 150]} />
+        <meshBasicMaterial color="#6bcB77" />
+      </mesh>
+      <mesh ref={lemlandRef}>
+        <boxGeometry args={[150, 150, 150]} />
+        <meshBasicMaterial color="#6bcB77" />
+      </mesh>
+      <mesh ref={djupetRef}>
+        <boxGeometry args={[150, 150, 150]} />
+        <meshBasicMaterial color="#6bcB77" />
+      </mesh>
+    </group>
+  );
+}
 
 export default function Scene({ vesselPosition, mode }: SceneProps) {
   const isSpectator = mode === 'spectator';
@@ -681,6 +803,9 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
   const directionalLightRef = useRef<THREE.DirectionalLight | null>(null);
   const perfLoggingEnabled =
     process.env.NEXT_PUBLIC_RENDERER_PERF_LOGS === 'true' ||
+    process.env.NODE_ENV !== 'production';
+  const debugGeo =
+    process.env.NEXT_PUBLIC_DEBUG_GEO_HELPERS === 'true' &&
     process.env.NODE_ENV !== 'production';
   const focusRef = useRef<{ x: number; y: number }>({
     x: vesselPosition.x,
@@ -1148,6 +1273,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           minPolarAngle={isSpectator ? Math.PI / 4 : Math.PI * 0.05}
           maxPolarAngle={isSpectator ? Math.PI / 4 : Math.PI * 0.5}
         />
+        <GeoDebugMarkers enabled={debugGeo} focusRef={focusRef} />
         {isSpectator ? (
           <SpectatorController
             mode={mode}
