@@ -299,28 +299,13 @@ const buildVesselCreateData = ({
   };
 };
 
-// Apply authentication middleware to all routes
-router.use(authenticateRequest);
-router.use((req, res, next) => {
-  const start = Date.now();
-  res.on('finish', () => {
-    recordMetric('api', Date.now() - start);
-  });
-  next();
+// GET /api/vessels
+router.get('/vessels', async (req, res) => {
+  res.json(Object.values(vesselStates));
 });
 
-// GET /api/vessels
-router.get(
-  '/vessels',
-  requireAuth,
-  requirePermission('vessel', 'list'),
-  async (req, res) => {
-    res.json(Object.values(vesselStates));
-  },
-);
-
 // GET /api/vessels/by-id/:vesselId
-router.get('/vessels/by-id/:vesselId', requireAuth, async (req, res) => {
+router.get('/vessels/by-id/:vesselId', async (req, res) => {
   const { vesselId } = req.params;
   try {
     const vessel = await prisma.vessel.findUnique({ where: { id: vesselId } });
@@ -372,6 +357,16 @@ router.get('/vessels/by-id/:vesselId', requireAuth, async (req, res) => {
     console.error('Failed to fetch vessel by id', err);
     res.status(500).json({ error: 'Failed to fetch vessel' });
   }
+});
+
+// Apply authentication middleware to all routes
+router.use(authenticateRequest);
+router.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    recordMetric('api', Date.now() - start);
+  });
+  next();
 });
 
 // GET /api/vessels/:userId
