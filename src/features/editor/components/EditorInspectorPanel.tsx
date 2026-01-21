@@ -28,12 +28,12 @@ const EditorInspectorPanel: React.FC<EditorInspectorPanelProps> = ({
       <button
         type="button"
         className={`absolute box-border grid h-7 w-7 place-items-center rounded-[10px] border border-editor-control-border bg-editor-control-bg text-[14px] text-[#d9ebf4] cursor-pointer ${
-          isOpen
-            ? 'top-2 right-2'
-            : 'top-1.5 left-1/2 -translate-x-1/2'
+          isOpen ? 'top-2 right-2' : 'top-1.5 left-1/2 -translate-x-1/2'
         }`}
         onClick={onToggle}
-        aria-label={isOpen ? 'Collapse inspector panel' : 'Expand inspector panel'}
+        aria-label={
+          isOpen ? 'Collapse inspector panel' : 'Expand inspector panel'
+        }
       >
         {isOpen ? '>' : '='}
       </button>
@@ -53,7 +53,9 @@ const EditorInspectorPanel: React.FC<EditorInspectorPanelProps> = ({
               type="button"
               className="flex w-full min-h-[32px] items-center justify-between rounded-[10px] border border-editor-quiet-border bg-editor-quiet-bg cursor-pointer"
               onClick={onToggleLayers}
-              aria-label={layersOpen ? 'Collapse layers list' : 'Expand layers list'}
+              aria-label={
+                layersOpen ? 'Collapse layers list' : 'Expand layers list'
+              }
             >
               <span className="text-[11px] uppercase tracking-[0.14em] text-editor-muted">
                 Layers

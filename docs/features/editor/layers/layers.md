@@ -17,7 +17,7 @@ It provides:
 The Layer System is the bridge between:
 
 - **Map Packs** (container + versions)
-and
+  and
 - **Features** (the atomic objects within layers)
 
 ---

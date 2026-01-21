@@ -59,9 +59,7 @@ const EditorToolsPanel: React.FC<EditorToolsPanelProps> = ({
               aria-pressed={activeTool === tool.id}
             >
               <span className="font-bold">{tool.icon}</span>
-              <span className="text-[11px] text-editor-muted">
-                {tool.key}
-              </span>
+              <span className="text-[11px] text-editor-muted">{tool.key}</span>
             </button>
           ))}
         </div>

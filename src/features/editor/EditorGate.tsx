@@ -10,7 +10,8 @@ const EditorGate: React.FC<EditorGateProps> = ({ children }) => {
   const { data: session, status } = useSession();
   const router = useRouter();
   const role = (session?.user as { role?: string })?.role || 'guest';
-  const canAccess = role === 'player' || role === 'reviewer' || role === 'admin';
+  const canAccess =
+    role === 'player' || role === 'reviewer' || role === 'admin';
 
   React.useEffect(() => {
     if (status === 'unauthenticated') {
