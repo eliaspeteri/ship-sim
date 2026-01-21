@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import Head from 'next/head';
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import styles from './Auth.module.css';
+import Link from 'next/link';
+import AuthCard from '../features/auth/components/AuthCard';
+import AuthField from '../features/auth/components/AuthField';
+import AuthNotice from '../features/auth/components/AuthNotice';
+import AuthPageLayout from '../features/auth/components/AuthPageLayout';
 
 /**
  * Login page for Ship Simulator using NextAuth.js
@@ -53,62 +57,50 @@ const LoginPage: React.FC = () => {
         <meta name="description" content="Login to Ship Simulator" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      <main className={styles.page}>
-        <div className={styles.card}>
-          <div className={styles.title}>Ship Simulator</div>
-          <div className={styles.subtitle}>
-            Sign in to access the live bridge and crew tools.
-          </div>
-          <form onSubmit={handleSubmit} className={styles.form}>
-            <div className={styles.field}>
-              <label htmlFor="username" className={styles.label}>
-                Username
-              </label>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                className={styles.input}
-                required
-                autoComplete="username"
-              />
-            </div>
-            <div className={styles.field}>
-              <label htmlFor="password" className={styles.label}>
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className={styles.input}
-                required
-                autoComplete="current-password"
-              />
-            </div>
-            {error ? <div className={styles.error}>{error}</div> : null}
+      <AuthPageLayout>
+        <AuthCard
+          title="Ship Simulator"
+          subtitle="Sign in to access the live bridge and crew tools."
+        >
+          <form onSubmit={handleSubmit} className="grid gap-3.5">
+            <AuthField
+              id="username"
+              name="username"
+              label="Username"
+              type="text"
+              value={username}
+              onChange={setUsername}
+              autoComplete="username"
+            />
+            <AuthField
+              id="password"
+              name="password"
+              label="Password"
+              type="password"
+              value={password}
+              onChange={setPassword}
+              autoComplete="current-password"
+            />
+            {error ? <AuthNotice tone="error">{error}</AuthNotice> : null}
             <button
               type="submit"
-              className={styles.buttonPrimary}
+              className="inline-flex items-center justify-center rounded-[12px] bg-[linear-gradient(135deg,#1b9aaa,#0f6d75)] px-3.5 py-2.5 text-[14px] font-semibold text-white cursor-pointer"
               disabled={loading}
             >
               {loading ? 'Logging in...' : 'Login'}
             </button>
           </form>
-          <div className={styles.footer}>
+          <div className="mt-[18px] text-center text-[12px] text-[rgba(170,192,202,0.7)]">
             <p>Access the simulation environment</p>
-            <button
-              type="button"
-              className={styles.buttonSecondary}
-              onClick={() => router.push('/register')}
+            <Link
+              href="/register"
+              className="mt-2 inline-flex items-center justify-center rounded-[12px] border border-[rgba(60,88,104,0.7)] bg-[rgba(12,28,44,0.8)] px-3.5 py-2.5 text-[13px] font-semibold text-[rgba(230,238,240,0.9)] cursor-pointer"
             >
               Register New Account
-            </button>
+            </Link>
           </div>
-        </div>
-      </main>
+        </AuthCard>
+      </AuthPageLayout>
     </>
   );
 };
