@@ -31,8 +31,8 @@ const AccessModal: React.FC<AccessModalProps> = ({ open, onClose }) => {
 
   React.useEffect(() => {
     if (!open) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as Node | null;
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      const target = event.target as globalThis.Node | null;
       if (modalRef.current && target && modalRef.current.contains(target)) {
         event.stopPropagation();
       }

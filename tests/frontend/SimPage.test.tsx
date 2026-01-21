@@ -141,8 +141,16 @@ jest.mock('../../src/store', () => {
   };
 });
 
-jest.mock('../../src/components/Scene', () => () => <div>Scene</div>);
-jest.mock('../../src/components/Dashboard', () => () => <div>Dashboard</div>);
+jest.mock('../../src/components/Scene', () => {
+  const SceneMock = () => <div>Scene</div>;
+  SceneMock.displayName = 'SceneMock';
+  return SceneMock;
+});
+jest.mock('../../src/components/Dashboard', () => {
+  const DashboardMock = () => <div>Dashboard</div>;
+  DashboardMock.displayName = 'DashboardMock';
+  return DashboardMock;
+});
 jest.mock('../../src/components/HudDrawer', () => ({
   HudDrawer: () => <div>HudDrawer</div>,
 }));
