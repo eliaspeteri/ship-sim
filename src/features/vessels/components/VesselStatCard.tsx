@@ -16,9 +16,7 @@ const VesselStatCard: React.FC<VesselStatCardProps> = ({
       <div className="text-[11px] uppercase tracking-[0.16em] text-[rgba(150,168,182,0.7)]">
         {label}
       </div>
-      <div className="text-[15px] font-semibold text-[#f1f7f8]">
-        {value}
-      </div>
+      <div className="text-[15px] font-semibold text-[#f1f7f8]">{value}</div>
       {meta.map((item, index) => (
         <div
           key={`${label}-meta-${index}`}

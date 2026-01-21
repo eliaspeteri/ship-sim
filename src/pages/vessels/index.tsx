@@ -46,7 +46,9 @@ const VesselListPage: React.FC = () => {
       } catch (err) {
         if (!active) return;
         console.error('Failed to load vessels', err);
-        setError(err instanceof Error ? err.message : 'Unable to load vessels.');
+        setError(
+          err instanceof Error ? err.message : 'Unable to load vessels.',
+        );
       } finally {
         if (active) setLoading(false);
       }
@@ -64,9 +66,7 @@ const VesselListPage: React.FC = () => {
       const id = vessel.id?.toLowerCase() || '';
       const space = vessel.spaceId?.toLowerCase() || '';
       const owner = vessel.ownerId?.toLowerCase() || '';
-      return (
-        id.includes(term) || space.includes(term) || owner.includes(term)
-      );
+      return id.includes(term) || space.includes(term) || owner.includes(term);
     });
   }, [query, vessels]);
 
@@ -74,7 +74,10 @@ const VesselListPage: React.FC = () => {
     <>
       <Head>
         <title>Vessels - Ship Simulator</title>
-        <meta name="description" content="Browse live vessels in global space" />
+        <meta
+          name="description"
+          content="Browse live vessels in global space"
+        />
       </Head>
       <div className="mx-auto max-w-[1100px] px-4 pb-[60px] pt-8 text-[var(--ink)]">
         <VesselListHeader

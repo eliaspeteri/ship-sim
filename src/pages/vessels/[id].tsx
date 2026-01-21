@@ -142,7 +142,9 @@ const VesselDetailsPage: React.FC = () => {
                     </>
                   ),
                   meta: [
-                    <>Depth {formatValue(Math.abs(vessel.position.z), 1, ' m')}</>,
+                    <>
+                      Depth {formatValue(Math.abs(vessel.position.z), 1, ' m')}
+                    </>,
                     <>
                       Heading{' '}
                       {formatValue(
@@ -158,8 +160,13 @@ const VesselDetailsPage: React.FC = () => {
                   label: 'Motion',
                   value: motion ? formatValue(motion.speed, 1, ' kts') : 'n/a',
                   meta: [
-                    <>COG {motion ? formatValue(motion.course, 0, ' deg') : 'n/a'}</>,
-                    <>Yaw rate {formatValue(vessel.yawRate ?? 0, 3, ' rad/s')}</>,
+                    <>
+                      COG{' '}
+                      {motion ? formatValue(motion.course, 0, ' deg') : 'n/a'}
+                    </>,
+                    <>
+                      Yaw rate {formatValue(vessel.yawRate ?? 0, 3, ' rad/s')}
+                    </>,
                   ],
                 },
                 {
@@ -172,14 +179,17 @@ const VesselDetailsPage: React.FC = () => {
                   ),
                   meta: [
                     <>Draft {formatValue(vessel.properties.draft, 1, ' m')}</>,
-                    <>Mass {formatValue(vessel.properties.mass / 1000, 0, ' t')}</>,
+                    <>
+                      Mass {formatValue(vessel.properties.mass / 1000, 0, ' t')}
+                    </>,
                   ],
                 },
                 {
                   label: 'Controls',
                   value: (
                     <>
-                      Throttle {formatValue(vessel.controls.throttle * 100, 0, '%')}
+                      Throttle{' '}
+                      {formatValue(vessel.controls.throttle * 100, 0, '%')}
                     </>
                   ),
                   meta: [
@@ -191,7 +201,10 @@ const VesselDetailsPage: React.FC = () => {
                         ' deg',
                       )}
                     </>,
-                    <>Ballast {formatValue(vessel.controls.ballast * 100, 0, '%')}</>,
+                    <>
+                      Ballast{' '}
+                      {formatValue(vessel.controls.ballast * 100, 0, '%')}
+                    </>,
                   ],
                 },
                 {
