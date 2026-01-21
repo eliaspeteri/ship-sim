@@ -30,9 +30,7 @@ const LoansSection: React.FC<LoansSectionProps> = ({ dashboard }) => {
               </div>
               <div className="text-[11px] text-[rgba(170,192,202,0.7)]">
                 Due{' '}
-                {loan.dueAt
-                  ? new Date(loan.dueAt).toLocaleDateString()
-                  : '—'}
+                {loan.dueAt ? new Date(loan.dueAt).toLocaleDateString() : '—'}
               </div>
             </div>
           ))

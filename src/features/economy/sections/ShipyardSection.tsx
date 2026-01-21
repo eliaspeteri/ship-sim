@@ -6,7 +6,10 @@ type ShipyardSectionProps = {
   catalog: VesselCatalogEntry[];
   selectedPortName: string;
   shopNotice: string | null;
-  onShipyardAction: (templateId: string, action: 'purchase' | 'charter' | 'lease') => void;
+  onShipyardAction: (
+    templateId: string,
+    action: 'purchase' | 'charter' | 'lease',
+  ) => void;
 };
 
 const ShipyardSection: React.FC<ShipyardSectionProps> = ({
@@ -20,7 +23,8 @@ const ShipyardSection: React.FC<ShipyardSectionProps> = ({
       title="Shipyard"
       actions={
         <div className="text-[12px] text-[rgba(170,192,202,0.7)]">
-          Delivery port: <span className="text-[var(--ink)]">{selectedPortName}</span>
+          Delivery port:{' '}
+          <span className="text-[var(--ink)]">{selectedPortName}</span>
         </div>
       }
     >
@@ -64,25 +68,33 @@ const ShipyardSection: React.FC<ShipyardSectionProps> = ({
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3 text-[12px] text-[rgba(170,192,202,0.7)]">
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.2em]">Max Speed</div>
+                  <div className="text-[10px] uppercase tracking-[0.2em]">
+                    Max Speed
+                  </div>
                   <div className="mt-1 text-[13px] text-[var(--ink)]">
                     {entry.properties.maxSpeed} kn
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.2em]">Cargo</div>
+                  <div className="text-[10px] uppercase tracking-[0.2em]">
+                    Cargo
+                  </div>
                   <div className="mt-1 text-[13px] text-[var(--ink)]">
                     {entry.capacities?.cargoTons.toFixed(1) ?? '--'} t
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.2em]">Passengers</div>
+                  <div className="text-[10px] uppercase tracking-[0.2em]">
+                    Passengers
+                  </div>
                   <div className="mt-1 text-[13px] text-[var(--ink)]">
                     {entry.capacities?.passengers ?? '--'}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.2em]">Draft</div>
+                  <div className="text-[10px] uppercase tracking-[0.2em]">
+                    Draft
+                  </div>
                   <div className="mt-1 text-[13px] text-[var(--ink)]">
                     {entry.properties.draft.toFixed(2)} m
                   </div>
@@ -103,7 +115,8 @@ const ShipyardSection: React.FC<ShipyardSectionProps> = ({
                   onClick={() => onShipyardAction(entry.id, 'charter')}
                   disabled={!entry.commerce?.charterRatePerHour}
                 >
-                  Charter {entry.commerce?.charterRatePerHour?.toFixed(0) ?? '--'} cr/hr
+                  Charter{' '}
+                  {entry.commerce?.charterRatePerHour?.toFixed(0) ?? '--'} cr/hr
                 </button>
                 <button
                   type="button"
@@ -111,7 +124,8 @@ const ShipyardSection: React.FC<ShipyardSectionProps> = ({
                   onClick={() => onShipyardAction(entry.id, 'lease')}
                   disabled={!entry.commerce?.leaseRatePerHour}
                 >
-                  Lease {entry.commerce?.leaseRatePerHour?.toFixed(0) ?? '--'} cr/hr
+                  Lease {entry.commerce?.leaseRatePerHour?.toFixed(0) ?? '--'}{' '}
+                  cr/hr
                 </button>
               </div>
             </div>

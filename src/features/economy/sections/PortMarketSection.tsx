@@ -97,7 +97,8 @@ const PortMarketSection: React.FC<PortMarketSectionProps> = ({
                         {item.weightTons.toFixed(1)} t · {item.value} cr ·{' '}
                         {portNameById.get(item.destinationPortId || '') ||
                           'Unknown route'}{' '}
-                        · Liability {((item.liabilityRate || 0) * 100).toFixed(1)}%
+                        · Liability{' '}
+                        {((item.liabilityRate || 0) * 100).toFixed(1)}%
                       </div>
                     </div>
                     <button

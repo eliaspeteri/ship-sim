@@ -26,7 +26,8 @@ const MissionsSection: React.FC<MissionsSectionProps> = ({ dashboard }) => {
                   {mission.name}
                 </div>
                 <div className="text-[11px] text-[rgba(170,192,202,0.7)]">
-                  Reward {mission.rewardCredits} cr · Rank {mission.requiredRank}
+                  Reward {mission.rewardCredits} cr · Rank{' '}
+                  {mission.requiredRank}
                 </div>
               </div>
               <Link
