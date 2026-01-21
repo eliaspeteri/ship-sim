@@ -24,6 +24,7 @@ const EditorLayerList: React.FC<EditorLayerListProps> = ({ layers }) => {
               type="button"
               className="box-border h-[22px] min-w-[34px] rounded-full border border-editor-pill-border bg-editor-pill-bg px-2 py-1 text-[11px] text-[#d9ebf4]"
               aria-pressed={layer.isVisible}
+              title="Toggle layer visibility in the editor"
             >
               {layer.isVisible ? 'Vis' : 'Hid'}
             </button>
@@ -31,6 +32,7 @@ const EditorLayerList: React.FC<EditorLayerListProps> = ({ layers }) => {
               type="button"
               className="box-border h-[22px] min-w-[34px] rounded-full border border-editor-pill-border bg-editor-pill-bg px-2 py-1 text-[11px] text-[#d9ebf4]"
               aria-pressed={layer.isLocked}
+              title="Toggle layer lock (prevents edits)"
             >
               {layer.isLocked ? 'Lock' : 'Free'}
             </button>

@@ -3,8 +3,41 @@ import Link from 'next/link';
 import Head from 'next/head';
 import EditorGate from '../../../features/editor/EditorGate';
 import { editorPacks } from '../../../features/editor/mockData';
+import type { EditorPack } from '../../../features/editor/types';
 
 const EditorPacksPage: React.FC & { fullBleedLayout?: boolean } = () => {
+  const [packs, setPacks] = React.useState<EditorPack[]>(editorPacks);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/editor/packs');
+        if (!res.ok) {
+          throw new Error(`Request failed: ${res.status}`);
+        }
+        const data = (await res.json()) as { packs?: EditorPack[] };
+        if (!cancelled && data?.packs) {
+          setPacks(data.packs);
+        }
+      } catch {
+        if (!cancelled) {
+          setError('Unable to load packs. Showing local data.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <EditorGate>
       <Head>
@@ -22,13 +55,42 @@ const EditorPacksPage: React.FC & { fullBleedLayout?: boolean } = () => {
           <button
             type="button"
             className="rounded-full border border-editor-accent-strong-border bg-editor-accent-gradient px-5 py-2.5 font-semibold text-editor-accent-text"
+            onClick={async () => {
+              setLoading(true);
+              setError(null);
+              try {
+                const res = await fetch('/api/editor/packs', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    name: 'New Pack',
+                    description: 'Draft pack created from editor.',
+                  }),
+                });
+                if (!res.ok) {
+                  throw new Error(`Request failed: ${res.status}`);
+                }
+                const data = (await res.json()) as { pack?: EditorPack };
+                if (data?.pack) {
+                  setPacks(prev => [data.pack!, ...prev]);
+                }
+              } catch {
+                setError('Unable to create pack.');
+              } finally {
+                setLoading(false);
+              }
+            }}
           >
             New Pack
           </button>
         </header>
 
+        {error ? <div className="text-editor-muted-strong">{error}</div> : null}
         <section className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-[18px]">
-          {editorPacks.map(pack => (
+          {loading && packs.length === 0 ? (
+            <div className="text-editor-muted-strong">Loading packs...</div>
+          ) : null}
+          {packs.map(pack => (
             <div
               key={pack.id}
               className="grid gap-2.5 rounded-[18px] border border-editor-card-border bg-editor-card px-5 py-[18px]"

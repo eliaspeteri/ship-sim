@@ -8,6 +8,21 @@ export const editorPacks: EditorPack[] = [
     regionSummary: 'Virginia, USA',
     visibility: 'draft',
     updatedAt: '2025-02-10T16:20:00Z',
+    workAreas: [
+      {
+        id: 'wa-hampton-roads',
+        name: 'Harbor Approach',
+        bounds: {
+          type: 'bbox',
+          minLat: 36.8,
+          minLon: -76.5,
+          maxLat: 37.2,
+          maxLon: -76.1,
+        },
+        allowedZoom: [8, 14],
+        sources: ['terrain', 'bathymetry', 'imagery'],
+      },
+    ],
   },
   {
     id: 'pack-rotterdam-harbor',
@@ -16,6 +31,21 @@ export const editorPacks: EditorPack[] = [
     regionSummary: 'Netherlands',
     visibility: 'published',
     updatedAt: '2025-01-28T09:12:00Z',
+    workAreas: [
+      {
+        id: 'wa-rotterdam',
+        name: 'Maasvlakte',
+        bounds: {
+          type: 'bbox',
+          minLat: 51.9,
+          minLon: 4.0,
+          maxLat: 52.1,
+          maxLon: 4.4,
+        },
+        allowedZoom: [9, 15],
+        sources: ['terrain', 'bathymetry'],
+      },
+    ],
   },
   {
     id: 'pack-sf-bay',
@@ -24,6 +54,21 @@ export const editorPacks: EditorPack[] = [
     regionSummary: 'California, USA',
     visibility: 'draft',
     updatedAt: '2025-02-07T21:45:00Z',
+    workAreas: [
+      {
+        id: 'wa-sf-bay',
+        name: 'Bay Core',
+        bounds: {
+          type: 'bbox',
+          minLat: 37.6,
+          minLon: -122.6,
+          maxLat: 37.9,
+          maxLon: -122.2,
+        },
+        allowedZoom: [8, 14],
+        sources: ['terrain', 'bathymetry', 'imagery'],
+      },
+    ],
   },
 ];
 

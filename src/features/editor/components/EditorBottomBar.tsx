@@ -4,9 +4,15 @@ import { EditorPack } from '../types';
 
 type EditorBottomBarProps = {
   pack: EditorPack;
+  compileSummary?: string;
+  onPublish?: () => void;
 };
 
-const EditorBottomBar: React.FC<EditorBottomBarProps> = ({ pack }) => {
+const EditorBottomBar: React.FC<EditorBottomBarProps> = ({
+  pack,
+  compileSummary = 'Compile: idle',
+  onPublish,
+}) => {
   return (
     <header className="absolute bottom-3 left-3 right-3 z-[3] box-border flex h-[52px] items-center justify-between rounded-[12px] border border-editor-panel-border bg-editor-bottom-bar px-3 py-2 backdrop-blur-[8px]">
       <div className="flex items-center gap-3">
@@ -31,11 +37,13 @@ const EditorBottomBar: React.FC<EditorBottomBarProps> = ({ pack }) => {
       </div>
       <div className="flex gap-3">
         <div className="rounded-full border border-editor-accent-border bg-editor-accent-soft px-3 py-1.5 text-[12px] text-editor-status-text">
-          Checks: idle
+          {compileSummary}
         </div>
         <button
           type="button"
           className="cursor-pointer rounded-full border border-transparent bg-editor-accent-gradient px-3.5 py-1.5 text-[12px] font-semibold text-editor-accent-text"
+          onClick={onPublish}
+          title="Compile and publish overlay artifacts"
         >
           Publish
         </button>

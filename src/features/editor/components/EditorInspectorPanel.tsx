@@ -1,9 +1,12 @@
 import React from 'react';
-import { EditorLayer } from '../types';
+import { EditorLayer, EditorWorkArea } from '../types';
 import EditorLayerList from './EditorLayerList';
+import EditorWorkAreaEditor from './EditorWorkAreaEditor';
 
 type EditorInspectorPanelProps = {
   layers: EditorLayer[];
+  workAreas: EditorWorkArea[];
+  onWorkAreasChange: (next: EditorWorkArea[]) => void;
   isOpen: boolean;
   layersOpen: boolean;
   onToggle: () => void;
@@ -12,6 +15,8 @@ type EditorInspectorPanelProps = {
 
 const EditorInspectorPanel: React.FC<EditorInspectorPanelProps> = ({
   layers,
+  workAreas,
+  onWorkAreasChange,
   isOpen,
   layersOpen,
   onToggle,
@@ -19,7 +24,7 @@ const EditorInspectorPanel: React.FC<EditorInspectorPanelProps> = ({
 }) => {
   return (
     <aside
-      className={`absolute top-3 right-3 box-border flex h-[clamp(280px,58vh,calc(100%_-_84px))] flex-col items-start gap-2.5 rounded-[14px] border border-editor-panel-border bg-editor-panel backdrop-blur-[12px] opacity-[0.88] ${
+      className={`absolute top-3 right-3 box-border flex max-h-[calc(100%_-_84px)] flex-col items-start gap-2.5 rounded-[14px] border border-editor-panel-border bg-editor-panel backdrop-blur-[12px] opacity-[0.88] ${
         isOpen
           ? 'w-[240px] max-[1100px]:w-[200px] p-2.5'
           : 'w-[52px] overflow-hidden p-1.5'
@@ -37,7 +42,7 @@ const EditorInspectorPanel: React.FC<EditorInspectorPanelProps> = ({
       >
         {isOpen ? '>' : '='}
       </button>
-      <div className="box-border flex w-full flex-col gap-2.5 pt-9">
+      <div className="box-border flex w-full flex-col gap-2.5 overflow-y-auto pt-9">
         {isOpen ? (
           <>
             <div className="text-[11px] uppercase tracking-[0.14em] text-editor-muted">
@@ -49,13 +54,18 @@ const EditorInspectorPanel: React.FC<EditorInspectorPanelProps> = ({
                 Select a layer or feature
               </div>
             </div>
+            <EditorWorkAreaEditor
+              workAreas={workAreas}
+              onChange={onWorkAreasChange}
+            />
             <button
               type="button"
-              className="flex w-full min-h-[32px] items-center justify-between rounded-[10px] border border-editor-quiet-border bg-editor-quiet-bg cursor-pointer"
+              className="flex w-full min-h-[32px] items-center justify-between rounded-[10px] border border-editor-quiet-border bg-editor-quiet-bg pr-2 cursor-pointer"
               onClick={onToggleLayers}
               aria-label={
                 layersOpen ? 'Collapse layers list' : 'Expand layers list'
               }
+              title="Toggle layer list visibility"
             >
               <span className="text-[11px] uppercase tracking-[0.14em] text-editor-muted">
                 Layers

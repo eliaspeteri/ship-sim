@@ -271,6 +271,21 @@ describe('Sim page', () => {
       vessel: {
         helm: { userId: 'user-1', username: 'Captain' },
         stations: { helm: { userId: 'user-1' }, engine: { userId: 'user-1' } },
+        position: {
+          lat: 0,
+          lon: 0,
+          z: undefined,
+        },
+        orientation: {
+          heading: 0,
+        },
+        controls: {
+          throttle: undefined,
+          rudderAngle: undefined,
+          ballast: undefined,
+        },
+        failureState: {},
+        damageState: {},
       },
     });
 
@@ -440,7 +455,18 @@ describe('Sim page', () => {
       mode: 'player',
       sessionUserId: 'user-1',
       vessel: {
+        position: { lat: 10, lon: 20 },
         stations: { helm: { userId: 'user-1' }, engine: { userId: 'user-1' } },
+        orientation: {
+          heading: 0,
+        },
+        controls: {
+          throttle: undefined,
+          rudderAngle: undefined,
+          ballast: undefined,
+        },
+        failureState: {},
+        damageState: {},
       },
     });
 
