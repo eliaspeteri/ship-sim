@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/router';
 import socketManager from '../networking/socket';
 import { getApiBase } from '../lib/api';
 import styles from './Admin.module.css';
@@ -60,6 +61,7 @@ const metricTargets: Record<string, number> = {
 
 const AdminPage: React.FC = () => {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const role = (session?.user as { role?: string })?.role || 'guest';
   const isAdmin = role === 'admin';
   const apiBase = useMemo(() => getApiBase(), []);
@@ -99,6 +101,17 @@ const AdminPage: React.FC = () => {
   const [socketConnected, setSocketConnected] = useState(
     socketManager.isConnected(),
   );
+
+  useEffect(() => {
+    if (status === 'loading') return;
+    if (!session) {
+      router.replace('/login');
+      return;
+    }
+    if (!isAdmin) {
+      router.replace('/sim');
+    }
+  }, [isAdmin, router, session, status]);
 
   const fetchMetrics = useCallback(async () => {
     setMetricsError(null);
