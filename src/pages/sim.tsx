@@ -12,7 +12,6 @@ import { MAX_CREW, RUDDER_MAX_ANGLE_RAD } from '../constants/vessel';
 import { positionToXY } from '../lib/position';
 import { getScenarios, ScenarioDefinition } from '../lib/scenarios';
 import { getApiBase } from '../lib/api';
-import styles from './SimPage.module.css';
 import { getDefaultRules, mapToRulesetType } from '../types/rules.types';
 import { bboxAroundLatLon } from '../lib/geo';
 import { applyFailureControlLimits } from '../lib/failureControls';
@@ -37,10 +36,13 @@ import { haversineMeters, bboxKey } from '../features/sim/utils';
 import { SpaceSummary } from '../features/sim/types';
 import { SpaceModal } from '../features/sim/SpaceModal';
 import { JoinChoiceModal } from '../features/sim/JoinChoiceModal';
+import GuestBanner from '../features/sim/components/GuestBanner';
+import SimLoadingScreen from '../features/sim/components/SimLoadingScreen';
+import SimTopBar from '../features/sim/components/SimTopBar';
 
 /**
  * Simulation page for Ship Simulator.
- * Requires authentication. Shows the simulation UI if authenticated.
+ * Accessible without authentication; authenticated users get full controls.
  */
 const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const { data: session, status } = useSession();
@@ -66,6 +68,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const hasStartedRef = useRef(false);
   const pendingJoinRef = useRef<string | null>(null);
   const sessionRole = (session?.user as { role?: string })?.role;
+  const isAuthed = status === 'authenticated' && !!session;
   const canEnterPlayerMode =
     sessionRole === 'admin' ||
     sessionRole === 'player' ||
@@ -101,6 +104,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const [scenarioLoadingId, setScenarioLoadingId] = React.useState<
     string | null
   >(null);
+  const [showGuestBanner, setShowGuestBanner] = React.useState(true);
 
   const selectedSpace = React.useMemo(
     () => spaces.find(space => space.id === spaceInput),
@@ -520,14 +524,6 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   }, [currentVesselId]);
 
   useEffect(() => {
-    if (status === 'loading') return;
-    if (!session) {
-      router.replace('/login');
-      return;
-    }
-  }, [session, status, router]);
-
-  useEffect(() => {
     if (!pendingJoinRef.current || !canEnterPlayerMode) return;
     let cancelled = false;
     (async () => {
@@ -578,7 +574,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
 
   // Start simulation after hydrating from the first self snapshot over the socket
   useEffect(() => {
-    if (status !== 'authenticated' || !session) return;
+    if (status === 'loading') return;
     if (!spaceSelectionHydrated) return;
     if (!hasChosenSpace) {
       setSpaceModalOpen(true);
@@ -607,6 +603,9 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         socketManager.setJoinPreference('spectator', false);
       } else {
         socketManager.setJoinPreference('player', true);
+      }
+      if (!session) {
+        socketManager.setJoinPreference('spectator', false);
       }
     }
     socketManager.connect(process.env.NEXT_PUBLIC_SOCKET_URL || '');
@@ -781,18 +780,8 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  if (status === 'loading' || !session) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <div className="rounded-lg bg-black bg-opacity-70 p-8 text-center text-white">
-          <h1 className="mb-4 text-2xl font-bold">Loading Ship Simulator</h1>
-          <p className="mb-4">Initializing...</p>
-          <div className="mx-auto h-2 w-64 overflow-hidden rounded-full bg-gray-700">
-            <div className="h-full w-1/2 animate-pulse bg-blue-500"></div>
-          </div>
-        </div>
-      </div>
-    );
+  if (status === 'loading') {
+    return <SimLoadingScreen />;
   }
 
   const vesselXY = positionToXY({
@@ -805,39 +794,29 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     z: vessel.position.z || 0,
     heading: vessel.orientation.heading || 0,
   };
+  const showHelmControl = !!userId && crewIds.includes(userId);
+  const helmLabel =
+    vessel.helm?.userId === userId
+      ? 'Release Helm'
+      : `Claim Helm${vessel.helm?.username ? ` (${vessel.helm.username})` : ''}`;
+  const modeToggleTitle =
+    !canEnterPlayerMode && mode !== 'player' ? 'Spectator-only role' : undefined;
 
   return (
-    <div className={styles.page}>
-      <div className={styles.topBar}>
-        {notice ? (
-          <div
-            className={`${styles.notice} ${
-              notice.type === 'error' ? styles.noticeError : styles.noticeInfo
-            }`}
-          >
-            {notice.message}
-          </div>
-        ) : null}
-        {userId && crewIds.includes(userId) && (
-          <button
-            type="button"
-            className={`${styles.topButton} ${styles.topButtonWarn}`}
-            onClick={() =>
-              socketManager.requestHelm(
-                vessel.helm?.userId === userId ? 'release' : 'claim',
-              )
-            }
-          >
-            {vessel.helm?.userId === userId
-              ? 'Release Helm'
-              : `Claim Helm${vessel.helm?.username ? ` (${vessel.helm.username})` : ''}`}
-          </button>
-        )}
-        <button
-          type="button"
-          disabled={!canEnterPlayerMode}
-          className={`${styles.topButton} ${styles.topButtonPrimary}`}
-          onClick={() => {
+    <div className="h-[calc(100vh-var(--nav-height,0px))] min-h-[calc(100vh-var(--nav-height,0px))] w-full">
+      {isAuthed ? (
+        <SimTopBar
+          notice={notice}
+          showHelmControl={showHelmControl}
+          helmLabel={helmLabel}
+          onToggleHelm={() =>
+            socketManager.requestHelm(
+              vessel.helm?.userId === userId ? 'release' : 'claim',
+            )
+          }
+          canEnterPlayerMode={canEnterPlayerMode}
+          mode={mode}
+          onCreateVessel={() => {
             socketManager.setJoinPreference('player', true);
             socketManager.requestNewVessel();
             setNotice({
@@ -845,14 +824,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
               message: 'Requesting a new vessel...',
             });
           }}
-        >
-          Create My Vessel
-        </button>
-        <span className={styles.modeLabel}>Mode</span>
-        <button
-          type="button"
-          disabled={!canEnterPlayerMode && mode !== 'player'}
-          onClick={() => {
+          onToggleMode={() => {
             const nextMode = mode === 'player' ? 'spectator' : 'player';
             if (nextMode === 'player' && !canEnterPlayerMode) {
               setNotice({
@@ -865,18 +837,11 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
             socketManager.setJoinPreference(nextMode, nextMode === 'player');
             socketManager.notifyModeChange(nextMode);
           }}
-          className={`${styles.modeToggle} ${
-            mode === 'player' ? styles.modeToggleActive : ''
-          }`}
-          title={
-            !canEnterPlayerMode && mode !== 'player'
-              ? 'Spectator-only role'
-              : undefined
-          }
-        >
-          {mode === 'player' ? 'Player' : 'Spectator'}
-        </button>
-      </div>
+          modeToggleTitle={modeToggleTitle}
+        />
+      ) : showGuestBanner ? (
+        <GuestBanner onDismiss={() => setShowGuestBanner(false)} />
+      ) : null}
       <SpaceModal
         isOpen={spaceModalOpen}
         flow={spaceFlow}
@@ -909,13 +874,15 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
 
       {mode !== 'spectator' ? <Dashboard /> : null}
       <Scene vesselPosition={vesselPosition} mode={mode} />
-      <HudDrawer
-        onOpenSpaces={() => {
-          setSpaceModalOpen(true);
-          setSpaceError(null);
-          setSpaceFlow('choice');
-        }}
-      />
+      {isAuthed ? (
+        <HudDrawer
+          onOpenSpaces={() => {
+            setSpaceModalOpen(true);
+            setSpaceError(null);
+            setSpaceFlow('choice');
+          }}
+        />
+      ) : null}
       <JoinChoiceModal
         isOpen={showJoinChoice}
         ports={PORTS}
