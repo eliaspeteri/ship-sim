@@ -180,7 +180,9 @@ const ProfilePage: React.FC = () => {
         setAccountForm(prev => ({ ...prev, email: data.user.email }));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update account.');
+      setError(
+        err instanceof Error ? err.message : 'Unable to update account.',
+      );
     } finally {
       setAccountSaving(false);
     }

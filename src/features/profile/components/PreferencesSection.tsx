@@ -16,8 +16,7 @@ type PreferencesSectionProps = {
   onChange: (next: SettingsForm) => void;
 };
 
-const fieldLabelClass =
-  'grid gap-1.5 text-[12px] text-[rgba(210,222,230,0.9)]';
+const fieldLabelClass = 'grid gap-1.5 text-[12px] text-[rgba(210,222,230,0.9)]';
 const fieldControlClass =
   'rounded-[10px] border border-[rgba(60,88,104,0.6)] bg-[rgba(8,18,30,0.75)] px-2.5 py-1.5 text-[12px] text-[#f1f7f8]';
 

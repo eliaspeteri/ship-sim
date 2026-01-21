@@ -20,9 +20,7 @@ const AccountSection: React.FC<AccountSectionProps> = ({
   return (
     <section className="rounded-2xl border border-[rgba(27,154,170,0.35)] bg-[rgba(10,20,34,0.9)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-[14px] font-semibold text-[#f1f7f8]">
-          Account
-        </div>
+        <div className="text-[14px] font-semibold text-[#f1f7f8]">Account</div>
         <button
           type="button"
           onClick={onSave}

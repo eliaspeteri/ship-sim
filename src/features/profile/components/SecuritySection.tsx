@@ -13,8 +13,7 @@ type SecuritySectionProps = {
   saving: boolean;
 };
 
-const fieldLabelClass =
-  'grid gap-1.5 text-[12px] text-[rgba(210,222,230,0.9)]';
+const fieldLabelClass = 'grid gap-1.5 text-[12px] text-[rgba(210,222,230,0.9)]';
 const fieldControlClass =
   'rounded-[10px] border border-[rgba(60,88,104,0.6)] bg-[rgba(8,18,30,0.75)] px-2.5 py-1.5 text-[12px] text-[#f1f7f8]';
 
@@ -29,9 +28,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
   return (
     <section className="rounded-2xl border border-[rgba(27,154,170,0.35)] bg-[rgba(10,20,34,0.9)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-[14px] font-semibold text-[#f1f7f8]">
-          Security
-        </div>
+        <div className="text-[14px] font-semibold text-[#f1f7f8]">Security</div>
         <button
           type="button"
           onClick={onSave}
@@ -48,7 +45,9 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
             className={fieldControlClass}
             type="password"
             value={currentPassword}
-            onChange={event => onChange({ currentPassword: event.target.value })}
+            onChange={event =>
+              onChange({ currentPassword: event.target.value })
+            }
             autoComplete="current-password"
           />
         </label>
@@ -68,7 +67,9 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
             className={fieldControlClass}
             type="password"
             value={confirmPassword}
-            onChange={event => onChange({ confirmPassword: event.target.value })}
+            onChange={event =>
+              onChange({ confirmPassword: event.target.value })
+            }
             autoComplete="new-password"
           />
         </label>
