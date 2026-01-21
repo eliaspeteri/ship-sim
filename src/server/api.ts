@@ -153,15 +153,14 @@ function dbVesselStateToUnified(dbState: DBVesselState): VesselState {
 interface UserSettings {
   id: number;
   userId: string;
-  cameraMode: string;
   soundEnabled: boolean;
-  showHUD: boolean;
-  timeScale: number;
   units: 'metric' | 'imperial' | 'nautical';
   speedUnit: 'knots' | 'kmh' | 'mph';
   distanceUnit: 'nm' | 'km' | 'mi';
   timeZoneMode: 'auto' | 'manual';
   timeZone: string;
+  notificationLevel: 'all' | 'mentions' | 'none';
+  interfaceDensity: 'comfortable' | 'compact';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -2532,28 +2531,24 @@ router.get('/settings/:userId', requireAuth, function (req, res) {
 router.post('/settings/:userId', requireAuth, function (req, res) {
   const { userId } = req.params;
   const {
-    cameraMode,
     soundEnabled,
-    showHUD,
-    timeScale,
     units,
     speedUnit,
     distanceUnit,
     timeZoneMode,
     timeZone,
+    notificationLevel,
+    interfaceDensity,
   } = req.body;
   const existing = userSettingsStore[userId];
 
   const settings: UserSettings = {
     id: existing?.id ?? Date.now(),
     userId,
-    cameraMode: cameraMode || existing?.cameraMode || 'thirdPerson',
     soundEnabled:
       soundEnabled !== undefined
         ? soundEnabled
         : (existing?.soundEnabled ?? true),
-    showHUD: showHUD !== undefined ? showHUD : (existing?.showHUD ?? true),
-    timeScale: timeScale || existing?.timeScale || 1.0,
     units:
       units === 'imperial' || units === 'nautical'
         ? units
@@ -2571,11 +2566,119 @@ router.post('/settings/:userId', requireAuth, function (req, res) {
       typeof timeZone === 'string' && timeZone.trim().length > 0
         ? timeZone.trim()
         : existing?.timeZone || 'UTC',
+    notificationLevel:
+      notificationLevel === 'all' ||
+      notificationLevel === 'mentions' ||
+      notificationLevel === 'none'
+        ? notificationLevel
+        : existing?.notificationLevel || 'mentions',
+    interfaceDensity:
+      interfaceDensity === 'compact'
+        ? 'compact'
+        : existing?.interfaceDensity || 'comfortable',
     createdAt: existing?.createdAt ?? new Date(),
     updatedAt: new Date(),
   };
   userSettingsStore[userId] = settings;
   res.json(settings);
+});
+
+// POST /api/profile - update account identity or password
+router.post('/profile', requireAuth, async function (req, res) {
+  const userId = req.user?.userId;
+  if (!userId) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+  const { username, email, password, currentPassword } = req.body || {};
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const updates: Record<string, unknown> = {};
+    if (typeof username === 'string' && username.trim().length > 0) {
+      const normalized = username.trim();
+      if (normalized.length < 3) {
+        res.status(400).json({ error: 'Username must be at least 3 characters' });
+        return;
+      }
+      const existing = await prisma.user.findFirst({
+        where: {
+          name: { equals: normalized, mode: 'insensitive' },
+        },
+      });
+      if (existing && existing.id !== userId) {
+        res.status(409).json({ error: 'Username already in use' });
+        return;
+      }
+      updates.name = normalized;
+    }
+
+    if (typeof email === 'string' && email.trim().length > 0) {
+      const normalized = email.trim();
+      if (!normalized.includes('@')) {
+        res.status(400).json({ error: 'Provide a valid email address' });
+        return;
+      }
+      const existing = await prisma.user.findFirst({
+        where: {
+          email: { equals: normalized, mode: 'insensitive' },
+        },
+      });
+      if (existing && existing.id !== userId) {
+        res.status(409).json({ error: 'Email already in use' });
+        return;
+      }
+      updates.email = normalized;
+    }
+
+    if (typeof password === 'string' && password.length > 0) {
+      if (password.length < 8) {
+        res.status(400).json({ error: 'Password must be at least 8 characters' });
+        return;
+      }
+      if (!currentPassword || typeof currentPassword !== 'string') {
+        res.status(400).json({ error: 'Current password is required' });
+        return;
+      }
+      if (!user.passwordHash) {
+        res.status(400).json({ error: 'Password login not enabled' });
+        return;
+      }
+      const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!ok) {
+        res.status(403).json({ error: 'Current password is incorrect' });
+        return;
+      }
+      updates.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: 'No profile updates submitted' });
+      return;
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: updates,
+    });
+
+    res.json({
+      success: true,
+      user: {
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        role: updated.role,
+      },
+    });
+  } catch (err) {
+    console.error('Failed to update profile', err);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
 });
 
 // GET /api/stats

@@ -251,12 +251,22 @@ const SpacesPage: React.FC = () => {
   );
 
   const handleDelete = useCallback(
-    async (spaceId: string) => {
+    async (
+      spaceId: string,
+      totalVessels: number,
+      activeVessels: number,
+    ) => {
+      if (totalVessels > 0 || activeVessels > 0) {
+        setNotice('Cannot delete a space while vessels exist.');
+        return;
+      }
       if (typeof window !== 'undefined') {
         const ok = window.confirm(
           'Delete this space? This cannot be undone and will remove access for everyone.',
         );
         if (!ok) return;
+        const typed = window.prompt('Type DELETE to confirm.');
+        if (typed !== 'DELETE') return;
       }
       updateDraft(spaceId, { saving: true, error: null });
       try {
@@ -776,7 +786,9 @@ const SpacesPage: React.FC = () => {
                   <button
                     type="button"
                     className={`${styles.button} ${styles.buttonDanger}`}
-                    onClick={() => void handleDelete(space.id)}
+                    onClick={() =>
+                      void handleDelete(space.id, totalVessels, activeVessels)
+                    }
                     disabled={draft?.saving || totalVessels > 0}
                   >
                     Delete
