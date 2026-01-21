@@ -1,5 +1,65 @@
 @import 'tailwindcss';
 
+@theme {
+  --color-editor-text: #edf5f8;
+  --color-editor-muted: rgba(199, 218, 230, 0.7);
+  --color-editor-muted-strong: rgba(199, 218, 230, 0.75);
+  --color-editor-soft: rgba(210, 226, 236, 0.85);
+  --color-editor-panel: rgba(10, 22, 32, 0.86);
+  --color-editor-panel-border: rgba(97, 137, 160, 0.28);
+  --color-editor-surface: rgba(9, 18, 28, 0.92);
+  --color-editor-surface-border: rgba(97, 137, 160, 0.3);
+  --color-editor-card: rgba(10, 20, 30, 0.9);
+  --color-editor-card-border: rgba(97, 137, 160, 0.35);
+  --color-editor-control-bg: rgba(11, 22, 34, 0.75);
+  --color-editor-control-border: rgba(137, 186, 211, 0.3);
+  --color-editor-tool-bg: rgba(21, 42, 58, 0.65);
+  --color-editor-tool-border: rgba(122, 167, 190, 0.35);
+  --color-editor-accent-soft: rgba(245, 176, 95, 0.12);
+  --color-editor-accent-border: rgba(245, 176, 95, 0.4);
+  --color-editor-accent-ring: rgba(245, 176, 95, 0.8);
+  --color-editor-row-bg: rgba(16, 31, 44, 0.6);
+  --color-editor-row-border: rgba(97, 137, 160, 0.2);
+  --color-editor-quiet-bg: rgba(11, 22, 34, 0.4);
+  --color-editor-quiet-border: rgba(137, 186, 211, 0.2);
+  --color-editor-pill-bg: rgba(14, 26, 38, 0.8);
+  --color-editor-pill-border: rgba(137, 186, 211, 0.35);
+  --color-editor-inspector-bg: rgba(12, 26, 36, 0.7);
+  --color-editor-inspector-border: rgba(118, 160, 184, 0.3);
+  --color-editor-bottom-bar: rgba(7, 18, 28, 0.82);
+  --color-editor-viewport: rgba(8, 16, 26, 0.8);
+  --color-editor-tag-bg: rgba(245, 199, 128, 0.16);
+  --color-editor-tag-border: rgba(245, 199, 128, 0.35);
+  --color-editor-tag-text: #ffd6a3;
+  --color-editor-status-text: #f4d9b3;
+  --color-editor-link: #f9c58b;
+  --color-editor-accent-text: #120c08;
+  --color-editor-accent-strong-border: rgba(247, 199, 128, 0.6);
+  --background-image-editor-shell: radial-gradient(
+      120% 120% at 10% 10%,
+      rgba(28, 63, 82, 0.75) 0%,
+      rgba(10, 20, 32, 0.95) 48%,
+      rgba(6, 10, 16, 0.98) 100%
+    ),
+    linear-gradient(135deg, rgba(7, 14, 22, 0.95), rgba(3, 8, 14, 0.98));
+  --background-image-editor-page: radial-gradient(
+      120% 120% at 10% 10%,
+      rgba(26, 58, 78, 0.75) 0%,
+      rgba(9, 18, 30, 0.96) 50%,
+      rgba(5, 10, 16, 0.98) 100%
+    ),
+    linear-gradient(135deg, rgba(7, 14, 22, 0.95), rgba(3, 8, 14, 0.98));
+  --background-image-editor-accent-gradient: linear-gradient(
+    135deg,
+    #ffb15b,
+    #ff8b3d
+  );
+  --background-image-editor-grid:
+    linear-gradient(transparent 95%, rgba(90, 135, 160, 0.18) 96%),
+    linear-gradient(90deg, transparent 95%, rgba(90, 135, 160, 0.18) 96%);
+  --shadow-editor-accent: 0 0 0 1px rgba(245, 176, 95, 0.4);
+}
+
 :root {
   --nav-height: 64px;
   --marine-navy: #071426;
