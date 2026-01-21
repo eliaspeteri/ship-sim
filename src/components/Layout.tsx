@@ -96,27 +96,27 @@ const Layout: React.FC<LayoutProps> = ({ children, fullBleed = false }) => {
           </nav>
 
           <nav className={styles.navLinks}>
-            {[...navLinks, ...(isAuthed ? protectedNavLinks : [])].map(
-              link => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`${styles.navLink} ${
-                    isActive(link.href) ? styles.navLinkActive : ''
-                  }`}
-                >
-                  {link.label}
-                  {link.tag ? (
-                    <span className={styles.navTag}>{link.tag}</span>
-                  ) : null}
-                </Link>
-              ),
-            )}
+            {[...navLinks, ...(isAuthed ? protectedNavLinks : [])].map(link => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`${styles.navLink} ${
+                  isActive(link.href) ? styles.navLinkActive : ''
+                }`}
+              >
+                {link.label}
+                {link.tag ? (
+                  <span className={styles.navTag}>{link.tag}</span>
+                ) : null}
+              </Link>
+            ))}
             {isAuthed ? (
               canReview ? (
                 <div
                   className={`${styles.navDropdown} ${
-                    pathname.startsWith('/editor') ? styles.navDropdownActive : ''
+                    pathname.startsWith('/editor')
+                      ? styles.navDropdownActive
+                      : ''
                   }`}
                 >
                   <span className={styles.navDropdownLabel}>Editor</span>

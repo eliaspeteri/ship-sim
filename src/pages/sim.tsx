@@ -800,7 +800,9 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
       ? 'Release Helm'
       : `Claim Helm${vessel.helm?.username ? ` (${vessel.helm.username})` : ''}`;
   const modeToggleTitle =
-    !canEnterPlayerMode && mode !== 'player' ? 'Spectator-only role' : undefined;
+    !canEnterPlayerMode && mode !== 'player'
+      ? 'Spectator-only role'
+      : undefined;
 
   return (
     <div className="h-[calc(100vh-var(--nav-height,0px))] min-h-[calc(100vh-var(--nav-height,0px))] w-full">

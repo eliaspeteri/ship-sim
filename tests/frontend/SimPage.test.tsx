@@ -1,5 +1,11 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import SimPage from '../../src/pages/sim';
 import socketManager from '../../src/networking/socket';
 import { initializeSimulation, startSimulation } from '../../src/simulation';
@@ -185,15 +191,17 @@ jest.mock('../../src/lib/api', () => ({
 }));
 
 const mockFetch = (impl?: (url: string, init?: RequestInit) => unknown) => {
-  global.fetch = jest.fn().mockImplementation((url: string, init?: RequestInit) => {
-    if (impl) {
-      return Promise.resolve(impl(url, init)) as Promise<Response>;
-    }
-    return Promise.resolve({
-      ok: true,
-      json: async () => ({ spaces: [] }),
-    }) as Promise<Response>;
-  }) as unknown as typeof fetch;
+  global.fetch = jest
+    .fn()
+    .mockImplementation((url: string, init?: RequestInit) => {
+      if (impl) {
+        return Promise.resolve(impl(url, init)) as Promise<Response>;
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ spaces: [] }),
+      }) as Promise<Response>;
+    }) as unknown as typeof fetch;
 };
 
 describe('Sim page', () => {
@@ -280,14 +288,15 @@ describe('Sim page', () => {
 
     render(<SimPage />);
 
-    await waitFor(() =>
-      expect(socketManager.connect).toHaveBeenCalledWith(''),
-    );
+    await waitFor(() => expect(socketManager.connect).toHaveBeenCalledWith(''));
     await waitFor(() => expect(initializeSimulation).toHaveBeenCalled());
     await waitFor(() => expect(startSimulation).toHaveBeenCalled());
 
     fireEvent.click(screen.getByText('Create My Vessel'));
-    expect(socketManager.setJoinPreference).toHaveBeenCalledWith('player', true);
+    expect(socketManager.setJoinPreference).toHaveBeenCalledWith(
+      'player',
+      true,
+    );
     expect(socketManager.requestNewVessel).toHaveBeenCalled();
     expect(storeState.setNotice).toHaveBeenCalledWith({
       type: 'info',

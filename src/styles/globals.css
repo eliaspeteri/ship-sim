@@ -35,14 +35,16 @@
   --color-editor-link: #f9c58b;
   --color-editor-accent-text: #120c08;
   --color-editor-accent-strong-border: rgba(247, 199, 128, 0.6);
-  --background-image-editor-shell: radial-gradient(
+  --background-image-editor-shell:
+    radial-gradient(
       120% 120% at 10% 10%,
       rgba(28, 63, 82, 0.75) 0%,
       rgba(10, 20, 32, 0.95) 48%,
       rgba(6, 10, 16, 0.98) 100%
     ),
     linear-gradient(135deg, rgba(7, 14, 22, 0.95), rgba(3, 8, 14, 0.98));
-  --background-image-editor-page: radial-gradient(
+  --background-image-editor-page:
+    radial-gradient(
       120% 120% at 10% 10%,
       rgba(26, 58, 78, 0.75) 0%,
       rgba(9, 18, 30, 0.96) 50%,

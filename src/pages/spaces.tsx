@@ -251,11 +251,7 @@ const SpacesPage: React.FC = () => {
   );
 
   const handleDelete = useCallback(
-    async (
-      spaceId: string,
-      totalVessels: number,
-      activeVessels: number,
-    ) => {
+    async (spaceId: string, totalVessels: number, activeVessels: number) => {
       if (totalVessels > 0 || activeVessels > 0) {
         setNotice('Cannot delete a space while vessels exist.');
         return;

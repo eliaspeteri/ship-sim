@@ -46,8 +46,7 @@ module.exports = {
           'radial-gradient(120% 120% at 10% 10%, rgba(28, 63, 82, 0.75) 0%, rgba(10, 20, 32, 0.95) 48%, rgba(6, 10, 16, 0.98) 100%), linear-gradient(135deg, rgba(7, 14, 22, 0.95), rgba(3, 8, 14, 0.98))',
         'editor-page':
           'radial-gradient(120% 120% at 10% 10%, rgba(26, 58, 78, 0.75) 0%, rgba(9, 18, 30, 0.96) 50%, rgba(5, 10, 16, 0.98) 100%), linear-gradient(135deg, rgba(7, 14, 22, 0.95), rgba(3, 8, 14, 0.98))',
-        'editor-accent-gradient':
-          'linear-gradient(135deg, #ffb15b, #ff8b3d)',
+        'editor-accent-gradient': 'linear-gradient(135deg, #ffb15b, #ff8b3d)',
         'editor-grid':
           'linear-gradient(transparent 95%, rgba(90, 135, 160, 0.18) 96%), linear-gradient(90deg, transparent 95%, rgba(90, 135, 160, 0.18) 96%)',
       },

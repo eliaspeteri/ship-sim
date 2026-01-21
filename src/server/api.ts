@@ -2602,7 +2602,9 @@ router.post('/profile', requireAuth, async function (req, res) {
     if (typeof username === 'string' && username.trim().length > 0) {
       const normalized = username.trim();
       if (normalized.length < 3) {
-        res.status(400).json({ error: 'Username must be at least 3 characters' });
+        res
+          .status(400)
+          .json({ error: 'Username must be at least 3 characters' });
         return;
       }
       const existing = await prisma.user.findFirst({
@@ -2637,7 +2639,9 @@ router.post('/profile', requireAuth, async function (req, res) {
 
     if (typeof password === 'string' && password.length > 0) {
       if (password.length < 8) {
-        res.status(400).json({ error: 'Password must be at least 8 characters' });
+        res
+          .status(400)
+          .json({ error: 'Password must be at least 8 characters' });
         return;
       }
       if (!currentPassword || typeof currentPassword !== 'string') {

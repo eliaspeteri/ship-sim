@@ -6,8 +6,7 @@ type AuthNoticeProps = {
 };
 
 const AuthNotice: React.FC<AuthNoticeProps> = ({ tone, children }) => {
-  const baseClass =
-    'rounded-[10px] px-2.5 py-2 text-[12px]';
+  const baseClass = 'rounded-[10px] px-2.5 py-2 text-[12px]';
   const toneClass =
     tone === 'success'
       ? 'bg-[rgba(36,102,72,0.8)] text-[#e6fff4]'

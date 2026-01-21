@@ -55,7 +55,10 @@ export const EventLog: React.FC = () => {
                 {eventLog
                   .sort((a, b) => b.timestamp - a.timestamp) // Sort in descending order
                   .map((event, index) => (
-                    <tr key={index} className="border-t border-white/5 hover:bg-white/5">
+                    <tr
+                      key={index}
+                      className="border-t border-white/5 hover:bg-white/5"
+                    >
                       <td className="whitespace-nowrap px-1 py-1 font-mono text-[11px] text-gray-400">
                         {new Date(event.timestamp).toLocaleString()}
                       </td>

@@ -56,7 +56,9 @@ describe('Layout navigation', () => {
     expect(screen.getAllByText('Spaces').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Editor').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Operations').length).toBeGreaterThan(0);
-    expect(screen.queryByRole('button', { name: 'Access' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Access' }),
+    ).not.toBeInTheDocument();
   });
 
   it('opens the access modal when Access is clicked', () => {
