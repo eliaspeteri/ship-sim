@@ -198,6 +198,52 @@ The Editor Shell owns:
 
 - Top-level layout
 - Navigation between editor pages
+
+---
+
+## Implementation Checklist
+
+- [ ] Editor-only routes and lazy bundles
+- [ ] Auth gate (player+)
+- [ ] Pack-level access checks
+- [ ] Editor layout shell (viewport + panels)
+- [ ] Renderer initialization in editor config
+
+---
+
+## Implementation Breakdown
+
+### Routing + mode
+
+- [ ] `/editor` redirect to `/editor/packs`
+- [ ] `/editor/packs` list route
+- [ ] `/editor/packs/[packId]` workspace route
+- [ ] `/editor/review` review route
+
+### Auth + access
+
+- [ ] Site role gate (player+)
+- [ ] Pack role gate (owner/editor/viewer)
+- [ ] Redirect unauthenticated users to login
+
+### Editor context
+
+- [ ] Editor context store (active tool, selection, active layer)
+- [ ] Register editor-only overlays (grid, selection, bounds)
+- [ ] Global keyboard shortcuts (tool switch, escape clear)
+
+### Renderer integration
+
+- [ ] Mount editor renderer instance
+- [ ] Shared config with runtime renderer
+- [ ] Editor-only render layers toggles
+
+## Acceptance Criteria
+
+- Editor routes load without runtime UI or simulation state
+- Unauthorized users never see partial editor UI
+- Workspace shows viewport + panels and loads pack metadata
+- Renderer is initialized in editor mode (even if placeholder)
 - Pack context display
 - Global editor status indicators:
   - loading

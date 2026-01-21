@@ -198,6 +198,16 @@ Layers support styling in two scopes:
 ### Style Goals
 
 - Make layers readable and distinct
+
+---
+
+## Implementation Checklist
+
+- [ ] Layer type registry
+- [ ] Geometry mode enforcement
+- [ ] Visibility and lock state
+- [ ] Style configuration (editor + runtime)
+- [ ] Schema version + migrations
 - Keep runtime performant
 - Allow per-layer customization without forking layer types
 

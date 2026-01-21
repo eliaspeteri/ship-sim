@@ -201,6 +201,46 @@ Once a version is published, it can never be modified.
 
 ---
 
+## Implementation Checklist
+
+- [ ] Pack CRUD
+- [ ] Version creation on edit
+- [ ] Role assignment (owner/editor/viewer)
+- [ ] Visibility controls
+- [ ] Work area association
+
+---
+
+## Implementation Breakdown
+
+### API + storage
+
+- [ ] Pack table with metadata fields
+- [ ] Pack version table (draft/submitted/published)
+- [ ] Pack roles table (owner/editor/viewer)
+- [ ] Work area linkage to versions
+
+### UI
+
+- [ ] Pack list view (filters, tags, updatedAt)
+- [ ] Pack create flow (name, description, region)
+- [ ] Pack settings panel (roles, visibility)
+- [ ] Pack workspace entry point
+
+### Lifecycle
+
+- [ ] Draft creation on first edit
+- [ ] Submit for review
+- [ ] Publish / promote to global curated
+
+## Acceptance Criteria
+
+- Users can create a pack and open a draft workspace
+- Roles gate edit and submit capabilities
+- Pack visibility states enforce discoverability rules
+
+---
+
 ### Immutability Rationale
 
 Immutability ensures:
