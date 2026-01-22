@@ -7,6 +7,7 @@ type EditorInspectorPanelProps = {
   layers: EditorLayer[];
   workAreas: EditorWorkArea[];
   onWorkAreasChange: (next: EditorWorkArea[]) => void;
+  onFocusWorkArea?: (lat: number, lon: number) => void;
   isOpen: boolean;
   layersOpen: boolean;
   onToggle: () => void;
@@ -17,6 +18,7 @@ const EditorInspectorPanel: React.FC<EditorInspectorPanelProps> = ({
   layers,
   workAreas,
   onWorkAreasChange,
+  onFocusWorkArea,
   isOpen,
   layersOpen,
   onToggle,
@@ -57,6 +59,7 @@ const EditorInspectorPanel: React.FC<EditorInspectorPanelProps> = ({
             <EditorWorkAreaEditor
               workAreas={workAreas}
               onChange={onWorkAreasChange}
+              onFocusWorkArea={onFocusWorkArea}
             />
             <button
               type="button"
@@ -70,7 +73,7 @@ const EditorInspectorPanel: React.FC<EditorInspectorPanelProps> = ({
               <span className="text-[11px] uppercase tracking-[0.14em] text-editor-muted">
                 Layers
               </span>
-              <span className="grid h-[22px] w-[22px] place-items-center rounded-[8px] border border-editor-control-border bg-editor-control-bg text-[#d9ebf4]">
+              <span className="flex h-[22px] w-[22px] items-center justify-center rounded-[8px] border border-editor-control-border bg-editor-control-bg text-[#d9ebf4] leading-none">
                 {layersOpen ? 'v' : '>'}
               </span>
             </button>

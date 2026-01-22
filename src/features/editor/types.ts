@@ -24,6 +24,7 @@ export type EditorLayer = {
 export type EditorWorkArea = {
   id: string;
   name: string;
+  isLocked?: boolean;
   bounds:
     | {
         type: 'bbox';

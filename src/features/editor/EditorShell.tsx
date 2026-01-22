@@ -27,6 +27,12 @@ const EditorShell: React.FC<EditorShellProps> = ({ pack, layers }) => {
   const [workAreas, setWorkAreas] = React.useState<EditorWorkArea[]>(
     pack.workAreas ?? [],
   );
+  const [focusRequest, setFocusRequest] = React.useState<{
+    lat: number;
+    lon: number;
+    token: number;
+  } | null>(null);
+  const focusTokenRef = React.useRef(0);
   const [compileSummary, setCompileSummary] = React.useState('Compile: idle');
   const layerIds = React.useMemo(() => layers.map(layer => layer.id), [layers]);
 
@@ -100,6 +106,11 @@ const EditorShell: React.FC<EditorShellProps> = ({ pack, layers }) => {
     setActiveTool(toolId);
   };
 
+  const handleFocusWorkArea = React.useCallback((lat: number, lon: number) => {
+    focusTokenRef.current += 1;
+    setFocusRequest({ lat, lon, token: focusTokenRef.current });
+  }, []);
+
   const handlePublish = async () => {
     const tiles = getWorkAreaTiles(workAreas);
     if (tiles.length === 0 || layerIds.length === 0) {
@@ -155,6 +166,7 @@ const EditorShell: React.FC<EditorShellProps> = ({ pack, layers }) => {
           packId={pack.id}
           layerIds={layerIds}
           workAreas={workAreas}
+          focusRequest={focusRequest}
         />
         <EditorBottomBar
           pack={pack}
@@ -172,6 +184,7 @@ const EditorShell: React.FC<EditorShellProps> = ({ pack, layers }) => {
           layers={layers}
           workAreas={workAreas}
           onWorkAreasChange={setWorkAreas}
+          onFocusWorkArea={handleFocusWorkArea}
           isOpen={rightOpen}
           layersOpen={layersOpen}
           onToggle={() => setRightOpen(open => !open)}

@@ -5,7 +5,8 @@ import {
 } from '../services/overlayStreaming';
 import { EditorWorkArea } from '../types';
 import EditorRenderer from './EditorRenderer';
-import { xyToLatLon } from '../../../lib/geo';
+import CameraHeadingIndicator from '../../../components/CameraHeadingIndicator';
+import { latLonToXY, xyToLatLon } from '../../../lib/geo';
 
 type EditorViewportProps = {
   title?: string;
@@ -13,6 +14,7 @@ type EditorViewportProps = {
   layerIds?: string[];
   workAreas?: EditorWorkArea[];
   packId: string;
+  focusRequest?: { lat: number; lon: number; token: number } | null;
 };
 
 const EditorViewport: React.FC<EditorViewportProps> = ({
@@ -21,9 +23,11 @@ const EditorViewport: React.FC<EditorViewportProps> = ({
   layerIds = [],
   workAreas = [],
   packId,
+  focusRequest = null,
 }) => {
   const [overlayStatus, setOverlayStatus] = React.useState('Overlay: idle');
   const [boundsStatus, setBoundsStatus] = React.useState<string | null>(null);
+  const [cameraHeadingDeg, setCameraHeadingDeg] = React.useState(0);
   const focusRef = React.useRef({ x: 0, y: 0 });
   const cameraStateRef = React.useRef({ y: 220, fov: 55, aspect: 1.6 });
 
@@ -134,9 +138,24 @@ const EditorViewport: React.FC<EditorViewportProps> = ({
     };
   }, [isInsideWorkAreas, layerIds, packId, workAreas]);
 
+  const focusTarget = React.useMemo(() => {
+    if (!focusRequest) return null;
+    const { x, y } = latLonToXY({
+      lat: focusRequest.lat,
+      lon: focusRequest.lon,
+    });
+    return { x, y, token: focusRequest.token };
+  }, [focusRequest]);
+
   return (
     <section className="absolute inset-0 overflow-hidden bg-editor-viewport">
-      <EditorRenderer focusRef={focusRef} cameraStateRef={cameraStateRef} />
+      <EditorRenderer
+        focusRef={focusRef}
+        cameraStateRef={cameraStateRef}
+        workAreas={workAreas}
+        focusTarget={focusTarget}
+        onHeadingChange={setCameraHeadingDeg}
+      />
       {title || subtitle ? (
         <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
           {title ? (
@@ -155,6 +174,7 @@ const EditorViewport: React.FC<EditorViewportProps> = ({
           {boundsStatus}
         </div>
       ) : null}
+      <CameraHeadingIndicator headingDeg={cameraHeadingDeg} />
     </section>
   );
 };
