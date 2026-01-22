@@ -400,15 +400,6 @@ export class SimulationLoop {
     if (vesselPtr === null) return;
 
     try {
-      if (process.env.NEXT_PUBLIC_SIM_CONTROL_LOGS === 'true') {
-        console.debug('[controls] applyControls', {
-          vesselPtr,
-          controls,
-          maxRudderAngle:
-            state.vessel.hydrodynamics?.rudderMaxAngle ??
-            DEFAULT_HYDRO.rudderMaxAngle,
-        });
-      }
       // Set throttle if provided
       if (controls.throttle !== undefined) {
         this.wasmBridge.setThrottle(vesselPtr, controls.throttle);

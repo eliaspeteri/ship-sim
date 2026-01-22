@@ -1019,14 +1019,6 @@ const useStore = create<SimulationState>()((set, get) => ({
         failureState,
         damageState,
       );
-      if (process.env.NEXT_PUBLIC_SIM_CONTROL_LOGS === 'true') {
-        console.debug('[controls] applyVesselControls', {
-          controls,
-          nextControls,
-          failureState,
-          damageState,
-        });
-      }
       simulationLoop.applyControls(nextControls);
     } catch (error) {
       console.error('Error applying vessel controls to simulation:', error);

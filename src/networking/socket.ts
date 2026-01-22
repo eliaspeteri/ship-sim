@@ -557,15 +557,6 @@ class SocketManager {
           helm: normalized.helm,
           stations: normalized.stations,
         });
-        if (process.env.NEXT_PUBLIC_SIM_CONTROL_LOGS === 'true') {
-          console.debug('[controls] server snapshot', {
-            vesselId: normalized.id,
-            controls: normalized.controls,
-            helm: normalized.helm,
-            stations: normalized.stations,
-            mode: normalized.mode,
-          });
-        }
         if (normalized.failureState) {
           store.updateMachineryStatus({
             failures: {
