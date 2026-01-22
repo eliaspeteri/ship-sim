@@ -147,6 +147,10 @@ function dbVesselStateToUnified(dbState: DBVesselState): VesselState {
       heaveStiffness: 0,
       heaveDamping: 0,
     },
+    physics: {
+      model: 'displacement',
+      schemaVersion: 1,
+    },
   };
 }
 

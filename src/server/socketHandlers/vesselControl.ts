@@ -15,6 +15,7 @@ export function registerVesselControlHandler({
   rudderMaxAngleRad,
   defaultSpaceId,
 }: SocketHandlerContext) {
+  const logControls = process.env.SIM_CONTROL_LOGS === 'true';
   socket.on('vessel:control', data => {
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
@@ -58,6 +59,15 @@ export function registerVesselControlHandler({
       (data.throttle !== undefined || data.ballast !== undefined) &&
       !engineAvailable
     ) {
+      if (logControls) {
+        console.info('[controls] reject engine control', {
+          userId: currentUserId,
+          vesselId: target.id,
+          engineUserId: target.engineUserId,
+          throttle: data.throttle,
+          ballast: data.ballast,
+        });
+      }
       socket.emit(
         'error',
         target.engineUserId
@@ -91,6 +101,16 @@ export function registerVesselControlHandler({
     };
     target.lastUpdate = Date.now();
 
+    if (logControls) {
+      console.info('[controls] applied', {
+        userId: currentUserId,
+        vesselId: target.id,
+        incoming: data,
+        applied: target.controls,
+        failureState: target.failureState,
+        damageState: target.damageState,
+      });
+    }
     console.info(
       `Control applied for ${currentUserId}: throttle=${target.controls.throttle.toFixed(
         2,

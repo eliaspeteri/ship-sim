@@ -3,6 +3,8 @@
  * This centralizes all vessel-related type definitions
  */
 
+import type { VesselPhysicsConfig } from './physics.types';
+
 // Ship type enumeration
 export enum ShipType {
   CONTAINER = 'CONTAINER',
@@ -77,6 +79,7 @@ export interface VesselState {
     heaveStiffness: number;
     heaveDamping: number;
   };
+  physics?: VesselPhysicsConfig;
 
   // Engine state information
   engineState: {
@@ -158,6 +161,7 @@ export type VesselSnapshot = VesselPose & {
   stations?: VesselStations;
   angularVelocity?: Partial<VesselState['angularVelocity']>;
   hydrodynamics?: Partial<VesselState['hydrodynamics']>;
+  physics?: VesselPhysicsConfig;
   properties?: Partial<
     Pick<
       VesselState['properties'],

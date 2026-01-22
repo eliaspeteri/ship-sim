@@ -41,6 +41,9 @@ export interface Rules {
     penalties: boolean;
     investigations: boolean;
   };
+  economy: {
+    autoStopOnEmpty: boolean;
+  };
   hudLimitations: Record<string, unknown>; // placeholder
   allowedVessels: string[];
   allowedMods: string[];
@@ -67,6 +70,7 @@ export const getDefaultRules = (type: RulesetType): Rules => {
           penalties: false,
           investigations: false,
         },
+        economy: { autoStopOnEmpty: false },
         hudLimitations: {},
         allowedVessels: [],
         allowedMods: [],
@@ -78,6 +82,7 @@ export const getDefaultRules = (type: RulesetType): Rules => {
         assists: { stability: false, autopilot: false, docking: false },
         realism: { damage: true, wear: true, failures: true },
         enforcement: { colregs: true, penalties: true, investigations: true },
+        economy: { autoStopOnEmpty: true },
         hudLimitations: {},
         allowedVessels: [],
         allowedMods: [],
@@ -93,6 +98,7 @@ export const getDefaultRules = (type: RulesetType): Rules => {
           penalties: false,
           investigations: false,
         },
+        economy: { autoStopOnEmpty: false },
         hudLimitations: {},
         allowedVessels: [],
         allowedMods: [],
@@ -104,6 +110,7 @@ export const getDefaultRules = (type: RulesetType): Rules => {
         assists: { stability: false, autopilot: false, docking: false },
         realism: { damage: true, wear: false, failures: true },
         enforcement: { colregs: true, penalties: true, investigations: true },
+        economy: { autoStopOnEmpty: false },
         hudLimitations: {},
         allowedVessels: ['fixed'],
         allowedMods: [],

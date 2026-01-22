@@ -167,6 +167,7 @@ export interface VesselRecord {
   velocity: VesselVelocity;
   properties: CoreVesselProperties;
   hydrodynamics?: VesselState['hydrodynamics'];
+  physics?: VesselState['physics'];
   render?: VesselState['render'];
   controls: Pick<
     VesselControls,
@@ -654,6 +655,7 @@ const buildVesselRecordFromRow = (row: {
       maxSpeed: template.properties.maxSpeed,
     },
     hydrodynamics: buildHydrodynamics(template),
+    physics: template.physics,
     render: template.render,
     controls: {
       throttle: row.throttle,
@@ -859,6 +861,7 @@ function createNewVesselForUser(
       maxSpeed: template.properties.maxSpeed,
     },
     hydrodynamics: buildHydrodynamics(template),
+    physics: template.physics,
     render: template.render,
     controls: { throttle: 0, rudderAngle: 0, ballast: 0.5, bowThruster: 0 },
     failureState: {
@@ -1536,6 +1539,7 @@ const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => {
     controls: v.controls,
     properties: v.properties,
     hydrodynamics: v.hydrodynamics,
+    physics: v.physics,
     render: v.render,
     angularVelocity: { yaw: v.yawRate ?? 0 },
     waterDepth,

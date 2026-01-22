@@ -1,6 +1,7 @@
 import { Server } from 'socket.io';
 import {
   economyLedger,
+  getRulesForSpace,
   io as serverIo,
   persistVesselToDb,
   syncUserSocketsEconomy,
@@ -22,7 +23,6 @@ export const ECONOMY_DRIFT_MULTIPLIER = 0.35; // cost factor when drifting (unde
 export const ECONOMY_IDLE_MULTIPLIER = 0.1; // cost factor when idle (optional; set 0 to disable)
 export const ECONOMY_UNDERWAY_BASE = 2.0; // base cost per interval while underway (in addition to your base)
 export const ECONOMY_OVERDRAFT_GUARD = true; // if true, clamp charges so credits don't go far negative
-export const ECONOMY_AUTO_STOP_ON_EMPTY = true; // if true, when broke, force throttle to 0 (safety valve)
 export const ECONOMY_DEFAULT_CREW_WAGE = 6; // credits per interval
 export const ECONOMY_DEFAULT_CREW_SHARE = 0.06; // share of positive revenue
 export const LOAN_ACCRUAL_INTERVAL_MS = 60 * 60 * 1000;
@@ -726,11 +726,13 @@ export const updateEconomyForVessel = async (
       void syncUserSocketsEconomy(chargeUserId, profile);
 
       // Safety valve: if they hit 0 credits, prevent runaway "offline burn"
-      if (
-        ECONOMY_AUTO_STOP_ON_EMPTY &&
+      const rules = getRulesForSpace(vessel.spaceId || 'global');
+      const shouldAutoStop =
+        rules.economy?.autoStopOnEmpty === true &&
         (profile.credits ?? 0) <= 0 &&
-        (Math.abs(vessel.controls.throttle ?? 0) > 0 || opState !== 'idle')
-      ) {
+        (vessel.mode === 'ai' || vessel.crewIds.size === 0) &&
+        (Math.abs(vessel.controls.throttle ?? 0) > 0 || opState !== 'idle');
+      if (shouldAutoStop) {
         // Force the vessel into a safe state (you can make AI bring to halt too)
         vessel.controls.throttle = 0;
         vessel.controls.bowThruster = 0;

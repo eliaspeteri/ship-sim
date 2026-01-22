@@ -1,56 +1,22 @@
 import useStore from '../store';
 import { loadWasm } from '../lib/wasmLoader';
 import { WasmBridge } from '../lib/wasmBridge';
-import { VesselState } from '../types/vessel.types';
+import type { VesselState } from '../types/vessel.types';
 import { safe } from '../lib/safe';
 import socketManager from '../networking/socket';
 import { positionFromXY, positionToXY } from '../lib/position';
 import { clampRudderAngle, DEFAULT_HYDRO } from '../constants/vessel';
 import { deriveWaveState } from '../lib/waves';
+import {
+  buildDisplacementParams,
+  buildPhysicsPayload,
+} from '../lib/physicsParams';
 
 // Singleton for simulation instance
 let simulationInstance: SimulationLoop | null = null;
 
-const toNumber = (value: number | undefined, fallback: number) =>
-  Number.isFinite(value) ? (value as number) : fallback;
-
-const buildHydroParams = (vessel: VesselState) => {
-  const hydro = vessel.hydrodynamics || DEFAULT_HYDRO;
-  const maxSpeedKnots = toNumber(vessel.properties?.maxSpeed, 23);
-  return {
-    rudderForceCoefficient: toNumber(
-      hydro.rudderForceCoefficient,
-      DEFAULT_HYDRO.rudderForceCoefficient,
-    ),
-    rudderStallAngle: toNumber(
-      hydro.rudderStallAngle,
-      DEFAULT_HYDRO.rudderStallAngle,
-    ),
-    rudderMaxAngle: toNumber(
-      hydro.rudderMaxAngle,
-      DEFAULT_HYDRO.rudderMaxAngle,
-    ),
-    dragCoefficient: toNumber(
-      hydro.dragCoefficient,
-      DEFAULT_HYDRO.dragCoefficient,
-    ),
-    yawDamping: toNumber(hydro.yawDamping, DEFAULT_HYDRO.yawDamping),
-    yawDampingQuad: toNumber(
-      hydro.yawDampingQuad,
-      DEFAULT_HYDRO.yawDampingQuad,
-    ),
-    swayDamping: toNumber(hydro.swayDamping, DEFAULT_HYDRO.swayDamping),
-    maxThrust: toNumber(hydro.maxThrust, DEFAULT_HYDRO.maxThrust),
-    maxSpeed: maxSpeedKnots * 0.514444,
-    rollDamping: toNumber(hydro.rollDamping, DEFAULT_HYDRO.rollDamping),
-    pitchDamping: toNumber(hydro.pitchDamping, DEFAULT_HYDRO.pitchDamping),
-    heaveStiffness: toNumber(
-      hydro.heaveStiffness,
-      DEFAULT_HYDRO.heaveStiffness,
-    ),
-    heaveDamping: toNumber(hydro.heaveDamping, DEFAULT_HYDRO.heaveDamping),
-  };
-};
+const buildHydroParams = (vessel: VesselState) =>
+  buildDisplacementParams(vessel);
 
 export class SimulationLoop {
   private wasmBridge: WasmBridge | null = null;
@@ -171,6 +137,7 @@ export class SimulationLoop {
         hydro.heaveStiffness,
         hydro.heaveDamping,
       );
+      this.applyPhysicsParams(vesselPtr, vessel);
       state.setWasmVesselPtr(vesselPtr);
 
       // Immediately read vessel position and verify it's valid
@@ -215,6 +182,23 @@ export class SimulationLoop {
     this.animationFrameId = requestAnimationFrame(time => this.loop(time));
 
     console.info('Simulation loop started');
+  }
+
+  private applyPhysicsParams(vesselPtr: number, vessel: VesselState): void {
+    if (!this.wasmBridge) return;
+    const payload = buildPhysicsPayload(vessel);
+    this.wasmBridge.setVesselParams(
+      vesselPtr,
+      payload.modelId,
+      payload.params,
+    );
+  }
+
+  public refreshPhysicsParams(): void {
+    if (!this.wasmBridge) return;
+    const state = useStore.getState();
+    if (!state.wasmVesselPtr) return;
+    this.applyPhysicsParams(state.wasmVesselPtr, state.vessel);
   }
 
   /**
@@ -317,6 +301,20 @@ export class SimulationLoop {
         waveSteepness: waveState.steepness,
       });
     }
+    const waterDepth = Number.isFinite(state.vessel.waterDepth)
+      ? (state.vessel.waterDepth as number)
+      : (state.environment.waterDepth ?? 0);
+    this.wasmBridge.setEnvironment([
+      wind.speed,
+      wind.direction,
+      current.speed,
+      current.direction,
+      waveState.amplitude * 2,
+      waveState.wavelength,
+      waveState.direction,
+      waveState.steepness,
+      waterDepth,
+    ]);
 
     try {
       // Update vessel state in WASM - store the updated pointer in case it changes
@@ -402,6 +400,15 @@ export class SimulationLoop {
     if (vesselPtr === null) return;
 
     try {
+      if (process.env.NEXT_PUBLIC_SIM_CONTROL_LOGS === 'true') {
+        console.debug('[controls] applyControls', {
+          vesselPtr,
+          controls,
+          maxRudderAngle:
+            state.vessel.hydrodynamics?.rudderMaxAngle ??
+            DEFAULT_HYDRO.rudderMaxAngle,
+        });
+      }
       // Set throttle if provided
       if (controls.throttle !== undefined) {
         this.wasmBridge.setThrottle(vesselPtr, controls.throttle);
@@ -477,6 +484,7 @@ export class SimulationLoop {
       hydro.heaveStiffness,
       hydro.heaveDamping,
     );
+    this.applyPhysicsParams(nextPtr, vessel);
 
     if (state.wasmVesselPtr) {
       this.wasmBridge.destroyVessel(state.wasmVesselPtr);

@@ -1,3 +1,4 @@
+import type { VesselPhysicsConfig } from './physics.types';
 import { ShipType } from './vessel.types';
 
 export type VesselCatalogEntry = {
@@ -28,6 +29,7 @@ export type VesselCatalogEntry = {
     heaveStiffness: number;
     heaveDamping: number;
   }>;
+  physics?: VesselPhysicsConfig;
   render?: {
     modelYawDeg?: number;
     sinkFactor?: number;

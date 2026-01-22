@@ -246,6 +246,7 @@ interface SimulationState {
   otherVessels: Record<string, SimpleVesselState>;
   resetVessel: () => void;
   updateVessel: (vessel: Partial<VesselState>) => void;
+  setPhysicsParams: (params: Record<string, number>) => void;
   setVesselName: (name: string) => void;
   setVesselType: (type: ShipType) => void;
   setCurrentVesselId: (id: string | null) => void;
@@ -327,6 +328,10 @@ const defaultVesselState: VesselState = {
   },
   hydrodynamics: {
     ...hydrodynamicsForType(ShipType.CONTAINER),
+  },
+  physics: {
+    model: 'displacement',
+    schemaVersion: 1,
   },
   engineState: {
     rpm: 0,
@@ -661,6 +666,17 @@ const useStore = create<SimulationState>()((set, get) => ({
           };
         }
 
+        if (vesselUpdate.physics) {
+          updatedVessel.physics = {
+            ...(updatedVessel.physics || {}),
+            ...vesselUpdate.physics,
+            params: {
+              ...(updatedVessel.physics?.params || {}),
+              ...(vesselUpdate.physics.params || {}),
+            },
+          };
+        }
+
         if (vesselUpdate.render) {
           updatedVessel.render = {
             ...(updatedVessel.render || {}),
@@ -759,6 +775,22 @@ const useStore = create<SimulationState>()((set, get) => ({
         // Return unchanged state if there was an error
         return {};
       }
+    }),
+
+  setPhysicsParams: params =>
+    set(state => {
+      const model = state.vessel.physics?.model ?? 'displacement';
+      const schemaVersion = state.vessel.physics?.schemaVersion ?? 1;
+      return {
+        vessel: {
+          ...state.vessel,
+          physics: {
+            model,
+            schemaVersion,
+            params,
+          },
+        },
+      };
     }),
 
   setVesselName: name =>
@@ -987,6 +1019,14 @@ const useStore = create<SimulationState>()((set, get) => ({
         failureState,
         damageState,
       );
+      if (process.env.NEXT_PUBLIC_SIM_CONTROL_LOGS === 'true') {
+        console.debug('[controls] applyVesselControls', {
+          controls,
+          nextControls,
+          failureState,
+          damageState,
+        });
+      }
       simulationLoop.applyControls(nextControls);
     } catch (error) {
       console.error('Error applying vessel controls to simulation:', error);

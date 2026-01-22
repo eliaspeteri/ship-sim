@@ -6,6 +6,7 @@ import type {
   VesselCatalog,
   VesselCatalogEntry,
 } from '../types/vesselCatalog.types';
+import type { VesselPhysicsConfig } from '../types/physics.types';
 
 const CATALOG_PATH = path.join(
   process.cwd(),
@@ -40,9 +41,22 @@ const mergeEntry = (
   ...update,
   properties: { ...base.properties, ...update.properties },
   hydrodynamics: { ...base.hydrodynamics, ...update.hydrodynamics },
+  physics: mergePhysicsConfig(base.physics, update.physics),
   commerce: { ...base.commerce, ...update.commerce },
   tags: update.tags ?? base.tags,
 });
+
+const mergePhysicsConfig = (
+  base?: VesselPhysicsConfig,
+  update?: VesselPhysicsConfig,
+): VesselPhysicsConfig | undefined => {
+  if (!base && !update) return undefined;
+  return {
+    ...base,
+    ...update,
+    params: { ...(base?.params || {}), ...(update?.params || {}) },
+  };
+};
 
 const loadCatalogEntries = (): VesselCatalogEntry[] => {
   const basePayload = readJsonFile(CATALOG_PATH);
@@ -96,6 +110,10 @@ export const resolveVesselTemplate = (
       name: 'Default Vessel',
       shipType: ShipType.DEFAULT,
       modelPath: null,
+      physics: {
+        model: 'displacement',
+        schemaVersion: 1,
+      },
       properties: {
         mass: 1_000_000,
         length: 120,
