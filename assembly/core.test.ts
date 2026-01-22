@@ -1202,7 +1202,6 @@ describe('Physics core (lean)', () => {
     unchecked((env[ENV_WIND_SPEED] = NO_WIND_SPEED));
     setEnvironment(changetype<usize>(env), 0);
   });
-
 });
 
 endTest();
