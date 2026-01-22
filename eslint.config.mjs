@@ -176,6 +176,7 @@ export default [
             'renderOrder',
             'distance',
             'decay',
+            'depthTest',
           ],
         },
       ],
