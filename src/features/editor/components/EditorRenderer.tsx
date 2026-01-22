@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { LandTiles } from '../../../components/LandTiles';
 import { latLonToXY } from '../../../lib/geo';
-import { EditorWorkArea } from '../types';
+import { EditorWorkArea, isBBoxBounds } from '../types';
 
 type EditorRendererProps = {
   focusRef: React.MutableRefObject<{ x: number; y: number }>;
@@ -190,8 +190,12 @@ const WorkAreaBounds: React.FC<{ workAreas: EditorWorkArea[] }> = ({
 }) => {
   const lines = React.useMemo(() => {
     return workAreas
-      .filter(area => area.bounds.type === 'bbox')
+      .filter(area => isBBoxBounds(area.bounds))
       .map(area => {
+        if (!isBBoxBounds(area.bounds)) {
+          throw new Error('Expected bbox bounds');
+        }
+
         const { minLat, minLon, maxLat, maxLon } = area.bounds;
         const corners = [
           latLonToXY({ lat: minLat, lon: minLon }),
