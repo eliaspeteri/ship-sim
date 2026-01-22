@@ -1,6 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import {
+  deletePack,
   getPack,
+  getPackBySlug,
+  hasDuplicateName,
   transitionPackStatus,
   updatePack,
 } from '../../../../server/editorPacksStore';
@@ -13,7 +16,12 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   if (req.method === 'GET') {
-    const pack = getPack(packId);
+    const { ownerId } = req.query;
+    const resolvedOwnerId =
+      typeof ownerId === 'string' && ownerId.trim().length > 0 ? ownerId : null;
+    const pack = resolvedOwnerId
+      ? getPackBySlug(resolvedOwnerId, packId)
+      : getPack(packId);
     if (!pack) {
       res.status(404).json({ error: 'Pack not found' });
       return;
@@ -25,6 +33,10 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === 'PATCH') {
     const { status, ...patch } = req.body as {
       status?: 'draft' | 'submitted' | 'published';
+      name?: string;
+      description?: string;
+      regionSummary?: string;
+      submitForReview?: boolean;
     };
     if (status) {
       const updated = transitionPackStatus(packId, status);
@@ -35,12 +47,39 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
       res.status(200).json({ pack: updated });
       return;
     }
+    const existing = getPack(packId);
+    if (!existing) {
+      res.status(404).json({ error: 'Pack not found' });
+      return;
+    }
+    if (
+      typeof patch.name === 'string' &&
+      patch.name.trim().length > 0 &&
+      hasDuplicateName(existing.ownerId, patch.name, existing.id)
+    ) {
+      res.status(409).json({ error: 'Duplicate pack title' });
+      return;
+    }
+    if (existing.status === 'published' && patch.submitForReview === false) {
+      res.status(400).json({ error: 'Published packs cannot be revoked' });
+      return;
+    }
     const updated = updatePack(packId, patch);
     if (!updated) {
       res.status(404).json({ error: 'Pack not found' });
       return;
     }
     res.status(200).json({ pack: updated });
+    return;
+  }
+
+  if (req.method === 'DELETE') {
+    const ok = deletePack(packId);
+    if (!ok) {
+      res.status(404).json({ error: 'Pack not found' });
+      return;
+    }
+    res.status(204).end();
     return;
   }
 

@@ -24,7 +24,10 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
       tile,
       layerId,
       lod: tile.z,
-      bytesBase64: '',
+      bytesBase64: Buffer.from(
+        `${body.packId}:${layerId}:${tile.z}/${tile.x}/${tile.y}`,
+        'utf8',
+      ).toString('base64'),
     })),
   );
 

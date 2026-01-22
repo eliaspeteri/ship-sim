@@ -1,9 +1,13 @@
 export type EditorPack = {
   id: string;
+  slug?: string;
+  ownerId?: string;
   name: string;
   description: string;
   regionSummary?: string;
   visibility: 'draft' | 'published' | 'curated';
+  status?: 'draft' | 'submitted' | 'published';
+  submitForReview?: boolean;
   updatedAt: string;
   workAreas?: EditorWorkArea[];
 };

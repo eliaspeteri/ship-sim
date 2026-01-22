@@ -53,6 +53,20 @@ const EditorShell: React.FC<EditorShellProps> = ({ pack, layers }) => {
   }, [pack.id, workAreas]);
 
   React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const timeout = window.setTimeout(() => {
+      void fetch(`/api/editor/packs/${pack.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workAreas }),
+      }).catch(error => {
+        console.warn('Failed to persist work areas', error);
+      });
+    }, 400);
+    return () => window.clearTimeout(timeout);
+  }, [pack.id, workAreas]);
+
+  React.useEffect(() => {
     const tiles = getWorkAreaTiles(workAreas);
     if (tiles.length === 0 || layerIds.length === 0) {
       setCompileSummary('Compile: idle');
@@ -100,6 +114,12 @@ const EditorShell: React.FC<EditorShellProps> = ({ pack, layers }) => {
         tiles,
       });
       setCompileSummary(`Publish: ${result.artifactCount} artifacts`);
+      clearOverlayCache();
+      await fetch(`/api/editor/packs/${pack.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'published' }),
+      });
     } catch (error) {
       console.error('Publish compile failed', error);
       setCompileSummary('Publish: error');

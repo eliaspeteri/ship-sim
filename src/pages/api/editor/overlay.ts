@@ -16,7 +16,10 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
   const layerIds = Array.isArray(layers)
     ? layers
     : typeof layers === 'string'
-      ? layers.split(',').map(item => item.trim()).filter(Boolean)
+      ? layers
+          .split(',')
+          .map(item => item.trim())
+          .filter(Boolean)
       : [];
 
   const chunks = getOverlayChunks({

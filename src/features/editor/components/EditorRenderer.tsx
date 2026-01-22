@@ -144,7 +144,10 @@ const EditorRenderer: React.FC<EditorRendererProps> = ({
       />
       <FocusSync controlsRef={controlsRef} focusRef={focusRef} />
       <EditorWASDControls controlsRef={controlsRef} focusRef={focusRef} />
-      <CameraStateSync controlsRef={controlsRef} cameraStateRef={cameraStateRef} />
+      <CameraStateSync
+        controlsRef={controlsRef}
+        cameraStateRef={cameraStateRef}
+      />
       <LandTiles focusRef={focusRef} />
       <gridHelper args={[20000, 80, '#385062', '#1c2a34']} />
     </Canvas>

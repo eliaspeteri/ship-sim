@@ -1,35 +1,32 @@
 import React from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { useSession } from 'next-auth/react';
-import EditorGate from '../../../features/editor/EditorGate';
-import EditorShell from '../../../features/editor/EditorShell';
-import { editorLayers, editorPacks } from '../../../features/editor/mockData';
-import type { EditorPack } from '../../../features/editor/types';
+import EditorGate from '../../../../features/editor/EditorGate';
+import EditorShell from '../../../../features/editor/EditorShell';
+import {
+  editorLayers,
+  editorPacks,
+} from '../../../../features/editor/mockData';
+import type { EditorPack } from '../../../../features/editor/types';
 
-const EditorPackWorkspace: React.FC & {
+const EditorUserPackWorkspace: React.FC & {
   fullBleedLayout?: boolean;
-  navBack?: boolean;
 } = () => {
   const router = useRouter();
-  const { data: session, status } = useSession();
-  const { packId } = router.query;
+  const { user, packId } = router.query;
+  const resolvedUser = Array.isArray(user) ? user[0] : user;
   const resolvedPackId = Array.isArray(packId) ? packId[0] : packId;
-  const ownerId =
-    (session?.user as { name?: string; id?: string } | undefined)?.name ||
-    (session?.user as { name?: string; id?: string } | undefined)?.id ||
-    'demo';
   const [pack, setPack] = React.useState<EditorPack | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!router.isReady || !resolvedPackId || status === 'loading') return;
+    if (!router.isReady || !resolvedPackId || !resolvedUser) return;
     let cancelled = false;
     const load = async () => {
       try {
         const res = await fetch(
-          `/api/editor/packs/${resolvedPackId}?ownerId=${ownerId}`,
+          `/api/editor/packs/${resolvedPackId}?ownerId=${resolvedUser}`,
         );
         if (!res.ok) {
           throw new Error(`Request failed: ${res.status}`);
@@ -43,7 +40,7 @@ const EditorPackWorkspace: React.FC & {
         if (!cancelled) {
           setError('Unable to load pack. Showing local data.');
           const fallback = editorPacks.find(
-            item => item.id === resolvedPackId || item.slug === resolvedPackId,
+            item => item.slug === resolvedPackId || item.id === resolvedPackId,
           );
           setPack(fallback ?? null);
         }
@@ -57,7 +54,7 @@ const EditorPackWorkspace: React.FC & {
     return () => {
       cancelled = true;
     };
-  }, [ownerId, resolvedPackId, router.isReady, status]);
+  }, [resolvedPackId, resolvedUser, router.isReady]);
 
   if (!router.isReady || loading) {
     return (
@@ -91,23 +88,6 @@ const EditorPackWorkspace: React.FC & {
     );
   }
 
-  if (pack.ownerId && pack.slug) {
-    const target = `/editor/${pack.ownerId}/packs/${pack.slug}`;
-    if (router.asPath !== target) {
-      void router.replace(target);
-      return (
-        <EditorGate>
-          <main className="min-h-screen bg-editor-page px-8 py-7 text-editor-text">
-            <div className="text-[28px] font-semibold">Redirecting...</div>
-            <div className="text-editor-muted-strong">
-              Moving to the new pack URL.
-            </div>
-          </main>
-        </EditorGate>
-      );
-    }
-  }
-
   return (
     <EditorGate>
       <Head>
@@ -119,7 +99,7 @@ const EditorPackWorkspace: React.FC & {
   );
 };
 
-EditorPackWorkspace.fullBleedLayout = true;
-EditorPackWorkspace.navBack = true;
+EditorUserPackWorkspace.fullBleedLayout = true;
+EditorUserPackWorkspace.navBack = true;
 
-export default EditorPackWorkspace;
+export default EditorUserPackWorkspace;

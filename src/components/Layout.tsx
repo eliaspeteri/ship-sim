@@ -9,6 +9,7 @@ import { ECONOMY_CONTEXTS } from '../features/economy/economyContexts';
 type LayoutProps = {
   children: React.ReactNode;
   fullBleed?: boolean;
+  navBack?: boolean;
 };
 
 const NAV_HEIGHT = 72;
@@ -22,8 +23,13 @@ const navLinks = [
 
 const protectedNavLinks = [{ href: '/spaces', label: 'Spaces' }];
 
-const Layout: React.FC<LayoutProps> = ({ children, fullBleed = false }) => {
-  const { pathname } = useRouter();
+const Layout: React.FC<LayoutProps> = ({
+  children,
+  fullBleed = false,
+  navBack = false,
+}) => {
+  const router = useRouter();
+  const { pathname } = router;
   const { status, data: session } = useSession();
   const isAuthed = status === 'authenticated';
   const role = (session?.user as { role?: string })?.role || 'guest';
@@ -57,6 +63,16 @@ const Layout: React.FC<LayoutProps> = ({ children, fullBleed = false }) => {
     >
       <header className={styles.header}>
         <div className={styles.navContainer}>
+          {navBack ? (
+            <button
+              type="button"
+              className={styles.navBack}
+              onClick={() => router.back()}
+            >
+              <span aria-hidden="true">←</span>
+              <span>Back</span>
+            </button>
+          ) : null}
           <Link href="/" className={styles.brand}>
             <div className={styles.brandMark}>SS</div>
             <div className={styles.brandLabel}>

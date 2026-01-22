@@ -49,11 +49,7 @@ const EditorWorkAreaEditor: React.FC<EditorWorkAreaEditorProps> = ({
     );
   };
 
-  const updateZoom = (
-    id: string,
-    index: 0 | 1,
-    value: number,
-  ) => {
+  const updateZoom = (id: string, index: 0 | 1, value: number) => {
     updateWorkAreas(
       workAreas.map(area => {
         if (area.id !== id) return area;
@@ -139,10 +135,10 @@ const EditorWorkAreaEditor: React.FC<EditorWorkAreaEditorProps> = ({
                 <button
                   type="button"
                   className="cursor-pointer rounded-full border border-editor-control-border bg-editor-control-bg px-2 py-1 text-[11px] text-editor-muted"
-                  onClick={() =>
-                    setEditingId(isEditing ? null : area.id)
+                  onClick={() => setEditingId(isEditing ? null : area.id)}
+                  title={
+                    isEditing ? 'Close work area editor' : 'Edit work area'
                   }
-                  title={isEditing ? 'Close work area editor' : 'Edit work area'}
                 >
                   {isEditing ? 'Done' : 'Edit'}
                 </button>

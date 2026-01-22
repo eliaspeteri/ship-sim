@@ -5,19 +5,23 @@ import Layout from '../components/Layout';
 import '../styles/globals.css';
 
 type AppPropsWithLayout = AppProps & {
-  Component: AppProps['Component'] & { fullBleedLayout?: boolean };
+  Component: AppProps['Component'] & {
+    fullBleedLayout?: boolean;
+    navBack?: boolean;
+  };
 };
 
 /**
  * App entry point. Wraps all pages in NextAuth.js SessionProvider.
  */
 function MyApp({ Component, pageProps }: AppPropsWithLayout) {
-  const { fullBleedLayout } = Component as typeof Component & {
+  const { fullBleedLayout, navBack } = Component as typeof Component & {
     fullBleedLayout?: boolean;
+    navBack?: boolean;
   };
   return (
     <SessionProvider session={pageProps.session}>
-      <Layout fullBleed={fullBleedLayout}>
+      <Layout fullBleed={fullBleedLayout} navBack={navBack}>
         <Component {...pageProps} />
       </Layout>
     </SessionProvider>

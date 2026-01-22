@@ -16,8 +16,8 @@ type EditorViewportProps = {
 };
 
 const EditorViewport: React.FC<EditorViewportProps> = ({
-  title = 'Editor viewport',
-  subtitle = 'Renderer hookup pending',
+  title = '',
+  subtitle = '',
   layerIds = [],
   workAreas = [],
   packId,
@@ -104,9 +104,7 @@ const EditorViewport: React.FC<EditorViewportProps> = ({
       if (requests.length === 0) {
         setOverlayStatus('Overlay tiles: 0');
         setBoundsStatus(
-          isInsideWorkAreas(lat, lon)
-            ? null
-            : 'Warning: outside work areas',
+          isInsideWorkAreas(lat, lon) ? null : 'Warning: outside work areas',
         );
         return;
       }
@@ -139,10 +137,16 @@ const EditorViewport: React.FC<EditorViewportProps> = ({
   return (
     <section className="absolute inset-0 overflow-hidden bg-editor-viewport">
       <EditorRenderer focusRef={focusRef} cameraStateRef={cameraStateRef} />
-      <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
-        <div className="mb-1.5 text-[20px] font-semibold">{title}</div>
-        <div className="text-editor-muted">{subtitle}</div>
-      </div>
+      {title || subtitle ? (
+        <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
+          {title ? (
+            <div className="mb-1.5 text-[20px] font-semibold">{title}</div>
+          ) : null}
+          {subtitle ? (
+            <div className="text-editor-muted">{subtitle}</div>
+          ) : null}
+        </div>
+      ) : null}
       <div className="absolute left-3 top-3 rounded-full border border-editor-quiet-border bg-editor-quiet-bg px-3 py-1 text-[11px] text-editor-muted">
         {overlayStatus}
       </div>

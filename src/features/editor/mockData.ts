@@ -3,10 +3,13 @@ import { EditorLayer, EditorPack } from './types';
 export const editorPacks: EditorPack[] = [
   {
     id: 'pack-hampton-roads',
+    slug: 'hampton-roads-access',
+    ownerId: 'demo',
     name: 'Hampton Roads Access',
     description: 'Harbor approaches, navigation aids, and berth metadata.',
     regionSummary: 'Virginia, USA',
     visibility: 'draft',
+    status: 'draft',
     updatedAt: '2025-02-10T16:20:00Z',
     workAreas: [
       {
@@ -26,10 +29,13 @@ export const editorPacks: EditorPack[] = [
   },
   {
     id: 'pack-rotterdam-harbor',
+    slug: 'port-of-rotterdam',
+    ownerId: 'demo',
     name: 'Port of Rotterdam',
     description: 'Berths, clearance zones, and speed limits.',
     regionSummary: 'Netherlands',
     visibility: 'published',
+    status: 'published',
     updatedAt: '2025-01-28T09:12:00Z',
     workAreas: [
       {
@@ -49,10 +55,13 @@ export const editorPacks: EditorPack[] = [
   },
   {
     id: 'pack-sf-bay',
+    slug: 'san-francisco-bay',
+    ownerId: 'demo',
     name: 'San Francisco Bay',
     description: 'Buoys, beacons, and restricted zones.',
     regionSummary: 'California, USA',
     visibility: 'draft',
+    status: 'draft',
     updatedAt: '2025-02-07T21:45:00Z',
     workAreas: [
       {
