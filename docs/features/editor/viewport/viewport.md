@@ -26,8 +26,8 @@ Defines the rendering surface for the map editor and the UI overlays that live i
 
 ## Implementation Checklist
 
-- [ ] Renderer mount node in editor viewport
-- [ ] Editor camera (free/orbit + speed control)
+- [x] Renderer mount node in editor viewport
+- [x] Editor camera (free/orbit + speed control)
 - [ ] Resize observer updates render targets
 - [ ] Toggleable overlays (grid, selection, bounds)
 - [ ] Viewport click/pick pipeline for tools

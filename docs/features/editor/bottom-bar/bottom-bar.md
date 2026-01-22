@@ -18,8 +18,8 @@ Provides quick access to pack status, actions, and navigation.
 
 ## Implementation Checklist
 
-- [ ] Back-to-packs navigation
-- [ ] Pack name + region display
-- [ ] Status pill (validation state)
-- [ ] Publish/submit action button
+- [x] Back-to-packs navigation
+- [x] Pack name + region display
+- [x] Status pill (validation state)
+- [x] Publish/submit action button
 - [ ] Future slot for warnings or conflicts

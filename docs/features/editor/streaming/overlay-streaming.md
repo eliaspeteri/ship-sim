@@ -18,10 +18,10 @@ Stream overlay data aligned to runtime terrain tiles.
 
 ## Implementation Checklist
 
-- [ ] Tile visibility evaluator
-- [ ] Overlay chunk loader
-- [ ] LOD policy
-- [ ] Cache eviction rules
+- [x] Tile visibility evaluator
+- [x] Overlay chunk loader
+- [x] LOD policy
+- [x] Cache eviction rules
 - [ ] Shared loader for editor + runtime
 
 ---
@@ -30,21 +30,21 @@ Stream overlay data aligned to runtime terrain tiles.
 
 ### Tile visibility
 
-- [ ] Determine visible tiles for current camera
+- [x] Determine visible tiles for current camera
 - [ ] Apply min/max zoom bounds per layer
 - [ ] Track in-flight tile requests
 
 ### Loader behavior
 
-- [ ] Fetch overlay chunks by tile + layer
+- [x] Fetch overlay chunks by tile + layer
 - [ ] Merge with runtime terrain tiles
-- [ ] Apply LOD selection rules
+- [x] Apply LOD selection rules
 
 ### Cache + lifecycle
 
-- [ ] Cache tiles by key and LOD
+- [x] Cache tiles by key and LOD
 - [ ] Evict tiles outside view + budget
-- [ ] Clear cache on pack version change
+- [x] Clear cache on pack version change
 
 ## Acceptance Criteria
 

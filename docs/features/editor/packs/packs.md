@@ -203,11 +203,11 @@ Once a version is published, it can never be modified.
 
 ## Implementation Checklist
 
-- [ ] Pack CRUD
+- [x] Pack CRUD
 - [ ] Version creation on edit
 - [ ] Role assignment (owner/editor/viewer)
 - [ ] Visibility controls
-- [ ] Work area association
+- [x] Work area association
 
 ---
 
@@ -215,7 +215,7 @@ Once a version is published, it can never be modified.
 
 ### API + storage
 
-- [ ] Pack table with metadata fields
+- [x] Pack table with metadata fields
 - [ ] Pack version table (draft/submitted/published)
 - [ ] Pack roles table (owner/editor/viewer)
 - [ ] Work area linkage to versions
@@ -223,9 +223,9 @@ Once a version is published, it can never be modified.
 ### UI
 
 - [ ] Pack list view (filters, tags, updatedAt)
-- [ ] Pack create flow (name, description, region)
+- [x] Pack create flow (name, description, region)
 - [ ] Pack settings panel (roles, visibility)
-- [ ] Pack workspace entry point
+- [x] Pack workspace entry point
 
 ### Lifecycle
 

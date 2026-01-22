@@ -19,13 +19,13 @@ Compile draft overlay data into tile-aligned artifacts for runtime streaming.
 
 ## Implementation Checklist
 
-- [ ] Define tile key scheme
+- [x] Define tile key scheme
 - [ ] Define per-layer compile strategy
-- [ ] Build artifacts by tile + layer
+- [x] Build artifacts by tile + layer
 - [ ] Store compiled outputs by version
-- [ ] Preview compile in editor
-- [ ] Server compile on publish
-- [ ] Hook into publish pipeline
+- [x] Preview compile in editor
+- [x] Server compile on publish
+- [x] Hook into publish pipeline
 
 ---
 
@@ -39,12 +39,12 @@ Compile draft overlay data into tile-aligned artifacts for runtime streaming.
 
 ### Preview compile
 
-- [ ] Client-side compile for draft preview
+- [x] Client-side compile for draft preview
 - [ ] Toggle preview vs last server compile
 
 ### Server compile
 
-- [ ] Compile job on publish
+- [x] Compile job on publish
 - [ ] Store artifacts by pack version
 - [ ] Invalidate old artifacts on new publish
 

@@ -204,10 +204,10 @@ The Editor Shell owns:
 ## Implementation Checklist
 
 - [ ] Editor-only routes and lazy bundles
-- [ ] Auth gate (player+)
+- [x] Auth gate (player+)
 - [ ] Pack-level access checks
-- [ ] Editor layout shell (viewport + panels)
-- [ ] Renderer initialization in editor config
+- [x] Editor layout shell (viewport + panels)
+- [x] Renderer initialization in editor config
 
 ---
 
@@ -215,16 +215,16 @@ The Editor Shell owns:
 
 ### Routing + mode
 
-- [ ] `/editor` redirect to `/editor/packs`
-- [ ] `/editor/packs` list route
-- [ ] `/editor/packs/[packId]` workspace route
-- [ ] `/editor/review` review route
+- [x] `/editor` redirect to `/editor/packs`
+- [x] `/editor/packs` list route
+- [x] `/editor/packs/[packId]` workspace route
+- [x] `/editor/review` review route
 
 ### Auth + access
 
-- [ ] Site role gate (player+)
+- [x] Site role gate (player+)
 - [ ] Pack role gate (owner/editor/viewer)
-- [ ] Redirect unauthenticated users to login
+- [x] Redirect unauthenticated users to login
 
 ### Editor context
 
@@ -234,7 +234,7 @@ The Editor Shell owns:
 
 ### Renderer integration
 
-- [ ] Mount editor renderer instance
+- [x] Mount editor renderer instance
 - [ ] Shared config with runtime renderer
 - [ ] Editor-only render layers toggles
 

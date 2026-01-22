@@ -17,9 +17,9 @@ Define geographic bounds that constrain editing and compilation.
 
 ## Implementation Checklist
 
-- [ ] Work area definition UI
+- [x] Work area definition UI
 - [ ] Bounds visualization
-- [ ] Out-of-bounds warnings
+- [x] Out-of-bounds warnings
 - [ ] Tile prefetch hints
 - [ ] Compilation clamps
 
@@ -31,11 +31,11 @@ Define geographic bounds that constrain editing and compilation.
 
 - [ ] Store work area geometry per pack version
 - [ ] Support bbox and polygon types
-- [ ] Store allowed zoom levels and sources
+- [x] Store allowed zoom levels and sources
 
 ### Editor UI
 
-- [ ] Work area create/edit form
+- [x] Work area create/edit form
 - [ ] Viewport outline overlay
 - [ ] Toggle visibility in UI
 

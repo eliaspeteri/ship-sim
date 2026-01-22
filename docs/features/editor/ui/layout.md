@@ -39,9 +39,9 @@ Defines the editor UI regions, their responsibilities, and how overlays stack in
 
 ## Implementation Checklist
 
-- [ ] Viewport fills editor root area
-- [ ] Overlay panels anchor to top corners
-- [ ] Bottom bar anchors to editor bottom
-- [ ] Panels leave clear space above bottom bar
-- [ ] Z-index order: viewport < panels < bottom bar
+- [x] Viewport fills editor root area
+- [x] Overlay panels anchor to top corners
+- [x] Bottom bar anchors to editor bottom
+- [x] Panels leave clear space above bottom bar
+- [x] Z-index order: viewport < panels < bottom bar
 - [ ] Mobile breakpoint rules documented
