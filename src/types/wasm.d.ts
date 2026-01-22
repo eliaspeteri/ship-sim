@@ -4,6 +4,7 @@
  */
 
 export interface WasmModule {
+  memory?: WebAssembly.Memory;
   // Vessel creation and management
   createVessel: (
     x: number,
@@ -40,6 +41,18 @@ export interface WasmModule {
     heaveDamping: number,
   ) => number;
   destroyVessel?: (vesselPtr: number) => void;
+
+  getVesselParamsBufferPtr?: () => number;
+  getVesselParamsBufferCapacity?: () => number;
+  setVesselParams?: (
+    vesselPtr: number,
+    modelId: number,
+    paramsPtr: number,
+    paramsLen: number,
+  ) => void;
+  getEnvironmentBufferPtr?: () => number;
+  getEnvironmentBufferCapacity?: () => number;
+  setEnvironment?: (paramsPtr: number, paramsLen: number) => void;
 
   // Physics update function with enhanced parameters
   updateVesselState: (

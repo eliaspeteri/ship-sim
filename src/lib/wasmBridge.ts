@@ -37,6 +37,62 @@ export class WasmBridge {
     );
   }
 
+  setVesselParams(vesselPtr: number, modelId: number, params: number[]): void {
+    if (
+      !this.wasmModule.setVesselParams ||
+      !this.wasmModule.getVesselParamsBufferPtr ||
+      !this.wasmModule.getVesselParamsBufferCapacity ||
+      !this.wasmModule.memory
+    ) {
+      return;
+    }
+
+    const capacity = this.wasmModule.getVesselParamsBufferCapacity();
+    const ptr = this.wasmModule.getVesselParamsBufferPtr();
+    if (!ptr || capacity <= 0) return;
+
+    const buffer = new Float64Array(
+      this.wasmModule.memory.buffer,
+      ptr,
+      capacity,
+    );
+    const count = Math.min(params.length, capacity);
+    buffer.fill(Number.NaN);
+    for (let i = 0; i < count; i++) {
+      buffer[i] = params[i];
+    }
+
+    this.wasmModule.setVesselParams(vesselPtr, modelId, ptr, count);
+  }
+
+  setEnvironment(params: number[]): void {
+    if (
+      !this.wasmModule.setEnvironment ||
+      !this.wasmModule.getEnvironmentBufferPtr ||
+      !this.wasmModule.getEnvironmentBufferCapacity ||
+      !this.wasmModule.memory
+    ) {
+      return;
+    }
+
+    const capacity = this.wasmModule.getEnvironmentBufferCapacity();
+    const ptr = this.wasmModule.getEnvironmentBufferPtr();
+    if (!ptr || capacity <= 0) return;
+
+    const buffer = new Float64Array(
+      this.wasmModule.memory.buffer,
+      ptr,
+      capacity,
+    );
+    const count = Math.min(params.length, capacity);
+    buffer.fill(Number.NaN);
+    for (let i = 0; i < count; i++) {
+      buffer[i] = params[i];
+    }
+
+    this.wasmModule.setEnvironment(ptr, count);
+  }
+
   createVessel(
     x: number,
     y: number,

@@ -56,7 +56,13 @@ const EXPECTED_EXPORTS: string[] = [
   'resetGlobalVessel',
 
   // setters
+  'getEnvironmentBufferCapacity',
+  'getEnvironmentBufferPtr',
+  'getVesselParamsBufferCapacity',
+  'getVesselParamsBufferPtr',
+  'setEnvironment',
   'setBallast',
+  'setVesselParams',
   'setRudderAngle',
   'setThrottle',
   'updateVesselState',

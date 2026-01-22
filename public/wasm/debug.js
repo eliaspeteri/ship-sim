@@ -22,6 +22,14 @@ async function instantiate(module, imports = {}) {
       exports.__setArgumentsLength(arguments.length);
       return exports.createVessel(x, y, z, psi, _phi, _theta, u, v, w, r, _p, _q, throttle, rudderAngle, mass, length, beam, draft, blockCoefficient, rudderForceCoefficient, rudderStallAngle, rudderMaxAngle, dragCoefficient, yawDamping, yawDampingQuad, swayDamping, maxThrust, maxSpeed, rollDamping, pitchDamping, heaveStiffness, heaveDamping) >>> 0;
     },
+    getVesselParamsBufferPtr() {
+      // assembly/index/getVesselParamsBufferPtr() => usize
+      return exports.getVesselParamsBufferPtr() >>> 0;
+    },
+    getEnvironmentBufferPtr() {
+      // assembly/index/getEnvironmentBufferPtr() => usize
+      return exports.getEnvironmentBufferPtr() >>> 0;
+    },
     updateVesselState(vesselPtr, dt, windSpeed, windDirection, currentSpeed, currentDirection, waveHeight, waveLength, waveDirection, waveSteepness) {
       // assembly/index/updateVesselState(usize, f64, f64, f64, f64, f64, f64, f64, f64, f64) => usize
       return exports.updateVesselState(vesselPtr, dt, windSpeed, windDirection, currentSpeed, currentDirection, waveHeight, waveLength, waveDirection, waveSteepness) >>> 0;
@@ -45,6 +53,12 @@ export const {
   table,
   createVessel,
   destroyVessel,
+  getVesselParamsBufferPtr,
+  getVesselParamsBufferCapacity,
+  setVesselParams,
+  getEnvironmentBufferPtr,
+  getEnvironmentBufferCapacity,
+  setEnvironment,
   updateVesselState,
   setThrottle,
   setRudderAngle,

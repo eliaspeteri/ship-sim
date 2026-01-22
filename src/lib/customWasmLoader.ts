@@ -84,8 +84,12 @@ export async function loadWasmModule(): Promise<WasmModule> {
       windDirection: number,
       currentSpeed: number,
       currentDirection: number,
+      waveHeight: number,
+      waveLength: number,
+      waveDirection: number,
+      waveSteepness: number,
     ) => {
-      setArgs(6);
+      setArgs(10);
       return (exports.updateVesselState as CallableFunction)(
         vesselPtr,
         dt,
@@ -93,6 +97,10 @@ export async function loadWasmModule(): Promise<WasmModule> {
         windDirection,
         currentSpeed,
         currentDirection,
+        waveHeight,
+        waveLength,
+        waveDirection,
+        waveSteepness,
       ) as number;
     },
     createVessel: (
@@ -115,8 +123,21 @@ export async function loadWasmModule(): Promise<WasmModule> {
       beam: number,
       draft: number,
       blockCoefficient: number,
+      rudderForceCoefficient: number,
+      rudderStallAngle: number,
+      rudderMaxAngle: number,
+      dragCoefficient: number,
+      yawDamping: number,
+      yawDampingQuad: number,
+      swayDamping: number,
+      maxThrust: number,
+      maxSpeed: number,
+      rollDamping: number,
+      pitchDamping: number,
+      heaveStiffness: number,
+      heaveDamping: number,
     ) => {
-      setArgs(19);
+      setArgs(32);
       return (exports.createVessel as CallableFunction)(
         x,
         y,
@@ -137,8 +158,44 @@ export async function loadWasmModule(): Promise<WasmModule> {
         beam,
         draft,
         blockCoefficient,
+        rudderForceCoefficient,
+        rudderStallAngle,
+        rudderMaxAngle,
+        dragCoefficient,
+        yawDamping,
+        yawDampingQuad,
+        swayDamping,
+        maxThrust,
+        maxSpeed,
+        rollDamping,
+        pitchDamping,
+        heaveStiffness,
+        heaveDamping,
       ) as number;
     },
+    getVesselParamsBufferPtr: exports.getVesselParamsBufferPtr as
+      | (() => number)
+      | undefined,
+    getVesselParamsBufferCapacity: exports.getVesselParamsBufferCapacity as
+      | (() => number)
+      | undefined,
+    setVesselParams: exports.setVesselParams as
+      | ((
+          vesselPtr: number,
+          modelId: number,
+          paramsPtr: number,
+          paramsLen: number,
+        ) => void)
+      | undefined,
+    getEnvironmentBufferPtr: exports.getEnvironmentBufferPtr as
+      | (() => number)
+      | undefined,
+    getEnvironmentBufferCapacity: exports.getEnvironmentBufferCapacity as
+      | (() => number)
+      | undefined,
+    setEnvironment: exports.setEnvironment as
+      | ((paramsPtr: number, paramsLen: number) => void)
+      | undefined,
     setThrottle: exports.setThrottle as (
       vesselPtr: number,
       throttle: number,
@@ -209,6 +266,7 @@ export async function loadWasmModule(): Promise<WasmModule> {
       | undefined,
   };
 
+  wrapper.memory = memory;
   wasmInstance = wrapper;
   return wasmInstance;
 }
