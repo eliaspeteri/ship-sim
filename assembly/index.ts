@@ -27,6 +27,80 @@ const MAX_WAVE_HEIGHT: f64 = 3.0;
 const DEFAULT_ROLL_DAMPING: f64 = 0.8;
 const DEFAULT_PITCH_DAMPING: f64 = 0.6;
 const DEFAULT_FUEL_CONSUMPTION_RATE: f64 = 0.000015;
+const DEFAULT_RUDDER_AREA_RATIO: f64 = 0.02;
+const DEFAULT_RUDDER_ARM_RATIO: f64 = 0.45;
+const DEFAULT_RUDDER_LIFT_SLOPE: f64 = 6.0;
+const DEFAULT_PROP_WASH: f64 = 0.6;
+const DEFAULT_ENGINE_TIME_CONSTANT: f64 = 2.5;
+const DEFAULT_RUDDER_RATE: f64 = 0.25;
+const DEFAULT_ADDED_MASS_X_COEFF: f64 = 0.05;
+const DEFAULT_ADDED_MASS_Y_COEFF: f64 = 0.2;
+const DEFAULT_ADDED_MASS_YAW_COEFF: f64 = 0.02;
+const DEFAULT_HULL_YV: f64 = 0.0;
+const DEFAULT_HULL_YR: f64 = 0.0;
+const DEFAULT_HULL_NV: f64 = 0.0;
+const DEFAULT_HULL_NR: f64 = 0.0;
+const DEFAULT_CD_SURGE: f64 = 0.7;
+const DEFAULT_CD_SWAY: f64 = 1.1;
+const DEFAULT_CD_YAW: f64 = 0.2;
+const DEFAULT_SHALLOW_WATER_FACTOR: f64 = 1.5;
+const DEFAULT_SHALLOW_WATER_YAW_FACTOR: f64 = 1.4;
+const DEFAULT_SHALLOW_WATER_RUDDER_FACTOR: f64 = 0.7;
+const SHALLOW_WATER_MIN_RATIO: f64 = 1.1;
+const SHALLOW_WATER_MAX_RATIO: f64 = 3.0;
+const MAX_SPEED_MULTIPLIER: f64 = 1.2;
+const MAX_YAW_MULTIPLIER: f64 = 1.5;
+const MODEL_DISPLACEMENT: i32 = 0;
+const VESSEL_PARAM_BUFFER_CAPACITY: i32 = 64;
+const ENVIRONMENT_BUFFER_CAPACITY: i32 = 16;
+
+const PARAM_MASS: i32 = 0;
+const PARAM_LENGTH: i32 = 1;
+const PARAM_BEAM: i32 = 2;
+const PARAM_DRAFT: i32 = 3;
+const PARAM_BLOCK_COEFFICIENT: i32 = 4;
+const PARAM_RUDDER_FORCE_COEFFICIENT: i32 = 5;
+const PARAM_RUDDER_STALL_ANGLE: i32 = 6;
+const PARAM_RUDDER_MAX_ANGLE: i32 = 7;
+const PARAM_DRAG_COEFFICIENT: i32 = 8;
+const PARAM_YAW_DAMPING: i32 = 9;
+const PARAM_YAW_DAMPING_QUAD: i32 = 10;
+const PARAM_SWAY_DAMPING: i32 = 11;
+const PARAM_MAX_THRUST: i32 = 12;
+const PARAM_MAX_SPEED: i32 = 13;
+const PARAM_ROLL_DAMPING: i32 = 14;
+const PARAM_PITCH_DAMPING: i32 = 15;
+const PARAM_HEAVE_STIFFNESS: i32 = 16;
+const PARAM_HEAVE_DAMPING: i32 = 17;
+const PARAM_RUDDER_AREA: i32 = 18;
+const PARAM_RUDDER_ARM: i32 = 19;
+const PARAM_RUDDER_LIFT_SLOPE: i32 = 20;
+const PARAM_PROP_WASH: i32 = 21;
+const PARAM_ENGINE_TIME_CONSTANT: i32 = 22;
+const PARAM_RUDDER_RATE: i32 = 23;
+const PARAM_ADDED_MASS_X: i32 = 24;
+const PARAM_ADDED_MASS_Y: i32 = 25;
+const PARAM_ADDED_MASS_YAW: i32 = 26;
+const PARAM_HULL_YV: i32 = 27;
+const PARAM_HULL_YR: i32 = 28;
+const PARAM_HULL_NV: i32 = 29;
+const PARAM_HULL_NR: i32 = 30;
+const PARAM_CD_SURGE: i32 = 31;
+const PARAM_CD_SWAY: i32 = 32;
+const PARAM_CD_YAW: i32 = 33;
+const PARAM_SHALLOW_WATER_FACTOR: i32 = 34;
+const PARAM_SHALLOW_WATER_YAW_FACTOR: i32 = 35;
+const PARAM_SHALLOW_WATER_RUDDER_FACTOR: i32 = 36;
+
+const ENV_WIND_SPEED: i32 = 0;
+const ENV_WIND_DIRECTION: i32 = 1;
+const ENV_CURRENT_SPEED: i32 = 2;
+const ENV_CURRENT_DIRECTION: i32 = 3;
+const ENV_WAVE_HEIGHT: i32 = 4;
+const ENV_WAVE_LENGTH: i32 = 5;
+const ENV_WAVE_DIRECTION: i32 = 6;
+const ENV_WAVE_STEEPNESS: i32 = 7;
+const ENV_WATER_DEPTH: i32 = 8;
 
 class VesselState {
   x: f64;
@@ -42,7 +116,9 @@ class VesselState {
   p: f64; // roll rate
   q: f64; // pitch rate
   throttle: f64;
+  throttleCommand: f64;
   rudderAngle: f64;
+  rudderCommand: f64;
   mass: f64;
   length: f64;
   beam: f64;
@@ -62,6 +138,25 @@ class VesselState {
   pitchDamping: f64;
   heaveStiffness: f64;
   heaveDamping: f64;
+  rudderArea: f64;
+  rudderArm: f64;
+  rudderLiftSlope: f64;
+  propWashFactor: f64;
+  engineTimeConstant: f64;
+  rudderRateLimit: f64;
+  addedMassX: f64;
+  addedMassY: f64;
+  addedMassYaw: f64;
+  hullYv: f64;
+  hullYr: f64;
+  hullNv: f64;
+  hullNr: f64;
+  cdSurge: f64;
+  cdSway: f64;
+  cdYaw: f64;
+  shallowWaterFactor: f64;
+  shallowWaterYawFactor: f64;
+  shallowWaterRudderFactor: f64;
   waveAmplitude: f64;
   waveLength: f64;
   waveDirection: f64;
@@ -70,6 +165,7 @@ class VesselState {
   fuelLevel: f64;
   fuelConsumptionRate: f64;
   lastFuelConsumption: f64;
+  modelId: i32;
 
   constructor(
     x: f64,
@@ -117,7 +213,9 @@ class VesselState {
     this.r = r;
     this.p = p;
     this.q = q;
-    this.throttle = throttle;
+    const initialThrottle = clampSigned(throttle, 1.0);
+    this.throttle = initialThrottle;
+    this.throttleCommand = initialThrottle;
     this.mass = mass > 0 ? mass : DEFAULT_MASS;
     this.length = length > 0 ? length : DEFAULT_LENGTH;
     this.beam = beam > 0 ? beam : DEFAULT_BEAM;
@@ -133,7 +231,8 @@ class VesselState {
       rudderStallAngle > 0 ? rudderStallAngle : DEFAULT_RUDDER_STALL_ANGLE;
     this.rudderMaxAngle =
       rudderMaxAngle > 0 ? rudderMaxAngle : DEFAULT_RUDDER_MAX_ANGLE;
-    this.rudderAngle = clampSigned(rudderAngle, this.rudderMaxAngle);
+    this.rudderCommand = clampSigned(rudderAngle, this.rudderMaxAngle);
+    this.rudderAngle = this.rudderCommand;
     this.dragCoefficient =
       dragCoefficient > 0 ? dragCoefficient : DEFAULT_DRAG_COEFFICIENT;
     this.yawDamping = yawDamping > 0 ? yawDamping : DEFAULT_YAW_DAMPING;
@@ -147,6 +246,31 @@ class VesselState {
     this.heaveStiffness =
       heaveStiffness > 0 ? heaveStiffness : DEFAULT_HEAVE_STIFFNESS;
     this.heaveDamping = heaveDamping > 0 ? heaveDamping : DEFAULT_HEAVE_DAMPING;
+    this.rudderArea = Math.max(
+      0.1,
+      DEFAULT_RUDDER_AREA_RATIO * this.length * this.draft,
+    );
+    this.rudderArm = DEFAULT_RUDDER_ARM_RATIO * this.length;
+    this.rudderLiftSlope = DEFAULT_RUDDER_LIFT_SLOPE;
+    this.propWashFactor = DEFAULT_PROP_WASH;
+    this.engineTimeConstant = DEFAULT_ENGINE_TIME_CONSTANT;
+    this.rudderRateLimit = DEFAULT_RUDDER_RATE;
+    this.addedMassX = this.mass * DEFAULT_ADDED_MASS_X_COEFF;
+    this.addedMassY = this.mass * DEFAULT_ADDED_MASS_Y_COEFF;
+    this.addedMassYaw =
+      this.mass * this.length * this.length * 0.1 * DEFAULT_ADDED_MASS_YAW_COEFF;
+    this.hullYv = DEFAULT_HULL_YV;
+    this.hullYr = DEFAULT_HULL_YR;
+    this.hullNv = DEFAULT_HULL_NV;
+    this.hullNr = DEFAULT_HULL_NR;
+    const baseCd =
+      this.dragCoefficient > 0 ? this.dragCoefficient : DEFAULT_DRAG_COEFFICIENT;
+    this.cdSurge = baseCd > 0 ? baseCd : DEFAULT_CD_SURGE;
+    this.cdSway = baseCd > 0 ? baseCd * 1.2 : DEFAULT_CD_SWAY;
+    this.cdYaw = baseCd > 0 ? baseCd * 0.3 : DEFAULT_CD_YAW;
+    this.shallowWaterFactor = DEFAULT_SHALLOW_WATER_FACTOR;
+    this.shallowWaterYawFactor = DEFAULT_SHALLOW_WATER_YAW_FACTOR;
+    this.shallowWaterRudderFactor = DEFAULT_SHALLOW_WATER_RUDDER_FACTOR;
     this.waveAmplitude = 0.0;
     this.waveLength = 0.0;
     this.waveDirection = 0.0;
@@ -155,10 +279,26 @@ class VesselState {
     this.fuelLevel = 1.0;
     this.fuelConsumptionRate = DEFAULT_FUEL_CONSUMPTION_RATE;
     this.lastFuelConsumption = 0.0;
+    this.modelId = MODEL_DISPLACEMENT;
   }
 }
 
+class EnvironmentState {
+  windSpeed: f64 = 0.0;
+  windDirection: f64 = 0.0;
+  currentSpeed: f64 = 0.0;
+  currentDirection: f64 = 0.0;
+  waveHeight: f64 = 0.0;
+  waveLength: f64 = 0.0;
+  waveDirection: f64 = 0.0;
+  waveSteepness: f64 = 0.0;
+  waterDepth: f64 = 0.0;
+}
+
 let globalVessel: VesselState | null = null;
+let globalEnvironment = new EnvironmentState();
+let vesselParamsBuffer = new StaticArray<f64>(VESSEL_PARAM_BUFFER_CAPACITY);
+let environmentBuffer = new StaticArray<f64>(ENVIRONMENT_BUFFER_CAPACITY);
 
 function clamp01(value: f64): f64 {
   if (value < 0.0) return 0.0;
@@ -181,6 +321,17 @@ function normalizeAngle(angle: f64): f64 {
 function ensureVessel(vesselPtr: usize): VesselState {
   if (vesselPtr === 0) throw new Error('Vessel pointer is null');
   return changetype<VesselState>(vesselPtr);
+}
+
+function readParam(
+  params: StaticArray<f64>,
+  len: i32,
+  index: i32,
+  fallback: f64,
+): f64 {
+  if (index < 0 || index >= len) return fallback;
+  const value = unchecked(params[index]);
+  return value == value ? value : fallback;
 }
 
 // === Core API ===
@@ -262,6 +413,303 @@ export function destroyVessel(_vesselPtr: usize): void {
   globalVessel = null;
 }
 
+export function getVesselParamsBufferPtr(): usize {
+  return changetype<usize>(vesselParamsBuffer);
+}
+
+export function getVesselParamsBufferCapacity(): i32 {
+  return VESSEL_PARAM_BUFFER_CAPACITY;
+}
+
+export function setVesselParams(
+  vesselPtr: usize,
+  modelId: i32,
+  paramsPtr: usize,
+  paramsLen: i32,
+): void {
+  const vessel = ensureVessel(vesselPtr);
+  vessel.modelId = modelId;
+  if (paramsPtr === 0 || paramsLen <= 0) return;
+
+  const params = changetype<StaticArray<f64>>(paramsPtr);
+  const len = paramsLen > 0 ? paramsLen : 0;
+  if (modelId !== MODEL_DISPLACEMENT) return;
+
+  const mass = readParam(params, len, PARAM_MASS, vessel.mass);
+  if (mass > 0.0) vessel.mass = mass;
+  const length = readParam(params, len, PARAM_LENGTH, vessel.length);
+  if (length > 0.0) vessel.length = length;
+  const beam = readParam(params, len, PARAM_BEAM, vessel.beam);
+  if (beam > 0.0) vessel.beam = beam;
+  const draft = readParam(params, len, PARAM_DRAFT, vessel.draft);
+  if (draft > 0.0) vessel.draft = draft;
+  const blockCoefficient = readParam(
+    params,
+    len,
+    PARAM_BLOCK_COEFFICIENT,
+    vessel.blockCoefficient,
+  );
+  if (blockCoefficient > 0.0) vessel.blockCoefficient = blockCoefficient;
+
+  const rudderForceCoefficient = readParam(
+    params,
+    len,
+    PARAM_RUDDER_FORCE_COEFFICIENT,
+    vessel.rudderForceCoefficient,
+  );
+  if (rudderForceCoefficient >= 0.0) {
+    vessel.rudderForceCoefficient = rudderForceCoefficient;
+  }
+  const rudderStallAngle = readParam(
+    params,
+    len,
+    PARAM_RUDDER_STALL_ANGLE,
+    vessel.rudderStallAngle,
+  );
+  if (rudderStallAngle > 0.0) vessel.rudderStallAngle = rudderStallAngle;
+  const rudderMaxAngle = readParam(
+    params,
+    len,
+    PARAM_RUDDER_MAX_ANGLE,
+    vessel.rudderMaxAngle,
+  );
+  if (rudderMaxAngle > 0.0) vessel.rudderMaxAngle = rudderMaxAngle;
+
+  const dragCoefficient = readParam(
+    params,
+    len,
+    PARAM_DRAG_COEFFICIENT,
+    vessel.dragCoefficient,
+  );
+  if (dragCoefficient >= 0.0) vessel.dragCoefficient = dragCoefficient;
+
+  const yawDamping = readParam(params, len, PARAM_YAW_DAMPING, vessel.yawDamping);
+  if (yawDamping >= 0.0) vessel.yawDamping = yawDamping;
+  const yawDampingQuad = readParam(
+    params,
+    len,
+    PARAM_YAW_DAMPING_QUAD,
+    vessel.yawDampingQuad,
+  );
+  if (yawDampingQuad >= 0.0) vessel.yawDampingQuad = yawDampingQuad;
+  const swayDamping = readParam(
+    params,
+    len,
+    PARAM_SWAY_DAMPING,
+    vessel.swayDamping,
+  );
+  if (swayDamping >= 0.0) vessel.swayDamping = swayDamping;
+
+  const maxThrust = readParam(
+    params,
+    len,
+    PARAM_MAX_THRUST,
+    vessel.maxThrust,
+  );
+  if (maxThrust >= 0.0) vessel.maxThrust = maxThrust;
+  const maxSpeed = readParam(params, len, PARAM_MAX_SPEED, vessel.maxSpeed);
+  if (maxSpeed > 0.0) vessel.maxSpeed = maxSpeed;
+
+  const rollDamping = readParam(
+    params,
+    len,
+    PARAM_ROLL_DAMPING,
+    vessel.rollDamping,
+  );
+  if (rollDamping >= 0.0) vessel.rollDamping = rollDamping;
+  const pitchDamping = readParam(
+    params,
+    len,
+    PARAM_PITCH_DAMPING,
+    vessel.pitchDamping,
+  );
+  if (pitchDamping >= 0.0) vessel.pitchDamping = pitchDamping;
+
+  const heaveStiffness = readParam(
+    params,
+    len,
+    PARAM_HEAVE_STIFFNESS,
+    vessel.heaveStiffness,
+  );
+  if (heaveStiffness >= 0.0) vessel.heaveStiffness = heaveStiffness;
+  const heaveDamping = readParam(
+    params,
+    len,
+    PARAM_HEAVE_DAMPING,
+    vessel.heaveDamping,
+  );
+  if (heaveDamping >= 0.0) vessel.heaveDamping = heaveDamping;
+
+  const rudderArea = readParam(
+    params,
+    len,
+    PARAM_RUDDER_AREA,
+    vessel.rudderArea,
+  );
+  if (rudderArea > 0.0) vessel.rudderArea = rudderArea;
+  const rudderArm = readParam(params, len, PARAM_RUDDER_ARM, vessel.rudderArm);
+  if (rudderArm > 0.0) vessel.rudderArm = rudderArm;
+  const rudderLiftSlope = readParam(
+    params,
+    len,
+    PARAM_RUDDER_LIFT_SLOPE,
+    vessel.rudderLiftSlope,
+  );
+  if (rudderLiftSlope > 0.0) vessel.rudderLiftSlope = rudderLiftSlope;
+  const propWashFactor = readParam(
+    params,
+    len,
+    PARAM_PROP_WASH,
+    vessel.propWashFactor,
+  );
+  if (propWashFactor >= 0.0) vessel.propWashFactor = propWashFactor;
+  const engineTimeConstant = readParam(
+    params,
+    len,
+    PARAM_ENGINE_TIME_CONSTANT,
+    vessel.engineTimeConstant,
+  );
+  if (engineTimeConstant > 0.0) vessel.engineTimeConstant = engineTimeConstant;
+  const rudderRateLimit = readParam(
+    params,
+    len,
+    PARAM_RUDDER_RATE,
+    vessel.rudderRateLimit,
+  );
+  if (rudderRateLimit > 0.0) vessel.rudderRateLimit = rudderRateLimit;
+  const addedMassX = readParam(
+    params,
+    len,
+    PARAM_ADDED_MASS_X,
+    vessel.addedMassX,
+  );
+  if (addedMassX >= 0.0) vessel.addedMassX = addedMassX;
+  const addedMassY = readParam(
+    params,
+    len,
+    PARAM_ADDED_MASS_Y,
+    vessel.addedMassY,
+  );
+  if (addedMassY >= 0.0) vessel.addedMassY = addedMassY;
+  const addedMassYaw = readParam(
+    params,
+    len,
+    PARAM_ADDED_MASS_YAW,
+    vessel.addedMassYaw,
+  );
+  if (addedMassYaw >= 0.0) vessel.addedMassYaw = addedMassYaw;
+
+  vessel.hullYv = readParam(params, len, PARAM_HULL_YV, vessel.hullYv);
+  vessel.hullYr = readParam(params, len, PARAM_HULL_YR, vessel.hullYr);
+  vessel.hullNv = readParam(params, len, PARAM_HULL_NV, vessel.hullNv);
+  vessel.hullNr = readParam(params, len, PARAM_HULL_NR, vessel.hullNr);
+
+  const cdSurge = readParam(params, len, PARAM_CD_SURGE, vessel.cdSurge);
+  if (cdSurge > 0.0) vessel.cdSurge = cdSurge;
+  const cdSway = readParam(params, len, PARAM_CD_SWAY, vessel.cdSway);
+  if (cdSway > 0.0) vessel.cdSway = cdSway;
+  const cdYaw = readParam(params, len, PARAM_CD_YAW, vessel.cdYaw);
+  if (cdYaw > 0.0) vessel.cdYaw = cdYaw;
+
+  const shallowWaterFactor = readParam(
+    params,
+    len,
+    PARAM_SHALLOW_WATER_FACTOR,
+    vessel.shallowWaterFactor,
+  );
+  if (shallowWaterFactor >= 0.0) vessel.shallowWaterFactor = shallowWaterFactor;
+  const shallowWaterYawFactor = readParam(
+    params,
+    len,
+    PARAM_SHALLOW_WATER_YAW_FACTOR,
+    vessel.shallowWaterYawFactor,
+  );
+  if (shallowWaterYawFactor >= 0.0) {
+    vessel.shallowWaterYawFactor = shallowWaterYawFactor;
+  }
+  const shallowWaterRudderFactor = readParam(
+    params,
+    len,
+    PARAM_SHALLOW_WATER_RUDDER_FACTOR,
+    vessel.shallowWaterRudderFactor,
+  );
+  if (shallowWaterRudderFactor >= 0.0) {
+    vessel.shallowWaterRudderFactor = shallowWaterRudderFactor;
+  }
+
+  vessel.rudderCommand = clampSigned(vessel.rudderCommand, vessel.rudderMaxAngle);
+  vessel.rudderAngle = clampSigned(vessel.rudderAngle, vessel.rudderMaxAngle);
+}
+
+export function getEnvironmentBufferPtr(): usize {
+  return changetype<usize>(environmentBuffer);
+}
+
+export function getEnvironmentBufferCapacity(): i32 {
+  return ENVIRONMENT_BUFFER_CAPACITY;
+}
+
+export function setEnvironment(paramsPtr: usize, paramsLen: i32): void {
+  if (paramsPtr === 0 || paramsLen <= 0) return;
+  const params = changetype<StaticArray<f64>>(paramsPtr);
+  const len = paramsLen > 0 ? paramsLen : 0;
+
+  globalEnvironment.windSpeed = readParam(
+    params,
+    len,
+    ENV_WIND_SPEED,
+    globalEnvironment.windSpeed,
+  );
+  globalEnvironment.windDirection = readParam(
+    params,
+    len,
+    ENV_WIND_DIRECTION,
+    globalEnvironment.windDirection,
+  );
+  globalEnvironment.currentSpeed = readParam(
+    params,
+    len,
+    ENV_CURRENT_SPEED,
+    globalEnvironment.currentSpeed,
+  );
+  globalEnvironment.currentDirection = readParam(
+    params,
+    len,
+    ENV_CURRENT_DIRECTION,
+    globalEnvironment.currentDirection,
+  );
+  globalEnvironment.waveHeight = readParam(
+    params,
+    len,
+    ENV_WAVE_HEIGHT,
+    globalEnvironment.waveHeight,
+  );
+  globalEnvironment.waveLength = readParam(
+    params,
+    len,
+    ENV_WAVE_LENGTH,
+    globalEnvironment.waveLength,
+  );
+  globalEnvironment.waveDirection = readParam(
+    params,
+    len,
+    ENV_WAVE_DIRECTION,
+    globalEnvironment.waveDirection,
+  );
+  globalEnvironment.waveSteepness = readParam(
+    params,
+    len,
+    ENV_WAVE_STEEPNESS,
+    globalEnvironment.waveSteepness,
+  );
+  globalEnvironment.waterDepth = readParam(
+    params,
+    len,
+    ENV_WATER_DEPTH,
+    globalEnvironment.waterDepth,
+  );
+}
+
 export function updateVesselState(
   vesselPtr: usize,
   dt: f64,
@@ -281,70 +729,120 @@ export function updateVesselState(
   const ballastFactor = clamp01(vessel.ballast);
   const effectiveMass = vessel.mass * (0.9 + ballastFactor * 0.4); // 0.9x .. 1.3x
 
-  // Engine thrust, fuel burn, and drag
-  const throttleCommand = clampSigned(vessel.throttle, 1.0);
+  // Actuation dynamics (engine lag + rudder rate limit)
+  const throttleCommand = clampSigned(vessel.throttleCommand, 1.0);
+  const engineTau = vessel.engineTimeConstant > 0.05 ? vessel.engineTimeConstant : 0.05;
+  vessel.throttle += ((throttleCommand - vessel.throttle) / engineTau) * safeDt;
+  vessel.throttle = clampSigned(vessel.throttle, 1.0);
+
+  const rudderDelta = vessel.rudderCommand - vessel.rudderAngle;
+  const maxRudderStep = vessel.rudderRateLimit > 0.0 ? vessel.rudderRateLimit * safeDt : Math.abs(rudderDelta);
+  if (Math.abs(rudderDelta) <= maxRudderStep) {
+    vessel.rudderAngle = vessel.rudderCommand;
+  } else {
+    vessel.rudderAngle += rudderDelta > 0.0 ? maxRudderStep : -maxRudderStep;
+  }
+
+  // Engine thrust + fuel burn
   const hasFuel = vessel.fuelLevel > 0.0;
-  const throttle = hasFuel ? throttleCommand : 0.0;
+  const throttle = hasFuel ? vessel.throttle : 0.0;
   const thrust = vessel.maxThrust * throttle;
-  const hullFactor = 0.8 + vessel.blockCoefficient * 0.6;
-  const draftFactor =
-    vessel.draft > 0.0 ? vessel.draft / (vessel.beam + 0.01) : 0.3;
-  const dragSurge =
-    vessel.dragCoefficient * hullFactor * vessel.u * Math.abs(vessel.u);
-  const dragSway =
-    vessel.dragCoefficient *
-    (0.6 + draftFactor) *
-    vessel.v *
-    Math.abs(vessel.v);
-  const fuelBurn =
-    Math.abs(throttleCommand) * vessel.fuelConsumptionRate * safeDt;
+  const fuelBurn = Math.abs(throttle) * vessel.fuelConsumptionRate * safeDt;
   vessel.fuelLevel = clamp01(vessel.fuelLevel - fuelBurn);
   vessel.lastFuelConsumption =
     safeDt > 0.0 ? (fuelBurn / safeDt) * 3600.0 : 0.0;
 
-  // Simple current force resolved into body frame
+  // Relative current in body frame
   const relCurrentDir = currentDirection - vessel.psi;
-  const currentSurge =
-    currentSpeed * Math.cos(relCurrentDir) * vessel.mass * 0.01;
-  const currentSway =
-    currentSpeed * Math.sin(relCurrentDir) * vessel.mass * 0.01;
+  const currentSurge = currentSpeed * Math.cos(relCurrentDir);
+  const currentSway = currentSpeed * Math.sin(relCurrentDir);
+  const uRel = vessel.u - currentSurge;
+  const vRel = vessel.v - currentSway;
 
-  // Rudder force proportional to speed^2 and angle
-  const speedMag = Math.sqrt(vessel.u * vessel.u + vessel.v * vessel.v);
-  // Rudder force with simple stall curve and lever arm toward stern
-  const stallFactor =
-    1.0 -
-    Math.min(1.0, Math.abs(vessel.rudderAngle) / vessel.rudderStallAngle) ** 2;
+  // Shallow water modifiers
+  const waterDepth = globalEnvironment.waterDepth;
+  const depthRatio =
+    waterDepth > 0.0 ? waterDepth / (vessel.draft + 0.01) : SHALLOW_WATER_MAX_RATIO + 1.0;
+  let shallowT = 0.0;
+  if (depthRatio > 0.0 && depthRatio < SHALLOW_WATER_MAX_RATIO) {
+    const clampedRatio =
+      depthRatio < SHALLOW_WATER_MIN_RATIO ? SHALLOW_WATER_MIN_RATIO : depthRatio;
+    shallowT =
+      (SHALLOW_WATER_MAX_RATIO - clampedRatio) /
+      (SHALLOW_WATER_MAX_RATIO - SHALLOW_WATER_MIN_RATIO);
+  }
+  const shallowFactor = 1.0 + vessel.shallowWaterFactor * shallowT;
+  const shallowYawFactor = 1.0 + vessel.shallowWaterYawFactor * shallowT;
+  const shallowRudderFactor =
+    1.0 - (1.0 - vessel.shallowWaterRudderFactor) * shallowT;
+
+  // Geometry-scaled drag
+  const hullFactor = 0.7 + vessel.blockCoefficient * 0.6;
+  const areaX = Math.max(1.0, vessel.length * vessel.draft * hullFactor);
+  const areaY = Math.max(
+    1.0,
+    vessel.beam * vessel.draft * (0.7 + vessel.blockCoefficient * 0.3),
+  );
+  const dragSurge =
+    0.5 * WATER_DENSITY * vessel.cdSurge * areaX * uRel * Math.abs(uRel) * shallowFactor;
+  const dragSway =
+    0.5 * WATER_DENSITY * vessel.cdSway * areaY * vRel * Math.abs(vRel) * shallowFactor;
+  const swayLinear = vessel.swayDamping * vRel;
+
+  // Rudder hydrodynamics with prop wash
+  const flowSpeed = Math.sqrt(uRel * uRel + vRel * vRel);
+  const washSpeed =
+    vessel.propWashFactor > 0.0
+      ? Math.sqrt(
+          Math.abs(thrust) /
+            (0.5 * WATER_DENSITY * vessel.rudderArea + 1e-6),
+        ) * vessel.propWashFactor
+      : 0.0;
+  const inflowSpeed = Math.sqrt(flowSpeed * flowSpeed + washSpeed * washSpeed);
+  const inflowAngle = Math.atan2(vRel, Math.max(0.1, uRel));
+  const alpha = vessel.rudderAngle - inflowAngle;
+  const absAlpha = Math.abs(alpha);
+  const stallRatio =
+    vessel.rudderStallAngle > 0.0 ? absAlpha / vessel.rudderStallAngle : 1.0;
+  const stallFactor = stallRatio >= 1.0 ? 0.0 : 1.0 - stallRatio * stallRatio;
+  const liftCoeff = vessel.rudderLiftSlope * alpha * Math.max(0.0, stallFactor);
   const rudderForce =
-    vessel.rudderForceCoefficient *
-    vessel.rudderAngle *
-    speedMag *
-    speedMag *
-    Math.max(0.0, stallFactor);
-  const leverArm = vessel.length * (0.5 + PIVOT_AFT_RATIO); // distance from pivot toward stern
-  const rudderMoment = rudderForce * leverArm;
+    0.5 * WATER_DENSITY * vessel.rudderArea * inflowSpeed * inflowSpeed * liftCoeff;
+  const rudderSway = rudderForce * shallowRudderFactor;
+  const rudderMoment = rudderSway * vessel.rudderArm;
 
-  // Very simple wind yaw damping
+  // Hull sway/yaw derivatives
+  const hullSway = -(vessel.hullYv * vRel + vessel.hullYr * vessel.r);
+  const hullYaw = -(vessel.hullNv * vRel + vessel.hullNr * vessel.r);
+
+  // Simple wind yaw moment
   const windYaw =
     windSpeed * windSpeed * 0.01 * Math.sin(windDirection - vessel.psi);
 
   // Inertia approximations
   const mass = effectiveMass;
-  const Izz = mass * vessel.length * vessel.length * 0.1;
+  const massX = Math.max(1.0, mass + vessel.addedMassX);
+  const massY = Math.max(1.0, mass + vessel.addedMassY);
+  const Izz = Math.max(
+    1.0,
+    mass * vessel.length * vessel.length * 0.1 + vessel.addedMassYaw,
+  );
   const Ixx = mass * vessel.beam * vessel.beam * 0.08;
   const Iyy = mass * vessel.length * vessel.length * 0.08;
 
-  // Accelerations
-  const uDot = (thrust - dragSurge + currentSurge) / mass;
-  const vDot =
-    (-dragSway - vessel.swayDamping * vessel.v + currentSway + rudderForce) /
-    mass;
-  const rDot =
-    (rudderMoment -
-      windYaw -
-      vessel.yawDamping * vessel.r -
-      vessel.yawDampingQuad * vessel.r * Math.abs(vessel.r)) /
-    Izz;
+  const X = thrust - dragSurge;
+  const Y = -dragSway - swayLinear + rudderSway + hullSway;
+  const N =
+    rudderMoment +
+    hullYaw -
+    windYaw -
+    vessel.yawDamping * vessel.r * shallowYawFactor -
+    vessel.yawDampingQuad * vessel.r * Math.abs(vessel.r) * shallowYawFactor;
+
+  // Accelerations with basic Coriolis coupling
+  const uDot = X / massX + vessel.v * vessel.r;
+  const vDot = Y / massY - vessel.u * vessel.r;
+  const rDot = N / Izz;
 
   // Gerstner-style wave sampling (fallback to wind-derived if missing)
   const fallbackWaveHeight = Math.min(
@@ -418,9 +916,10 @@ export function updateVesselState(
   vessel.v += vDot * safeDt;
   vessel.r += rDot * safeDt;
 
-  vessel.u = clampSigned(vessel.u, vessel.maxSpeed);
-  vessel.v = clampSigned(vessel.v, vessel.maxSpeed * 0.6); // sway a bit lower
-  vessel.r = clampSigned(vessel.r, MAX_YAW_RATE);
+  const speedCap = vessel.maxSpeed * MAX_SPEED_MULTIPLIER;
+  vessel.u = clampSigned(vessel.u, speedCap);
+  vessel.v = clampSigned(vessel.v, speedCap * 0.6); // sway a bit lower
+  vessel.r = clampSigned(vessel.r, MAX_YAW_RATE * MAX_YAW_MULTIPLIER);
 
   // Integrate heading
   vessel.psi = normalizeAngle(vessel.psi + vessel.r * safeDt);
@@ -440,7 +939,7 @@ export function updateVesselState(
 
 export function setThrottle(vesselPtr: usize, throttle: f64): void {
   const vessel = ensureVessel(vesselPtr);
-  vessel.throttle = clampSigned(throttle, 1.0);
+  vessel.throttleCommand = clampSigned(throttle, 1.0);
 }
 
 export function setRudderAngle(vesselPtr: usize, angle: f64): void {
@@ -449,7 +948,7 @@ export function setRudderAngle(vesselPtr: usize, angle: f64): void {
   let clamped = angle;
   if (clamped > vessel.rudderMaxAngle) clamped = vessel.rudderMaxAngle;
   if (clamped < -vessel.rudderMaxAngle) clamped = -vessel.rudderMaxAngle;
-  vessel.rudderAngle = clamped;
+  vessel.rudderCommand = clamped;
 }
 
 export function setBallast(vesselPtr: usize, _level: f64): void {
