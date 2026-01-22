@@ -54,13 +54,21 @@ export const buildDisplacementParams = (vessel: VesselState) => {
   const hydro = vessel.hydrodynamics || DEFAULT_HYDRO;
   const properties = vessel.properties;
 
-  const mass = getOverride(params, 'mass', toNumber(properties?.mass, DEFAULT_MASS));
+  const mass = getOverride(
+    params,
+    'mass',
+    toNumber(properties?.mass, DEFAULT_MASS),
+  );
   const length = getOverride(
     params,
     'length',
     toNumber(properties?.length, DEFAULT_LENGTH),
   );
-  const beam = getOverride(params, 'beam', toNumber(properties?.beam, DEFAULT_BEAM));
+  const beam = getOverride(
+    params,
+    'beam',
+    toNumber(properties?.beam, DEFAULT_BEAM),
+  );
   const draft = getOverride(
     params,
     'draft',
@@ -87,7 +95,10 @@ export const buildDisplacementParams = (vessel: VesselState) => {
     rudderForceCoefficient: getOverride(
       params,
       'rudderForceCoefficient',
-      toNumber(hydro?.rudderForceCoefficient, DEFAULT_HYDRO.rudderForceCoefficient),
+      toNumber(
+        hydro?.rudderForceCoefficient,
+        DEFAULT_HYDRO.rudderForceCoefficient,
+      ),
     ),
     rudderStallAngle: getOverride(
       params,
@@ -160,11 +171,7 @@ export const buildDisplacementParams = (vessel: VesselState) => {
       'rudderLiftSlope',
       DEFAULT_RUDDER_LIFT_SLOPE,
     ),
-    propWashFactor: getOverride(
-      params,
-      'propWashFactor',
-      DEFAULT_PROP_WASH,
-    ),
+    propWashFactor: getOverride(params, 'propWashFactor', DEFAULT_PROP_WASH),
     engineTimeConstant: getOverride(
       params,
       'engineTimeConstant',

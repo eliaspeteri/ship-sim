@@ -132,34 +132,37 @@ export function LandTiles(props: {
     cacheRef.current.set(key, mesh);
   }, []);
 
-  const evictOverflow = useCallback((wantedSet: Set<string>) => {
-    const cache = cacheRef.current;
-    if (cache.size <= maxCacheSize) return;
+  const evictOverflow = useCallback(
+    (wantedSet: Set<string>) => {
+      const cache = cacheRef.current;
+      if (cache.size <= maxCacheSize) return;
 
-    const disposeMesh = (mesh: THREE.Mesh) => {
-      mesh.geometry.dispose();
-      const mat = mesh.material as THREE.Material;
-      if (mat?.dispose) mat.dispose();
-    };
+      const disposeMesh = (mesh: THREE.Mesh) => {
+        mesh.geometry.dispose();
+        const mat = mesh.material as THREE.Material;
+        if (mat?.dispose) mat.dispose();
+      };
 
-    const keys = Array.from(cache.keys());
-    for (const key of keys) {
-      if (cache.size <= maxCacheSize) break;
-      if (wantedSet.has(key)) continue;
-      const mesh = cache.get(key);
-      if (mesh) disposeMesh(mesh);
-      cache.delete(key);
-    }
+      const keys = Array.from(cache.keys());
+      for (const key of keys) {
+        if (cache.size <= maxCacheSize) break;
+        if (wantedSet.has(key)) continue;
+        const mesh = cache.get(key);
+        if (mesh) disposeMesh(mesh);
+        cache.delete(key);
+      }
 
-    if (cache.size <= maxCacheSize) return;
-    const remainingKeys = Array.from(cache.keys());
-    for (const key of remainingKeys) {
-      if (cache.size <= maxCacheSize) break;
-      const mesh = cache.get(key);
-      if (mesh) disposeMesh(mesh);
-      cache.delete(key);
-    }
-  }, [maxCacheSize]);
+      if (cache.size <= maxCacheSize) return;
+      const remainingKeys = Array.from(cache.keys());
+      for (const key of remainingKeys) {
+        if (cache.size <= maxCacheSize) break;
+        const mesh = cache.get(key);
+        if (mesh) disposeMesh(mesh);
+        cache.delete(key);
+      }
+    },
+    [maxCacheSize],
+  );
 
   const ensureLoaded = useCallback(
     async (key: string) => {

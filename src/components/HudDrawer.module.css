@@ -535,7 +535,10 @@
 
 .physicsGrid {
   display: grid;
-  grid-template-columns: minmax(160px, 1.2fr) minmax(120px, 0.7fr) minmax(140px, 0.9fr);
+  grid-template-columns: minmax(160px, 1.2fr) minmax(120px, 0.7fr) minmax(
+      140px,
+      0.9fr
+    );
   gap: 6px 12px;
   align-items: center;
 }

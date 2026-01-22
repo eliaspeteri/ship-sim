@@ -187,11 +187,7 @@ export class SimulationLoop {
   private applyPhysicsParams(vesselPtr: number, vessel: VesselState): void {
     if (!this.wasmBridge) return;
     const payload = buildPhysicsPayload(vessel);
-    this.wasmBridge.setVesselParams(
-      vesselPtr,
-      payload.modelId,
-      payload.params,
-    );
+    this.wasmBridge.setVesselParams(vesselPtr, payload.modelId, payload.params);
   }
 
   public refreshPhysicsParams(): void {
