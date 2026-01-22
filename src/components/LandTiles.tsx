@@ -21,12 +21,12 @@ function lonLatToTileXY(lon: number, lat: number, z: number) {
   return { x, y };
 }
 
-function zoomFromCameraY(camY: number) {
-  if (camY < 150) return 13;
-  if (camY < 300) return 12;
-  if (camY < 700) return 11;
-  if (camY < 1500) return 10;
-  if (camY < 3500) return 9;
+function zoomFromCameraDistance(distance: number) {
+  if (distance < 250) return 13;
+  if (distance < 500) return 12;
+  if (distance < 1000) return 11;
+  if (distance < 2500) return 10;
+  if (distance < 5000) return 9;
   return 8;
 }
 
@@ -47,6 +47,7 @@ export function LandTiles(props: {
     useTerrain = true,
   } = props;
   const { camera } = useThree();
+  const maxCacheSize = 128;
 
   // Cache of loaded meshes (key -> mesh)
   const cacheRef = useRef<Map<string, THREE.Mesh>>(new Map());
@@ -63,9 +64,13 @@ export function LandTiles(props: {
   const [queryTick, setQueryTick] = useState(0);
   const lastQueryKeyRef = useRef<string>('');
 
-  // Compute wanted tile set based on focusRef (meters) and camera height
+  // Compute wanted tile set based on focusRef (meters) and camera distance
   const wanted = useMemo(() => {
-    const z = zoomFromCameraY(camera.position.y);
+    const dx = camera.position.x - focusRef.current.x;
+    const dy = camera.position.y;
+    const dz = camera.position.z - focusRef.current.y;
+    const distance = Math.hypot(dx, dy, dz);
+    const z = zoomFromCameraDistance(distance);
 
     const focusXY = { x: focusRef.current.x, y: focusRef.current.y };
     const { lat, lon } = xyToLatLon(focusXY);
@@ -81,11 +86,15 @@ export function LandTiles(props: {
 
     return { z, cx, cy, keys };
     // queryTick forces recalculation at a controlled cadence
-  }, [camera.position.y, focusRef, radius, queryTick]);
+  }, [camera, focusRef, radius, queryTick]);
 
   // Throttle updates: only bump queryTick when the (z,cx,cy) changes
   useEffect(() => {
-    const z = zoomFromCameraY(camera.position.y);
+    const dx = camera.position.x - focusRef.current.x;
+    const dy = camera.position.y;
+    const dz = camera.position.z - focusRef.current.y;
+    const distance = Math.hypot(dx, dy, dz);
+    const z = zoomFromCameraDistance(distance);
     const { lat, lon } = xyToLatLon({
       x: focusRef.current.x,
       y: focusRef.current.y,
@@ -99,7 +108,11 @@ export function LandTiles(props: {
     }
     // Run this on a small interval rather than per-frame
     const id = window.setInterval(() => {
-      const z2 = zoomFromCameraY(camera.position.y);
+      const dx2 = camera.position.x - focusRef.current.x;
+      const dy2 = camera.position.y;
+      const dz2 = camera.position.z - focusRef.current.y;
+      const distance2 = Math.hypot(dx2, dy2, dz2);
+      const z2 = zoomFromCameraDistance(distance2);
       const ll = xyToLatLon({ x: focusRef.current.x, y: focusRef.current.y });
       const txy = lonLatToTileXY(ll.lon, ll.lat, z2);
       const qk2 = `${z2}/${txy.x}/${txy.y}`;
@@ -112,17 +125,41 @@ export function LandTiles(props: {
     return () => window.clearInterval(id);
   }, [camera, focusRef]);
 
-  const evictNotWanted = useCallback((wantedSet: Set<string>) => {
-    for (const [key, mesh] of cacheRef.current.entries()) {
-      if (!wantedSet.has(key)) {
-        // Dispose and remove
-        mesh.geometry.dispose();
-        const mat = mesh.material as THREE.Material;
-        if (mat?.dispose) mat.dispose();
-        cacheRef.current.delete(key);
-      }
-    }
+  const touchCache = useCallback((key: string) => {
+    const mesh = cacheRef.current.get(key);
+    if (!mesh) return;
+    cacheRef.current.delete(key);
+    cacheRef.current.set(key, mesh);
   }, []);
+
+  const evictOverflow = useCallback((wantedSet: Set<string>) => {
+    const cache = cacheRef.current;
+    if (cache.size <= maxCacheSize) return;
+
+    const disposeMesh = (mesh: THREE.Mesh) => {
+      mesh.geometry.dispose();
+      const mat = mesh.material as THREE.Material;
+      if (mat?.dispose) mat.dispose();
+    };
+
+    const keys = Array.from(cache.keys());
+    for (const key of keys) {
+      if (cache.size <= maxCacheSize) break;
+      if (wantedSet.has(key)) continue;
+      const mesh = cache.get(key);
+      if (mesh) disposeMesh(mesh);
+      cache.delete(key);
+    }
+
+    if (cache.size <= maxCacheSize) return;
+    const remainingKeys = Array.from(cache.keys());
+    for (const key of remainingKeys) {
+      if (cache.size <= maxCacheSize) break;
+      const mesh = cache.get(key);
+      if (mesh) disposeMesh(mesh);
+      cache.delete(key);
+    }
+  }, [maxCacheSize]);
 
   const ensureLoaded = useCallback(
     async (key: string) => {
@@ -161,9 +198,6 @@ export function LandTiles(props: {
     const wantKeys = wanted.keys;
     const wantSet = new Set(wantKeys);
 
-    // Evict anything not in current window
-    evictNotWanted(wantSet);
-
     // Kick off loads for missing tiles
     (async () => {
       await Promise.all(wantKeys.map(k => ensureLoaded(k)));
@@ -171,13 +205,15 @@ export function LandTiles(props: {
 
       // IMPORTANT: only render keys that actually exist in cache
       const present = wantKeys.filter(k => cacheRef.current.has(k));
+      present.forEach(k => touchCache(k));
+      evictOverflow(wantSet);
       setRenderKeys(present);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [wanted, ensureLoaded, evictNotWanted]);
+  }, [wanted, ensureLoaded, evictOverflow, touchCache]);
 
   return (
     <group>

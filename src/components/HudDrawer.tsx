@@ -47,6 +47,7 @@ import {
   HudVesselsPanel,
   HudWeatherPanel,
 } from './hud/HudPanels';
+import { HudPhysicsInspectorPanel } from './hud/PhysicsInspectorPanel';
 import {
   COMPASS_ZERO_OFFSET_DEG,
   COURSE_SPEED_THRESHOLD_MS,
@@ -129,6 +130,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const setNotice = useStore(state => state.setNotice);
   const account = useStore(state => state.account);
   const setAccount = useStore(state => state.setAccount);
+  const setPhysicsParams = useStore(state => state.setPhysicsParams);
   const missions = useStore(state => state.missions);
   const missionAssignments = useStore(state => state.missionAssignments);
   const upsertMissionAssignment = useStore(
@@ -145,6 +147,9 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const currentVesselId = useStore(state => state.currentVesselId);
   const spaceId = useStore(state => state.spaceId);
   const isAdmin = roles.includes('admin');
+  const showPhysicsInspector =
+    process.env.NEXT_PUBLIC_PHYSICS_INSPECTOR === 'true' ||
+    process.env.NODE_ENV !== 'production';
   const helm = vessel.helm;
   const stations = vessel.stations;
   const controls = useStore(state => state.vessel.controls);
@@ -1087,6 +1092,15 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     });
   };
 
+  const handlePhysicsParamsApply = React.useCallback(
+    (params: Record<string, number>) => {
+      setPhysicsParams(params);
+      const simulationLoop = getSimulationLoop();
+      simulationLoop.refreshPhysicsParams();
+    },
+    [setPhysicsParams],
+  );
+
   return (
     <div className={styles.hudRoot} data-hud-root>
       {tab ? (
@@ -1230,18 +1244,26 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
           ) : null}
           {tab === 'alarms' ? <HudAlarmsPanel alarmItems={alarmItems} /> : null}
           {tab === 'admin' && isAdmin ? (
-            <HudAdminPanel
-              adminTargets={adminTargets}
-              adminTargetId={adminTargetId}
-              setAdminTargetId={setAdminTargetId}
-              adminLat={adminLat}
-              setAdminLat={setAdminLat}
-              adminLon={adminLon}
-              setAdminLon={setAdminLon}
-              selectedAdminTarget={selectedAdminTarget}
-              onMove={handleAdminMove}
-              onMoveToSelf={handleAdminMoveToSelf}
-            />
+            <div className={styles.sectionGrid}>
+              <HudAdminPanel
+                adminTargets={adminTargets}
+                adminTargetId={adminTargetId}
+                setAdminTargetId={setAdminTargetId}
+                adminLat={adminLat}
+                setAdminLat={setAdminLat}
+                adminLon={adminLon}
+                setAdminLon={setAdminLon}
+                selectedAdminTarget={selectedAdminTarget}
+                onMove={handleAdminMove}
+                onMoveToSelf={handleAdminMoveToSelf}
+              />
+              {showPhysicsInspector ? (
+                <HudPhysicsInspectorPanel
+                  vessel={vessel}
+                  onApplyParams={handlePhysicsParamsApply}
+                />
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}
