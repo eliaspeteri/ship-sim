@@ -654,10 +654,7 @@ export class SimulationLoop {
 
       // Throttled broadcast of local vessel state to server
       const nowSeconds = performance.now() / 1000;
-      if (
-        nowSeconds - this.lastBroadcastTime >= this.broadcastInterval &&
-        state.mode !== 'spectator'
-      ) {
+      if (nowSeconds - this.lastBroadcastTime >= this.broadcastInterval) {
         socketManager.sendVesselUpdate();
         this.lastBroadcastTime = nowSeconds;
       }
