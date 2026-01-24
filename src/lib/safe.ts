@@ -4,5 +4,5 @@
  * @param fallback set value to fallback if v is not a finite number
  * @returns v if it is a finite number, otherwise fallback
  */
-export const safe = (v: unknown, fallback: unknown): unknown =>
+export const safe = (v: unknown, fallback: number): number =>
   typeof v === 'number' && isFinite(v) ? v : fallback;
