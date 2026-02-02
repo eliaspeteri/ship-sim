@@ -1046,7 +1046,7 @@ export const getEnvironmentForSpace = (spaceId: string): EnvironmentState => {
   return env;
 };
 
-const getRulesForSpace = (spaceId: string): Rules => {
+export const getRulesForSpace = (spaceId: string): Rules => {
   const meta = spaceMetaCache.get(spaceId);
   if (meta?.rulesetType) {
     return getDefaultRules(mapToRulesetType(meta.rulesetType));
