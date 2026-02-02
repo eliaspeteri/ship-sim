@@ -314,9 +314,11 @@ const EditorRenderer: React.FC<EditorRendererProps> = ({
         <CameraHeadingTracker enabled onHeadingChange={onHeadingChange} />
       ) : null}
       <CameraClipLimits maxDistance={maxDistance} />
-      <LandTiles focusRef={focusRef} />
-      <WorkAreaBounds workAreas={workAreas} />
-      <gridHelper args={[20000, 80, '#385062', '#1c2a34']} />
+      <group scale={[-1, 1, 1]}>
+        <LandTiles focusRef={focusRef} />
+        <WorkAreaBounds workAreas={workAreas} />
+        <gridHelper args={[20000, 80, '#385062', '#1c2a34']} />
+      </group>
     </Canvas>
   );
 };
