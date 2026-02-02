@@ -6,7 +6,8 @@ import {
 import { EditorWorkArea } from '../types';
 import EditorRenderer from './EditorRenderer';
 import CameraHeadingIndicator from '../../../components/CameraHeadingIndicator';
-import { latLonToXY, xyToLatLon } from '../../../lib/geo';
+import { latLonToXY, setGeoOrigin, xyToLatLon } from '../../../lib/geo';
+import { isBBoxBounds } from '../types';
 
 type EditorViewportProps = {
   title?: string;
@@ -30,6 +31,48 @@ const EditorViewport: React.FC<EditorViewportProps> = ({
   const [cameraHeadingDeg, setCameraHeadingDeg] = React.useState(0);
   const focusRef = React.useRef({ x: 0, y: 0 });
   const cameraStateRef = React.useRef({ y: 220, fov: 55, aspect: 1.6 });
+
+  const geoOrigin = React.useMemo(() => {
+    if (workAreas.length === 0) {
+      return focusRequest ? { lat: focusRequest.lat, lon: focusRequest.lon } : null;
+    }
+
+    let minLat = Infinity;
+    let maxLat = -Infinity;
+    let minLon = Infinity;
+    let maxLon = -Infinity;
+
+    workAreas.forEach(area => {
+      if (isBBoxBounds(area.bounds)) {
+        minLat = Math.min(minLat, area.bounds.minLat);
+        maxLat = Math.max(maxLat, area.bounds.maxLat);
+        minLon = Math.min(minLon, area.bounds.minLon);
+        maxLon = Math.max(maxLon, area.bounds.maxLon);
+        return;
+      }
+
+      area.bounds.coordinates.forEach(([lat, lon]) => {
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
+        minLon = Math.min(minLon, lon);
+        maxLon = Math.max(maxLon, lon);
+      });
+    });
+
+    if (!Number.isFinite(minLat) || !Number.isFinite(minLon)) {
+      return focusRequest ? { lat: focusRequest.lat, lon: focusRequest.lon } : null;
+    }
+
+    return {
+      lat: (minLat + maxLat) / 2,
+      lon: (minLon + maxLon) / 2,
+    };
+  }, [focusRequest, workAreas]);
+
+  React.useEffect(() => {
+    if (!geoOrigin) return;
+    setGeoOrigin(geoOrigin);
+  }, [geoOrigin]);
 
   const zoomFromCameraY = (camY: number) => {
     if (camY < 150) return 13;
