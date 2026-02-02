@@ -247,28 +247,39 @@ const EditorRenderer: React.FC<EditorRendererProps> = ({
   const maxDistance = React.useMemo(() => {
     if (workAreas.length === 0) return 12000;
 
-    let maxSpan = 0;
+    let minLat = Infinity;
+    let maxLat = -Infinity;
+    let minLon = Infinity;
+    let maxLon = -Infinity;
+
     workAreas.forEach(area => {
-      let minLat = 0;
-      let minLon = 0;
-      let maxLat = 0;
-      let maxLon = 0;
       if (area.bounds.type === 'bbox') {
-        ({ minLat, minLon, maxLat, maxLon } = area.bounds);
-      } else if (area.bounds.coordinates.length > 0) {
-        minLat = Math.min(...area.bounds.coordinates.map(p => p[0]));
-        maxLat = Math.max(...area.bounds.coordinates.map(p => p[0]));
-        minLon = Math.min(...area.bounds.coordinates.map(p => p[1]));
-        maxLon = Math.max(...area.bounds.coordinates.map(p => p[1]));
-      } else {
+        minLat = Math.min(minLat, area.bounds.minLat);
+        maxLat = Math.max(maxLat, area.bounds.maxLat);
+        minLon = Math.min(minLon, area.bounds.minLon);
+        maxLon = Math.max(maxLon, area.bounds.maxLon);
         return;
       }
-      const minXY = latLonToXY({ lat: minLat, lon: minLon });
-      const maxXY = latLonToXY({ lat: maxLat, lon: maxLon });
-      const width = Math.abs(maxXY.x - minXY.x);
-      const height = Math.abs(maxXY.y - minXY.y);
-      maxSpan = Math.max(maxSpan, Math.hypot(width, height));
+
+      if (area.bounds.coordinates.length === 0) return;
+
+      area.bounds.coordinates.forEach(([lat, lon]) => {
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
+        minLon = Math.min(minLon, lon);
+        maxLon = Math.max(maxLon, lon);
+      });
     });
+
+    if (!Number.isFinite(minLat) || !Number.isFinite(minLon)) {
+      return 12000;
+    }
+
+    const minXY = latLonToXY({ lat: minLat, lon: minLon });
+    const maxXY = latLonToXY({ lat: maxLat, lon: maxLon });
+    const width = Math.abs(maxXY.x - minXY.x);
+    const height = Math.abs(maxXY.y - minXY.y);
+    const maxSpan = Math.hypot(width, height);
 
     const padded = maxSpan * 1.6;
     return Math.max(2000, Math.min(80000, padded));
