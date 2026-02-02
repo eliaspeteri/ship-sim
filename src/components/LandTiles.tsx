@@ -37,6 +37,7 @@ export function LandTiles(props: {
   heightScale?: number;
   seaLevel?: number;
   useTerrain?: boolean;
+  flipX?: boolean;
 }) {
   const {
     focusRef,
@@ -45,6 +46,7 @@ export function LandTiles(props: {
     heightScale = 1,
     seaLevel = 0,
     useTerrain = true,
+    flipX = false,
   } = props;
   const { camera } = useThree();
   const maxCacheSize = 128;
@@ -219,7 +221,7 @@ export function LandTiles(props: {
   }, [wanted, ensureLoaded, evictOverflow, touchCache]);
 
   return (
-    <group>
+    <group scale={flipX ? [-1, 1, 1] : [1, 1, 1]}>
       {renderKeys.map(k => {
         const mesh = cacheRef.current.get(k);
         if (!mesh) return null; // <-- prevents “primitive without object”

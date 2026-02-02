@@ -13,7 +13,7 @@ import { positionToXY } from '../lib/position';
 import { getScenarios, ScenarioDefinition } from '../lib/scenarios';
 import { getApiBase } from '../lib/api';
 import { getDefaultRules, mapToRulesetType } from '../types/rules.types';
-import { bboxAroundLatLon } from '../lib/geo';
+import { bboxAroundLatLon, setGeoOrigin } from '../lib/geo';
 import { applyFailureControlLimits } from '../lib/failureControls';
 import {
   DEFAULT_SPACE_ID,
@@ -67,6 +67,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const setSeamarks = useStore(state => state.setSeamarks);
   const hasStartedRef = useRef(false);
   const pendingJoinRef = useRef<string | null>(null);
+  const geoOriginSetRef = useRef(false);
   const sessionRole = (session?.user as { role?: string })?.role;
   const isAuthed = status === 'authenticated' && !!session;
   const canEnterPlayerMode =
@@ -412,6 +413,19 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   useEffect(() => {
     setSpaceInput(spaceId || DEFAULT_SPACE_ID);
   }, [spaceId]);
+
+  useEffect(() => {
+    geoOriginSetRef.current = false;
+  }, [spaceId]);
+
+  useEffect(() => {
+    if (geoOriginSetRef.current) return;
+    const lat = vessel.position.lat;
+    const lon = vessel.position.lon;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    setGeoOrigin({ lat, lon });
+    geoOriginSetRef.current = true;
+  }, [vessel.position.lat, vessel.position.lon]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

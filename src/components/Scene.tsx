@@ -1177,6 +1177,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           heightScale={TERRAIN_HEIGHT_SCALE}
           seaLevel={TERRAIN_SEA_LEVEL}
           useTerrain={TERRAIN_ENABLED}
+          flipX
         />
 
         <Ship
