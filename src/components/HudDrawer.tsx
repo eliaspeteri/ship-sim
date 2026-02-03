@@ -35,6 +35,8 @@ import {
   HudAlarmsPanel,
   HudChatPanel,
   HudConningPanel,
+  HudNavControls,
+  HudCrewPanel,
   HudEcdisPanel,
   HudEventsPanel,
   HudMissionsPanel,
@@ -120,6 +122,8 @@ interface HudDrawerProps {
 export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const [tab, setTab] = useState<HudTab | null>(null);
   const [pressedTab, setPressedTab] = useState<HudTab | null>(null);
+  const hudFooterRef = React.useRef<HTMLDivElement | null>(null);
+  const [hudFooterHeight, setHudFooterHeight] = useState(0);
   const vessel = useStore(state => state.vessel);
   const environment = useStore(state => state.environment);
   const mode = useStore(state => state.mode);
@@ -150,6 +154,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const showPhysicsInspector =
     process.env.NEXT_PUBLIC_PHYSICS_INSPECTOR === 'true' ||
     process.env.NODE_ENV !== 'production';
+  const showDebugTab = showPhysicsInspector && isAdmin;
   const helm = vessel.helm;
   const stations = vessel.stations;
   const controls = useStore(state => state.vessel.controls);
@@ -936,10 +941,46 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     setTab(prev => (prev === id ? null : id));
   };
 
-  const visibleTabs = useMemo(
-    () => (isAdmin ? HUD_TABS : HUD_TABS.filter(t => t.id !== 'admin')),
-    [isAdmin],
-  );
+  const visibleTabs = useMemo(() => {
+    let tabs = HUD_TABS;
+    if (!isAdmin) {
+      tabs = tabs.filter(t => t.id !== 'admin');
+    }
+    if (!showDebugTab) {
+      tabs = tabs.filter(t => t.id !== 'debug');
+    }
+    if (mode === 'spectator') {
+      tabs = tabs.filter(t => t.id !== 'crew');
+    }
+    return tabs;
+  }, [isAdmin, mode, showDebugTab]);
+
+  React.useEffect(() => {
+    if (!tab) return;
+    if (!visibleTabs.some(entry => entry.id === tab)) {
+      setTab(null);
+    }
+  }, [tab, visibleTabs]);
+
+  React.useEffect(() => {
+    const node = hudFooterRef.current;
+    if (!node) return;
+
+    const updateHeight = () => {
+      const rect = node.getBoundingClientRect();
+      setHudFooterHeight(rect.height || 0);
+    };
+
+    updateHeight();
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new globalThis.ResizeObserver(updateHeight);
+      observer.observe(node);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, [visibleTabs.length]);
 
   const handleAssignMission = async (missionId: string) => {
     if (!missionId) return;
@@ -1104,7 +1145,11 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   return (
     <div className={styles.hudRoot} data-hud-root>
       {tab ? (
-        <div className={styles.hudPanel}>
+        <div
+          className={`${styles.hudPanel} ${
+            tab === 'navigation' ? styles.hudPanelWide : ''
+          }`}
+        >
           {tab === 'vessels' ? (
             <HudVesselsPanel
               fleetLoading={fleetLoading}
@@ -1122,16 +1167,10 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
             />
           ) : null}
           {tab === 'navigation' ? (
-            <HudNavigationPanel
-              navStats={navStats}
-              throttleLocal={throttleLocal}
-              setThrottleLocal={setThrottleLocal}
-              rudderAngleLocal={rudderAngleLocal}
-              setRudderAngleLocal={setRudderAngleLocal}
-              ballastLocal={ballastLocal}
-              setBallastLocal={setBallastLocal}
-              canAdjustThrottle={canAdjustThrottle}
-              canAdjustRudder={canAdjustRudder}
+            <HudNavigationPanel navStats={navStats} />
+          ) : null}
+          {tab === 'crew' ? (
+            <HudCrewPanel
               crewRoster={crewRoster}
               stationByUser={stationByUser}
               helmStation={helmStation}
@@ -1257,17 +1296,36 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
                 onMove={handleAdminMove}
                 onMoveToSelf={handleAdminMoveToSelf}
               />
-              {showPhysicsInspector ? (
-                <HudPhysicsInspectorPanel
-                  vessel={vessel}
-                  onApplyParams={handlePhysicsParamsApply}
-                />
-              ) : null}
+            </div>
+          ) : null}
+          {tab === 'debug' && showDebugTab ? (
+            <div className={styles.sectionGrid}>
+              <HudPhysicsInspectorPanel
+                vessel={vessel}
+                onApplyParams={handlePhysicsParamsApply}
+              />
             </div>
           ) : null}
         </div>
       ) : null}
-      <div className={styles.hudFooter}>
+      {mode !== 'spectator' ? (
+        <div
+          className={styles.navControlsDock}
+          style={{
+            bottom: `calc(${hudFooterHeight}px + 16px + env(safe-area-inset-bottom))`,
+          }}
+        >
+          <HudNavControls
+            throttleLocal={throttleLocal}
+            setThrottleLocal={setThrottleLocal}
+            rudderAngleLocal={rudderAngleLocal}
+            setRudderAngleLocal={setRudderAngleLocal}
+            canAdjustThrottle={canAdjustThrottle}
+            canAdjustRudder={canAdjustRudder}
+          />
+        </div>
+      ) : null}
+      <div className={styles.hudFooter} data-hud-footer ref={hudFooterRef}>
         <div className={styles.footerMeta}>
           HUD • {mode === 'spectator' ? 'Spectator' : 'Player'} mode
           {helmStation?.userId

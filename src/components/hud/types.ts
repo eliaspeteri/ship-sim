@@ -1,6 +1,7 @@
 export type HudTab =
   | 'vessels'
   | 'navigation'
+  | 'crew'
   | 'ecdis'
   | 'sounder'
   | 'conning'
@@ -14,6 +15,7 @@ export type HudTab =
   | 'radio'
   | 'radar'
   | 'alarms'
+  | 'debug'
   | 'admin';
 
 export type FleetVessel = {

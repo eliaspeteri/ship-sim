@@ -241,14 +241,71 @@ export function HudVesselsPanel({
 
 export function HudNavigationPanel({
   navStats,
+}: {
+  navStats: Array<{ label: string; value: string; detail?: string }>;
+}) {
+  return (
+    <div className={styles.sectionGrid}>
+      <div className={styles.statGrid}>
+        {navStats.map(stat => (
+          <div key={stat.label} className={styles.statCard}>
+            <div className={styles.statLabel}>{stat.label}</div>
+            <div className={styles.statValue}>{stat.value}</div>
+            {stat.detail ? (
+              <div className={styles.statDetail}>{stat.detail}</div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function HudNavControls({
   throttleLocal,
   setThrottleLocal,
   rudderAngleLocal,
   setRudderAngleLocal,
-  ballastLocal,
-  setBallastLocal,
   canAdjustThrottle,
   canAdjustRudder,
+}: {
+  throttleLocal: number;
+  setThrottleLocal: (value: number) => void;
+  rudderAngleLocal: number;
+  setRudderAngleLocal: (value: number) => void;
+  canAdjustThrottle: boolean;
+  canAdjustRudder: boolean;
+}) {
+  return (
+    <div className={styles.navControlsRow}>
+      <TelegraphLever
+        label="Throttle"
+        value={throttleLocal}
+        min={THROTTLE_MIN}
+        max={THROTTLE_MAX}
+        onChange={setThrottleLocal}
+        disabled={!canAdjustThrottle}
+        scale={TELEGRAPH_SCALE}
+      />
+      <HelmControl
+        value={rudderAngleLocal * DEG_PER_RAD}
+        minAngle={-RUDDER_STALL_ANGLE_DEG}
+        maxAngle={RUDDER_STALL_ANGLE_DEG}
+        onChange={deg =>
+          setRudderAngleLocal(clampRudderAngle(deg / DEG_PER_RAD))
+        }
+        disabled={!canAdjustRudder}
+      />
+      <RudderAngleIndicator
+        angle={rudderAngleLocal * DEG_PER_RAD}
+        maxAngle={RUDDER_STALL_ANGLE_DEG}
+        size={RUDDER_INDICATOR_SIZE_PX}
+      />
+    </div>
+  );
+}
+
+export function HudCrewPanel({
   crewRoster,
   stationByUser,
   helmStation,
@@ -259,15 +316,6 @@ export function HudNavigationPanel({
   isAdmin,
   onRequestStation,
 }: {
-  navStats: Array<{ label: string; value: string; detail?: string }>;
-  throttleLocal: number;
-  setThrottleLocal: (value: number) => void;
-  rudderAngleLocal: number;
-  setRudderAngleLocal: (value: number) => void;
-  ballastLocal: number;
-  setBallastLocal: (value: number) => void;
-  canAdjustThrottle: boolean;
-  canAdjustRudder: boolean;
   crewRoster: Array<{ id: string; name: string }>;
   stationByUser: Map<string, string[]>;
   helmStation:
@@ -291,170 +339,103 @@ export function HudNavigationPanel({
   ) => void;
 }) {
   return (
-    <div className={styles.sectionGrid}>
-      <div className={`${styles.sectionGrid} ${styles.twoCol}`}>
-        <div className={styles.statGrid}>
-          {navStats.map(stat => (
-            <div key={stat.label} className={styles.statCard}>
-              <div className={styles.statLabel}>{stat.label}</div>
-              <div className={styles.statValue}>{stat.value}</div>
-              {stat.detail ? (
-                <div className={styles.statDetail}>{stat.detail}</div>
-              ) : null}
-            </div>
-          ))}
-        </div>
-        <div className={styles.controlCluster}>
-          <TelegraphLever
-            label="Throttle"
-            value={throttleLocal}
-            min={THROTTLE_MIN}
-            max={THROTTLE_MAX}
-            onChange={setThrottleLocal}
-            disabled={!canAdjustThrottle}
-            scale={TELEGRAPH_SCALE}
-          />
-          <HelmControl
-            value={rudderAngleLocal * DEG_PER_RAD}
-            minAngle={-RUDDER_STALL_ANGLE_DEG}
-            maxAngle={RUDDER_STALL_ANGLE_DEG}
-            onChange={deg =>
-              setRudderAngleLocal(clampRudderAngle(deg / DEG_PER_RAD))
-            }
-            disabled={!canAdjustRudder}
-          />
-          <RudderAngleIndicator
-            angle={rudderAngleLocal * DEG_PER_RAD}
-            maxAngle={RUDDER_STALL_ANGLE_DEG}
-            size={RUDDER_INDICATOR_SIZE_PX}
-          />
-          <div className="flex flex-col space-y-1">
-            <div className="text-gray-400 text-xs">Ballast</div>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={BALLAST_SLIDER_STEP}
-              value={ballastLocal}
-              disabled={!canAdjustThrottle}
-              onChange={e => {
-                const next = parseFloat(e.target.value);
-                setBallastLocal(Number.isNaN(next) ? DEFAULT_BALLAST : next);
-              }}
-              className={`w-40 accent-blue-500 ${
-                !canAdjustThrottle ? 'opacity-60 cursor-not-allowed' : ''
-              }`}
-            />
-            <div className="text-xs text-gray-300">
-              {(ballastLocal * PERCENT_SCALE).toFixed(PERCENT_DECIMALS)}%
-            </div>
-          </div>
-        </div>
+    <div className={styles.sectionCard}>
+      <div className="flex items-center justify-between">
+        <div className={styles.sectionTitle}>Crew & stations</div>
+        <div className={styles.sectionSub}>{crewRoster.length || 0} aboard</div>
       </div>
-      <div className={styles.sectionCard}>
-        <div className="flex items-center justify-between">
-          <div className={styles.sectionTitle}>Crew & stations</div>
-          <div className={styles.sectionSub}>
-            {crewRoster.length || 0} aboard
+      <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <div className={styles.sectionTitle}>Roster</div>
+          <div className="mt-2 space-y-2">
+            {crewRoster.length === 0 ? (
+              <div className="text-xs text-gray-500">
+                Awaiting crew assignments.
+              </div>
+            ) : (
+              crewRoster.map(member => (
+                <div key={member.id} className={styles.crewRow}>
+                  <div className="text-sm font-semibold text-white">
+                    {member.name}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {(stationByUser.get(member.id) || []).map(station => (
+                      <span
+                        key={`${member.id}-${station}`}
+                        className={styles.badge}
+                      >
+                        {station}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
-        <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <div className={styles.sectionTitle}>Roster</div>
-            <div className="mt-2 space-y-2">
-              {crewRoster.length === 0 ? (
-                <div className="text-xs text-gray-500">
-                  Awaiting crew assignments.
-                </div>
-              ) : (
-                crewRoster.map(member => (
-                  <div key={member.id} className={styles.crewRow}>
+        <div>
+          <div className={styles.sectionTitle}>Stations</div>
+          <div className="mt-2 space-y-2">
+            {[
+              {
+                key: 'helm',
+                label: 'Helm',
+                station: helmStation,
+                description: 'Steer the vessel and manage heading.',
+              },
+              {
+                key: 'engine',
+                label: 'Engine',
+                station: engineStation,
+                description: 'Throttle and ballast controls.',
+              },
+              {
+                key: 'radio',
+                label: 'Radio',
+                station: radioStation,
+                description: 'Communications and broadcasts.',
+              },
+            ].map(item => {
+              const holderId = item.station?.userId || null;
+              const holderName =
+                item.station?.username || holderId || 'Unassigned';
+              const isSelf = sessionUserId && holderId === sessionUserId;
+              const canClaim =
+                (sessionUserId && crewIds.includes(sessionUserId)) || isAdmin;
+              const isHeldByOther = Boolean(
+                holderId && sessionUserId && holderId !== sessionUserId,
+              );
+              const action: 'claim' | 'release' = isSelf ? 'release' : 'claim';
+              const disabled = !canClaim || (isHeldByOther && !isAdmin);
+              return (
+                <div key={item.key} className={styles.crewRow}>
+                  <div>
                     <div className="text-sm font-semibold text-white">
-                      {member.name}
+                      {item.label}
                     </div>
-                    <div className="flex items-center gap-1">
-                      {(stationByUser.get(member.id) || []).map(station => (
-                        <span
-                          key={`${member.id}-${station}`}
-                          className={styles.badge}
-                        >
-                          {station}
-                        </span>
-                      ))}
+                    <div className="text-[11px] text-gray-400">
+                      {holderId ? `Held by ${holderName}` : 'Unassigned'}
                     </div>
+                    <div className={styles.stationHint}>{item.description}</div>
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-          <div>
-            <div className={styles.sectionTitle}>Stations</div>
-            <div className="mt-2 space-y-2">
-              {[
-                {
-                  key: 'helm',
-                  label: 'Helm',
-                  station: helmStation,
-                  description: 'Steer the vessel and manage heading.',
-                },
-                {
-                  key: 'engine',
-                  label: 'Engine',
-                  station: engineStation,
-                  description: 'Throttle and ballast controls.',
-                },
-                {
-                  key: 'radio',
-                  label: 'Radio',
-                  station: radioStation,
-                  description: 'Communications and broadcasts.',
-                },
-              ].map(item => {
-                const holderId = item.station?.userId || null;
-                const holderName =
-                  item.station?.username || holderId || 'Unassigned';
-                const isSelf = sessionUserId && holderId === sessionUserId;
-                const canClaim =
-                  (sessionUserId && crewIds.includes(sessionUserId)) || isAdmin;
-                const isHeldByOther = Boolean(
-                  holderId && sessionUserId && holderId !== sessionUserId,
-                );
-                const action: 'claim' | 'release' = isSelf
-                  ? 'release'
-                  : 'claim';
-                const disabled = !canClaim || (isHeldByOther && !isAdmin);
-                return (
-                  <div key={item.key} className={styles.crewRow}>
-                    <div>
-                      <div className="text-sm font-semibold text-white">
-                        {item.label}
-                      </div>
-                      <div className="text-[11px] text-gray-400">
-                        {holderId ? `Held by ${holderName}` : 'Unassigned'}
-                      </div>
-                      <div className={styles.stationHint}>
-                        {item.description}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() =>
-                        onRequestStation(
-                          item.key as 'helm' | 'engine' | 'radio',
-                          action,
-                        )
-                      }
-                      className={`${styles.stationButton} ${
-                        disabled ? styles.stationButtonDisabled : ''
-                      }`}
-                    >
-                      {isSelf ? 'Release' : 'Claim'}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() =>
+                      onRequestStation(
+                        item.key as 'helm' | 'engine' | 'radio',
+                        action,
+                      )
+                    }
+                    className={`${styles.stationButton} ${
+                      disabled ? styles.stationButtonDisabled : ''
+                    }`}
+                  >
+                    {isSelf ? 'Release' : 'Claim'}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

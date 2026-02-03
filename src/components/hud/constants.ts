@@ -4,6 +4,7 @@ import { HudTab } from './types';
 export const HUD_TABS: { id: HudTab; label: string }[] = [
   { id: 'vessels', label: 'Vessels' },
   { id: 'navigation', label: 'Navigation' },
+  { id: 'crew', label: 'Crew & stations' },
   { id: 'ecdis', label: 'ECDIS' },
   { id: 'sounder', label: 'Echo sounder' },
   { id: 'conning', label: 'Conning' },
@@ -17,6 +18,7 @@ export const HUD_TABS: { id: HudTab; label: string }[] = [
   { id: 'radio', label: 'Radio' },
   { id: 'radar', label: 'Radar' },
   { id: 'alarms', label: 'Alarms' },
+  { id: 'debug', label: 'Debug' },
   { id: 'admin', label: 'Admin' },
 ];
 

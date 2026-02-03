@@ -24,6 +24,31 @@
   padding: 20px;
 }
 
+.hudPanelWide {
+  width: 100vw;
+  max-width: none;
+  margin: 0 0 12px;
+  border-radius: 0;
+}
+
+.navControlsDock {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 46;
+  pointer-events: auto;
+  max-width: min(780px, 94vw);
+}
+
+.navControlsRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: nowrap;
+  background: transparent;
+}
+
 .sectionGrid {
   display: grid;
   gap: 16px;

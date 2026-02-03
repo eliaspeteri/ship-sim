@@ -1092,11 +1092,11 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
 
   useEffect(() => {
     if (!isSpectator) return;
-    const hudRoot = document.querySelector('[data-hud-root]');
-    if (!hudRoot) return;
+    const hudFooter = document.querySelector('[data-hud-footer]');
+    if (!hudFooter) return;
 
     const updateOffset = () => {
-      const rect = hudRoot.getBoundingClientRect();
+      const rect = hudFooter.getBoundingClientRect();
       setHudOffset(rect.height || 0);
     };
 
