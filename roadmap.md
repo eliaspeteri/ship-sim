@@ -19,6 +19,7 @@
 - [x] Tide system (Earth-data-driven, regional or global)
 - [ ] Ice systems (freeze-over, drift ice, vessel immobilization)
 - [ ] Seasonal variation (weather, daylight, port accessibility)
+- [ ] Lunar phases affect night illumination (moonlight level tied to phase)
 
 ---
 
