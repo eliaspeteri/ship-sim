@@ -152,7 +152,7 @@ const DepthSounder: React.FC<DepthSounderProps> = ({
   );
 
   return (
-    <div className="flex flex-col items-center p-2 bg-gray-200 border border-gray-400 rounded">
+    <div className="flex flex-col items-center p-2 bg-slate-900 border border-slate-700 rounded text-slate-100">
       <svg
         width={svgWidth}
         height={chartHeight + padding * 2}
@@ -188,7 +188,7 @@ const DepthSounder: React.FC<DepthSounderProps> = ({
                 y1={yPos}
                 x2={padding + chartWidth + scaleWidth}
                 y2={yPos}
-                stroke="black"
+                stroke="#cbd5f5"
                 strokeWidth="1"
               />
               <text
@@ -197,7 +197,7 @@ const DepthSounder: React.FC<DepthSounderProps> = ({
                 fontSize="10"
                 textAnchor="start"
                 dominantBaseline="middle"
-                fill="black"
+                fill="#cbd5f5"
               >
                 {value.toFixed(0)}
               </text>
@@ -205,22 +205,22 @@ const DepthSounder: React.FC<DepthSounderProps> = ({
           );
         })}
       </svg>
-      <div className="mt-1 text-center bg-gray-100 px-2 py-1 rounded w-full">
-        <span className="text-xl font-bold">
+      <div className="mt-1 text-center bg-slate-800 px-2 py-1 rounded w-full text-slate-100">
+        <span className="text-xl font-bold text-slate-50">
           {displayDepthValue.toFixed(1)}
         </span>
-        <span className="text-sm ml-1">{units}</span>
-        <span className="text-xs ml-4">
+        <span className="text-sm ml-1 text-slate-200">{units}</span>
+        <span className="text-xs ml-4 text-slate-300">
           R:{currentRange}
           {units}
         </span>
         {shift > 0 && (
-          <span className="text-xs ml-2">
+          <span className="text-xs ml-2 text-slate-300">
             S:{shift.toFixed(0)}
             {units}
           </span>
         )}
-        <span className="text-xs ml-2">G:{gain}</span>
+        <span className="text-xs ml-2 text-slate-300">G:{gain}</span>
         {isZoomed && (
           <span className="text-xs ml-2 font-bold text-red-600">ZOOM</span>
         )}
@@ -228,21 +228,21 @@ const DepthSounder: React.FC<DepthSounderProps> = ({
       <div className="flex justify-around items-center w-full mt-1">
         <button
           onClick={handleRangeClick}
-          className="px-2 py-1 bg-gray-300 rounded text-xs"
+          className="px-2 py-1 bg-slate-700 text-slate-100 rounded text-xs hover:bg-slate-600"
         >
           RANGE
         </button>
         <div className="flex flex-col">
           <button
             onClick={handleShiftUpClick}
-            className={`px-1 py-0 bg-gray-300 rounded text-xs mb-0.5 ${isZoomed ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`px-1 py-0 bg-slate-700 text-slate-100 rounded text-xs mb-0.5 hover:bg-slate-600 ${isZoomed ? 'opacity-50 cursor-not-allowed' : ''}`}
             disabled={isZoomed}
           >
             SHIFT ▲
           </button>
           <button
             onClick={handleShiftDownClick}
-            className={`px-1 py-0 bg-gray-300 rounded text-xs ${isZoomed ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`px-1 py-0 bg-slate-700 text-slate-100 rounded text-xs hover:bg-slate-600 ${isZoomed ? 'opacity-50 cursor-not-allowed' : ''}`}
             disabled={isZoomed}
           >
             SHIFT ▼
@@ -251,20 +251,20 @@ const DepthSounder: React.FC<DepthSounderProps> = ({
         <div className="flex flex-col">
           <button
             onClick={handleGainUpClick}
-            className="px-1 py-0 bg-gray-300 rounded text-xs mb-0.5"
+            className="px-1 py-0 bg-slate-700 text-slate-100 rounded text-xs mb-0.5 hover:bg-slate-600"
           >
             GAIN ▲
           </button>
           <button
             onClick={handleGainDownClick}
-            className="px-1 py-0 bg-gray-300 rounded text-xs"
+            className="px-1 py-0 bg-slate-700 text-slate-100 rounded text-xs hover:bg-slate-600"
           >
             GAIN ▼
           </button>
         </div>
         <button
           onClick={handleZoomClick}
-          className={`px-2 py-1 rounded text-xs ${isZoomed ? 'bg-red-400' : 'bg-gray-300'}`}
+          className={`px-2 py-1 rounded text-xs ${isZoomed ? 'bg-red-500 text-white' : 'bg-slate-700 text-slate-100 hover:bg-slate-600'}`}
         >
           ZOOM
         </button>
