@@ -51,6 +51,7 @@ interface RadarDisplayProps {
   arpaTargets?: ARPATarget[];
   onArpaTargetsChange?: (targets: ARPATarget[]) => void;
   className?: string;
+  layout?: 'stacked' | 'side';
   ownShipData?: OwnShipData;
   /**
    * List of AIS targets to display on the radar.
@@ -116,6 +117,7 @@ export default function RadarDisplay({
   arpaTargets,
   onArpaTargetsChange,
   className = '',
+  layout = 'stacked',
   ownShipData = DEFAULT_OWN_SHIP,
   aisTargets = [],
 }: RadarDisplayProps) {
@@ -854,34 +856,81 @@ export default function RadarDisplay({
     }
   };
 
+  const radarView = (
+    <div
+      className="relative mx-auto"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        overflow: 'hidden',
+        backgroundColor: settings.nightMode ? '#000B14' : '#001A14',
+        boxShadow: '0 0 10px rgba(0, 0, 0, 0.5)',
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        width={size}
+        height={size}
+        className="absolute top-0 left-0"
+      />
+      <div
+        ref={radarSweepRef}
+        className="absolute left-1/2 top-1/2 h-0.5 w-1/2 bg-green-400 opacity-70"
+        style={{
+          transformOrigin: '0% 50%',
+        }}
+      />
+    </div>
+  );
+
+  const radarControls = (
+    <div className="flex flex-col gap-4">
+      <RadarControls
+        settings={settings}
+        onSettingChange={handleSettingChange}
+        onRangeChange={handleRangeChange}
+        ebl={eblState}
+        vrm={vrmState}
+        onEblToggle={handleEblToggle}
+        onEblAngleChange={handleEblAngleChange}
+        onVrmToggle={handleVrmToggle}
+        onVrmDistanceChange={handleVrmDistanceChange}
+        onToggleArpa={toggleArpaPanel}
+        arpaEnabled={arpaEnabledState}
+        guardZone={guardZoneState}
+        onGuardZoneChange={handleGuardZoneChange}
+      />
+      {arpaEnabledState && (
+        <div className="w-full lg:w-72">
+          <ARPAPanel
+            arpaTargets={arpaTargetsState}
+            selectedTargetId={selectedTargetId}
+            onSelectTarget={setSelectedTargetId}
+            arpaSettings={arpaSettingsState}
+            onSettingChange={handleArpaSettingChange}
+            onAcquireTarget={handleAcquireTarget}
+            onCancelTarget={handleCancelTarget}
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  if (layout === 'side') {
+    return (
+      <div
+        className={`grid gap-4 lg:grid-cols-[auto_minmax(0,1fr)] ${className}`}
+      >
+        <div className="flex justify-center lg:justify-start">{radarView}</div>
+        {radarControls}
+      </div>
+    );
+  }
+
   return (
     <div className={`flex flex-col ${className}`}>
-      <div
-        className="relative mx-auto"
-        style={{
-          width: size,
-          height: size,
-          borderRadius: '50%',
-          overflow: 'hidden',
-          backgroundColor: settings.nightMode ? '#000B14' : '#001A14',
-          boxShadow: '0 0 10px rgba(0, 0, 0, 0.5)',
-        }}
-      >
-        <canvas
-          ref={canvasRef}
-          width={size}
-          height={size}
-          className="absolute top-0 left-0"
-        />
-        <div
-          ref={radarSweepRef}
-          className="absolute left-1/2 top-1/2 h-0.5 w-1/2 bg-green-400 opacity-70"
-          style={{
-            transformOrigin: '0% 50%',
-          }}
-        />
-      </div>
-
+      {radarView}
       <div className="flex flex-col lg:flex-row gap-4 mt-4 w-full">
         <div className="flex-1">
           <RadarControls
@@ -900,7 +949,6 @@ export default function RadarDisplay({
             onGuardZoneChange={handleGuardZoneChange}
           />
         </div>
-
         {arpaEnabledState && (
           <div className="w-full lg:w-72 lg:ml-4">
             <ARPAPanel

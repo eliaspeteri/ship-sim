@@ -1110,7 +1110,8 @@ export function HudRadarPanel({
           <div className={styles.radarTitle}>Radar</div>
           <RadarDisplay
             size={RADAR_DISPLAY_SIZE_PX}
-            className="max-w-[920px] mx-auto"
+            className="w-full"
+            layout="side"
             initialSettings={radarSettings}
             onSettingsChange={setRadarSettings}
             ebl={radarEbl}
