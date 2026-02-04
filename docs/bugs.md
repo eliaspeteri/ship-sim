@@ -2,6 +2,7 @@
 
 - [ ] ship's motion does not match wave motion
 - [ ] when I alt-tab out, or make the tab not visible, the websocket stays connected. But when I alt-tab back in, the connection seems to be cycled. This causes the frontend to kick me back into spectator view. This can be quite jarring. It should put me back into player mode.
+  - Note: switching browser tabs triggers spectator mode even without disconnect/reconnect logs.
 
 ```sh
 Socket disconnected: admin (cmkjjos9a0000u0u8s5dmmo3d)
@@ -94,17 +95,18 @@ Failed to load settings Error: Authentication required
 - [x] radar view and radar controls should be side-by-side in the Radar tab.
 - [x] Physics params in admin tab should be moved into a new Debug tab.
 - [x] Camera heading indicator's height on screen seems to be linked to the hud drawer tab's height. When the hud drawer is closed, the camera indicator is in its normal place. When I open a tab, it moves up to match the tab's height + some offset. So when a tab is really tall, it pushes the camera heading indicator out of view.
-- [ ] When I'm in admin mode, and I drag a vessel, then enter it, its position does not seem to have changed. Same happens if I change its position through the admin tab in the hud drawer, and then enter the vessel as player.
+- [x] When I'm in admin mode, and I drag a vessel, then enter it, its position does not seem to have changed. Same happens if I change its position through the admin tab in the hud drawer, and then enter the vessel as player.
 - [ ] Vessel's load in at lat:0, lon:0. Their position does not seem to be loaded from the db, because as soon as I enter the vessel while at lat/lon 0, this position is likely persisted.
 - [ ] The vessel heading is not clear to me. When I'm in spectator mode, every vessel loads in at heading 90 (checked from conning tab). Azimuth is shown as 0. In navigation tab COG is shown as 50 degrees with SOG 0.8 kts and STW 0.3 kts. Compass rose in the dashboard seems to agree with the heading in the conning tab.
 - [ ] In the conning tab I see wind speed correctly but wind direction is 90 degrees, while in the weather tab it shows as 0 degrees.
 - [ ] Wind data in dashboard does not reflect what the conning or weather tabs show.
 - [ ] Comparing ship's visual motion against conning data, conning shows the ship's pitch oscillating but visually it looks more like the ship is rolling.
+- [ ] AI integrator causes heavy ships to oscillate wildly in calm water. Intended behavior: if crew is gone, AI should just maintain trajectory / stop safely without roll, pitch, or heave.
 - [ ] I can move around a vessel as admin in spectator mode, but I am unable to access the callout popup because the drag handle is very large for small vessels. This doesn't seem to be based on the camera zoom level or vessel's size. It's just a fixed size bubble.
-- [ ] When I drag a vessel as admin in spectator mode, there is a "copy" of the vessel rendered at its original position. This copy seems to be created when I alt-tab in and out of the window.
+- [x] When I drag a vessel as admin in spectator mode, there is a "copy" of the vessel rendered at its original position. This copy seems to be created when I alt-tab in and out of the window.
 - [ ] Comparing against the Three.js axis debug lines, it seems like when my ship visually points south (away from blue line), the heading reads as 0. Course has not changed from 45 degrees.
 - [ ] When yaw rate is positive, the ship is visually turning clockwise correctly, but the heading is decreasing.
-- [ ] In `/vessels` page, none of the persisted vessels are showing up, even when I'm admin, and viewing global space vessels.
+- [x] In `/vessels` page, none of the persisted vessels are showing up, even when I'm admin, and viewing global space vessels.
 - [ ] When I spawn into map editor for a pack, camera is facing 135 degrees. Let's change it to 45 degrees so the world is right side up. Nothing is loaded immediately, only when I start zooming out.
 - [ ] Editor should remember last camera focus point, and return to it when the map pack is loaded. Alternatively, it should focus on the first work area in the list (assumed primary).
 - [ ] There's no ocean in the editor mode. It's just terrain + black void.
@@ -115,9 +117,9 @@ Failed to load settings Error: Authentication required
 - [ ] Ocean missing specular reflections, highlights.
 - [ ] No HTTPS, at least in dev.
 - [ ] `/globe` is just a globe. It currently has no relation to the ship-sim economy or the world or the platform. It could be a 2D tiling map where user can browse ports and vessels currently on the global space.
-- [ ] In radar display the text is hidden partially. We can remove the text for now.
-- [ ] Radar controls should be made more compact.
-- [ ] EBL and VRM in the radar don't seem to do anything.
+- [x] In radar display the text is hidden partially. We can remove the text for now.
+- [x] Radar controls should be made more compact.
+- [x] EBL and VRM in the radar don't seem to do anything.
 - [x] PERCENT_SCALE is not defined (when trying to open Systems panel)
 
 ```sh
@@ -135,3 +137,5 @@ React will try to recreate this component tree from scratch using the error boun
     SimPage webpack-internal:///(pages-dir-browser)/./src/pages/sim.tsx:1027
     MyApp webpack-internal:///(pages-dir-browser)/./src/pages/_app.tsx:29
 ```
+
+- [ ] Radar does not show terrain.
