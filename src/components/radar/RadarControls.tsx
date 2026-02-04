@@ -39,18 +39,18 @@ export default function RadarControls({
   onGuardZoneChange,
 }: RadarControlsProps) {
   return (
-    <div className="mt-4 bg-gray-900 p-4 rounded-lg text-gray-100">
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div className="mt-3 bg-gray-900/90 p-3 rounded-lg text-gray-100">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {/* Band and Range Controls */}
         <div className="space-y-4">
-          <h3 className="font-semibold text-center border-b border-gray-700 pb-1">
+          <h3 className="text-xs font-semibold text-center border-b border-gray-700 pb-1 uppercase tracking-[0.18em] text-gray-300">
             Radar Settings
           </h3>
 
-          <div className="flex justify-center space-x-4">
+          <div className="flex justify-center gap-3">
             {/* Band Selection */}
             <div className="flex flex-col items-center">
-              <span className="text-sm mb-1">Band</span>
+              <span className="text-xs mb-1 text-gray-300">Band</span>
               <ChangeoverSwitch
                 position={settings.band}
                 onPositionChange={band => onSettingChange('band', band)}
@@ -58,14 +58,16 @@ export default function RadarControls({
                   { value: 'X', label: 'X' },
                   { value: 'S', label: 'S' },
                 ]}
-                size={60}
+                size={52}
               />
             </div>
 
             {/* Range Controls */}
             <div className="flex flex-col items-center">
-              <span className="text-sm mb-1">Range: {settings.range} NM</span>
-              <div className="flex space-x-1">
+              <span className="text-xs mb-1 text-gray-300">
+                Range {settings.range} NM
+              </span>
+              <div className="flex gap-1">
                 <PushButton
                   label="−"
                   onClick={() => onRangeChange('decrease')}
@@ -84,7 +86,7 @@ export default function RadarControls({
 
           {/* Orientation Control */}
           <div className="flex flex-col items-center">
-            <span className="text-sm mb-1">Orientation</span>
+            <span className="text-xs mb-1 text-gray-300">Orientation</span>
             <ChangeoverSwitch
               position={settings.orientation}
               onPositionChange={orientation =>
@@ -95,12 +97,12 @@ export default function RadarControls({
                 { value: 'head-up', label: 'H-UP' },
                 { value: 'course-up', label: 'C-UP' },
               ]}
-              size={80}
+              size={68}
             />
           </div>
 
           {/* Night Mode Toggle */}
-          <div className="flex justify-center space-x-2 mt-2">
+          <div className="flex justify-center gap-2 mt-1.5">
             <label className="inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
@@ -111,18 +113,20 @@ export default function RadarControls({
               <div className="relative w-11 h-6 bg-gray-700 rounded-full peer peer-checked:bg-blue-600">
                 <div className="absolute top-[2px] left-[2px] bg-white w-5 h-5 rounded-full transition-all peer-checked:translate-x-full"></div>
               </div>
-              <span className="ml-2 text-sm font-medium">Night Mode</span>
+              <span className="ml-2 text-xs font-medium text-gray-300">
+                Night Mode
+              </span>
             </label>
           </div>
         </div>
 
         {/* Gain and Clutter Controls */}
         <div className="space-y-4">
-          <h3 className="font-semibold text-center border-b border-gray-700 pb-1">
+          <h3 className="text-xs font-semibold text-center border-b border-gray-700 pb-1 uppercase tracking-[0.18em] text-gray-300">
             Signal Processing
           </h3>
 
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-3">
             <div>
               <RotaryDial
                 value={settings.gain}
@@ -131,11 +135,11 @@ export default function RadarControls({
                 max={100}
                 label="Gain"
                 unit="%"
-                size={80}
+                size={68}
               />
             </div>
 
-            <div className="flex justify-center space-x-4">
+            <div className="flex justify-center gap-3">
               <div>
                 <RotaryDial
                   value={settings.seaClutter}
@@ -144,7 +148,7 @@ export default function RadarControls({
                   max={100}
                   label="Sea"
                   unit="%"
-                  size={70}
+                  size={58}
                 />
               </div>
 
@@ -156,7 +160,7 @@ export default function RadarControls({
                   max={100}
                   label="Rain"
                   unit="%"
-                  size={70}
+                  size={58}
                 />
               </div>
             </div>
@@ -165,7 +169,7 @@ export default function RadarControls({
 
         {/* Electronic Bearing Line & Variable Range Marker */}
         <div className="space-y-4">
-          <h3 className="font-semibold text-center border-b border-gray-700 pb-1">
+          <h3 className="text-xs font-semibold text-center border-b border-gray-700 pb-1 uppercase tracking-[0.18em] text-gray-300">
             Measurement Tools
           </h3>
 
@@ -173,9 +177,11 @@ export default function RadarControls({
             {/* EBL Controls */}
             <div className="flex flex-col items-center">
               <div className="flex justify-between items-center w-full mb-2">
-                <span className="text-sm">EBL: {ebl.angle.toFixed(1)}°</span>
+                <span className="text-xs text-gray-300">
+                  EBL {ebl.angle.toFixed(1)}°
+                </span>
                 <div className="inline-flex items-center">
-                  <span className="mr-2 text-xs">Off/On</span>
+                  <span className="mr-2 text-[10px] text-gray-400">Off/On</span>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
@@ -203,11 +209,11 @@ export default function RadarControls({
             {/* VRM Controls */}
             <div className="flex flex-col items-center">
               <div className="flex justify-between items-center w-full mb-2">
-                <span className="text-sm">
-                  VRM: {vrm.distance.toFixed(1)} NM
+                <span className="text-xs text-gray-300">
+                  VRM {vrm.distance.toFixed(1)} NM
                 </span>
                 <div className="inline-flex items-center">
-                  <span className="mr-2 text-xs">Off/On</span>
+                  <span className="mr-2 text-[10px] text-gray-400">Off/On</span>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
@@ -234,19 +240,21 @@ export default function RadarControls({
 
             {/* Guard Zone Controls */}
             {guardZone && onGuardZoneChange && (
-              <div className="mt-6 p-3 bg-gray-800 rounded-lg">
-                <h4 className="font-semibold text-sm mb-2">Guard Zone</h4>
-                <div className="flex items-center mb-2">
-                  <label className="text-xs mr-2">Enable</label>
+              <div className="mt-4 p-2.5 bg-gray-800/70 rounded-lg">
+                <h4 className="font-semibold text-xs mb-2 text-gray-300">
+                  Guard Zone
+                </h4>
+                <div className="flex items-center mb-2 gap-2">
+                  <label className="text-[10px] text-gray-400">On</label>
                   <input
                     type="checkbox"
                     checked={guardZone.active}
                     onChange={e =>
                       onGuardZoneChange('active', e.target.checked)
                     }
-                    className="mr-4"
+                    className="mr-1"
                   />
-                  <label className="text-xs mr-2">Start</label>
+                  <label className="text-[10px] text-gray-400">Start</label>
                   <input
                     type="number"
                     min={0}
@@ -255,9 +263,9 @@ export default function RadarControls({
                     onChange={e =>
                       onGuardZoneChange('startAngle', Number(e.target.value))
                     }
-                    className="w-14 mr-2 text-black rounded px-1"
+                    className="w-12 text-black rounded px-1"
                   />
-                  <label className="text-xs mr-2">End</label>
+                  <label className="text-[10px] text-gray-400">End</label>
                   <input
                     type="number"
                     min={0}
@@ -266,11 +274,11 @@ export default function RadarControls({
                     onChange={e =>
                       onGuardZoneChange('endAngle', Number(e.target.value))
                     }
-                    className="w-14 mr-2 text-black rounded px-1"
+                    className="w-12 text-black rounded px-1"
                   />
                 </div>
-                <div className="flex items-center">
-                  <label className="text-xs mr-2">Inner NM</label>
+                <div className="flex items-center gap-2">
+                  <label className="text-[10px] text-gray-400">Inner</label>
                   <input
                     type="number"
                     min={0}
@@ -280,9 +288,9 @@ export default function RadarControls({
                     onChange={e =>
                       onGuardZoneChange('innerRange', Number(e.target.value))
                     }
-                    className="w-16 mr-2 text-black rounded px-1"
+                    className="w-14 text-black rounded px-1"
                   />
-                  <label className="text-xs mr-2">Outer NM</label>
+                  <label className="text-[10px] text-gray-400">Outer</label>
                   <input
                     type="number"
                     min={guardZone.innerRange}
@@ -292,7 +300,7 @@ export default function RadarControls({
                     onChange={e =>
                       onGuardZoneChange('outerRange', Number(e.target.value))
                     }
-                    className="w-16 text-black rounded px-1"
+                    className="w-14 text-black rounded px-1"
                   />
                 </div>
               </div>
@@ -301,7 +309,7 @@ export default function RadarControls({
             {/* ARPA Toggle */}
             {onToggleArpa && (
               <div className="flex justify-between items-center w-full pt-2 border-t border-gray-700">
-                <span className="text-sm">ARPA Mode</span>
+                <span className="text-xs text-gray-300">ARPA Mode</span>
                 <PushButton
                   label={arpaEnabled ? 'Disable ARPA' : 'Enable ARPA'}
                   onClick={onToggleArpa}

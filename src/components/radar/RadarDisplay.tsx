@@ -313,6 +313,7 @@ export default function RadarDisplay({
       nightMode,
     } = currSettings;
     const radius = size / 2;
+    const radarRadius = radius - 2;
 
     ctx.fillStyle = nightMode
       ? 'rgba(0, 10, 20, 0.15)'
@@ -320,103 +321,18 @@ export default function RadarDisplay({
     ctx.fillRect(0, 0, size, size);
 
     ctx.beginPath();
-    ctx.arc(radius, radius, radius - 2, 0, Math.PI * 2);
+    ctx.arc(radius, radius, radarRadius, 0, Math.PI * 2);
     ctx.fillStyle = nightMode ? '#000B14' : '#001A14';
     ctx.fill();
 
     ctx.strokeStyle = nightMode ? '#113344' : '#114433';
     ctx.lineWidth = 1;
 
-    const numRings = 5;
-    for (let i = 1; i <= numRings; i++) {
-      const ringRadius = (radius - 2) * (i / numRings);
-      ctx.beginPath();
-      ctx.arc(radius, radius, ringRadius, 0, Math.PI * 2);
-      ctx.stroke();
-
-      if (i < numRings) {
-        const ringRange = ((range * i) / numRings).toFixed(1);
-        ctx.fillStyle = nightMode ? '#335566' : '#336655';
-        ctx.font = '10px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${ringRange}`, radius, radius - ringRadius + 12);
-      }
-    }
-
     let rotationAngle = 0;
     if (orientation === 'head-up') {
       rotationAngle = ownShipRef.current.heading ?? 0;
     } else if (orientation === 'course-up') {
       rotationAngle = ownShipRef.current.course ?? 0;
-    }
-
-    if (currEbl.active) {
-      const angleRad =
-        ((currEbl.angle - rotationAngle + 360) % 360) * (Math.PI / 180);
-
-      ctx.beginPath();
-      ctx.moveTo(radius, radius);
-      ctx.lineTo(
-        radius + Math.sin(angleRad) * (radius - 2),
-        radius - Math.cos(angleRad) * (radius - 2),
-      );
-      ctx.strokeStyle = nightMode ? '#FFAA33' : '#FFAA33';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      ctx.fillStyle = nightMode ? '#FFAA33' : '#FFAA33';
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(`EBL: ${currEbl.angle.toFixed(1)}°`, 10, size - 10);
-    }
-
-    if (currVrm.active) {
-      const vrmRadius = (currVrm.distance / range) * (radius - 2);
-
-      ctx.beginPath();
-      ctx.arc(radius, radius, vrmRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = nightMode ? '#FFAA33' : '#FFAA33';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      ctx.fillStyle = nightMode ? '#FFAA33' : '#FFAA33';
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText(`VRM: ${currVrm.distance.toFixed(1)} NM`, 10, 10);
-    }
-
-    if (currGuardZone.active) {
-      const innerRadius = (currGuardZone.innerRange / range) * (radius - 2);
-      const outerRadius = (currGuardZone.outerRange / range) * (radius - 2);
-      const startAngle =
-        ((currGuardZone.startAngle - rotationAngle + 360) % 360) *
-        (Math.PI / 180);
-      const endAngle =
-        ((currGuardZone.endAngle - rotationAngle + 360) % 360) *
-        (Math.PI / 180);
-
-      ctx.beginPath();
-      ctx.arc(radius, radius, outerRadius, startAngle, endAngle);
-      ctx.lineTo(
-        radius + Math.cos(endAngle) * innerRadius,
-        radius + Math.sin(endAngle) * innerRadius,
-      );
-      ctx.arc(radius, radius, innerRadius, endAngle, startAngle, true);
-      ctx.closePath();
-
-      ctx.fillStyle = nightMode
-        ? 'rgba(255, 0, 0, 0.15)'
-        : 'rgba(255, 0, 0, 0.15)';
-      ctx.fill();
-
-      ctx.strokeStyle = nightMode
-        ? 'rgba(255, 0, 0, 0.5)'
-        : 'rgba(255, 0, 0, 0.5)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
     }
 
     const noiseLevel = generateRadarNoise(band, currEnvironment, gain);
@@ -462,7 +378,7 @@ export default function RadarDisplay({
         target.distance,
         (target.bearing - rotationAngle + 360) % 360,
         range,
-        radius,
+        radarRadius,
       );
 
       const targetSize = 3 + target.size * 4;
@@ -522,7 +438,7 @@ export default function RadarDisplay({
                 vectorEndpoint.distance,
                 (vectorEndpoint.bearing - rotationAngle + 360) % 360,
                 range,
-                radius,
+                radarRadius,
               );
 
               ctx.beginPath();
@@ -554,16 +470,6 @@ export default function RadarDisplay({
               ctx.setLineDash([]);
             }
 
-            ctx.fillStyle = color;
-            ctx.font = '10px sans-serif';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'top';
-            ctx.fillText(
-              arpaTarget.trackId.replace('ARPA-', ''),
-              x + targetSize * 2,
-              y - targetSize * 2,
-            );
-
             if (
               arpaTarget.historicalPositions.length > 1 &&
               targetStatus !== ARPATargetStatus.ACQUIRING
@@ -585,7 +491,7 @@ export default function RadarDisplay({
                   historyPos.distance,
                   (historyPos.bearing - rotationAngle + 360) % 360,
                   range,
-                  radius,
+                  radarRadius,
                 );
 
                 ctx.beginPath();
@@ -611,7 +517,7 @@ export default function RadarDisplay({
         ais.distance,
         (ais.bearing - rotationAngle + 360) % 360,
         range,
-        radius,
+        radarRadius,
       );
       // Draw AIS as a blue diamond
       ctx.save();
@@ -633,22 +539,14 @@ export default function RadarDisplay({
       ctx.globalAlpha = 1.0;
       ctx.stroke();
       ctx.restore();
-      // Draw MMSI or name below
-      ctx.save();
-      ctx.font = '10px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillStyle = nightMode ? '#BFEFFF' : '#1E293B';
-      ctx.fillText(ais.name || ais.mmsi, x, y + 10);
-      ctx.restore();
     });
 
     ctx.beginPath();
     ctx.moveTo(radius, radius);
     const sweepRad = sweepAngle * (Math.PI / 180);
     ctx.lineTo(
-      radius + Math.sin(sweepRad) * (radius - 2),
-      radius - Math.cos(sweepRad) * (radius - 2),
+      radius + Math.sin(sweepRad) * radarRadius,
+      radius - Math.cos(sweepRad) * radarRadius,
     );
     ctx.strokeStyle = nightMode
       ? 'rgba(85, 255, 85, 0.7)'
@@ -664,7 +562,7 @@ export default function RadarDisplay({
         0,
         radius,
         radius,
-        radius * 0.6,
+        radarRadius * 0.6,
       );
 
       const clutterColor = nightMode ? '0, 255, 85' : '0, 255, 85';
@@ -681,7 +579,7 @@ export default function RadarDisplay({
       ctx.fillStyle = seaClutterGradient;
       ctx.globalAlpha = 0.4;
       ctx.beginPath();
-      ctx.arc(radius, radius, radius * 0.6, 0, Math.PI * 2);
+      ctx.arc(radius, radius, radarRadius * 0.6, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1.0;
     }
@@ -703,7 +601,7 @@ export default function RadarDisplay({
 
         for (let i = 0; i < numSpeckles; i++) {
           const angle = Math.random() * Math.PI * 2;
-          const distance = Math.random() * (radius - 2);
+          const distance = Math.random() * radarRadius;
           const x = radius + Math.cos(angle) * distance;
           const y = radius + Math.sin(angle) * distance;
 
@@ -716,25 +614,81 @@ export default function RadarDisplay({
       }
     }
 
-    ctx.fillStyle = nightMode ? '#5599CC' : '#55CC99';
-    ctx.font = '14px monospace';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'bottom';
+    const numRings = 5;
+    ctx.save();
+    ctx.strokeStyle = nightMode
+      ? 'rgba(85, 255, 85, 0.35)'
+      : 'rgba(85, 255, 85, 0.25)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= numRings; i++) {
+      const ringRadius = radarRadius * (i / numRings);
+      ctx.beginPath();
+      ctx.arc(radius, radius, ringRadius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
 
-    ctx.fillText(`${band}-BAND ${range} NM`, size - 10, size - 10);
+    if (currGuardZone.active) {
+      const innerRadius = (currGuardZone.innerRange / range) * radarRadius;
+      const outerRadius = (currGuardZone.outerRange / range) * radarRadius;
+      const startAngle =
+        ((currGuardZone.startAngle - rotationAngle + 360) % 360) *
+        (Math.PI / 180);
+      const endAngle =
+        ((currGuardZone.endAngle - rotationAngle + 360) % 360) *
+        (Math.PI / 180);
 
-    ctx.textAlign = 'left';
-    ctx.fillText(`GAIN: ${gain}%`, 10, size - 30);
-
-    ctx.fillText(`SEA: ${seaClutter}% RAIN: ${rainClutter}%`, 10, size - 50);
-
-    if (currArpaEnabled) {
-      ctx.textAlign = 'right';
-      ctx.fillText(
-        `ARPA: ${arpaTargetsState.length} TARGETS`,
-        size - 10,
-        size - 30,
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(radius, radius, outerRadius, startAngle, endAngle);
+      ctx.lineTo(
+        radius + Math.cos(endAngle) * innerRadius,
+        radius + Math.sin(endAngle) * innerRadius,
       );
+      ctx.arc(radius, radius, innerRadius, endAngle, startAngle, true);
+      ctx.closePath();
+
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (currEbl.active) {
+      const angleRad =
+        ((currEbl.angle - rotationAngle + 360) % 360) * (Math.PI / 180);
+
+      const endX = radius + Math.sin(angleRad) * radarRadius;
+      const endY = radius - Math.cos(angleRad) * radarRadius;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(radius, radius);
+      ctx.lineTo(endX, endY);
+      ctx.strokeStyle = nightMode ? '#55FF55' : '#55FF55';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(endX, endY, 4, 0, Math.PI * 2);
+      ctx.fillStyle = nightMode ? '#55FF55' : '#55FF55';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    if (currVrm.active) {
+      const vrmRadius = (currVrm.distance / range) * radarRadius;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(radius, radius, vrmRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = nightMode ? '#55FF55' : '#55FF55';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.stroke();
+      ctx.restore();
     }
   };
 
@@ -779,7 +733,12 @@ export default function RadarDisplay({
   };
 
   const handleVrmToggle = () => {
-    const next = { ...vrmState, active: !vrmState.active };
+    const nextActive = !vrmState.active;
+    const nextDistance =
+      nextActive && vrmState.distance === 0
+        ? Math.max(0.1, settings.range * 0.25)
+        : vrmState.distance;
+    const next = { ...vrmState, active: nextActive, distance: nextDistance };
     if (onVrmChange) {
       onVrmChange(next);
     } else {
@@ -856,31 +815,104 @@ export default function RadarDisplay({
     }
   };
 
+  const ringPadding = 10;
+  const labelPadding = 12;
+  const outerOffset = ringPadding + labelPadding;
+  const outerSize = size + outerOffset * 2;
+  const tickColor = settings.nightMode ? '#55FF55' : '#55FF55';
+  const tickOuter = size / 2 + ringPadding - 2;
+  const majorTickLen = 10;
+  const minorTickLen = 5;
+  const labelRadius = tickOuter + 8;
+  const labelFontSize = 9;
+  const outerCenter = outerSize / 2;
+  const polarToPoint = (angle: number, r: number) => {
+    const rad = ((angle - 90) * Math.PI) / 180;
+    return {
+      x: outerCenter + Math.cos(rad) * r,
+      y: outerCenter + Math.sin(rad) * r,
+    };
+  };
+
   const radarView = (
     <div
       className="relative mx-auto"
       style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        overflow: 'hidden',
-        backgroundColor: settings.nightMode ? '#000B14' : '#001A14',
-        boxShadow: '0 0 10px rgba(0, 0, 0, 0.5)',
+        width: outerSize,
+        height: outerSize,
       }}
     >
-      <canvas
-        ref={canvasRef}
-        width={size}
-        height={size}
-        className="absolute top-0 left-0"
-      />
       <div
-        ref={radarSweepRef}
-        className="absolute left-1/2 top-1/2 h-0.5 w-1/2 bg-green-400 opacity-70"
+        className="absolute"
         style={{
-          transformOrigin: '0% 50%',
+          left: outerOffset,
+          top: outerOffset,
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          overflow: 'hidden',
+          backgroundColor: settings.nightMode ? '#000B14' : '#001A14',
+          boxShadow: '0 0 10px rgba(0, 0, 0, 0.5)',
         }}
-      />
+      >
+        <canvas
+          ref={canvasRef}
+          width={size}
+          height={size}
+          className="absolute top-0 left-0"
+        />
+        <div
+          ref={radarSweepRef}
+          className="absolute left-1/2 top-1/2 h-0.5 w-1/2 bg-green-400 opacity-70"
+          style={{
+            transformOrigin: '0% 50%',
+          }}
+        />
+      </div>
+      <svg
+        className="absolute inset-0 pointer-events-none"
+        width={outerSize}
+        height={outerSize}
+        viewBox={`0 0 ${outerSize} ${outerSize}`}
+      >
+        {Array.from({ length: 180 }).map((_, index) => {
+          const angle = index * 2;
+          const isMajor = angle % 10 === 0;
+          const len = isMajor ? majorTickLen : minorTickLen;
+          const start = polarToPoint(angle, tickOuter);
+          const end = polarToPoint(angle, tickOuter - len);
+          return (
+            <line
+              key={`tick-${angle}`}
+              x1={start.x}
+              y1={start.y}
+              x2={end.x}
+              y2={end.y}
+              stroke={tickColor}
+              strokeWidth={isMajor ? 1.2 : 0.8}
+              opacity={isMajor ? 0.95 : 0.7}
+            />
+          );
+        })}
+        {Array.from({ length: 36 }).map((_, index) => {
+          const angle = index * 10;
+          const pos = polarToPoint(angle, labelRadius);
+          return (
+            <text
+              key={`label-${angle}`}
+              x={pos.x}
+              y={pos.y}
+              fill={tickColor}
+              fontSize={labelFontSize}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              opacity={0.95}
+            >
+              {angle}
+            </text>
+          );
+        })}
+      </svg>
     </div>
   );
 
