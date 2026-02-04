@@ -1067,84 +1067,29 @@ const clampHeading = (rad: number) => {
   return h;
 };
 
-const normalizeSignedAngle = (rad: number) => {
-  let angle = (rad + Math.PI) % (Math.PI * 2);
-  if (angle < 0) angle += Math.PI * 2;
-  return angle - Math.PI;
-};
-
 const aiControllers = new Map<string, { heading: number; speed: number }>();
 
 function stepAIVessel(v: VesselRecord, dt: number) {
-  // Basic 2D integration mirroring the client WASM approximations
-  const currentHeading = v.orientation.heading || 0;
-  const throttle = clamp(v.controls.throttle, -1, 1);
-  const mass = v.properties.mass || 1_000_000;
-  const length = v.properties.length || 120;
+  // Simplified AI: bleed velocity to a stop with no roll/pitch/heave.
   const position = positionFromLatLon({
     lat: v.position.lat,
     lon: v.position.lon,
     z: v.position.z,
   });
-  const speedMag = Math.sqrt(v.velocity.surge ** 2 + v.velocity.sway ** 2);
 
-  const controller = aiControllers.get(v.id) || {
-    heading: currentHeading,
-    speed: Math.max(2, speedMag),
-  };
-  aiControllers.set(v.id, controller);
+  v.controls.throttle = 0;
+  v.controls.rudderAngle = 0;
+  v.yawRate = 0;
+  v.orientation.heading = clampHeading(v.orientation.heading || 0);
+  v.orientation.roll = 0;
+  v.orientation.pitch = 0;
 
-  const headingError = normalizeSignedAngle(
-    controller.heading - currentHeading,
-  );
-  v.controls.rudderAngle = clamp(
-    headingError * 0.8,
-    -SERVER_RUDDER_STALL,
-    SERVER_RUDDER_STALL,
-  );
-  const speedError = controller.speed - speedMag;
-  v.controls.throttle = clamp(throttle + speedError * 0.05, 0, 0.8);
-
-  const thrust = SERVER_MAX_THRUST * v.controls.throttle;
-  const dragSurge = SERVER_DRAG * v.velocity.surge * Math.abs(v.velocity.surge);
-  const dragSway = SERVER_DRAG * v.velocity.sway * Math.abs(v.velocity.sway);
-
-  const stall =
-    1 -
-    Math.min(1, Math.abs(v.controls.rudderAngle) / SERVER_RUDDER_STALL) ** 2;
-  const rudderForce =
-    SERVER_RUDDER_COEF *
-    v.controls.rudderAngle *
-    speedMag *
-    speedMag *
-    Math.max(0, stall);
-  const rudderMoment = rudderForce * length * SERVER_RUDDER_ARM;
-
-  const Izz = mass * length * length * 0.1;
-  const uDot = (thrust - dragSurge) / mass;
-  const vDot =
-    (-dragSway - SERVER_SWAY_DAMP * v.velocity.sway + rudderForce) / mass;
-  const r = v.yawRate || 0;
-  const rDot =
-    (rudderMoment -
-      SERVER_YAW_DAMP * r -
-      SERVER_YAW_DAMP_QUAD * r * Math.abs(r)) /
-    Izz;
-
-  v.velocity.surge = clampSigned(
-    v.velocity.surge + uDot * dt,
-    SERVER_MAX_SPEED,
-  );
-  v.velocity.sway = clampSigned(
-    v.velocity.sway + vDot * dt,
-    SERVER_MAX_SPEED * 0.6,
-  );
-
-  const nextYawRate = clampSigned(r + rDot * dt, SERVER_MAX_YAW);
-  v.yawRate = nextYawRate;
-  v.orientation.heading = clampHeading(
-    v.orientation.heading + nextYawRate * dt,
-  );
+  const decay = Math.exp(-AI_STOP_DAMPING * dt);
+  v.velocity.surge *= decay;
+  v.velocity.sway *= decay;
+  v.velocity.heave = 0;
+  if (Math.abs(v.velocity.surge) < AI_STOP_EPS) v.velocity.surge = 0;
+  if (Math.abs(v.velocity.sway) < AI_STOP_EPS) v.velocity.sway = 0;
 
   const cosH = Math.cos(v.orientation.heading);
   const sinH = Math.sin(v.orientation.heading);
@@ -1158,16 +1103,8 @@ function stepAIVessel(v: VesselRecord, dt: number) {
 }
 
 // Simple server-side integrator for AI/abandoned vessels
-const SERVER_MAX_THRUST = 8e5;
-const SERVER_DRAG = 0.8;
-const SERVER_RUDDER_COEF = 200000;
-const SERVER_RUDDER_STALL = 0.5;
-const SERVER_RUDDER_ARM = 0.4;
-const SERVER_YAW_DAMP = 0.5;
-const SERVER_YAW_DAMP_QUAD = 1.2;
-const SERVER_SWAY_DAMP = 0.6;
-const SERVER_MAX_YAW = 0.8;
-const SERVER_MAX_SPEED = 15;
+const AI_STOP_DAMPING = 0.6;
+const AI_STOP_EPS = 0.01;
 
 const hasAdminRole = (socket: import('socket.io').Socket) =>
   (socket.data.roles || []).includes('admin') ||
