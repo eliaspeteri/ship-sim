@@ -583,8 +583,7 @@ const useStore = create<SimulationState>()((set, get) => ({
   currentVesselId: null,
   otherVessels: {},
   resetVessel: () => set({ vessel: defaultVesselState }),
-  setCurrentVesselId: id =>
-    set({ currentVesselId: id ? id.split('_')[0] : null }),
+  setCurrentVesselId: id => set({ currentVesselId: id || null }),
   setOtherVessels: vessels => set({ otherVessels: vessels }),
   updateVessel: vesselUpdate =>
     set(state => {

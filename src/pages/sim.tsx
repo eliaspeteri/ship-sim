@@ -663,6 +663,29 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     }
   }, [canEnterPlayerMode, mode, setMode, status]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!canEnterPlayerMode) return;
+      const joinChoice = sessionStorage.getItem(STORAGE_JOIN_CHOICE_KEY);
+      if (!joinChoice || joinChoice === 'spectate') return;
+      const state = useStore.getState();
+      if (state.mode !== 'spectator') return;
+      socketManager.setJoinPreference('player', true);
+      socketManager.notifyModeChange('player');
+      if (state.currentVesselId) {
+        socketManager.requestJoinVessel(state.currentVesselId);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleVisibility);
+    };
+  }, [canEnterPlayerMode]);
+
   // Keyboard controls (W/S throttle, A/D rudder, arrows also)
   useEffect(() => {
     const clamp = (val: number, min: number, max: number) =>

@@ -2018,7 +2018,7 @@ io.on('connection', async socket => {
           socket.data.safetyScore ?? DEFAULT_ECONOMY_PROFILE.safetyScore,
         spaceId,
         mode: (socket.data as { mode?: 'player' | 'spectator' }).mode,
-        vesselId: socket.data.vesselId,
+        vesselId: vessel?.id || socket.data.vesselId,
       },
       spaceInfo: {
         id: spaceMeta.id,

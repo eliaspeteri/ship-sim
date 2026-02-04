@@ -210,6 +210,9 @@ class SocketManager {
       }
       this.requestChatHistory('global');
       this.startLatencySampling();
+      if (this.initialMode === 'player' && this.autoJoin) {
+        this.notifyModeChange('player');
+      }
       const resolvers = this.connectResolvers.splice(0);
       resolvers.forEach(resolve => resolve());
     });
@@ -462,6 +465,12 @@ class SocketManager {
     let foundSelf = false;
     const selfUserId = data.self?.userId || this.userId;
     let preferredSelfId = data.self?.vesselId;
+    if (preferredSelfId && !data.vessels[preferredSelfId]) {
+      const normalizedMatch = Object.keys(data.vessels).find(
+        id => id.split('_')[0] === preferredSelfId,
+      );
+      preferredSelfId = normalizedMatch;
+    }
     if (!preferredSelfId) {
       preferredSelfId = Object.entries(data.vessels).find(([, vessel]) =>
         Array.isArray(vessel.crewIds)
@@ -489,13 +498,13 @@ class SocketManager {
         ...vesselData,
         position: ensurePosition(vesselData.position),
       };
-      const isSelf = preferredSelfId
-        ? id === preferredSelfId
-        : id === this.userId ||
-          id === store.currentVesselId ||
-          normalized.ownerId === selfUserId ||
-          (Array.isArray(normalized.crewIds) &&
-            normalized.crewIds.includes(selfUserId));
+      const isSelf =
+        (preferredSelfId ? id === preferredSelfId : false) ||
+        id === this.userId ||
+        id === store.currentVesselId ||
+        normalized.ownerId === selfUserId ||
+        (Array.isArray(normalized.crewIds) &&
+          normalized.crewIds.includes(selfUserId));
       if (isSelf) {
         foundSelf = true;
         const prevFailure = store.vessel.failureState;
@@ -698,7 +707,8 @@ class SocketManager {
     const currentId = store.currentVesselId;
     if (!currentId) return;
     const normalized = data.vesselId.split('_')[0];
-    if (normalized !== currentId) return;
+    const normalizedCurrent = currentId.split('_')[0];
+    if (normalized !== normalizedCurrent) return;
     void import('../simulation')
       .then(({ getSimulationLoop }) => {
         const normalized = ensurePosition(data.position);
