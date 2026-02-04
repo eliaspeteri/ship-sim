@@ -304,7 +304,28 @@ const buildVesselCreateData = ({
 
 // GET /api/vessels
 router.get('/vessels', async (req, res) => {
-  res.json(Object.values(vesselStates));
+  try {
+    const vessels = await prisma.vessel.findMany({
+      orderBy: { lastUpdate: 'desc' },
+    });
+    res.json(
+      vessels.map(vessel => ({
+        id: vessel.id,
+        spaceId: vessel.spaceId,
+        ownerId: vessel.ownerId,
+        mode: vessel.mode,
+        isAi: vessel.isAi,
+        lastUpdate: vessel.lastUpdate?.getTime?.() ?? null,
+        position: {
+          lat: vessel.lat,
+          lon: vessel.lon,
+        },
+      })),
+    );
+  } catch (err) {
+    console.error('Failed to load vessels', err);
+    res.status(500).json({ error: 'Failed to load vessels' });
+  }
 });
 
 // GET /api/vessels/by-id/:vesselId
