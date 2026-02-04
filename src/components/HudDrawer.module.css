@@ -22,6 +22,7 @@
   max-height: 85vh;
   overflow-y: auto;
   padding: 20px;
+  z-index: 44;
 }
 
 .hudPanelWide {
@@ -35,9 +36,13 @@
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 46;
+  z-index: 42;
   pointer-events: auto;
   max-width: min(780px, 94vw);
+}
+
+.navControlsDockBehind {
+  z-index: 38;
 }
 
 .navControlsRow {

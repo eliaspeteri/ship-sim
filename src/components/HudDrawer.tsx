@@ -1308,9 +1308,11 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
           ) : null}
         </div>
       ) : null}
-      {mode !== 'spectator' ? (
+      {mode !== 'spectator' && !tab ? (
         <div
-          className={styles.navControlsDock}
+          className={`${styles.navControlsDock} ${
+            tab ? styles.navControlsDockBehind : ''
+          }`}
           style={{
             bottom: `calc(${hudFooterHeight}px + 16px + env(safe-area-inset-bottom))`,
           }}
