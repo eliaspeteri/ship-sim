@@ -10,6 +10,14 @@ export type WaveState = {
   omega: number;
 };
 
+type WaveComponent = {
+  amplitude: number;
+  k: number;
+  omega: number;
+  dirX: number;
+  dirY: number;
+};
+
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
@@ -45,6 +53,29 @@ export const deriveWaveState = (
   };
 };
 
+export const getWaveComponents = (wave: WaveState): WaveComponent[] => {
+  const baseAmp = wave.amplitude;
+  const baseK = wave.k;
+  const baseOmega = wave.omega;
+  const baseDir = wave.direction;
+
+  const amplitudes = [1.0, 0.5, 0.25, 0.15].map(m => baseAmp * m);
+  const ks = [1.0, 1.8, 3.2, 5.0].map(m => baseK * m);
+  const omegas = [1.0, 1.6, 2.2, 3.0].map(m => baseOmega * m);
+  const dirOffsets = [0, 0.9, -0.6, 2.2];
+
+  return amplitudes.map((amp, idx) => {
+    const dir = baseDir + dirOffsets[idx];
+    return {
+      amplitude: amp,
+      k: ks[idx],
+      omega: omegas[idx],
+      dirX: Math.cos(dir),
+      dirY: Math.sin(dir),
+    };
+  });
+};
+
 export const getGerstnerSample = (
   x: number,
   y: number,
@@ -63,6 +94,39 @@ export const getGerstnerSample = (
     normal: {
       x: -dirX * slope,
       y: -dirY * slope,
+      z: 1,
+    },
+  };
+};
+
+export const getCompositeWaveSample = (
+  x: number,
+  y: number,
+  time: number,
+  wave: WaveState,
+) => {
+  const components = getWaveComponents(wave);
+  let height = 0;
+  let dydx = 0;
+  let dydy = 0;
+
+  components.forEach(component => {
+    const phase =
+      component.k * (component.dirX * x + component.dirY * y) -
+      component.omega * time;
+    const s = Math.sin(phase);
+    const c = Math.cos(phase);
+    height += component.amplitude * s;
+    const slope = component.amplitude * c * component.k;
+    dydx += slope * component.dirX;
+    dydy += slope * component.dirY;
+  });
+
+  return {
+    height,
+    normal: {
+      x: -dydx,
+      y: -dydy,
       z: 1,
     },
   };

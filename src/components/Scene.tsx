@@ -48,6 +48,13 @@ const TERRAIN_HEIGHT_SCALE = 1;
 const TERRAIN_SEA_LEVEL = 0;
 const TERRAIN_ENABLED = true;
 
+function WaveClock({ timeRef }: { timeRef: React.MutableRefObject<number> }) {
+  useFrame(state => {
+    timeRef.current = state.clock.elapsedTime;
+  });
+  return null;
+}
+
 function SpectatorController({
   mode,
   focusRef,
@@ -812,6 +819,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
     y: vesselPosition.y,
   });
   const orbitRef = useRef<OrbitControlsImpl | null>(null);
+  const waveTimeRef = useRef(0);
   const spectatorStartRef = useRef<{ x: number; y: number }>({
     x: vesselPosition.x,
     y: vesselPosition.y,
@@ -1130,6 +1138,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
         }}
       >
         <color attach="background" args={['#091623']} />
+        <WaveClock timeRef={waveTimeRef} />
         <SkyFollowCamera
           enabled
           distance={45000}
@@ -1167,6 +1176,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           size={12000}
           segments={512}
           wave={waveState}
+          timeRef={waveTimeRef}
           sunDirection={sunDirection}
           yOffset={OCEAN_EPSILON_Y}
         />
@@ -1200,6 +1210,8 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           length={vesselProperties.length}
           roll={vesselOrientation.roll}
           pitch={vesselOrientation.pitch}
+          wave={waveState}
+          waveTimeRef={waveTimeRef}
           showDebugMarkers={showSelfDebug}
           onSelect={isSpectator ? handleSelectVessel : undefined}
         />
@@ -1231,6 +1243,9 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
             ballast={v.controls?.ballast ?? 0.5}
             draft={v.properties?.draft ?? vesselProperties.draft}
             length={v.properties?.length ?? vesselProperties.length}
+            wave={waveState}
+            waveTimeRef={waveTimeRef}
+            applyWaveHeave={v.mode !== 'ai'}
             horizonOcclusion={{ enabled: true }}
             showDebugMarkers={isSpectator && selectedVesselId === id}
             onSelect={isSpectator ? handleSelectVessel : undefined}

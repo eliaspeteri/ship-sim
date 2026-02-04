@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { getWaveComponents } from '../lib/waves';
 
 type WaveState = {
   amplitude: number;
@@ -51,9 +52,8 @@ void main() {
   for (int i = 0; i < WAVE_COUNT; i++) {
     vec2 dir = normalize(uDir[i]);
 
-    // Phase in local coordinates (keeps frequency stable even when you scale the mesh),
-    // since scaling the mesh also scales p in world units.
-    float phase = uK[i] * (dir.x * p.x + dir.y * p.z) - uOmega[i] * uTime;
+    // Phase in world coordinates so wave frequency is stable even when the mesh scales.
+    float phase = uK[i] * (dir.x * worldXZ.x + dir.y * worldXZ.y) - uOmega[i] * uTime;
 
     float s = sin(phase);
     float c = cos(phase);
@@ -247,26 +247,14 @@ export function OceanPatch({
   }, []);
 
   useEffect(() => {
-    const baseAmp = wave.amplitude;
-    const baseK = wave.k;
-    const baseOmega = wave.omega;
-    const baseDir = wave.direction;
+    const components = getWaveComponents(wave);
 
-    const amps = [1.0, 0.5, 0.25, 0.15].map(m => baseAmp * m);
-    const ks = [1.0, 1.8, 3.2, 5.0].map(m => baseK * m);
-    const omegas = [1.0, 1.6, 2.2, 3.0].map(m => baseOmega * m);
-
-    const dirs = [
-      new THREE.Vector2(Math.cos(baseDir), Math.sin(baseDir)),
-      new THREE.Vector2(Math.cos(baseDir + 0.9), Math.sin(baseDir + 0.9)),
-      new THREE.Vector2(Math.cos(baseDir - 0.6), Math.sin(baseDir - 0.6)),
-      new THREE.Vector2(Math.cos(baseDir + 2.2), Math.sin(baseDir + 2.2)),
-    ];
-
-    material.uniforms.uAmp.value = amps;
-    material.uniforms.uK.value = ks;
-    material.uniforms.uOmega.value = omegas;
-    material.uniforms.uDir.value = dirs;
+    material.uniforms.uAmp.value = components.map(c => c.amplitude);
+    material.uniforms.uK.value = components.map(c => c.k);
+    material.uniforms.uOmega.value = components.map(c => c.omega);
+    material.uniforms.uDir.value = components.map(
+      c => new THREE.Vector2(c.dirX, c.dirY),
+    );
 
     const daylight = Math.max(0, sunDirection.y);
     material.uniforms.uSunDirection.value.copy(sunDirection).normalize();

@@ -3,6 +3,11 @@ import { useFrame } from '@react-three/fiber';
 import { useGLTF, Detailed } from '@react-three/drei';
 import * as THREE from 'three';
 import useStore from '../store';
+import {
+  getCompositeWaveSample,
+  getGerstnerSample,
+  WaveState,
+} from '../lib/waves';
 
 interface ShipProps {
   vesselId?: string;
@@ -26,6 +31,9 @@ interface ShipProps {
     dropEnd?: number;
     planetRadius?: number;
   };
+  wave?: WaveState;
+  waveTimeRef?: React.MutableRefObject<number>;
+  applyWaveHeave?: boolean;
   showDebugMarkers?: boolean;
   onSelect?: (id: string) => void;
 }
@@ -50,6 +58,9 @@ const Ship: React.FC<ShipProps> = ({
   roll,
   pitch,
   horizonOcclusion,
+  wave,
+  waveTimeRef,
+  applyWaveHeave = true,
   showDebugMarkers = false,
   onSelect,
 }) => {
@@ -126,9 +137,23 @@ const Ship: React.FC<ShipProps> = ({
         }
       }
 
+      let waveOffset = 0;
+      if (applyWaveHeave && wave && waveTimeRef) {
+        const t = waveTimeRef.current;
+        const composite = getCompositeWaveSample(
+          position.x,
+          position.z,
+          t,
+          wave,
+        );
+        const base = getGerstnerSample(position.x, position.z, t, wave);
+        waveOffset = composite.height - base.height;
+      }
+
       const yPos =
         (position.y !== undefined ? position.y * heaveScale + sink : sink) -
-        drop;
+        drop +
+        waveOffset;
       // Position from props and physics state (use heave in y plus sink offset)
       obj.position.set(position.x, yPos, position.z);
 
