@@ -146,6 +146,7 @@ export type ClientToServerEvents = {
     callback: (callbackData: { ok: boolean; message: string }) => void,
   ) => void;
   'simulation:state': (data: { isRunning: boolean }) => void;
+  'simulation:resync': (data?: { reason?: string }) => void;
   'admin:weather': (data: {
     pattern?: string;
     coordinates?: { lat: number; lng: number };
@@ -218,6 +219,11 @@ export type ClientToServerEvents = {
   'cargo:assign': (data: { cargoId: string; vesselId: string }) => void;
   'cargo:release': (data: { cargoId: string }) => void;
   'user:mode': (data: { mode: 'player' | 'spectator' }) => void;
+  'user:auth': (data: {
+    token?: string | null;
+    userId?: string | null;
+    username?: string | null;
+  }) => void;
   'latency:ping': (data: { sentAt: number }) => void;
   'client:log': (data: {
     level: 'info' | 'warn' | 'error';

@@ -75,6 +75,7 @@ import { registerUserModeHandler } from './socketHandlers/userMode';
 import { registerVesselControlHandler } from './socketHandlers/vesselControl';
 import { registerVesselRepairHandler } from './socketHandlers/vesselRepair';
 import { registerSimulationStateHandler } from './socketHandlers/simulationState';
+import { registerSimulationResyncHandler } from './socketHandlers/simulationResync';
 import { registerLatencyPingHandler } from './socketHandlers/latencyPing';
 import { registerClientLogHandler } from './socketHandlers/clientLog';
 import { registerVesselStorageHandler } from './socketHandlers/vesselStorage';
@@ -181,6 +182,7 @@ export interface VesselRecord {
 const WEATHER_AUTO_INTERVAL_MS = 5 * 60 * 1000;
 const vesselPersistAt = new Map<string, number>();
 const environmentPersistAt = new Map<string, number>();
+const activeUserSockets = new Map<string, string>();
 let nextAutoWeatherAt = Date.now() + WEATHER_AUTO_INTERVAL_MS;
 let lastMissionUpdateAt = 0;
 
@@ -1751,7 +1753,12 @@ io.on('connection', async socket => {
   let vessel: VesselRecord | undefined = undefined;
   if (isPlayerOrHigher && !wantsSpectator) {
     vessel = ensureVesselForUser(effectiveUserId, effectiveUsername, spaceId);
-    socket.data.mode = 'player';
+    if (vessel) {
+      socket.data.mode = 'player';
+    } else {
+      socket.data.mode = 'spectator';
+      socket.data.autoJoin = false;
+    }
   } else {
     socket.data.mode = 'spectator';
   }
@@ -1759,6 +1766,22 @@ io.on('connection', async socket => {
   console.info(
     `Socket connected: ${effectiveUsername} (${effectiveUserId}) role=${isPlayerOrHigher ? 'player' : isSpectatorOnly ? 'spectator' : 'guest'} space=${spaceId}`,
   );
+  if (effectiveUserId) {
+    const existingSocketId = activeUserSockets.get(effectiveUserId);
+    if (existingSocketId && existingSocketId !== socket.id) {
+      activeUserSockets.set(effectiveUserId, socket.id);
+      const existingSocket = io.sockets.sockets.get(existingSocketId);
+      if (existingSocket) {
+        existingSocket.emit(
+          'error',
+          'You were signed in elsewhere. This session is now spectator-only.',
+        );
+        existingSocket.disconnect(true);
+      }
+    } else {
+      activeUserSockets.set(effectiveUserId, socket.id);
+    }
+  }
   if (!rankEligible && isPlayerOrHigher) {
     socket.emit(
       'error',
@@ -1891,6 +1914,7 @@ io.on('connection', async socket => {
     getEnvironmentForSpace,
     currentUtcTimeOfDay,
     weatherAutoIntervalMs: WEATHER_AUTO_INTERVAL_MS,
+    activeUserSockets,
   };
 
   // Send initial snapshot with recent chat history
@@ -1976,13 +2000,192 @@ io.on('connection', async socket => {
 
   registerUserModeHandler(handlerContext);
 
+  const buildGuestIdentity = () => {
+    const guestId = `guest_${Math.random().toString(36).substring(2, 9)}`;
+    const guestRoles = expandRoles(['guest']);
+    const guestPermissions = permissionsForRoles(guestRoles);
+    return {
+      userId: guestId,
+      username: 'Guest',
+      roles: guestRoles,
+      permissions: guestPermissions,
+      rank: 0,
+      credits: 0,
+      experience: 0,
+      safetyScore: 1,
+      spaceRole: 'member' as const,
+    };
+  };
+
+  socket.on('user:auth', async data => {
+    const prevUserId = socket.data.userId || effectiveUserId;
+    const prevUsername = socket.data.username || effectiveUsername;
+    const rawToken = data?.token || null;
+    const currentSpace = socket.data.spaceId || spaceId || DEFAULT_SPACE_ID;
+
+    if (!rawToken || !NEXTAUTH_SECRET) {
+      if (prevUserId) {
+        detachUserFromCurrentVessel(prevUserId, currentSpace);
+        updateSocketVesselRoom(socket, currentSpace, null);
+        socket.leave(`user:${prevUserId}`);
+      }
+      const guest = buildGuestIdentity();
+      socket.data.userId = guest.userId;
+      socket.data.username = guest.username;
+      socket.data.roles = guest.roles;
+      socket.data.permissions = guest.permissions;
+      socket.data.mode = 'spectator';
+      socket.data.autoJoin = false;
+      socket.data.rank = guest.rank;
+      socket.data.credits = guest.credits;
+      socket.data.experience = guest.experience;
+      socket.data.safetyScore = guest.safetyScore;
+      socket.data.spaceRole = guest.spaceRole;
+      socket.join(`user:${guest.userId}`);
+      if (prevUserId && activeUserSockets.get(prevUserId) === socket.id) {
+        activeUserSockets.delete(prevUserId);
+      }
+      socket.emit('simulation:update', {
+        vessels: {},
+        partial: true,
+        timestamp: Date.now(),
+        self: {
+          userId: guest.userId,
+          roles: guest.roles as Role[],
+          rank: guest.rank,
+          credits: guest.credits,
+          experience: guest.experience,
+          safetyScore: guest.safetyScore,
+          spaceId: currentSpace,
+          mode: 'spectator',
+          vesselId: undefined,
+        },
+      });
+      return;
+    }
+
+    try {
+      const decoded = jwt.verify(rawToken, NEXTAUTH_SECRET) as {
+        sub?: string;
+        name?: string;
+        email?: string;
+        role?: string;
+      };
+      const nextUserId =
+        decoded.sub ||
+        decoded.email ||
+        data?.userId ||
+        prevUserId ||
+        `na_${Math.random().toString(36).slice(2, 8)}`;
+      const nextUsername =
+        decoded.name || decoded.email || data?.username || prevUsername;
+      const baseRole: Role = (decoded.role as Role) || 'player';
+      const roles = expandRoles(
+        Array.from(
+          new Set([
+            baseRole,
+            ...(ADMIN_USERS.includes(nextUserId) ||
+            ADMIN_USERS.includes(nextUsername) ||
+            (decoded.email && ADMIN_USERS.includes(decoded.email))
+              ? (['admin'] as Role[])
+              : []),
+          ]),
+        ) as Role[],
+      );
+      const permissions = permissionsForRoles(roles);
+      const account =
+        (await getEconomyProfile(nextUserId).catch(() => null)) ||
+        DEFAULT_ECONOMY_PROFILE;
+      const spaceRole = await getSpaceRole(nextUserId, currentSpace);
+      const ban = await getActiveBan(nextUserId, nextUsername, currentSpace);
+      if (ban) {
+        socket.emit('error', `Banned: ${ban.reason || 'Access denied'}`);
+        socket.disconnect(true);
+        return;
+      }
+
+      if (prevUserId && prevUserId !== nextUserId) {
+        detachUserFromCurrentVessel(prevUserId, currentSpace);
+        updateSocketVesselRoom(socket, currentSpace, null);
+        socket.leave(`user:${prevUserId}`);
+      }
+
+      socket.data.userId = nextUserId;
+      socket.data.username = nextUsername;
+      socket.data.roles = roles;
+      socket.data.permissions = permissions;
+      socket.data.rank = account.rank;
+      socket.data.credits = account.credits;
+      socket.data.experience = account.experience;
+      socket.data.safetyScore = account.safetyScore;
+      socket.data.spaceRole = spaceRole;
+      socket.join(`user:${nextUserId}`);
+
+      if (prevUserId && activeUserSockets.get(prevUserId) === socket.id) {
+        activeUserSockets.delete(prevUserId);
+      }
+      activeUserSockets.set(nextUserId, socket.id);
+
+      socket.emit('simulation:update', {
+        vessels: {},
+        partial: true,
+        timestamp: Date.now(),
+        self: {
+          userId: nextUserId,
+          roles,
+          rank: account.rank,
+          credits: account.credits,
+          experience: account.experience,
+          safetyScore: account.safetyScore,
+          spaceId: currentSpace,
+          mode: socket.data.mode || 'spectator',
+          vesselId: socket.data.vesselId,
+        },
+      });
+    } catch (err) {
+      socket.emit('error', 'Authentication expired');
+      console.error(err);
+      if (prevUserId) {
+        detachUserFromCurrentVessel(prevUserId, currentSpace);
+        updateSocketVesselRoom(socket, currentSpace, null);
+        socket.leave(`user:${prevUserId}`);
+      }
+      const guest = buildGuestIdentity();
+      socket.data.userId = guest.userId;
+      socket.data.username = guest.username;
+      socket.data.roles = guest.roles;
+      socket.data.permissions = guest.permissions;
+      socket.data.mode = 'spectator';
+      socket.data.autoJoin = false;
+      socket.data.rank = guest.rank;
+      socket.data.credits = guest.credits;
+      socket.data.experience = guest.experience;
+      socket.data.safetyScore = guest.safetyScore;
+      socket.data.spaceRole = guest.spaceRole;
+      socket.join(`user:${guest.userId}`);
+      if (prevUserId && activeUserSockets.get(prevUserId) === socket.id) {
+        activeUserSockets.delete(prevUserId);
+      }
+    }
+  });
+
   // Handle vessel:control events
   registerVesselControlHandler(handlerContext);
 
   registerVesselRepairHandler(handlerContext);
 
+  socket.on('disconnect', () => {
+    if (effectiveUserId) {
+      const current = activeUserSockets.get(effectiveUserId);
+      if (current === socket.id) {
+        activeUserSockets.delete(effectiveUserId);
+      }
+    }
+  });
+
   // Handle simulation state changes
   registerSimulationStateHandler(handlerContext);
+  registerSimulationResyncHandler(handlerContext);
   registerLatencyPingHandler(handlerContext);
   registerClientLogHandler(handlerContext);
 

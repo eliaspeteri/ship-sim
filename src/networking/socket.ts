@@ -16,8 +16,14 @@ import {
   VesselUpdateData,
 } from '../types/socket.types';
 import { MissionAssignmentData } from '../types/mission.types';
+import {
+  STORAGE_SPACE_KEY,
+  STORAGE_SPACE_SELECTED_KEY,
+} from '../features/sim/constants';
 
 const CHAT_HISTORY_PAGE_SIZE = 20;
+const RESYNC_POLL_MS = 2000;
+const RESYNC_STALE_MS = 8000;
 
 type ClientSocket = ReturnType<typeof io> & {
   auth?: {
@@ -133,9 +139,13 @@ class SocketManager {
   private hasHydratedSelf = false;
   private lastSelfSnapshot: SimpleVesselState | null = null;
   private selfHydrateResolvers: Array<(vessel: SimpleVesselState) => void> = [];
+  private lastSelfVesselId: string | null = null;
   private chatHistoryLoading: Set<string> = new Set();
   private latencyTimer: NodeJS.Timeout | null = null;
   private connectResolvers: Array<() => void> = [];
+  private resyncTimer: NodeJS.Timeout | null = null;
+  private lastSimulationTimestamp = 0;
+  private lastSimulationUpdateAt = 0;
   private lastControlSent: {
     throttle?: number;
     rudderAngle?: number;
@@ -165,6 +175,9 @@ class SocketManager {
     this.hasHydratedSelf = false;
     this.lastSelfSnapshot = null;
     this.selfHydrateResolvers = [];
+    this.lastSelfVesselId = null;
+    this.lastSimulationTimestamp = 0;
+    this.lastSimulationUpdateAt = Date.now();
     useStore.getState().setCurrentVesselId(null);
 
     const options: ClientConnectOpts = {
@@ -191,6 +204,8 @@ class SocketManager {
 
   switchSpace(spaceId: string): void {
     this.setSpaceId(spaceId);
+    this.lastSimulationTimestamp = 0;
+    this.lastSimulationUpdateAt = Date.now();
     const url = this.lastUrl || 'http://localhost:3001';
     this.disconnect();
     this.connect(url);
@@ -210,6 +225,7 @@ class SocketManager {
       }
       this.requestChatHistory('global');
       this.startLatencySampling();
+      this.startResyncWatcher();
       if (this.initialMode === 'player' && this.autoJoin) {
         this.notifyModeChange('player');
       }
@@ -220,6 +236,7 @@ class SocketManager {
     this.socket.on('disconnect', (reason: string) => {
       console.info(`Socket.IO disconnected: ${reason}`);
       this.stopLatencySampling();
+      this.stopResyncWatcher();
 
       // Handle reconnection for certain disconnect reasons
       if (reason === 'io server disconnect') {
@@ -344,6 +361,32 @@ class SocketManager {
           : error instanceof Error
             ? error.message
             : 'Connection error';
+      const lowered = message.toLowerCase();
+      if (lowered.includes('signed in elsewhere')) {
+        store.setMode('spectator');
+        store.setCurrentVesselId(null);
+        this.setJoinPreference('spectator', false);
+      }
+      if (lowered.includes('authentication expired')) {
+        store.setMode('spectator');
+        store.setCurrentVesselId(null);
+        this.setJoinPreference('spectator', false);
+      }
+      const spaceMatch = message.match(
+        /Vessel is in space\s+([A-Za-z0-9_-]+)/i,
+      );
+      if (spaceMatch) {
+        const targetSpace = spaceMatch[1]?.trim().toLowerCase();
+        if (targetSpace && targetSpace !== store.spaceId) {
+          store.setSpaceId(targetSpace);
+          store.setChatMessages([]);
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem(STORAGE_SPACE_KEY, targetSpace);
+            window.localStorage.setItem(STORAGE_SPACE_SELECTED_KEY, 'true');
+          }
+          this.switchSpace(targetSpace);
+        }
+      }
       store.setNotice({ type: 'error', message });
     });
 
@@ -394,9 +437,36 @@ class SocketManager {
     }
   }
 
+  private startResyncWatcher(): void {
+    if (this.resyncTimer) return;
+    this.lastSimulationUpdateAt = Date.now();
+    this.resyncTimer = setInterval(() => {
+      if (!this.socket?.connected) return;
+      const now = Date.now();
+      if (now - this.lastSimulationUpdateAt < RESYNC_STALE_MS) return;
+      this.lastSimulationUpdateAt = now;
+      this.socket.emit('simulation:resync', { reason: 'stale' });
+    }, RESYNC_POLL_MS);
+  }
+
+  private stopResyncWatcher(): void {
+    if (this.resyncTimer) {
+      clearInterval(this.resyncTimer);
+      this.resyncTimer = null;
+    }
+  }
+
   // Handle simulation updates from server
   private handleSimulationUpdate(data: SimulationUpdateData): void {
     const store = useStore.getState();
+    if (typeof data.timestamp === 'number') {
+      if (data.timestamp < this.lastSimulationTimestamp) {
+        return;
+      }
+      this.lastSimulationTimestamp = data.timestamp;
+    }
+    this.lastSimulationUpdateAt = Date.now();
+    const previousSpaceId = store.spaceId;
     if (data.self?.roles) {
       store.setRoles(data.self.roles);
     }
@@ -423,6 +493,9 @@ class SocketManager {
     }
     if (data.self?.mode) {
       store.setMode(data.self.mode);
+      if (data.self.mode === 'spectator') {
+        this.lastSelfVesselId = null;
+      }
     }
     if (data.self?.spaceId) {
       store.setSpaceId(data.self.spaceId);
@@ -430,6 +503,10 @@ class SocketManager {
     } else if (data.spaceId) {
       store.setSpaceId(data.spaceId);
       this.setSpaceId(data.spaceId);
+    }
+    if (store.spaceId !== previousSpaceId) {
+      this.lastSimulationTimestamp = 0;
+      this.lastSimulationUpdateAt = Date.now();
     }
     if (data.spaceInfo) {
       store.setSpaceInfo(data.spaceInfo);
@@ -566,6 +643,23 @@ class SocketManager {
           helm: normalized.helm,
           stations: normalized.stations,
         });
+        if (
+          store.mode === 'player' &&
+          (normalized.desiredMode ?? normalized.mode) !== 'ai' &&
+          this.lastSelfVesselId !== id
+        ) {
+          this.lastSelfVesselId = id;
+          const pos = normalized.position;
+          if (Number.isFinite(pos.x) && Number.isFinite(pos.y)) {
+            void import('../simulation')
+              .then(({ getSimulationLoop }) => {
+                getSimulationLoop().syncVesselFromStore();
+              })
+              .catch(error => {
+                console.error('Failed to sync vessel from store:', error);
+              });
+          }
+        }
         if (normalized.failureState) {
           store.updateMachineryStatus({
             failures: {
@@ -646,6 +740,7 @@ class SocketManager {
         const desired = normalized.desiredMode || normalized.mode;
         if (desired === 'ai') {
           store.setMode('spectator');
+          this.lastSelfVesselId = null;
         }
         return;
       }
@@ -1024,6 +1119,7 @@ class SocketManager {
       this.socket = null;
     }
     this.stopLatencySampling();
+    this.stopResyncWatcher();
 
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -1052,6 +1148,34 @@ class SocketManager {
         mode: this.initialMode,
         autoJoin: this.autoJoin,
       };
+    }
+  }
+
+  refreshAuth(token?: string | null, userId?: string, username?: string): void {
+    this.authToken = token ?? null;
+    if (userId !== undefined) {
+      this.userId = userId || this.userId;
+    }
+    if (username !== undefined) {
+      this.username = username || this.username;
+    }
+    const store = useStore.getState();
+    this.spaceId = store.spaceId || this.spaceId;
+    if (this.socket) {
+      this.socket.auth = {
+        ...(this.socket.auth || {}),
+        token: this.authToken,
+        userId: this.userId,
+        username: this.username,
+        spaceId: this.spaceId,
+        mode: this.initialMode,
+        autoJoin: this.autoJoin,
+      };
+      this.socket.emit('user:auth', {
+        token: this.authToken,
+        userId: this.userId,
+        username: this.username,
+      });
     }
   }
 

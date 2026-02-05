@@ -33,7 +33,7 @@ export type SocketHandlerContext = {
   effectiveUserId: string;
   effectiveUsername: string;
   roleSet: Set<string>;
-  isPlayerOrHigher: boolean;
+  isPlayerOrHigher: () => boolean;
   isSpectatorOnly: boolean;
   isGuest: boolean;
   spaceMeta: {
@@ -166,4 +166,5 @@ export type SocketHandlerContext = {
   getEnvironmentForSpace: (spaceId: string) => EnvironmentState;
   currentUtcTimeOfDay: () => number;
   weatherAutoIntervalMs: number;
+  activeUserSockets: Map<string, string>;
 };

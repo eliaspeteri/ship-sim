@@ -411,6 +411,17 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   }, [userId, setSessionUserId]);
 
   useEffect(() => {
+    if (status === 'loading') return;
+    const token = (session as unknown as { socketToken?: string })?.socketToken;
+    const nextUserId =
+      (session?.user as { id?: string })?.id ||
+      session?.user?.name ||
+      undefined;
+    const nextUsername = session?.user?.name || undefined;
+    socketManager.refreshAuth(token ?? null, nextUserId, nextUsername);
+  }, [session, status]);
+
+  useEffect(() => {
     setSpaceInput(spaceId || DEFAULT_SPACE_ID);
   }, [spaceId]);
 

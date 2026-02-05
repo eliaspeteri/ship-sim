@@ -7,9 +7,9 @@ export function registerDisconnectHandler({
   spaceId,
   effectiveUserId,
   effectiveUsername,
-  isGuest,
   getVesselIdForUser,
   globalState,
+  activeUserSockets,
 }: SocketHandlerContext) {
   socket.on('disconnect', () => {
     const currentUserId = socket.data.userId || effectiveUserId;
@@ -17,7 +17,20 @@ export function registerDisconnectHandler({
     console.info(`Socket disconnected: ${currentUsername} (${currentUserId})`);
     setConnectedClients(io.engine.clientsCount);
 
-    if (!isGuest) {
+    const activeSocketId =
+      currentUserId && activeUserSockets.get(currentUserId);
+    if (activeSocketId && activeSocketId !== socket.id) {
+      return;
+    }
+
+    const roles = socket.data.roles || [];
+    const isGuestNow =
+      roles.includes('guest') &&
+      !roles.some(
+        role => role === 'player' || role === 'spectator' || role === 'admin',
+      );
+
+    if (!isGuestNow) {
       const vesselId =
         currentUserId && getVesselIdForUser(currentUserId, spaceId);
       const vesselRecord = vesselId
