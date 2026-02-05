@@ -211,4 +211,97 @@ describe('useLeverDrag', () => {
 
     expect(result.current.isDragging).toBe(false);
   });
+
+  it('uses default drag axis and updates cursor while dragging', () => {
+    const onChange = jest.fn();
+    const { result } = renderHook(() =>
+      useLeverDrag({
+        initialValue: 10,
+        min: 0,
+        max: 100,
+        onChange,
+      }),
+    );
+
+    expect(document.body.style.cursor).toBe('');
+
+    act(() => {
+      const event = new MouseEvent('mousedown', { clientX: 10, clientY: 10 });
+      jest.spyOn(event, 'preventDefault').mockImplementation(() => {});
+      result.current.handleMouseDown(event);
+    });
+
+    expect(document.body.style.cursor).toBe('ew-resize');
+
+    act(() => {
+      const mouseMoveEvent = new MouseEvent('mousemove', {
+        clientX: 20,
+        clientY: 10,
+      });
+      window.dispatchEvent(mouseMoveEvent);
+    });
+
+    expect(onChange).toHaveBeenCalled();
+
+    act(() => {
+      const mouseUpEvent = new MouseEvent('mouseup');
+      window.dispatchEvent(mouseUpEvent);
+    });
+
+    expect(document.body.style.cursor).toBe('');
+  });
+
+  it('falls back to sensitivity 1 when dragSensitivity is 0', () => {
+    const onChange = jest.fn();
+    const { result } = renderHook(() =>
+      useLeverDrag({
+        initialValue: 0,
+        min: 0,
+        max: 100,
+        onChange,
+        dragSensitivity: 0,
+      }),
+    );
+
+    act(() => {
+      const event = new MouseEvent('mousedown', { clientX: 0, clientY: 0 });
+      jest.spyOn(event, 'preventDefault').mockImplementation(() => {});
+      result.current.handleMouseDown(event);
+    });
+
+    act(() => {
+      const mouseMoveEvent = new MouseEvent('mousemove', {
+        clientX: 1,
+        clientY: 0,
+      });
+      window.dispatchEvent(mouseMoveEvent);
+    });
+
+    expect(result.current.value).toBe(100);
+    expect(onChange).toHaveBeenCalledWith(100);
+  });
+
+  it('cleans up global listeners and cursor on unmount', () => {
+    const { result, unmount } = renderHook(() =>
+      useLeverDrag({
+        initialValue: 25,
+        min: 0,
+        max: 100,
+        onChange: jest.fn(),
+        dragAxis: 'vertical',
+      }),
+    );
+
+    act(() => {
+      const event = new MouseEvent('mousedown', { clientX: 5, clientY: 5 });
+      jest.spyOn(event, 'preventDefault').mockImplementation(() => {});
+      result.current.handleMouseDown(event);
+    });
+
+    expect(document.body.style.cursor).toBe('ns-resize');
+
+    unmount();
+
+    expect(document.body.style.cursor).toBe('');
+  });
 });

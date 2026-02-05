@@ -1,0 +1,65 @@
+import React from 'react';
+import { render } from '@testing-library/react';
+import * as THREE from 'three';
+import SeamarkSprites from '../../../src/components/SeamarkSprites';
+import useStore from '../../../src/store';
+import { useFrame, useThree } from '@react-three/fiber';
+
+jest.mock('@react-three/fiber', () => ({
+  useThree: jest.fn(),
+  useFrame: jest.fn(),
+}));
+
+jest.mock('../../../src/store');
+
+const useStoreMock = useStore as jest.MockedFunction<any>;
+const useThreeMock = useThree as jest.MockedFunction<any>;
+const useFrameMock = useFrame as jest.MockedFunction<any>;
+
+const baseState = {
+  seamarks: { features: [] as any[] },
+  environment: { timeOfDay: 12 },
+};
+
+const renderWithState = (stateOverride: Partial<typeof baseState>) => {
+  const state = { ...baseState, ...stateOverride };
+  useStoreMock.mockImplementation(selector => selector(state));
+  useThreeMock.mockReturnValue({ camera: new THREE.PerspectiveCamera() });
+  return render(<SeamarkSprites />);
+};
+
+describe('SeamarkSprites', () => {
+  beforeEach(() => {
+    useFrameMock.mockClear();
+  });
+
+  it('returns null when no seamarks are present', () => {
+    const { container } = renderWithState({
+      seamarks: { features: [] },
+    });
+
+    expect(container.firstChild).toBeNull();
+    expect(useFrameMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders points and registers a frame handler for seamarks', () => {
+    const { container } = renderWithState({
+      seamarks: {
+        features: [
+          {
+            id: 'a',
+            geometry: { type: 'Point', coordinates: [10, 20] },
+            properties: {
+              'seamark:type': 'cardinal',
+              'seamark:buoy_cardinal:category': 'east',
+            },
+          },
+        ],
+      },
+      environment: { timeOfDay: 20 },
+    });
+
+    expect(container.querySelector('points')).toBeTruthy();
+    expect(useFrameMock).toHaveBeenCalledTimes(1);
+  });
+});

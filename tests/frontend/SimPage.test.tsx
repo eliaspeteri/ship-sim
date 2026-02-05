@@ -23,6 +23,18 @@ let routerIsReady = true;
 let latestSpaceModalProps: any;
 let latestJoinChoiceProps: any;
 const applyControls = jest.fn();
+const flushPromises = async (ticks = 3) => {
+  for (let i = 0; i < ticks; i += 1) {
+    await Promise.resolve();
+  }
+};
+
+const renderSimPage = async () => {
+  render(<SimPage />);
+  await act(async () => {
+    await flushPromises();
+  });
+};
 
 jest.mock('next/router', () => ({
   useRouter: () => ({
@@ -176,6 +188,7 @@ jest.mock('../../src/networking/socket', () => ({
     waitForConnection: jest.fn().mockResolvedValue(undefined),
     waitForSelfSnapshot: jest.fn().mockResolvedValue(undefined),
     setAuthToken: jest.fn(),
+    refreshAuth: jest.fn(),
     connect: jest.fn(),
     disconnect: jest.fn(),
     requestJoinVessel: jest.fn(),
@@ -233,7 +246,7 @@ describe('Sim page', () => {
       data: null,
     });
 
-    render(<SimPage />);
+    await renderSimPage();
 
     await waitFor(() =>
       expect(screen.getByText('Guest mode')).toBeInTheDocument(),
@@ -242,13 +255,13 @@ describe('Sim page', () => {
     expect(screen.queryByText('Guest mode')).not.toBeInTheDocument();
   });
 
-  it('shows loading state while session loads', () => {
+  it('shows loading state while session loads', async () => {
     mockUseSession.mockReturnValue({
       status: 'loading',
       data: null,
     });
 
-    render(<SimPage />);
+    await renderSimPage();
 
     expect(screen.getByText('Loading Ship Simulator')).toBeInTheDocument();
   });
@@ -309,7 +322,7 @@ describe('Sim page', () => {
       return { ok: true, json: async () => ({}) };
     });
 
-    render(<SimPage />);
+    await renderSimPage();
 
     await waitFor(() => expect(socketManager.connect).toHaveBeenCalledWith(''));
     await waitFor(() => expect(initializeSimulation).toHaveBeenCalled());
@@ -342,7 +355,7 @@ describe('Sim page', () => {
       },
     });
 
-    render(<SimPage />);
+    await renderSimPage();
 
     await waitFor(() =>
       expect(socketManager.requestJoinVessel).toHaveBeenCalledWith('v-9'),
@@ -379,7 +392,7 @@ describe('Sim page', () => {
       return { ok: true, json: async () => ({}) };
     });
 
-    render(<SimPage />);
+    await renderSimPage();
 
     await act(async () => {
       latestSpaceModalProps.setNewSpaceName('Harbor Alpha');
@@ -422,7 +435,7 @@ describe('Sim page', () => {
       return { ok: true, json: async () => ({}) };
     });
 
-    render(<SimPage />);
+    await renderSimPage();
 
     await act(async () => {
       await latestJoinChoiceProps.onStartScenario({
@@ -470,7 +483,7 @@ describe('Sim page', () => {
       },
     });
 
-    render(<SimPage />);
+    await renderSimPage();
 
     await waitFor(() => expect(screen.getByText('Scene')).toBeInTheDocument());
 
@@ -495,7 +508,7 @@ describe('Sim page', () => {
       mode: 'player',
     });
 
-    render(<SimPage />);
+    await renderSimPage();
 
     await waitFor(() =>
       expect(storeState.setMode).toHaveBeenCalledWith('spectator'),
@@ -516,7 +529,7 @@ describe('Sim page', () => {
       notice: { type: 'info', message: 'Heads up' },
     });
 
-    render(<SimPage />);
+    await renderSimPage();
 
     act(() => {
       jest.runOnlyPendingTimers();
@@ -536,7 +549,7 @@ describe('Sim page', () => {
       },
     });
 
-    render(<SimPage />);
+    await renderSimPage();
 
     await waitFor(() =>
       expect(socketManager.requestJoinVessel).toHaveBeenCalledWith('v-77'),
