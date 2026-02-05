@@ -1,7 +1,7 @@
 # Bugs
 
-- [ ] ship's motion does not match wave motion
-- [ ] when I alt-tab out, or make the tab not visible, the websocket stays connected. But when I alt-tab back in, the connection seems to be cycled. This causes the frontend to kick me back into spectator view. This can be quite jarring. It should put me back into player mode.
+- [x] ship's motion does not match wave motion
+- [x] when I alt-tab out, or make the tab not visible, the websocket stays connected. But when I alt-tab back in, the connection seems to be cycled. This causes the frontend to kick me back into spectator view. This can be quite jarring. It should put me back into player mode.
   - Note: switching browser tabs triggers spectator mode even without disconnect/reconnect logs.
 
 ```sh
@@ -12,7 +12,7 @@ Loading chat history for channel space:global:global
 Loaded 0 chat messages for channel space:global:global (hasMore: false)
 ```
 
-- [ ] the Gerstner waves have a diamond pattern. Pattern is not random enough. My hunch is, there aren't enough waves occurring in different directions.
+- [x] the Gerstner waves have a diamond pattern. Pattern is not random enough. My hunch is, there aren't enough waves occurring in different directions.
 - [x] When I load the "Vessels" tab in the hud drawer, I get an "Authentication required" error message in browser console.
 
 ```sh
@@ -139,3 +139,6 @@ React will try to recreate this component tree from scratch using the error boun
 ```
 
 - [ ] Radar does not show terrain.
+- [ ] I'm able to toggle between spectator mode and player mode even in realistic rulesets.
+- [ ] I don't see a way to leave a vessel, and get back to "join space" modal.
+- [ ] Joining a vessel from hud drawer tab in spectator mode does not put me in player mode even if it assigns me on the vessel.
