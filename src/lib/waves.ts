@@ -59,10 +59,10 @@ export const getWaveComponents = (wave: WaveState): WaveComponent[] => {
   const baseOmega = wave.omega;
   const baseDir = wave.direction;
 
-  const amplitudes = [1.0, 0.5, 0.25, 0.15].map(m => baseAmp * m);
-  const ks = [1.0, 1.8, 3.2, 5.0].map(m => baseK * m);
-  const omegas = [1.0, 1.6, 2.2, 3.0].map(m => baseOmega * m);
-  const dirOffsets = [0, 0.9, -0.6, 2.2];
+  const amplitudes = [1.0, 0.6, 0.35, 0.22, 0.16, 0.12].map(m => baseAmp * m);
+  const ks = [1.0, 1.6, 2.4, 3.2, 4.4, 5.8].map(m => baseK * m);
+  const omegas = [1.0, 1.5, 2.1, 2.8, 3.6, 4.6].map(m => baseOmega * m);
+  const dirOffsets = [0, 0.7, -0.5, 1.6, -1.4, 2.3];
 
   return amplitudes.map((amp, idx) => {
     const dir = baseDir + dirOffsets[idx];
