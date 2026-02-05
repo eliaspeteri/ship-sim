@@ -1,10 +1,15 @@
 import { prisma } from '../../lib/prisma';
+import { distanceMeters } from '../../lib/position';
 import {
   applyEconomyAdjustment,
   calculateVesselCreationCost,
   getEconomyProfile,
+  resolvePortForPosition,
 } from '../economy';
+import { RulesetType } from '../../types/rules.types';
 import type { SocketHandlerContext } from './context';
+
+const SWITCH_NEARBY_METERS = 1500;
 
 export function registerVesselJoinHandler({
   io,
@@ -17,6 +22,7 @@ export function registerVesselJoinHandler({
   globalState,
   buildVesselRecordFromRow,
   findVesselInSpace,
+  getVesselIdForUser,
   findJoinableVessel,
   hasAdminRole,
   maxCrew,
@@ -30,10 +36,12 @@ export function registerVesselJoinHandler({
   defaultSpaceId,
   createNewVesselForUser,
   syncUserSocketsEconomy,
+  getRulesForSpace,
 }: SocketHandlerContext) {
   socket.on('vessel:join', async data => {
     const currentUserId = socket.data.userId || effectiveUserId;
     const currentUsername = socket.data.username || effectiveUsername;
+    const rules = getRulesForSpace(spaceId) as { type?: RulesetType };
     const rankEligible =
       (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
     if (!isPlayerOrHigher()) {
@@ -51,6 +59,16 @@ export function registerVesselJoinHandler({
       typeof data?.vesselId === 'string' ? data.vesselId : undefined;
     let target = targetId ? findVesselInSpace(targetId, spaceId) : null;
     if (!target && targetId) {
+      const existing = globalState.vessels.get(targetId);
+      if (existing && (existing.spaceId || defaultSpaceId) !== spaceId) {
+        socket.emit(
+          'error',
+          `Vessel is in space ${existing.spaceId || defaultSpaceId}`,
+        );
+        return;
+      }
+    }
+    if (!target && targetId) {
       const row = await prisma.vessel.findUnique({ where: { id: targetId } });
       if (!row) {
         socket.emit('error', 'Vessel not found');
@@ -66,10 +84,17 @@ export function registerVesselJoinHandler({
       }
       const hydrated = buildVesselRecordFromRow(row);
       if ((hydrated.spaceId || defaultSpaceId) !== spaceId) {
-        socket.emit('error', 'Vessel not available in this space');
+        socket.emit(
+          'error',
+          `Vessel is in space ${hydrated.spaceId || defaultSpaceId}`,
+        );
         return;
       }
-      if (hydrated.status === 'stored' || hydrated.status === 'repossession') {
+      if (
+        hydrated.status === 'stored' ||
+        hydrated.status === 'repossession' ||
+        hydrated.status === 'auction'
+      ) {
         socket.emit('error', 'Vessel is stored');
         return;
       }
@@ -82,6 +107,26 @@ export function registerVesselJoinHandler({
     if (!target) {
       socket.emit('error', 'No joinable vessels available');
       return;
+    }
+    const currentVesselId = getVesselIdForUser(currentUserId, spaceId);
+    const currentVessel = currentVesselId
+      ? findVesselInSpace(currentVesselId, spaceId)
+      : null;
+    const isSwitching = !!currentVessel && currentVessel.id !== target.id;
+    const rulesType = rules.type || RulesetType.CASUAL;
+    const switchRestricted =
+      rulesType === RulesetType.REALISM || rulesType === RulesetType.EXAM;
+    if (isSwitching && switchRestricted && !hasAdminRole(socket)) {
+      const currentPort = resolvePortForPosition(currentVessel!.position);
+      const targetPort = resolvePortForPosition(target.position);
+      const distance = distanceMeters(currentVessel!.position, target.position);
+      if (!currentPort && !targetPort && distance > SWITCH_NEARBY_METERS) {
+        socket.emit(
+          'error',
+          'Switching vessels is only allowed in port or near the target vessel.',
+        );
+        return;
+      }
     }
     if (target.crewIds.size >= maxCrew) {
       socket.emit('error', 'Selected vessel is at max crew');
@@ -116,6 +161,7 @@ export function registerVesselJoinHandler({
   socket.on('vessel:create', data => {
     const currentUserId = socket.data.userId || effectiveUserId;
     const currentUsername = socket.data.username || effectiveUsername;
+    const rules = getRulesForSpace(spaceId) as { type?: RulesetType };
     const rankEligible =
       (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
     if (!isPlayerOrHigher()) {
@@ -128,6 +174,23 @@ export function registerVesselJoinHandler({
         `Rank ${spaceMeta.rankRequired ?? 1} required for this space`,
       );
       return;
+    }
+    const currentVesselId = getVesselIdForUser(currentUserId, spaceId);
+    const currentVessel = currentVesselId
+      ? findVesselInSpace(currentVesselId, spaceId)
+      : null;
+    const rulesType = rules.type || RulesetType.CASUAL;
+    const switchRestricted =
+      rulesType === RulesetType.REALISM || rulesType === RulesetType.EXAM;
+    if (currentVessel && switchRestricted && !hasAdminRole(socket)) {
+      const currentPort = resolvePortForPosition(currentVessel.position);
+      if (!currentPort) {
+        socket.emit(
+          'error',
+          'Creating a vessel is only allowed while docked at a port.',
+        );
+        return;
+      }
     }
     void (async () => {
       const economyProfile = await getEconomyProfile(currentUserId);

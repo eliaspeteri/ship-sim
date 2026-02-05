@@ -1182,7 +1182,8 @@ function ensureVesselForUser(
     if (lastVessel && (lastVessel.spaceId || DEFAULT_SPACE_ID) === spaceId) {
       if (
         lastVessel.status === 'stored' ||
-        lastVessel.status === 'repossession'
+        lastVessel.status === 'repossession' ||
+        lastVessel.status === 'auction'
       ) {
         return undefined;
       }

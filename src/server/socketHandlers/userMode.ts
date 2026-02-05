@@ -1,4 +1,9 @@
+import { distanceMeters } from '../../lib/position';
+import { resolvePortForPosition } from '../economy';
+import { RulesetType } from '../../types/rules.types';
 import type { SocketHandlerContext } from './context';
+
+const SWITCH_NEARBY_METERS = 1500;
 
 export function registerUserModeHandler({
   io,
@@ -7,6 +12,7 @@ export function registerUserModeHandler({
   effectiveUserId,
   effectiveUsername,
   isPlayerOrHigher,
+  hasAdminRole,
   globalState,
   getVesselIdForUser,
   ensureVesselForUser,
@@ -18,6 +24,7 @@ export function registerUserModeHandler({
   defaultSpaceId,
   aiControllers,
   spaceMeta,
+  getRulesForSpace,
 }: SocketHandlerContext) {
   socket.on('user:mode', data => {
     const currentUserId = socket.data.userId || effectiveUserId;
@@ -38,6 +45,41 @@ export function registerUserModeHandler({
     }
 
     if (data.mode === 'spectator') {
+      const rules = getRulesForSpace(spaceId) as { type?: RulesetType };
+      const rulesType = rules.type || RulesetType.CASUAL;
+      const switchRestricted =
+        rulesType === RulesetType.REALISM || rulesType === RulesetType.EXAM;
+      if (switchRestricted && !hasAdminRole(socket)) {
+        const currentVesselId = getVesselIdForUser(currentUserId, spaceId);
+        const currentVessel = currentVesselId
+          ? globalState.vessels.get(currentVesselId)
+          : null;
+        if (currentVessel) {
+          const currentPort = resolvePortForPosition(currentVessel.position);
+          let nearby = false;
+          if (!currentPort) {
+            for (const vessel of globalState.vessels.values()) {
+              if (vessel.id === currentVessel.id) continue;
+              if ((vessel.spaceId || defaultSpaceId) !== spaceId) continue;
+              const distance = distanceMeters(
+                currentVessel.position,
+                vessel.position,
+              );
+              if (distance <= SWITCH_NEARBY_METERS) {
+                nearby = true;
+                break;
+              }
+            }
+            if (!nearby) {
+              socket.emit(
+                'error',
+                'Spectator mode is only allowed in port or near another vessel.',
+              );
+              return;
+            }
+          }
+        }
+      }
       detachUserFromCurrentVessel(currentUserId, spaceId);
       updateSocketVesselRoom(socket, spaceId, null);
       socket.data.mode = 'spectator';
