@@ -2346,7 +2346,9 @@ async function startServer() {
   }
 }
 
-void startServer();
+if (process.env.NODE_ENV !== 'test') {
+  void startServer();
+}
 
 setInterval(() => {
   void processEnvironmentEvents();
@@ -2355,7 +2357,7 @@ setInterval(() => {
 // Broadcast authoritative snapshots at a throttled rate (5Hz)
 const BROADCAST_INTERVAL_MS = 200;
 let lastBroadcastAt = Date.now();
-setInterval(() => {
+const broadcastTick = async () => {
   if (!io) return;
   const broadcastStart = Date.now();
   const now = Date.now();
@@ -2648,7 +2650,49 @@ setInterval(() => {
     }
   }
   recordMetric('broadcast', Date.now() - broadcastStart);
+};
+setInterval(() => {
+  void broadcastTick();
 }, BROADCAST_INTERVAL_MS);
 
 // Export the app and io for potential testing or extension
+export const __test__ = {
+  parseCookies,
+  getSpaceMeta,
+  refreshSpaceMeta,
+  getSpaceRole,
+  applyEnvironmentOverrides,
+  updateTideForSpace,
+  getDefaultEnvironment,
+  updateStationAssignment,
+  assignStationsForCrew,
+  detachUserFromCurrentVessel,
+  updateSocketVesselRoom,
+  resolveChatChannel,
+  findJoinableVessel,
+  takeOverAvailableAIVessel,
+  ensureVesselForUser,
+  getActiveBan,
+  getActiveMute,
+  buildVesselRecordFromRow,
+  loadEnvironmentFromDb,
+  loadVesselsFromDb,
+  ensureDefaultSpaceExists,
+  processEnvironmentEvents,
+  broadcastTick,
+  startServer,
+  globalState,
+  spaceMetaCache,
+  canTriggerCooldown,
+  applyColregsRules,
+  setNextAutoWeatherAt: (value: number) => {
+    nextAutoWeatherAt = value;
+  },
+  setWeatherMode: (value: 'manual' | 'auto') => {
+    weatherMode = value;
+  },
+  setLastBroadcastAt: (value: number) => {
+    lastBroadcastAt = value;
+  },
+};
 export { app, io };
