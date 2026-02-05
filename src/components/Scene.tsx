@@ -1141,20 +1141,24 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           near: 1,
           far: 50000,
         }}
+        gl={{
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 0.5,
+        }}
       >
         <color attach="background" args={['#091623']} />
         <WaveClock timeRef={waveTimeRef} />
         <SkyFollowCamera
           enabled
           distance={45000}
-          sunPosition={[
-            sunDirection.x * 3000,
-            sunDirection.y * 3000,
-            sunDirection.z * 3000,
-          ]}
-          turbidity={6}
-          rayleigh={2}
-          mieCoefficient={0.005}
+          sunPosition={new THREE.Vector3(
+            sunDirection.x,
+            sunDirection.y,
+            sunDirection.z,
+          ).normalize()}
+          turbidity={1}
+          rayleigh={4}
+          mieCoefficient={0.001}
           mieDirectionalG={0.8}
         />
 
