@@ -88,6 +88,7 @@
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
     "jiti": "^2.6.1",
+    "lint-staged": "^15.5.2",
     "postcss": "^8.5.6",
     "prettier": "^3.5.3",
     "prisma": "^7.2.0",
@@ -113,5 +114,14 @@
       "import": "./build/release.js",
       "types": "./build/release.d.ts"
     }
+  },
+  "lint-staged": {
+    "**/*.{js,jsx,ts,tsx}": [
+      "eslint --cache --cache-location .cache/eslint --fix",
+      "prettier --cache --cache-location .cache/prettier --write"
+    ],
+    "**/*.{json,css,scss,md,html,yml,yaml}": [
+      "prettier --cache --cache-location .cache/prettier --write"
+    ]
   }
 }
