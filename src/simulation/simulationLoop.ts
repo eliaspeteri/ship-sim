@@ -67,6 +67,10 @@ export class SimulationLoop {
       const bridge = await loadWasm();
       this.wasmBridge = bridge;
       const state = useStore.getState();
+      if (state.mode === 'spectator' || !state.currentVesselId) {
+        state.setWasmVesselPtr(null);
+        return;
+      }
       const { vessel } = state;
       const {
         position,
@@ -488,6 +492,63 @@ export class SimulationLoop {
         bowThruster: 0,
       },
     });
+  }
+
+  /**
+   * Recreate the local WASM vessel from the current store state.
+   * Used when switching from spectator to player to avoid stale positions.
+   */
+  syncVesselFromStore(): void {
+    if (!this.wasmBridge) return;
+    const state = useStore.getState();
+    const { vessel } = state;
+    const { x, y } = positionToXY({
+      lat: vessel.position.lat,
+      lon: vessel.position.lon,
+    });
+    const blockCoeff = Number.isFinite(vessel.properties.blockCoefficient)
+      ? vessel.properties.blockCoefficient
+      : 0.8;
+    const hydro = buildHydroParams(vessel);
+    const nextPtr = this.wasmBridge.createVessel(
+      safe(x, 0),
+      safe(y, 0),
+      safe(vessel.position.z, 0),
+      safe(vessel.orientation.heading, 0),
+      safe(vessel.orientation.roll, 0),
+      safe(vessel.orientation.pitch, 0),
+      safe(vessel.velocity.surge, 0),
+      safe(vessel.velocity.sway, 0),
+      safe(vessel.velocity.heave, 0),
+      safe(vessel.angularVelocity.yaw, 0),
+      safe(vessel.angularVelocity.roll, 0),
+      safe(vessel.angularVelocity.pitch, 0),
+      safe(vessel.controls.throttle, 0),
+      clampRudderAngle(safe(vessel.controls.rudderAngle, 0)),
+      safe(vessel.properties.mass, 14950000),
+      safe(vessel.properties.length, 212),
+      safe(vessel.properties.beam, 28),
+      safe(vessel.properties.draft, 9.1),
+      blockCoeff,
+      hydro.rudderForceCoefficient,
+      hydro.rudderStallAngle,
+      hydro.rudderMaxAngle,
+      hydro.dragCoefficient,
+      hydro.yawDamping,
+      hydro.yawDampingQuad,
+      hydro.swayDamping,
+      hydro.maxThrust,
+      hydro.maxSpeed,
+      hydro.rollDamping,
+      hydro.pitchDamping,
+      hydro.heaveStiffness,
+      hydro.heaveDamping,
+    );
+    this.applyPhysicsParams(nextPtr, vessel);
+    if (state.wasmVesselPtr) {
+      this.wasmBridge.destroyVessel(state.wasmVesselPtr);
+    }
+    state.setWasmVesselPtr(nextPtr);
   }
 
   /**
