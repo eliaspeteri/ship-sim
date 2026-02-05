@@ -4,6 +4,7 @@
 **/output
 **/data
 .next
+.cache
 .env
 .env.db
 .env.frontend
