@@ -25,7 +25,7 @@ export function registerUserModeHandler({
     const rankEligible =
       (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
 
-    if (wantsPlayer && !isPlayerOrHigher) {
+    if (wantsPlayer && !isPlayerOrHigher()) {
       socket.emit('error', 'Your role does not permit player mode');
       return;
     }

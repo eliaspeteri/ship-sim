@@ -19,7 +19,7 @@ export function registerVesselControlHandler({
   socket.on('vessel:control', data => {
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
-    if (!isPlayerOrHigher) {
+    if (!isPlayerOrHigher()) {
       socket.emit('error', 'Not authorized to control a vessel');
       return;
     }

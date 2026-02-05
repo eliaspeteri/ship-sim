@@ -36,7 +36,7 @@ export function registerVesselJoinHandler({
     const currentUsername = socket.data.username || effectiveUsername;
     const rankEligible =
       (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
-    if (!isPlayerOrHigher) {
+    if (!isPlayerOrHigher()) {
       socket.emit('error', 'Not authorized to join a vessel');
       return;
     }
@@ -118,7 +118,7 @@ export function registerVesselJoinHandler({
     const currentUsername = socket.data.username || effectiveUsername;
     const rankEligible =
       (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
-    if (!isPlayerOrHigher) {
+    if (!isPlayerOrHigher()) {
       socket.emit('error', 'Not authorized to create a vessel');
       return;
     }

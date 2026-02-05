@@ -27,7 +27,7 @@ export function registerVesselUpdateHandler({
 
       return;
     }
-    if (!isPlayerOrHigher) {
+    if (!isPlayerOrHigher()) {
       console.info('Ignoring vessel:update from non-player');
       return;
     }

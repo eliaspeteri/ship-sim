@@ -1852,7 +1852,9 @@ io.on('connection', async socket => {
     effectiveUserId,
     effectiveUsername,
     roleSet,
-    isPlayerOrHigher,
+    isPlayerOrHigher: () =>
+      (socket.data.roles || []).includes('player') ||
+      (socket.data.roles || []).includes('admin'),
     isSpectatorOnly,
     isGuest,
     spaceMeta: {
