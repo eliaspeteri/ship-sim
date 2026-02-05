@@ -14,7 +14,7 @@ type WaveState = {
 };
 
 const oceanVertexShader = /* glsl */ `
-#define WAVE_COUNT 4
+#define WAVE_COUNT 6
 
 uniform float uTime;
 
@@ -91,7 +91,7 @@ void main() {
 const oceanFragmentShader = /* glsl */ `
 precision highp float;
 
-#define WAVE_COUNT 4
+#define WAVE_COUNT 6
 
 uniform float uTime;
 
@@ -199,7 +199,7 @@ export function OceanPatch({
     return g;
   }, [size, segments]);
 
-  const WAVE_COUNT = 4;
+  const WAVE_COUNT = 6;
 
   const material = useMemo(() => {
     const uniforms = THREE.UniformsUtils.merge([
