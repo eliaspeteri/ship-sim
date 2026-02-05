@@ -1021,8 +1021,13 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
     selectedVesselId,
   ]);
 
+  const shouldRenderSelf = !isSpectator && !!currentVesselId;
+  const shouldRenderSpectatorSelf =
+    isSpectator && !!currentVesselId && !(currentVesselId in otherVessels);
   const showSelfDebug =
-    isSpectator && (!selectedVesselId || selectedVesselId === currentVesselId);
+    !isSpectator &&
+    !!currentVesselId &&
+    (!selectedVesselId || selectedVesselId === currentVesselId);
 
   const waveState = useMemo(() => deriveWaveState(environment), [environment]);
 
@@ -1190,31 +1195,61 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           flipX
         />
 
-        <Ship
-          vesselId={currentVesselId || undefined}
-          position={{
-            x:
-              dragPreviewPositions[currentVesselId || '']?.x ??
-              vesselPosition.x,
-            y: vesselPosition.z,
-            z:
-              dragPreviewPositions[currentVesselId || '']?.y ??
-              vesselPosition.y,
-          }}
-          heading={vesselPosition.heading}
-          shipType={vesselProperties.type}
-          modelPath={vesselProperties.modelPath}
-          renderOptions={vesselState.render}
-          ballast={vesselControls.ballast}
-          draft={vesselProperties.draft}
-          length={vesselProperties.length}
-          roll={vesselOrientation.roll}
-          pitch={vesselOrientation.pitch}
-          wave={waveState}
-          waveTimeRef={waveTimeRef}
-          showDebugMarkers={showSelfDebug}
-          onSelect={isSpectator ? handleSelectVessel : undefined}
-        />
+        {shouldRenderSelf ? (
+          <Ship
+            vesselId={currentVesselId || undefined}
+            position={{
+              x:
+                dragPreviewPositions[currentVesselId || '']?.x ??
+                vesselPosition.x,
+              y: vesselPosition.z,
+              z:
+                dragPreviewPositions[currentVesselId || '']?.y ??
+                vesselPosition.y,
+            }}
+            heading={vesselPosition.heading}
+            shipType={vesselProperties.type}
+            modelPath={vesselProperties.modelPath}
+            renderOptions={vesselState.render}
+            ballast={vesselControls.ballast}
+            draft={vesselProperties.draft}
+            length={vesselProperties.length}
+            roll={vesselOrientation.roll}
+            pitch={vesselOrientation.pitch}
+            wave={waveState}
+            waveTimeRef={waveTimeRef}
+            showDebugMarkers={showSelfDebug}
+            onSelect={isSpectator ? handleSelectVessel : undefined}
+          />
+        ) : null}
+        {shouldRenderSpectatorSelf ? (
+          <Ship
+            vesselId={currentVesselId || undefined}
+            position={{
+              x:
+                dragPreviewPositions[currentVesselId || '']?.x ??
+                vesselState.position.x ??
+                0,
+              y: vesselState.position.z ?? 0,
+              z:
+                dragPreviewPositions[currentVesselId || '']?.y ??
+                vesselState.position.y ??
+                0,
+            }}
+            heading={vesselState.orientation.heading}
+            shipType={vesselProperties.type}
+            modelPath={vesselProperties.modelPath}
+            renderOptions={vesselState.render}
+            ballast={vesselControls.ballast}
+            draft={vesselProperties.draft}
+            length={vesselProperties.length}
+            roll={vesselOrientation.roll}
+            pitch={vesselOrientation.pitch}
+            wave={waveState}
+            waveTimeRef={waveTimeRef}
+            onSelect={handleSelectVessel}
+          />
+        ) : null}
         {replay.playing && replay.frames.length > 1 ? (
           <ReplayGhost
             frames={replay.frames}
