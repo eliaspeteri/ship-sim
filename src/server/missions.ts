@@ -9,11 +9,17 @@ import {
   ECONOMY_PORTS,
 } from './economy';
 import { bumpReputation, addCareerExperience, CareerKey } from './careers';
-import { distanceMeters } from '../lib/position';
 
 type MissionSeed = Omit<
   MissionDefinition,
-  'id' | 'spaceId' | 'active' | 'createdBy'
+  | 'id'
+  | 'spaceId'
+  | 'active'
+  | 'createdBy'
+  | 'originLat'
+  | 'originLon'
+  | 'destinationLat'
+  | 'destinationLon'
 > & {
   originXY: { x: number; y: number };
   destinationXY: { x: number; y: number };
