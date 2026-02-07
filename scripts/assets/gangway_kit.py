@@ -266,7 +266,7 @@ def add_rails(parts: List[bpy.types.Object], prefix: str, width: float, length: 
             x = sx * (width * 0.5 - RAIL_POST_W * 0.5)
             post = add_box_part(
                 f"{prefix}__post",
-                (RAIL_POST_W * 0.5, RAIL_POST_W * 0.5, RAIL_TOP_H * 0.5),
+                (RAIL_POST_W * 0.5, RAIL_POST_W * 0.5, RAIL_TOP_H),
                 (x, y, z_base + RAIL_TOP_H * 0.5),
                 col,
             )
@@ -280,9 +280,10 @@ def build_ramp(base_name: str, length: float, angle_deg: float, width: float,
     rise = math.tan(angle) * length
 
     # Main deck (sloped)
+    deck_t = DEFAULT_CLEARANCE * 0.5
     deck = add_box_part(
         f"{base_name}__deck",
-        (width * 0.9, length, DEFAULT_CLEARANCE * 0.5),
+        (width * 0.9, length, deck_t),
         (0.0, length * 0.5, DEFAULT_CLEARANCE + rise * 0.5),
         col,
         rot=(angle, 0.0, 0.0),
@@ -306,7 +307,9 @@ def build_ramp(base_name: str, length: float, angle_deg: float, width: float,
     parts.extend([start_plate, end_plate])
 
     if rails:
-        add_rails(parts, base_name, width, length, rise, DEFAULT_CLEARANCE, col)
+        # Post base should start at ramp deck surface, not float above it.
+        deck_surface_offset = DEFAULT_CLEARANCE + (deck_t * 0.5)
+        add_rails(parts, base_name, width, length, rise, deck_surface_offset, col)
 
     obj = join_and_name(parts, base_name)
     set_origin_start_face_ground(obj)
@@ -319,34 +322,50 @@ def build_ramp(base_name: str, length: float, angle_deg: float, width: float,
 def build_platform(base_name: str, length: float, width: float, rails: bool, col: bpy.types.Collection) -> bpy.types.Object:
     parts = []
 
+    deck_t = DEFAULT_CLEARANCE * 0.5
     deck = add_box_part(
         f"{base_name}__deck",
-        (width, length, DEFAULT_CLEARANCE * 0.5),
+        (width, length, deck_t),
         (0.0, length * 0.5, DEFAULT_CLEARANCE),
         col,
     )
     parts.append(deck)
 
-    # Legs
+    # Support legs
     for sx in (-1.0, 1.0):
         for sy in (0.0, length):
             leg = add_box_part(
                 f"{base_name}__leg",
-                (0.06, 0.06, 1.5),
-                (sx * (width * 0.5), sy, 0.82),
+                (0.06, 0.06, 0.55),
+                (sx * (width * 0.5), sy, 0.275),
                 col,
             )
             parts.append(leg)
 
     if rails:
-        # Flat perimeter rails
-        rail_h = DEFAULT_CLEARANCE + RAIL_TOP_H
+        # Intermediate platform rails only on opposite sides (left/right).
+        deck_top = DEFAULT_CLEARANCE + deck_t * 0.5
+        rail_h = deck_top + RAIL_TOP_H
         r_t = RAIL_POST_W * 0.5
 
         left = add_box_part(f"{base_name}__rail_l", (r_t, length, r_t), (-width * 0.5 + r_t, length * 0.5, rail_h), col)
         right = add_box_part(f"{base_name}__rail_r", (r_t, length, r_t), (width * 0.5 - r_t, length * 0.5, rail_h), col)
-        rear = add_box_part(f"{base_name}__rail_rear", (width, r_t, r_t), (0.0, length - r_t, rail_h), col)
-        parts.extend([left, right, rear])
+        parts.extend([left, right])
+
+        # Side posts from deck top to rail elevation.
+        post_h = rail_h - deck_top
+        post_count = max(2, int(length / RAIL_POST_SPACING) + 1)
+        for i in range(post_count):
+            y = (i / (post_count - 1)) * length
+            for sx in (-1.0, 1.0):
+                x = sx * (width * 0.5 - r_t)
+                post = add_box_part(
+                    f"{base_name}__rail_post",
+                    (r_t, r_t, post_h),
+                    (x, y, deck_top + post_h * 0.5),
+                    col,
+                )
+                parts.append(post)
 
     obj = join_and_name(parts, base_name)
     set_origin_start_face_ground(obj)
