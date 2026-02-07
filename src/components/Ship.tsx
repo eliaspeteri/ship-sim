@@ -154,12 +154,9 @@ const Ship: React.FC<ShipProps> = ({
 
       const rollAngle = roll ?? 0;
       const pitchAngle = pitch ?? 0;
-      // Render heading: model forward (+Z) vs physics forward (+X). Rotate +90° to align axes.
-      const modelYaw = ((renderOptions?.modelYawDeg ?? 0) * Math.PI) / 180;
-      const renderHeading = Math.PI / 2 - heading + modelYaw;
 
       // Apply heading, roll, and pitch (roll/pitch from physics; heading from store)
-      obj.rotation.set(pitchAngle, renderHeading, rollAngle);
+      obj.rotation.set(pitchAngle, heading, rollAngle);
     }
   });
 
