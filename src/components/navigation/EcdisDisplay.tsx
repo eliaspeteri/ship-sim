@@ -1,14 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { TopNavigationBar } from '../common/TopNavigationBar';
-import { RightStatusPanel } from '../common/RightStatusPanel';
-import { RouteInfoPanel } from '../common/RouteInfoPanel';
-import { EBLControl, EBLState } from './EBLControl';
-import { VRMControl, VRMState } from './VRMControl';
-import { StatusPanelSchema } from '../common/StatusPanelTypes';
 import { VesselState } from '../../types/vessel.types';
 
-// --- Mock Data ---
 const mockCoastline = [
   [24.93, 60.16],
   [24.95, 60.17],
@@ -20,10 +13,12 @@ const mockCoastline = [
   [24.95, 60.15],
   [24.93, 60.16],
 ];
+
 const mockBuoys = [
   { latitude: 60.165, longitude: 24.96, type: 'starboard' },
   { latitude: 60.175, longitude: 24.98, type: 'port' },
 ];
+
 const mockRoute = [
   { latitude: 60.162, longitude: 24.94 },
   { latitude: 60.168, longitude: 24.96 },
@@ -31,101 +26,41 @@ const mockRoute = [
   { latitude: 60.178, longitude: 25.0 },
 ];
 
-// --- Helpers ---
 function latLonToXY(
   latitude: number,
   longitude: number,
   center: { latitude: number; longitude: number },
   scale: number,
 ) {
-  // Simple equirectangular projection for small area
   return [
     (longitude - center.longitude) * scale,
     -(latitude - center.latitude) * scale,
-  ];
+  ] as const;
 }
 
-/**
- * Calculate the great-circle distance (meters) and initial bearing (degrees) between two lat/lon points.
- * Uses the haversine formula for distance and forward azimuth for bearing.
- * @param lat1 Latitude of point 1
- * @param lon1 Longitude of point 1
- * @param lat2 Latitude of point 2
- * @param lon2 Longitude of point 2
- * @returns { distance: number, bearing: number }
- */
-function calculateDistanceAndBearing(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): { distance: number; bearing: number } {
-  const R = 6371000; // Earth radius in meters
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c;
-  const y = Math.sin(dLon) * Math.cos(toRad(lat2));
-  const x =
-    Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
-    Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon);
-  let bearing = (Math.atan2(y, x) * 180) / Math.PI;
-  bearing = (bearing + 360) % 360;
-  return { distance, bearing };
+function worldFromShip(
+  ox: number,
+  oy: number,
+  headingDeg: number,
+  forward: number,
+  starboard: number,
+) {
+  const rad = (headingDeg * Math.PI) / 180;
+  const sin = Math.sin(rad);
+  const cos = Math.cos(rad);
+  const x = ox + forward * sin + starboard * cos;
+  const y = oy + forward * cos - starboard * sin;
+  return { x, y };
 }
 
-/**
- * Converts screen coordinates to latitude/longitude
- * Accounts for chart position, pan, and zoom
- *
- * @param x Client X coordinate (from mouse event)
- * @param y Client Y coordinate (from mouse event)
- * @param canvas Canvas element reference
- * @param camera Camera reference for current view state
- * @param center Center coordinates of the map
- * @param scale Scale factor for the map
- * @returns Latitude/longitude coordinates or null if conversion fails
- */
-function screenToLatLon(
-  x: number,
-  y: number,
-  canvas: HTMLCanvasElement,
-  camera: THREE.OrthographicCamera,
-  center: { latitude: number; longitude: number },
-  scale: number,
-): { latitude: number; longitude: number } | null {
-  // Get canvas position in the viewport
-  const rect = canvas.getBoundingClientRect();
-
-  // Convert client coordinates to canvas-relative coordinates
-  const canvasX = x - rect.left;
-  const canvasY = y - rect.top;
-
-  // Convert to normalized device coordinates (NDC) centered on the canvas
-  const ndcX = canvasX - rect.width / 2;
-  const ndcY = canvasY - rect.height / 2;
-
-  // Convert to world coordinates using camera parameters
-  const zoom = camera.zoom;
-  const panX = camera.position.x;
-  const panY = camera.position.y;
-
-  // Apply zoom and pan to get world coordinates
-  const worldX = ndcX / zoom + panX;
-  const worldY = ndcY / zoom + panY;
-
-  // Convert world coordinates to lat/lon
-  const longitude = worldX / scale + center.longitude;
-  const latitude = center.latitude - worldY / scale;
-
-  return { latitude, longitude };
+function formatLatLon(
+  value: number | undefined,
+  positive: string,
+  negative: string,
+) {
+  if (value === undefined || Number.isNaN(value)) return '--';
+  const hemi = value >= 0 ? positive : negative;
+  return `${Math.abs(value).toFixed(5)}${hemi}`;
 }
 
 export interface EcdisDisplayProps {
@@ -153,1428 +88,798 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
   chartData,
   aisTargets,
 }) => {
+  const MOCK_OWN_SHIP_AT_VIEW_CENTER = true;
+  const OWN_SHIP_VISUAL_SCALE = 2.5;
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
-  const animationRef = useRef<number | null>(null);
+  const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
 
-  // --- Pan & Zoom State ---
+  const [viewport, setViewport] = useState({ width: 900, height: 640 });
+
+  const [cursorLatLon, setCursorLatLon] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
+  const editableRoute = route ?? mockRoute;
+
+  const center = useMemo(() => ({ latitude: 60.17, longitude: 24.97 }), []);
+  const scale = 12000;
+
+  const coastline = useMemo(
+    () =>
+      (chartData?.coastline ?? mockCoastline).map(([longitude, latitude]) => [
+        latitude,
+        longitude,
+      ]),
+    [chartData],
+  );
+
+  const buoys = chartData?.buoys ?? mockBuoys;
+
+  const ship = useMemo(
+    () => ({
+      latitude: MOCK_OWN_SHIP_AT_VIEW_CENTER
+        ? center.latitude
+        : (shipPosition?.lat ?? center.latitude),
+      longitude: MOCK_OWN_SHIP_AT_VIEW_CENTER
+        ? center.longitude
+        : (shipPosition?.lon ?? center.longitude),
+      heading: heading ?? 0,
+    }),
+    [shipPosition, heading, center.latitude, center.longitude],
+  );
+
   const panRef = useRef({ x: 0, y: 0 });
   const zoomRef = useRef(1);
-  const dragState = useRef<{
-    dragging: boolean;
-    lastX: number;
-    lastY: number;
-  } | null>(null);
-
-  // --- Cursor latitude/longitude State ---
-  const [cursorlatitudeLon, setCursorlatitudeLon] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
-
-  // --- Tooltip State ---
-  const [tooltip, setTooltip] = useState<null | {
-    x: number;
-    y: number;
-    content: string;
-  }>(null);
-
-  // --- Layer Visibility State ---
-  const [showCoastline, setShowCoastline] = useState(true);
-  const [showBuoys, setShowBuoys] = useState(true);
-  const [showRoute, setShowRoute] = useState(true);
-
-  // --- Editable Route State ---
-  const [editableRoute, setEditableRoute] = useState(route ?? mockRoute);
-  // --- Selected Waypoint State ---
-  const [selectedWp, setSelectedWp] = useState<number | null>(null);
-
-  // --- EBL & VRM State ---
-  const [ebl1, setEbl1] = useState<EBLState>({
-    id: 'EBL1',
-    isActive: false,
-    bearing: 0,
-    origin: 'ship',
-  });
-  const [ebl2, setEbl2] = useState<EBLState>({
-    id: 'EBL2',
-    isActive: false,
-    bearing: 90,
-    origin: 'ship',
-  });
-  const [vrm1, setVrm1] = useState<VRMState>({
-    id: 'VRM1',
-    isActive: false,
-    radius: 1,
-    origin: 'ship',
-  });
-  const [vrm2, setVrm2] = useState<VRMState>({
-    id: 'VRM2',
-    isActive: false,
-    radius: 2,
-    origin: 'ship',
+  const panDragRef = useRef<{ active: boolean; x: number; y: number }>({
+    active: false,
+    x: 0,
+    y: 0,
   });
 
-  // --- Chart Layer Management State ---
-  const [chartLayers, setChartLayers] = useState([
-    { id: 'vector', name: 'Vector Chart', visible: true, opacity: 1 },
-    { id: 'raster', name: 'Raster Chart', visible: false, opacity: 0.7 },
-  ]);
-
-  // --- Search State ---
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResult, setSearchResult] = useState<null | {
-    type: string;
-    index: number;
-  }>(null);
-
-  // --- Measurement Tool State ---
-  const [measurementMode, setMeasurementMode] = useState<boolean>(false);
-  const [measurementStart, setMeasurementStart] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
-  const [measurementEnd, setMeasurementEnd] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
-  const isMeasuringRef = useRef(false);
-
-  // --- Search Handler ---
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    const q = searchQuery.trim().toLowerCase();
-    // Search waypoints
-    for (let i = 0; i < editableRoute.length; i++) {
-      if (`waypoint #${i + 1}`.toLowerCase().includes(q)) {
-        setSearchResult({ type: 'waypoint', index: i });
-        return;
-      }
-    }
-    // Search buoys
-    for (let i = 0; i < buoys.length; i++) {
-      if ((buoys[i].type || '').toLowerCase().includes(q)) {
-        setSearchResult({ type: 'buoy', index: i });
-        return;
-      }
-    }
-    if (aisTargets) {
-      // Search AIS targets
-      for (let i = 0; i < aisTargets.length; i++) {
-        if (
-          (aisTargets[i].name || '').toLowerCase().includes(q) ||
-          (aisTargets[i].mmsi || '').toLowerCase().includes(q)
-        ) {
-          setSearchResult({ type: 'ais', index: i });
-          return;
-        }
-      }
-      setSearchResult(null);
-    }
-  }
-
-  // --- Auto-pan to search result ---
   useEffect(() => {
-    if (!searchResult) return;
-    let lat = 0,
-      lon = 0;
-    if (searchResult.type === 'waypoint') {
-      lat = editableRoute[searchResult.index].latitude;
-      lon = editableRoute[searchResult.index].longitude;
-    } else if (searchResult.type === 'buoy') {
-      lat = buoys[searchResult.index].latitude;
-      lon = buoys[searchResult.index].longitude;
-    } else if (searchResult.type === 'ais' && aisTargets) {
-      lat = aisTargets?.[searchResult.index].lat;
-      lon = aisTargets?.[searchResult.index].lon;
-    }
-    // Center camera on found object
-    panRef.current.x = (lon - center.longitude) * scale;
-    panRef.current.y = -(lat - center.latitude) * scale;
-    if (cameraRef.current) {
-      cameraRef.current.position.x = panRef.current.x;
-      cameraRef.current.position.y = panRef.current.y;
-      cameraRef.current.updateProjectionMatrix();
-    }
-  }, [searchResult]);
+    if (!mountRef.current) return;
+    const mountEl = mountRef.current;
 
-  // --- Chart Layer UI Handlers ---
-  function toggleLayer(id: string) {
-    setChartLayers(layers =>
-      layers.map(l => (l.id === id ? { ...l, visible: !l.visible } : l)),
-    );
-  }
-  function setLayerOpacity(id: string, opacity: number) {
-    setChartLayers(layers =>
-      layers.map(l => (l.id === id ? { ...l, opacity } : l)),
-    );
-  }
-  function moveLayer(id: string, dir: 'up' | 'down') {
-    setChartLayers(layers => {
-      const idx = layers.findIndex(l => l.id === id);
-      if (idx < 0) return layers;
-      const newIdx =
-        dir === 'up'
-          ? Math.max(0, idx - 1)
-          : Math.min(layers.length - 1, idx + 1);
-      if (idx === newIdx) return layers;
-      const arr = [...layers];
-      const [removed] = arr.splice(idx, 1);
-      arr.splice(newIdx, 0, removed);
-      return arr;
-    });
-  }
-
-  // Chart constants
-  const size = 500;
-  const center = { latitude: 60.17, longitude: 24.97 };
-  const coastline = (chartData?.coastline ?? mockCoastline).map(
-    ([longitude, latitude]) => [latitude, longitude],
-  );
-  const buoys = chartData?.buoys ?? mockBuoys;
-  // Use editable route for animation and rendering
-  const routePoints = editableRoute.map(wp => [wp.latitude, wp.longitude]);
-  // Use animated ship if available, else prop or mock
-  const ship = {
-    latitude: shipPosition?.lat,
-    longitude: shipPosition?.lon,
-    heading: heading ?? 0,
-  };
-  const scale = 12000; // meters per degree (zoom)
-
-  // --- Scale Bar Calculation ---
-  function getScaleBar() {
-    // Pick a nice round distance for the scale bar (in meters)
-    const zoom = cameraRef.current?.zoom || 1;
-    // 100 pixels in world units
-    const worldDist = 100 / zoom;
-    // Convert worldDist to degrees longitude at center latitude
-    const degLon = worldDist / scale;
-    // Convert degrees to meters (approx, at center latitude)
-    const metersPerDeg = 111320 * Math.cos((center.latitude * Math.PI) / 180);
-    const meters = degLon * metersPerDeg;
-    // Pick a nice round number for the label
-    let label = '';
-    let displayMeters = 0;
-    if (meters > 1000) {
-      displayMeters = Math.round(meters / 100) * 100;
-      label = displayMeters / 1000 + ' km';
-    } else if (meters > 100) {
-      displayMeters = Math.round(meters / 10) * 10;
-      label = displayMeters + ' m';
-    } else {
-      displayMeters = Math.round(meters);
-      label = displayMeters + ' m';
-    }
-    // Convert back to pixel length
-    const px = (displayMeters / metersPerDeg) * scale * zoom;
-    return { px, label };
-  }
-
-  // --- Enhanced Mouse Move Handler for Tooltip ---
-  useEffect(() => {
-    const renderer = rendererRef.current;
-    if (!renderer) return;
-    const canvas = renderer.domElement;
-
-    function onPointerMove(e: PointerEvent) {
-      const camera = cameraRef.current;
-      if (!camera) return;
-
-      // Use consistent coordinate calculation
-      const point = screenToLatLon(
-        e.clientX,
-        e.clientY,
-        canvas,
-        camera,
-        center,
-        scale,
-      );
-
-      if (!point) return;
-
-      setCursorlatitudeLon(point);
-
-      // Calculate hit testing directly in world space using consistent calculations
-      const hitTestRadiusWorld = 10 / camera.zoom; // Convert 10 px to world units
-
-      // === Hit test for tooltip using world coordinates ===
-
-      // 1. Waypoints
-      for (const wp of editableRoute) {
-        // Convert both cursor and waypoint to world coordinates for consistent comparison
-        const [wpX, wpY] = latLonToXY(wp.latitude, wp.longitude, center, scale);
-        const [ptX, ptY] = latLonToXY(
-          point.latitude,
-          point.longitude,
-          center,
-          scale,
-        );
-
-        const dx = wpX - ptX;
-        const dy = wpY - ptY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < hitTestRadiusWorld) {
-          setTooltip({
-            x: e.clientX,
-            y: e.clientY,
-            content: `Waypoint #${editableRoute.indexOf(wp) + 1}\nLat: ${wp.latitude.toFixed(5)}\nLon: ${wp.longitude.toFixed(5)}`,
-          });
-          return;
-        }
-      }
-
-      // 2. Buoys
-      for (const buoy of buoys) {
-        const [bX, bY] = latLonToXY(
-          buoy.latitude,
-          buoy.longitude,
-          center,
-          scale,
-        );
-        const [ptX, ptY] = latLonToXY(
-          point.latitude,
-          point.longitude,
-          center,
-          scale,
-        );
-
-        const dx = bX - ptX;
-        const dy = bY - ptY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < hitTestRadiusWorld) {
-          setTooltip({
-            x: e.clientX,
-            y: e.clientY,
-            content: `Buoy (${buoy.type})\nLat: ${buoy.latitude.toFixed(5)}\nLon: ${buoy.longitude.toFixed(5)}`,
-          });
-          return;
-        }
-      }
-
-      if (aisTargets) {
-        // 3. AIS Targets
-        for (const target of aisTargets) {
-          const [tX, tY] = latLonToXY(target.lat, target.lon, center, scale);
-          const [ptX, ptY] = latLonToXY(
-            point.latitude,
-            point.longitude,
-            center,
-            scale,
-          );
-
-          const dx = tX - ptX;
-          const dy = tY - ptY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-
-          // AIS targets might need a slightly larger hit area
-          if (distance < hitTestRadiusWorld * 1.2) {
-            setTooltip({
-              x: e.clientX,
-              y: e.clientY,
-              content: `AIS: ${target.name || target.mmsi}\nLat: ${target.lat.toFixed(5)}\nLon: ${target.lon.toFixed(5)}\nHeading: ${target.heading}°\nSpeed: ${target.speed} kn`,
-            });
-            return;
-          }
-        }
-      }
-
-      setTooltip(null);
+    // Defensive cleanup for fast-refresh/remount edge cases:
+    // ensure this mount point starts empty so only one canvas exists.
+    while (mountEl.firstChild) {
+      mountEl.removeChild(mountEl.firstChild);
     }
 
-    canvas.addEventListener('pointermove', onPointerMove);
-    canvas.addEventListener('pointerleave', () => {
-      setCursorlatitudeLon(null);
-      setTooltip(null);
-    });
-
-    return () => {
-      canvas.removeEventListener('pointermove', onPointerMove);
-      canvas.removeEventListener('pointerleave', () => {
-        setCursorlatitudeLon(null);
-        setTooltip(null);
-      });
-    };
-  }, [size, scale, center, editableRoute, buoys, aisTargets]);
-
-  // --- Add/Move/Delete Waypoint Handlers ---
-  useEffect(() => {
-    if (measurementMode) return; // Disable route editing when measuring
-    const renderer = rendererRef.current;
-    if (!renderer) return;
-    const canvas = renderer.domElement;
-    let draggingWp: number | null = null;
-    function screenTolatitudeLon(e: PointerEvent) {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left - size / 2;
-      const y = e.clientY - rect.top - size / 2;
-      const cam = cameraRef.current;
-      if (!cam) return null;
-      const zoom = cam.zoom;
-      const panX = cam.position.x;
-      const panY = cam.position.y;
-      const worldX = x / zoom + panX;
-      const worldY = y / zoom + panY;
-      const longitude = worldX / scale + center.longitude;
-      const latitude = center.latitude - worldY / scale;
-      return { latitude, longitude };
-    }
-    function onPointerDown(e: PointerEvent) {
-      // Check if near a waypoint
-      const pt = screenTolatitudeLon(e);
-      if (!pt) return;
-      for (let i = 0; i < editableRoute.length; i++) {
-        const wp = editableRoute[i];
-        const dx = (wp.longitude - pt.longitude) * scale;
-        const dy = (wp.latitude - pt.latitude) * scale;
-        if (Math.sqrt(dx * dx + dy * dy) < 12) {
-          draggingWp = i;
-          setSelectedWp(i);
-          return;
-        }
-      }
-      // Otherwise, add new waypoint
-      setEditableRoute([...editableRoute, pt]);
-      setSelectedWp(editableRoute.length);
-    }
-    function onPointerMove(e: PointerEvent) {
-      if (draggingWp !== null) {
-        const pt = screenTolatitudeLon(e);
-        if (!pt) return;
-        setEditableRoute(route =>
-          route.map((wp, i) => (i === draggingWp ? pt : wp)),
-        );
-      }
-    }
-    function onPointerUp() {
-      draggingWp = null;
-    }
-    canvas.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    return () => {
-      canvas.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-    };
-  }, [editableRoute, size, scale, center, measurementMode]);
-
-  // --- Measurement Tool Mouse Handlers ---
-  useEffect(() => {
-    if (!measurementMode) return;
-
-    const renderer = rendererRef.current;
-    if (!renderer) return;
-
-    const canvas = renderer.domElement;
-
-    function onPointerDown(e: PointerEvent) {
-      const camera = cameraRef.current;
-      if (!camera) return;
-
-      const point = screenToLatLon(
-        e.clientX,
-        e.clientY,
-        canvas,
-        camera,
-        center,
-        scale,
-      );
-
-      if (!point) return;
-
-      setMeasurementStart(point);
-      setMeasurementEnd(point);
-      isMeasuringRef.current = true;
-    }
-
-    function onPointerMove(e: PointerEvent) {
-      if (!isMeasuringRef.current) return;
-
-      const camera = cameraRef.current;
-      if (!camera) return;
-
-      const point = screenToLatLon(
-        e.clientX,
-        e.clientY,
-        canvas,
-        camera,
-        center,
-        scale,
-      );
-
-      if (!point) return;
-      setMeasurementEnd(point);
-    }
-
-    function onPointerUp() {
-      isMeasuringRef.current = false;
-    }
-
-    canvas.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-
-    return () => {
-      canvas.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-    };
-  }, [measurementMode, size, scale, center]);
-
-  // --- Delete Waypoint Handler ---
-  function deleteSelectedWaypoint() {
-    if (selectedWp !== null) {
-      setEditableRoute(route => route.filter((_, i) => i !== selectedWp));
-      setSelectedWp(null);
-    }
-  }
-
-  // --- Setup Three.js scene ---
-  useEffect(() => {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setClearColor(0x22304a);
-    renderer.setSize(size, size);
+    renderer.setPixelRatio(window.devicePixelRatio || 1);
+    renderer.setClearColor(0x04114e, 1);
+    renderer.domElement.style.display = 'block';
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
     rendererRef.current = renderer;
-    if (mountRef.current) {
-      mountRef.current.appendChild(renderer.domElement);
-    }
+    mountEl.appendChild(renderer.domElement);
 
-    // Camera: Orthographic for 2D
-    const viewSize = size;
-    const cam = new THREE.OrthographicCamera(
-      -viewSize / 2,
-      viewSize / 2,
-      viewSize / 2,
-      -viewSize / 2,
-      0.1,
-      1000,
-    );
-    cam.position.set(0, 0, 100);
-    cam.lookAt(0, 0, 0);
-    cam.zoom = zoomRef.current;
-    cam.updateProjectionMatrix();
-    cam.position.x = panRef.current.x;
-    cam.position.y = panRef.current.y;
-    cameraRef.current = cam;
-
-    // Scene
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // --- Chart Layers ---
-    chartLayers.forEach(layer => {
-      if (!layer.visible) return;
-      if (layer.id === 'vector') {
-        // Vector chart: draw coastline as before, with opacity
-        if (showCoastline) {
-          const coastShape = new THREE.Shape();
-          coastline.forEach(([latitude, longitude], i) => {
-            const [x, y] = latLonToXY(latitude, longitude, center, scale);
-            if (i === 0) coastShape.moveTo(x, y);
-            else coastShape.lineTo(x, y);
-          });
-          const coastGeom = new THREE.ShapeGeometry(coastShape);
-          const coastMat = new THREE.MeshBasicMaterial({
-            color: 0xb7c9a7,
-            transparent: true,
-            opacity: layer.opacity,
-          });
-          const coastMesh = new THREE.Mesh(coastGeom, coastMat);
-          scene.add(coastMesh);
-          // Coastline outline
-          const coastLineMat = new THREE.LineBasicMaterial({
-            color: 0x7a8c6e,
-            linewidth: 2,
-            transparent: true,
-            opacity: layer.opacity,
-          });
-          const coastLinePoints = coastline.map(([latitude, longitude]) => {
-            const [x, y] = latLonToXY(latitude, longitude, center, scale);
-            return new THREE.Vector3(x, y, 1);
-          });
-          const coastLineGeom = new THREE.BufferGeometry().setFromPoints(
-            coastLinePoints,
-          );
-          const coastLine = new THREE.Line(coastLineGeom, coastLineMat);
-          scene.add(coastLine);
-        }
-      } else if (layer.id === 'raster') {
-        // Raster chart: draw a semi-transparent colored rectangle as a mock
-        const rasterGeom = new THREE.PlaneGeometry(size, size);
-        const rasterMat = new THREE.MeshBasicMaterial({
-          color: 0x3b4252,
-          transparent: true,
-          opacity: layer.opacity,
-        });
-        const rasterMesh = new THREE.Mesh(rasterGeom, rasterMat);
-        rasterMesh.position.set(0, 0, 0.5);
-        scene.add(rasterMesh);
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
+    camera.position.set(0, 0, 100);
+    camera.lookAt(0, 0, 0);
+    cameraRef.current = camera;
+
+    const ro = new window.ResizeObserver(entries => {
+      const box = entries[0]?.contentRect;
+      if (!box) return;
+      const width = Math.max(360, Math.floor(box.width));
+      const height = Math.max(260, Math.floor(box.height));
+      setViewport({ width, height });
+      renderer.setSize(width, height, true);
+      camera.left = -width / 2;
+      camera.right = width / 2;
+      camera.top = height / 2;
+      camera.bottom = -height / 2;
+      camera.zoom = zoomRef.current;
+      camera.position.x = panRef.current.x;
+      camera.position.y = panRef.current.y;
+      camera.updateProjectionMatrix();
+    });
+
+    ro.observe(mountRef.current);
+
+    return () => {
+      ro.disconnect();
+      renderer.dispose();
+      scene.clear();
+      rendererRef.current = null;
+      sceneRef.current = null;
+      cameraRef.current = null;
+      if (mountEl.contains(renderer.domElement)) {
+        mountEl.removeChild(renderer.domElement);
       }
-    });
+    };
+  }, []);
 
-    // --- Buoys ---
-    if (showBuoys) {
-      buoys.forEach((b, i) => {
-        const [x, y] = latLonToXY(b.latitude, b.longitude, center, scale);
-        const isSearched =
-          searchResult?.type === 'buoy' && searchResult.index === i;
-        const buoyGeom = new THREE.CircleGeometry(isSearched ? 12 : 7, 24);
-        const buoyMat = new THREE.MeshBasicMaterial({
-          color: isSearched
-            ? 0x34d399
-            : b.type === 'starboard'
-              ? 0x2dd4bf
-              : 0xf87171,
-        });
-        const buoyMesh = new THREE.Mesh(buoyGeom, buoyMat);
-        buoyMesh.position.set(x, y, 2);
-        scene.add(buoyMesh);
-        // Outline
-        const outlineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
-        const outlineGeom = new THREE.CircleGeometry(isSearched ? 12 : 7, 24);
-        const outlineVertices = outlineGeom.getAttribute('position');
-        const outlinePoints: THREE.Vector3[] = [];
-        for (let j = 0; j < outlineVertices.count; j++) {
-          outlinePoints.push(
-            new THREE.Vector3(
-              outlineVertices.getX(j),
-              outlineVertices.getY(j),
-              outlineVertices.getZ(j),
-            ),
-          );
-        }
-        outlinePoints.push(outlinePoints[0]); // Close the loop
-        const outlineLineGeom = new THREE.BufferGeometry().setFromPoints(
-          outlinePoints,
-        );
-        const outline = new THREE.Line(outlineLineGeom, outlineMat);
-        outline.position.set(x, y, 2.1);
-        scene.add(outline);
-      });
-    }
+  function screenToLatLon(clientX: number, clientY: number) {
+    const camera = cameraRef.current;
+    const renderer = rendererRef.current;
+    if (!camera || !renderer) return null;
+    const rect = renderer.domElement.getBoundingClientRect();
+    const localX = clientX - rect.left - rect.width / 2;
+    const localY = clientY - rect.top - rect.height / 2;
+    const worldX = localX / camera.zoom + camera.position.x;
+    const worldY = localY / camera.zoom + camera.position.y;
+    return {
+      latitude: center.latitude - worldY / scale,
+      longitude: worldX / scale + center.longitude,
+    };
+  }
 
-    // --- Route ---
-    if (showRoute) {
-      const routeLineMat = new THREE.LineDashedMaterial({
-        color: 0xfbbf24,
-        dashSize: 8,
-        gapSize: 6,
-      });
-      const routeLinePoints = routePoints.map(([latitude, longitude]) => {
-        const [x, y] = latLonToXY(latitude, longitude, center, scale);
-        return new THREE.Vector3(x, y, 3);
-      });
-      const routeLineGeom = new THREE.BufferGeometry().setFromPoints(
-        routeLinePoints,
-      );
-      const routeLine = new THREE.Line(routeLineGeom, routeLineMat);
-      routeLine.computeLineDistances();
-      scene.add(routeLine);
-      // Waypoints
-      editableRoute.forEach((wp, i) => {
-        const [x, y] = latLonToXY(wp.latitude, wp.longitude, center, scale);
-        const isSelected = selectedWp === i;
-        const isSearched =
-          searchResult?.type === 'waypoint' && searchResult.index === i;
-        const wpGeom = new THREE.CircleGeometry(
-          isSelected ? 8 : isSearched ? 10 : 5,
-          16,
-        );
-        const wpMat = new THREE.MeshBasicMaterial({
-          color: isSearched ? 0x34d399 : isSelected ? 0xf87171 : 0xfbbf24,
-        });
-        const wpMesh = new THREE.Mesh(wpGeom, wpMat);
-        wpMesh.position.set(x, y, 3.1);
-        scene.add(wpMesh);
-        // Outline
-        const wpOutlineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
-        const wpOutlineGeom = new THREE.CircleGeometry(
-          isSelected ? 8 : isSearched ? 10 : 5,
-          16,
-        );
-        const wpOutlineVertices = wpOutlineGeom.getAttribute('position');
-        const wpOutlinePoints: THREE.Vector3[] = [];
-        for (let j = 0; j < wpOutlineVertices.count; j++) {
-          wpOutlinePoints.push(
-            new THREE.Vector3(
-              wpOutlineVertices.getX(j),
-              wpOutlineVertices.getY(j),
-              wpOutlineVertices.getZ(j),
-            ),
-          );
-        }
-        wpOutlinePoints.push(wpOutlinePoints[0]);
-        const wpOutlineLineGeom = new THREE.BufferGeometry().setFromPoints(
-          wpOutlinePoints,
-        );
-        const wpOutline = new THREE.Line(wpOutlineLineGeom, wpOutlineMat);
-        wpOutline.position.set(x, y, 3.2);
-        scene.add(wpOutline);
-      });
-    }
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const camera = cameraRef.current;
+    if (!renderer || !camera) return;
 
-    // --- Own Ship ---
-    const [sx, sy] = latLonToXY(ship.latitude!, ship.longitude!, center, scale);
-    const shipShape = new THREE.Shape();
-    shipShape.moveTo(0, -14);
-    shipShape.lineTo(7, 10);
-    shipShape.lineTo(-7, 10);
-    shipShape.lineTo(0, -14);
-    const shipGeom = new THREE.ShapeGeometry(shipShape);
-    const shipMat = new THREE.MeshBasicMaterial({ color: 0x60a5fa });
-    const shipMesh = new THREE.Mesh(shipGeom, shipMat);
-    shipMesh.position.set(sx, sy, 4);
-    shipMesh.rotation.z = -THREE.MathUtils.degToRad(ship.heading ?? 0);
-    scene.add(shipMesh);
-    // Ship center
-    const shipCenterGeom = new THREE.CircleGeometry(4, 16);
-    const shipCenterMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const shipCenter = new THREE.Mesh(shipCenterGeom, shipCenterMat);
-    shipCenter.position.set(sx, sy, 4.1);
-    scene.add(shipCenter);
-
-    // --- AIS Targets ---
-    aisTargets?.forEach((t, i) => {
-      const [x, y] = latLonToXY(t.lat, t.lon, center, scale);
-      const isSearched =
-        searchResult?.type === 'ais' && searchResult.index === i;
-      // Target icon (triangle)
-      const tgtShape = new THREE.Shape();
-      tgtShape.moveTo(0, isSearched ? -16 : -10);
-      tgtShape.lineTo(isSearched ? 10 : 6, isSearched ? 14 : 8);
-      tgtShape.lineTo(isSearched ? -10 : -6, isSearched ? 14 : 8);
-      tgtShape.lineTo(0, isSearched ? -16 : -10);
-      const tgtGeom = new THREE.ShapeGeometry(tgtShape);
-      const tgtMat = new THREE.MeshBasicMaterial({
-        color: isSearched ? 0xfbbf24 : 0x34d399,
-      });
-      const tgtMesh = new THREE.Mesh(tgtGeom, tgtMat);
-      tgtMesh.position.set(x, y, 5);
-      tgtMesh.rotation.z = -THREE.MathUtils.degToRad(t.heading ?? 0);
-      scene.add(tgtMesh);
-      // Label (simple, above target)
-      const labelDiv = document.createElement('div');
-      labelDiv.style.position = 'absolute';
-      labelDiv.style.left = `${x + size / 2 - 20}px`;
-      labelDiv.style.top = `${y + size / 2 - (isSearched ? 36 : 24)}px`;
-      labelDiv.style.color = isSearched ? '#fbbf24' : '#34d399';
-      labelDiv.style.fontSize = isSearched ? '15px' : '13px';
-      labelDiv.style.fontFamily = 'monospace';
-      labelDiv.style.pointerEvents = 'none';
-      labelDiv.style.zIndex = '20';
-      labelDiv.textContent = t.name || t.mmsi;
-      if (mountRef.current) mountRef.current.appendChild(labelDiv);
-      setTimeout(() => labelDiv.remove(), 0);
-    });
-
-    // --- Pan & Zoom Handlers ---
     const canvas = renderer.domElement;
+
     function onPointerDown(e: PointerEvent) {
-      if (measurementMode) return;
-      dragState.current = {
-        dragging: true,
-        lastX: e.clientX,
-        lastY: e.clientY,
-      };
+      panDragRef.current = { active: true, x: e.clientX, y: e.clientY };
     }
+
     function onPointerMove(e: PointerEvent) {
-      if (measurementMode) return;
-      if (dragState.current?.dragging) {
-        const dx = e.clientX - dragState.current.lastX;
-        const dy = e.clientY - dragState.current.lastY;
-        panRef.current.x -= dx / cam.zoom;
-        panRef.current.y += dy / cam.zoom;
-        cam.position.x = panRef.current.x;
-        cam.position.y = panRef.current.y;
-        cam.updateProjectionMatrix();
-        dragState.current.lastX = e.clientX;
-        dragState.current.lastY = e.clientY;
-      }
+      const pt = screenToLatLon(e.clientX, e.clientY);
+      if (pt) setCursorLatLon(pt);
+
+      if (!panDragRef.current.active) return;
+
+      const dx = e.clientX - panDragRef.current.x;
+      const dy = e.clientY - panDragRef.current.y;
+      panRef.current.x -= dx / camera.zoom;
+      panRef.current.y += dy / camera.zoom;
+      camera.position.x = panRef.current.x;
+      camera.position.y = panRef.current.y;
+      camera.updateProjectionMatrix();
+      panDragRef.current = { active: true, x: e.clientX, y: e.clientY };
     }
+
     function onPointerUp() {
-      if (measurementMode) return;
-      if (dragState.current) dragState.current.dragging = false;
+      panDragRef.current.active = false;
     }
+
+    function onPointerLeave() {
+      setCursorLatLon(null);
+      panDragRef.current.active = false;
+    }
+
     function onWheel(e: WheelEvent) {
-      if (measurementMode) return;
       e.preventDefault();
-      const zoomFactor = 1.1;
-      if (e.deltaY < 0) zoomRef.current *= zoomFactor;
-      else zoomRef.current /= zoomFactor;
-      zoomRef.current = Math.max(0.5, Math.min(zoomRef.current, 10));
-      cam.zoom = zoomRef.current;
-      cam.updateProjectionMatrix();
+      const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+      zoomRef.current = Math.max(0.5, Math.min(10, zoomRef.current * factor));
+      camera.zoom = zoomRef.current;
+      camera.updateProjectionMatrix();
     }
+
     canvas.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('pointerleave', onPointerLeave);
     canvas.addEventListener('wheel', onWheel, { passive: false });
 
-    // --- Render loop ---
-    function animate() {
-      // Clear previous EBLs and VRMs
-      scene.children
-        .filter(obj => obj.userData.isEBL || obj.userData.isVRM)
-        .forEach(obj => scene.remove(obj));
-
-      // Draw EBLs
-      [ebl1, ebl2].forEach(ebl => {
-        if (ebl.isActive) {
-          const [originX, originY] = ebl.origin === 'ship' ? [sx, sy] : [0, 0]; // Assuming 0,0 for chart center if not ship
-          const length = size * 2; // Make line long enough to cross the screen
-          const angleRad = THREE.MathUtils.degToRad(90 - ebl.bearing); // Adjust for Three.js coordinate system
-          const endX = originX + length * Math.cos(angleRad);
-          const endY = originY + length * Math.sin(angleRad);
-
-          const eblMaterial = new THREE.LineBasicMaterial({
-            color: 0xfbbf24,
-            linewidth: 1,
-          });
-          const eblPoints = [
-            new THREE.Vector3(originX, originY, 6),
-            new THREE.Vector3(endX, endY, 6),
-          ];
-          const eblGeometry = new THREE.BufferGeometry().setFromPoints(
-            eblPoints,
-          );
-          const eblLine = new THREE.Line(eblGeometry, eblMaterial);
-          eblLine.userData.isEBL = true;
-          scene.add(eblLine);
-        }
-      });
-
-      // Draw VRMs
-      [vrm1, vrm2].forEach(vrm => {
-        if (vrm.isActive) {
-          const [originX, originY] = vrm.origin === 'ship' ? [sx, sy] : [0, 0]; // Assuming 0,0 for chart center if not ship
-          // Convert NM to pixels: 1 NM = 1852 meters. Scale is meters per degree.
-          // This is a rough approximation and needs proper projection for accuracy.
-          const radiusInMeters = vrm.radius * 1852;
-          const radiusInPixels =
-            (radiusInMeters /
-              (111320 * Math.cos((center.latitude * Math.PI) / 180))) *
-            scale;
-
-          const vrmMaterial = new THREE.LineBasicMaterial({
-            color: 0x34d399,
-            linewidth: 1,
-          });
-          const vrmCircleGeometry = new THREE.CircleGeometry(
-            radiusInPixels,
-            64,
-          );
-          // Remove the center vertex to make it a line loop
-          const positions =
-            vrmCircleGeometry.attributes.position.array.slice(3); // Remove first vertex (center)
-          const vrmGeometry = new THREE.BufferGeometry();
-          vrmGeometry.setAttribute(
-            'position',
-            new THREE.Float32BufferAttribute(positions, 3),
-          );
-          const vrmCircle = new THREE.LineLoop(vrmGeometry, vrmMaterial);
-          vrmCircle.position.set(originX, originY, 6);
-          vrmCircle.userData.isVRM = true;
-          scene.add(vrmCircle);
-        }
-      });
-
-      renderer.render(scene, cam);
-      animationRef.current = requestAnimationFrame(animate);
-    }
-    animate();
-
-    // --- Cleanup ---
     return () => {
-      cancelAnimationFrame(animationRef.current!);
-      renderer.dispose();
-      scene.clear();
-      if (mountRef.current) {
-        mountRef.current.removeChild(renderer.domElement);
-      }
       canvas.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener('pointerleave', onPointerLeave);
       canvas.removeEventListener('wheel', onWheel);
     };
+  }, [center, editableRoute, scale]);
+
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    const scene = sceneRef.current;
+    const camera = cameraRef.current;
+    if (!renderer || !scene || !camera) return;
+
+    scene.clear();
+
+    const chartGroup = new THREE.Group();
+    scene.add(chartGroup);
+
+    const coastFill = new THREE.Shape();
+    coastline.forEach(([latitude, longitude], index) => {
+      const [x, y] = latLonToXY(latitude, longitude, center, scale);
+      if (index === 0) coastFill.moveTo(x, y);
+      else coastFill.lineTo(x, y);
+    });
+
+    chartGroup.add(
+      new THREE.Mesh(
+        new THREE.ShapeGeometry(coastFill),
+        new THREE.MeshBasicMaterial({
+          color: 0xbca95b,
+          transparent: true,
+          opacity: 0.95,
+        }),
+      ),
+    );
+
+    const coastLine = coastline.map(([latitude, longitude]) => {
+      const [x, y] = latLonToXY(latitude, longitude, center, scale);
+      return new THREE.Vector3(x, y, 1);
+    });
+    chartGroup.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(coastLine),
+        new THREE.LineBasicMaterial({ color: 0x71662f }),
+      ),
+    );
+
+    buoys.forEach(buoy => {
+      const [x, y] = latLonToXY(buoy.latitude, buoy.longitude, center, scale);
+      chartGroup
+        .add(
+          new THREE.Mesh(
+            new THREE.CircleGeometry(6, 20),
+            new THREE.MeshBasicMaterial({
+              color: buoy.type === 'starboard' ? 0x12b8ff : 0xe95f50,
+            }),
+          ),
+        )
+        .position.set(x, y, 2);
+    });
+
+    const routeLine = editableRoute.map(wp => {
+      const [x, y] = latLonToXY(wp.latitude, wp.longitude, center, scale);
+      return new THREE.Vector3(x, y, 2.5);
+    });
+
+    if (routeLine.length > 1) {
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(routeLine),
+        new THREE.LineDashedMaterial({
+          color: 0xff6bd6,
+          dashSize: 10,
+          gapSize: 7,
+        }),
+      );
+      line.computeLineDistances();
+      chartGroup.add(line);
+    }
+
+    editableRoute.forEach(wp => {
+      const [x, y] = latLonToXY(wp.latitude, wp.longitude, center, scale);
+      chartGroup
+        .add(
+          new THREE.Mesh(
+            new THREE.CircleGeometry(5, 18),
+            new THREE.MeshBasicMaterial({ color: 0xf6e866 }),
+          ),
+        )
+        .position.set(x, y, 3);
+    });
+
+    const [shipX, shipY] = latLonToXY(
+      ship.latitude,
+      ship.longitude,
+      center,
+      scale,
+    );
+    // Own-ship outline: thin pill with pointed bow.
+    const hullLen = 38 * OWN_SHIP_VISUAL_SCALE;
+    const hullHalfBeam = 3.4 * OWN_SHIP_VISUAL_SCALE;
+    const sternRound = 5.2 * OWN_SHIP_VISUAL_SCALE;
+    const bowPoint = 8 * OWN_SHIP_VISUAL_SCALE;
+    const hullShape = new THREE.Shape();
+    hullShape.moveTo(-hullHalfBeam, -hullLen / 2 + sternRound);
+    hullShape.absarc(
+      0,
+      -hullLen / 2 + sternRound,
+      sternRound,
+      Math.PI,
+      0,
+      false,
+    );
+    hullShape.lineTo(hullHalfBeam, hullLen / 2 - bowPoint);
+    hullShape.lineTo(0, hullLen / 2);
+    hullShape.lineTo(-hullHalfBeam, hullLen / 2 - bowPoint);
+    hullShape.lineTo(-hullHalfBeam, -hullLen / 2 + sternRound);
+    const hullOutlinePoints = hullShape
+      .getPoints(64)
+      .map(p => new THREE.Vector3(p.x, p.y, 0));
+    const ownShip = new THREE.LineLoop(
+      new THREE.BufferGeometry().setFromPoints(hullOutlinePoints),
+      new THREE.LineBasicMaterial({ color: 0xdce9f2 }),
+    );
+    ownShip.position.set(shipX, shipY, 8.2);
+    ownShip.rotation.z = -THREE.MathUtils.degToRad(ship.heading);
+    chartGroup.add(ownShip);
+
+    const bow = worldFromShip(shipX, shipY, ship.heading, hullLen / 2, 0);
+    const navPoint = worldFromShip(
+      shipX,
+      shipY,
+      ship.heading,
+      7 * OWN_SHIP_VISUAL_SCALE,
+      0,
+    );
+
+    // Heading line from bow.
+    const headingEnd = worldFromShip(shipX, shipY, ship.heading, 170, 0);
+    chartGroup.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(bow.x, bow.y, 8.1),
+          new THREE.Vector3(headingEnd.x, headingEnd.y, 8.1),
+        ]),
+        new THREE.LineBasicMaterial({ color: 0x12181d }),
+      ),
+    );
+
+    // COG/SOG vector slightly offset from heading with ticks and arrow.
+    const cogOffsetDeg = 7;
+    const cogVectorDeg = ship.heading + cogOffsetDeg;
+    const cogLen = 190 * OWN_SHIP_VISUAL_SCALE;
+    const cogEnd = worldFromShip(bow.x, bow.y, cogVectorDeg, cogLen, 0);
+    chartGroup.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(bow.x, bow.y, 8.0),
+          new THREE.Vector3(cogEnd.x, cogEnd.y, 8.0),
+        ]),
+        new THREE.LineBasicMaterial({ color: 0x1d1d1d }),
+      ),
+    );
+    const arrowLeft = worldFromShip(
+      cogEnd.x,
+      cogEnd.y,
+      cogVectorDeg,
+      -8 * OWN_SHIP_VISUAL_SCALE,
+      -3 * OWN_SHIP_VISUAL_SCALE,
+    );
+    const arrowRight = worldFromShip(
+      cogEnd.x,
+      cogEnd.y,
+      cogVectorDeg,
+      -8 * OWN_SHIP_VISUAL_SCALE,
+      3 * OWN_SHIP_VISUAL_SCALE,
+    );
+    chartGroup.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(arrowLeft.x, arrowLeft.y, 8.0),
+          new THREE.Vector3(cogEnd.x, cogEnd.y, 8.0),
+          new THREE.Vector3(arrowRight.x, arrowRight.y, 8.0),
+        ]),
+        new THREE.LineBasicMaterial({ color: 0x1d1d1d }),
+      ),
+    );
+    for (let i = 1; i <= 12; i += 1) {
+      const along = i * 12 * OWN_SHIP_VISUAL_SCALE;
+      const major = i % 4 === 0;
+      const tickHalf = (major ? 2.6 : 1.4) * OWN_SHIP_VISUAL_SCALE;
+      const p1 = worldFromShip(bow.x, bow.y, cogVectorDeg, along, -tickHalf);
+      const p2 = worldFromShip(bow.x, bow.y, cogVectorDeg, along, tickHalf);
+      chartGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(p1.x, p1.y, 8.0),
+            new THREE.Vector3(p2.x, p2.y, 8.0),
+          ]),
+          new THREE.LineBasicMaterial({ color: major ? 0x101010 : 0x2a2a2a }),
+        ),
+      );
+    }
+
+    // Beam line through nav point, crossing the ship breadth.
+    const beamLeft = worldFromShip(
+      navPoint.x,
+      navPoint.y,
+      ship.heading,
+      0,
+      -18 * OWN_SHIP_VISUAL_SCALE,
+    );
+    const beamRight = worldFromShip(
+      navPoint.x,
+      navPoint.y,
+      ship.heading,
+      0,
+      18 * OWN_SHIP_VISUAL_SCALE,
+    );
+    chartGroup.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(beamLeft.x, beamLeft.y, 8.1),
+          new THREE.Vector3(beamRight.x, beamRight.y, 8.1),
+        ]),
+        new THREE.LineBasicMaterial({ color: 0x4e5b65 }),
+      ),
+    );
+
+    // Past track from nav point aft with evenly spaced time ticks.
+    const pastLen = 130 * OWN_SHIP_VISUAL_SCALE;
+    const pastEnd = worldFromShip(
+      navPoint.x,
+      navPoint.y,
+      ship.heading,
+      -pastLen,
+      0,
+    );
+    chartGroup.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(navPoint.x, navPoint.y, 7.9),
+          new THREE.Vector3(pastEnd.x, pastEnd.y, 7.9),
+        ]),
+        new THREE.LineBasicMaterial({ color: 0x111111 }),
+      ),
+    );
+    for (let i = 1; i <= 12; i += 1) {
+      const along = -i * 10 * OWN_SHIP_VISUAL_SCALE;
+      const major = i % 4 === 0;
+      const tickHalf = (major ? 2.8 : 1.6) * OWN_SHIP_VISUAL_SCALE;
+      const p1 = worldFromShip(
+        navPoint.x,
+        navPoint.y,
+        ship.heading,
+        along,
+        -tickHalf,
+      );
+      const p2 = worldFromShip(
+        navPoint.x,
+        navPoint.y,
+        ship.heading,
+        along,
+        tickHalf,
+      );
+      chartGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(p1.x, p1.y, 7.9),
+            new THREE.Vector3(p2.x, p2.y, 7.9),
+          ]),
+          new THREE.LineBasicMaterial({ color: major ? 0x0e0e0e : 0x2a2a2a }),
+        ),
+      );
+    }
+
+    aisTargets?.forEach(target => {
+      const [x, y] = latLonToXY(target.lat, target.lon, center, scale);
+      const icon = new THREE.Mesh(
+        new THREE.CircleGeometry(4, 12),
+        new THREE.MeshBasicMaterial({ color: 0x3fe1ff }),
+      );
+      icon.position.set(x, y, 4);
+      chartGroup.add(icon);
+    });
+
+    renderer.render(scene, camera);
   }, [
-    shipPosition,
-    route,
-    chartData,
-    showCoastline,
-    showBuoys,
-    showRoute,
-    chartLayers,
-    searchResult,
-    measurementMode,
-    ebl1,
-    ebl2,
-    vrm1,
-    vrm2,
+    aisTargets,
+    buoys,
+    center,
+    coastline,
+    editableRoute,
+    scale,
+    ship,
+    viewport.height,
+    viewport.width,
   ]);
 
-  // --- Overlay Info (static for MVP) ---
-  const navDataForPanel = {
-    hdg: `${ship.heading?.toFixed(1)}°`,
-    hdgStatus: 'SNR', // Mocked
-    spd: '50.0kn', // Mocked, replace with actual ship.speed when available
-    spdStatus: 'SNR', // Mocked
-    wt: '0.0kn', // Mocked
-    cog: '0.0°', // Mocked, replace with actual COG when available
-    cogStatus: 'NON', // Mocked
-    sog: '0.0kn', // Mocked, replace with actual SOG when available
-    sogStatus: 'NON', // Mocked
-    posn_lat: `${ship.latitude?.toFixed(5)}' N`,
-    posn_lon: `${ship.longitude?.toFixed(5)}' E`,
-    posnFilter: 'H', // Mocked
-    offset: 'Offset', // Mocked label
-    wgs84: 'WGS84', // Mocked
+  const buttonStyle: React.CSSProperties = {
+    background: '#0c2ca8',
+    border: '1px solid #2047dc',
+    color: '#b9dbff',
+    fontSize: 12,
+    fontWeight: 700,
+    padding: '4px 8px',
+    cursor: 'pointer',
   };
 
-  // Schema definition for the RightStatusPanel
-  const panelSchema: StatusPanelSchema = [
-    [
-      {
-        id: 'hdg',
-        label: 'HDG',
-        mainValue: {
-          text: 'data:hdg',
-          className: 'text-2xl text-green-400 font-bold',
-        },
-        statusValue: {
-          text: 'data:hdgStatus',
-          className: 'text-xs text-gray-400 self-end pb-0.5',
-        },
-        boxClassName: 'flex-grow',
-      },
-    ],
-    [
-      {
-        id: 'spd',
-        label: 'SPD',
-        mainValue: {
-          text: 'data:spd',
-          className: 'text-xl text-white font-bold',
-        },
-        statusValue: {
-          text: 'data:spdStatus',
-          className: 'text-xs text-gray-400 self-end',
-        },
-        boxClassName: 'w-1/2',
-      },
-      {
-        id: 'wt',
-        label: 'WT',
-        mainValue: {
-          text: 'data:wt',
-          className: 'text-xl text-white font-bold',
-        },
-        boxClassName: 'w-1/2',
-      },
-    ],
-    [
-      {
-        id: 'cog',
-        label: 'COG',
-        mainValue: {
-          text: 'data:cog',
-          className: 'text-xl text-white font-bold',
-        },
-        statusValue: {
-          text: 'data:cogStatus',
-          className: 'text-xs text-gray-400 self-end',
-        },
-        boxClassName: 'w-1/2',
-      },
-      {
-        id: 'sog',
-        label: 'SOG',
-        mainValue: {
-          text: 'data:sog',
-          className: 'text-xl text-white font-bold',
-        },
-        statusValue: {
-          text: 'data:sogStatus',
-          className: 'text-xs text-gray-400 self-end',
-        },
-        boxClassName: 'w-1/2',
-      },
-    ],
-    [
-      {
-        id: 'posn',
-        label: 'POSN',
-        additionalLines: [
-          { text: 'data:posn_lat', className: 'text-sm text-white' },
-          { text: 'data:posn_lon', className: 'text-sm text-white' },
-        ],
-        statusValue: {
-          text: 'data:posnFilter',
-          className: 'text-xs text-gray-400 self-start pt-0.5',
-        }, // Aligned with label
-        boxClassName: 'flex-grow',
-      },
-    ],
-    [
-      {
-        id: 'offset',
-        label: 'Offset', // This seems to be a label for the WGS84 value based on image
-        mainValue: {
-          text: 'data:wgs84',
-          className: 'text-sm text-white text-center',
-        }, // Centered as it takes full width
-        boxClassName: 'flex-grow',
-      },
-    ],
-  ];
+  const valueBoxStyle: React.CSSProperties = {
+    color: '#f3d648',
+    background: '#000',
+    border: '1px solid #2a4ac5',
+    minWidth: 84,
+    textAlign: 'right',
+    padding: '0 6px',
+    lineHeight: '18px',
+    height: 20,
+  };
 
-  // --- Route Info Section (mocked for now) ---
-  const routeInfo: Array<{ label: string; value: string }> = [
-    { label: 'Route', value: 'Helsinki → Tallinn' },
-    { label: 'Plan SPD', value: '16.0 kn' },
-    { label: 'Plan CRS', value: '187.0°' },
-    { label: 'CRS to STR', value: '187.5°' },
-    { label: 'CH limit', value: '50 m' },
-    { label: 'Off track', value: '12 m' },
-    { label: 'HAND', value: 'AUTO' },
-    { label: 'To WPT', value: 'WP3' },
-    { label: 'Dist WPT', value: '2.1 nm' },
-    { label: 'Time', value: '00:08' },
-    { label: 'Turn RAD', value: '0.2 nm' },
-    { label: 'Turn rate', value: '12°/min' },
-    { label: 'UKC', value: '8.5 m' },
-    { label: 'Next WPT', value: 'WP4' },
-    { label: 'Next', value: '195.0°' },
-  ];
+  const rowLabelStyle: React.CSSProperties = {
+    color: '#6cc9ff',
+    fontWeight: 700,
+    letterSpacing: 0.2,
+    whiteSpace: 'nowrap',
+  };
+
+  const menuRowStyle: React.CSSProperties = {
+    border: '1px solid #2a4ac5',
+    background: '#0c2ca8',
+    color: '#b9dbff',
+    padding: '2px 8px',
+    fontWeight: 700,
+    marginBottom: 4,
+    lineHeight: '16px',
+  };
+
+  const rowSingle = (label: string, value: string, unit?: string) => (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: unit ? '1fr auto auto' : '1fr auto',
+        gap: 6,
+        marginBottom: 3,
+        alignItems: 'center',
+      }}
+    >
+      <div style={rowLabelStyle}>{label}</div>
+      <div style={valueBoxStyle}>{value}</div>
+      {unit ? (
+        <div style={{ ...valueBoxStyle, minWidth: 52, textAlign: 'center' }}>
+          {unit}
+        </div>
+      ) : null}
+    </div>
+  );
+
+  const rowDual = (
+    label: string,
+    left: string,
+    right: string,
+    leftMinWidth = 66,
+    rightMinWidth = 84,
+  ) => (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr auto auto',
+        gap: 6,
+        marginBottom: 3,
+        alignItems: 'center',
+      }}
+    >
+      <div style={rowLabelStyle}>{label}</div>
+      <div
+        style={{
+          ...valueBoxStyle,
+          minWidth: leftMinWidth,
+          textAlign: 'center',
+        }}
+      >
+        {left}
+      </div>
+      <div style={{ ...valueBoxStyle, minWidth: rightMinWidth }}>{right}</div>
+    </div>
+  );
+
+  const rowTwoHeaders = (
+    leftLabel: string,
+    leftValue: string,
+    rightLabel: string,
+    rightValue: string,
+  ) => (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'auto auto auto auto',
+        gap: 6,
+        marginBottom: 3,
+        alignItems: 'center',
+      }}
+    >
+      <div style={rowLabelStyle}>{leftLabel}</div>
+      <div style={{ ...valueBoxStyle, minWidth: 62, textAlign: 'center' }}>
+        {leftValue}
+      </div>
+      <div style={rowLabelStyle}>{rightLabel}</div>
+      <div style={{ ...valueBoxStyle, minWidth: 84, textAlign: 'center' }}>
+        {rightValue}
+      </div>
+    </div>
+  );
+
+  const rowValueOnly = (value: string) => (
+    <div style={{ marginBottom: 3 }}>
+      <div style={{ ...valueBoxStyle, minWidth: 0, textAlign: 'left' }}>
+        {value}
+      </div>
+    </div>
+  );
 
   return (
     <div
       style={{
-        background: '#1a2230',
-        borderRadius: 12,
-        boxShadow: '0 2px 12px #0008',
-        padding: 0,
-        width: size + 232, // extra width for right panel
-        color: '#e0f2f1',
-        fontFamily: 'monospace',
-        position: 'relative',
         display: 'flex',
-        flexDirection: 'column',
-        height: 'calc(100vh - 100px)', // Example: Adjust as needed for your app layout
+        width: '100%',
+        height: 'calc(100vh - 240px)',
+        minHeight: 500,
+        background: '#04114e',
+        border: '2px solid #1739c9',
+        color: '#b9dbff',
+        fontFamily: 'monospace',
       }}
     >
-      <TopNavigationBar
-        tabs={['NAVI', 'CHARTS', 'PLAN', 'OTHERS']}
-        activeTab={'NAVI'}
-        brand={'ECDIS'}
-      />
       <div
         style={{
+          flex: 1,
+          minWidth: 0,
+          borderRight: '2px solid #1739c9',
           display: 'flex',
-          flexDirection: 'row',
-          width: '100%',
-          flexGrow: 1,
+          flexDirection: 'column',
+        }}
+      >
+        <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+          <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
+        </div>
+
+        <div
+          style={{
+            minHeight: 34,
+            borderTop: '1px solid #1a399f',
+            background: '#010a30',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0 10px',
+            fontSize: 12,
+          }}
+        >
+          Cursor:{' '}
+          {cursorLatLon
+            ? `${cursorLatLon.latitude.toFixed(5)}, ${cursorLatLon.longitude.toFixed(5)}`
+            : '--'}
+        </div>
+      </div>
+
+      <aside
+        style={{
+          width: 290,
+          background: '#00156a',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         <div
           style={{
-            flexGrow: 1,
-            width: size + 32,
-            padding: 16,
-            display: 'flex',
-            flexDirection: 'column',
+            borderBottom: '2px solid #1739c9',
+            padding: '5px 8px',
+            fontWeight: 800,
           }}
         >
-          {/* Controls above the chart */}
-          <div style={{ marginBottom: 8 }}></div>
-          {/* Measurement Tool Toggle */}
-          <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 15, marginRight: 12 }}>
-              <input
-                type="checkbox"
-                checked={measurementMode}
-                onChange={e => {
-                  setMeasurementMode(e.target.checked);
-                  setMeasurementStart(null);
-                  setMeasurementEnd(null);
-                }}
-                style={{ marginRight: 6 }}
-              />
-              Measurement Tool
-            </label>
-            {measurementMode && (
-              <span style={{ color: '#60a5fa', fontSize: 15, marginLeft: 8 }}>
-                Click and drag to measure distance/bearing
-              </span>
-            )}
-          </div>
-          {/* Search Form */}
-          <form
-            onSubmit={handleSearch}
-            style={{ display: 'flex', gap: 8, marginBottom: 8 }}
-          >
-            <input
-              type="text"
-              placeholder="Search waypoint, buoy, AIS..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              style={{
-                fontSize: 15,
-                padding: '2px 8px',
-                borderRadius: 4,
-                border: '1px solid #444',
-                background: '#23272e',
-                color: '#e0f2f1',
-                width: 220,
-              }}
-            />
-            <button
-              type="submit"
-              style={{
-                fontSize: 15,
-                padding: '2px 12px',
-                borderRadius: 4,
-                background: '#60a5fa',
-                color: '#fff',
-                border: 'none',
-              }}
-            >
-              Search
-            </button>
-            {searchResult && (
-              <span style={{ color: '#34d399', fontSize: 15, marginLeft: 8 }}>
-                Found {searchResult.type} #{searchResult.index + 1}
-              </span>
-            )}
-          </form>
-          {/* Chart Layer Toggles */}
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 16,
-              marginBottom: 8,
-            }}
-          >
-            {chartLayers.map((layer, i) => (
-              <div
-                key={layer.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  background: '#23272e',
-                  borderRadius: 6,
-                  padding: '2px 8px',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={layer.visible}
-                  onChange={() => toggleLayer(layer.id)}
-                />
-                <span>{layer.name}</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={layer.opacity}
-                  onChange={e =>
-                    setLayerOpacity(layer.id, parseFloat(e.target.value))
-                  }
-                  style={{ width: 60 }}
-                />
-                <button
-                  onClick={() => moveLayer(layer.id, 'up')}
-                  disabled={i === 0}
-                  style={{ fontSize: 12 }}
-                >
-                  ↑
-                </button>
-                <button
-                  onClick={() => moveLayer(layer.id, 'down')}
-                  disabled={i === chartLayers.length - 1}
-                  style={{ fontSize: 12 }}
-                >
-                  ↓
-                </button>
-              </div>
-            ))}
-            <label>
-              <input
-                type="checkbox"
-                checked={showCoastline}
-                onChange={e => setShowCoastline(e.target.checked)}
-              />{' '}
-              Coastline
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={showBuoys}
-                onChange={e => setShowBuoys(e.target.checked)}
-              />{' '}
-              Buoys
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={showRoute}
-                onChange={e => setShowRoute(e.target.checked)}
-              />{' '}
-              Route
-            </label>
-            {selectedWp !== null && (
-              <button
-                onClick={deleteSelectedWaypoint}
-                style={{ color: '#f87171', marginLeft: 16 }}
-              >
-                Delete Waypoint #{selectedWp + 1}
-              </button>
-            )}
-          </div>
-          {/* This is the chartViewPort - set to grow */}
-          <div
-            style={{
-              flexGrow: 1,
-              borderRadius: 8,
-              overflow: 'hidden',
-              background: '#22304a',
-              position: 'relative',
-              minHeight: 300,
-            }}
-          >
-            <div
-              ref={mountRef}
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                width: '100%',
-                height: '100%',
-                zIndex: 1,
-              }}
-            />
-            {/* Measurement Line Overlay (SVG) */}
-            {measurementMode &&
-              measurementStart &&
-              measurementEnd &&
-              (() => {
-                const camera = cameraRef.current;
-                if (!camera) return null;
-
-                // Calculate coordinates including pan and zoom
-                const zoom = camera.zoom;
-                const panX = camera.position.x;
-                const panY = camera.position.y;
-
-                // Project lat/lon to screen coordinates
-                const [x1, y1] = latLonToXY(
-                  measurementStart.latitude,
-                  measurementStart.longitude,
-                  center,
-                  scale,
-                );
-
-                const [x2, y2] = latLonToXY(
-                  measurementEnd.latitude,
-                  measurementEnd.longitude,
-                  center,
-                  scale,
-                );
-
-                // Apply zoom and pan to the points for correct positioning in the SVG
-                const svgX1 = (x1 - panX) * zoom + size / 2;
-                const svgY1 = (y1 - panY) * zoom + size / 2;
-                const svgX2 = (x2 - panX) * zoom + size / 2;
-                const svgY2 = (y2 - panY) * zoom + size / 2;
-
-                const { distance, bearing } = calculateDistanceAndBearing(
-                  measurementStart.latitude,
-                  measurementStart.longitude,
-                  measurementEnd.latitude,
-                  measurementEnd.longitude,
-                );
-
-                return (
-                  <svg
-                    width={size}
-                    height={size}
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: 0,
-                      width: '100%',
-                      height: '100%',
-                      pointerEvents: 'none',
-                      zIndex: 2,
-                    }}
-                  >
-                    <line
-                      x1={svgX1}
-                      y1={svgY1}
-                      x2={svgX2}
-                      y2={svgY2}
-                      stroke="#60a5fa"
-                      strokeWidth={1}
-                      strokeDasharray=""
-                    />
-                    <text
-                      x={(svgX1 + svgX2) / 2 + 10}
-                      y={(svgY1 + svgY2) / 2 - 10}
-                      fill="#fff"
-                      fontSize={18}
-                      fontFamily="monospace"
-                      stroke="#23272e"
-                      strokeWidth={0.5}
-                      paintOrder="stroke"
-                    >
-                      {distance > 1000
-                        ? `${(distance / 1000).toFixed(2)} km`
-                        : `${distance.toFixed(1)} m`}{' '}
-                      | {bearing.toFixed(1)}°
-                    </text>
-                  </svg>
-                );
-              })()}
-            {/* Scale Bar & EBL Controls Overlay */}
-            <div // Container for EBLs and Scale Bar
-              style={{
-                position: 'absolute',
-                left: 32,
-                bottom: 32,
-                zIndex: 20,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <EBLControl eblState={ebl1} setEblState={setEbl1} />
-              <EBLControl eblState={ebl2} setEblState={setEbl2} />
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  pointerEvents: 'none',
-                  gap: '8px',
-                }}
-              >
-                <div
-                  style={{
-                    width: getScaleBar().px,
-                    height: 6,
-                    background: '#e0f2f1',
-                    borderRadius: 2,
-                    boxShadow: '0 1px 4px #0008',
-                  }}
-                />
-                <span style={{ color: '#e0f2f1', fontSize: 14 }}>
-                  {getScaleBar().label}
-                </span>
-              </div>
-            </div>
-
-            {/* North Arrow Overlay */}
-            <div
-              style={{
-                position: 'absolute',
-                right: 32,
-                top: 32,
-                zIndex: 20,
-                width: 36,
-                height: 36,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                pointerEvents: 'none',
-              }}
-            >
-              <svg width="36" height="36" viewBox="0 0 36 36">
-                <polygon
-                  points="18,6 24,30 18,24 12,30"
-                  fill="#e0f2f1"
-                  stroke="#23272e"
-                  strokeWidth="2"
-                />
-                <text
-                  x="18"
-                  y="20"
-                  textAnchor="middle"
-                  fontSize="10"
-                  fill="#23272e"
-                  fontFamily="monospace"
-                >
-                  N
-                </text>
-              </svg>
-            </div>
-
-            {/* VRM Controls Overlay */}
-            <div
-              style={{
-                position: 'absolute',
-                right: 32,
-                bottom: 32,
-                zIndex: 20,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <VRMControl vrmState={vrm1} setVrmState={setVrm1} />
-              <VRMControl vrmState={vrm2} setVrmState={setVrm2} />
-            </div>
-          </div>{' '}
-          {/* End of chartViewPort */}
-          {/* latitude/longitude Overlay */}
-          {cursorlatitudeLon && (
-            <div
-              style={{
-                marginTop: 8,
-                background: '#23272e',
-                color: '#e0f2f1',
-                borderRadius: 6,
-                padding: '4px 12px',
-                fontSize: 15,
-                pointerEvents: 'none',
-                textAlign: 'center',
-              }}
-            >
-              Lat: {cursorlatitudeLon.latitude.toFixed(5)}, Lon:{' '}
-              {cursorlatitudeLon.longitude.toFixed(5)}
-            </div>
-          )}
-          {/* Tooltip Overlay */}
-          {tooltip && (
-            <div
-              style={{
-                position: 'fixed',
-                left: tooltip.x + 16,
-                top: tooltip.y + 8,
-                background: '#23272e',
-                color: '#e0f2f1',
-                borderRadius: 6,
-                padding: '6px 14px',
-                fontSize: 15,
-                whiteSpace: 'pre',
-                pointerEvents: 'none',
-                zIndex: 100,
-                boxShadow: '0 2px 8px #000a',
-              }}
-            >
-              {tooltip.content}
-            </div>
-          )}
+          KELVIN HUGHES ECDIS
         </div>
-        <RightStatusPanel schema={panelSchema} data={navDataForPanel}>
-          <RouteInfoPanel routeInfo={routeInfo} />
-        </RightStatusPanel>
-      </div>
+        <div style={{ padding: 8, overflowY: 'auto', flex: 1 }}>
+          <div style={menuRowStyle}>Main Menu</div>
+
+          {rowDual('Heading', 'T', `${ship.heading.toFixed(1)}\u00b0`)}
+          {rowDual('Speed', 'W', '22.0 kts')}
+          {rowDual('COG', 'DR', `${ship.heading.toFixed(1)}\u00b0`)}
+          {rowDual('SOG', '', '22.0 kts')}
+          {rowDual('Time', '+01H', '17:11:29')}
+          {rowDual('Depth', 'Sim1', '22.3 m')}
+
+          <div style={{ ...rowLabelStyle, marginTop: 4, marginBottom: 2 }}>
+            Sensor
+          </div>
+          {rowValueOnly(
+            `${formatLatLon(ship.latitude, 'N', 'S')} ${formatLatLon(ship.longitude, 'E', 'W')}`,
+          )}
+          {rowSingle('Datum', 'WGS84')}
+
+          <div style={{ ...menuRowStyle, marginTop: 6 }}>Charts</div>
+          <div style={{ ...menuRowStyle, marginBottom: 6 }}>Routes</div>
+
+          <div
+            style={{
+              ...valueBoxStyle,
+              textAlign: 'center',
+              minWidth: 0,
+              marginBottom: 3,
+            }}
+          >
+            TRACK CONTROL
+          </div>
+          <div
+            style={{
+              ...valueBoxStyle,
+              textAlign: 'center',
+              minWidth: 0,
+              marginBottom: 3,
+            }}
+          >
+            Saltmere to Bonville
+          </div>
+          {rowSingle('Alt.', '(No Route Selected)')}
+
+          <div
+            style={{
+              ...valueBoxStyle,
+              minWidth: 0,
+              marginBottom: 3,
+              textAlign: 'center',
+              color: '#90ffe1',
+            }}
+          >
+            | . . . . A . /\\ . . . |
+          </div>
+
+          {rowTwoHeaders('XTE', '55 m', 'CTS', '064.0\u00b0')}
+          {rowValueOnly('WP7 : Cartwheel Point')}
+          {rowSingle('Dist to WOP', '1.64 nm')}
+          {rowSingle('Time to WOP', '00:04:29')}
+          {rowDual('ETA at final WP', '17:24', '03/01')}
+
+          <div style={{ ...menuRowStyle, marginTop: 6 }}>Tools</div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '56px 1fr',
+              gap: 6,
+              marginBottom: 6,
+            }}
+          >
+            <div
+              style={{
+                border: '1px solid #2a4ac5',
+                background: '#113d7a',
+                height: 56,
+              }}
+            />
+            <div>
+              <div
+                style={{
+                  ...valueBoxStyle,
+                  textAlign: 'left',
+                  minWidth: 0,
+                  marginBottom: 3,
+                }}
+              >
+                {formatLatLon(ship.latitude, 'N', 'S')}
+              </div>
+              <div style={{ ...valueBoxStyle, textAlign: 'left', minWidth: 0 }}>
+                {formatLatLon(ship.longitude, 'E', 'W')}
+              </div>
+            </div>
+          </div>
+          {rowDual('', 'Rng', '1.49 nm', 44, 96)}
+          {rowDual('', 'Brg', '271.6\u00b0', 44, 96)}
+
+          <div
+            style={{
+              marginTop: 6,
+              marginBottom: 6,
+              minHeight: 52,
+              border: '1px solid #8c0000',
+              background: '#d00000',
+              color: '#ffe7e7',
+              padding: '4px 6px',
+              fontWeight: 700,
+            }}
+          >
+            Track Control Stopped
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr',
+            borderTop: '2px solid #1739c9',
+          }}
+        >
+          <button
+            style={{ ...buttonStyle, borderWidth: 0, borderRightWidth: 1 }}
+          >
+            Select Query Feature
+          </button>
+          <button
+            style={{ ...buttonStyle, borderWidth: 0, borderRightWidth: 1 }}
+          >
+            Action 2
+          </button>
+          <button style={{ ...buttonStyle, borderWidth: 0 }}>
+            Context Menu
+          </button>
+        </div>
+      </aside>
     </div>
   );
 };
