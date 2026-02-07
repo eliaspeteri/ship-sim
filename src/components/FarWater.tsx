@@ -8,9 +8,11 @@ const BRIGHT_COLOR = new THREE.Color(0x1c5a80);
 export function FarWater({
   centerRef,
   sunDirection,
+  yOffset = -4,
 }: {
   centerRef: React.MutableRefObject<{ x: number; y: number }>;
   sunDirection: THREE.Vector3;
+  yOffset?: number;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.MeshStandardMaterial>(null);
@@ -18,7 +20,11 @@ export function FarWater({
 
   useFrame(() => {
     if (!meshRef.current) return;
-    meshRef.current.position.set(centerRef.current.x, -4, centerRef.current.y); // slightly below => no z-fight
+    meshRef.current.position.set(
+      centerRef.current.x,
+      yOffset,
+      centerRef.current.y,
+    ); // slightly below terrain to avoid z-fighting
 
     if (materialRef.current) {
       const daylight = Math.max(0, sunDirection.y);
