@@ -602,6 +602,20 @@ class SocketManager {
             names: normalized.crewNames,
           });
         }
+        const existingPhysics = store.vessel.physics;
+        const incomingPhysics = normalized.physics;
+        const mergedPhysics = incomingPhysics
+          ? {
+              ...existingPhysics,
+              ...incomingPhysics,
+              params: incomingPhysics.params
+                ? {
+                    ...(existingPhysics?.params || {}),
+                    ...incomingPhysics.params,
+                  }
+                : existingPhysics?.params,
+            }
+          : existingPhysics;
         store.updateVessel({
           position: normalized.position,
           orientation: normalized.orientation,
@@ -617,7 +631,7 @@ class SocketManager {
           damageState: normalized.damageState ?? store.vessel.damageState,
           properties: normalized.properties,
           hydrodynamics: normalized.hydrodynamics,
-          physics: normalized.physics,
+          physics: mergedPhysics,
           render: normalized.render,
           controls: normalized.controls
             ? {
