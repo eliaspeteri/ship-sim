@@ -1024,10 +1024,6 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
   const shouldRenderSelf = !isSpectator && !!currentVesselId;
   const shouldRenderSpectatorSelf =
     isSpectator && !!currentVesselId && !(currentVesselId in otherVessels);
-  const showSelfDebug =
-    !isSpectator &&
-    !!currentVesselId &&
-    (!selectedVesselId || selectedVesselId === currentVesselId);
 
   const waveState = useMemo(() => deriveWaveState(environment), [environment]);
 
@@ -1217,12 +1213,10 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
             renderOptions={vesselState.render}
             ballast={vesselControls.ballast}
             draft={vesselProperties.draft}
-            length={vesselProperties.length}
             roll={vesselOrientation.roll}
             pitch={vesselOrientation.pitch}
             wave={waveState}
             waveTimeRef={waveTimeRef}
-            showDebugMarkers={showSelfDebug}
             onSelect={isSpectator ? handleSelectVessel : undefined}
           />
         ) : null}

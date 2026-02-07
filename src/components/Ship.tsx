@@ -2,7 +2,6 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF, Detailed } from '@react-three/drei';
 import * as THREE from 'three';
-import useStore from '../store';
 import {
   getCompositeWaveSample,
   getGerstnerSample,
@@ -54,22 +53,18 @@ const Ship: React.FC<ShipProps> = ({
   renderOptions,
   ballast = 0.5,
   draft = 6,
-  length = 150,
   roll,
   pitch,
   horizonOcclusion,
   wave,
   waveTimeRef,
   applyWaveHeave = true,
-  showDebugMarkers = false,
   onSelect,
 }) => {
   const shipRef = useRef<THREE.Group>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
   const resolvedModelPath = modelPath || SHIP_MODELS[shipType] || null;
   const model = resolvedModelPath ? useGLTF(resolvedModelPath) : null;
-  const orientation = useStore(state => state.vessel.orientation);
-  const markerOffset = length / 2;
   useEffect(() => {
     if (model) {
       setModelLoaded(true);
@@ -157,8 +152,8 @@ const Ship: React.FC<ShipProps> = ({
       // Position from props and physics state (use heave in y plus sink offset)
       obj.position.set(position.x, yPos, position.z);
 
-      const rollAngle = roll ?? orientation?.roll ?? 0;
-      const pitchAngle = pitch ?? orientation?.pitch ?? 0;
+      const rollAngle = roll ?? 0;
+      const pitchAngle = pitch ?? 0;
       // Render heading: model forward (+Z) vs physics forward (+X). Rotate +90° to align axes.
       const modelYaw = ((renderOptions?.modelYawDeg ?? 0) * Math.PI) / 180;
       const renderHeading = Math.PI / 2 - heading + modelYaw;
@@ -194,26 +189,6 @@ const Ship: React.FC<ShipProps> = ({
           />
         </Detailed>
       )}
-      {showDebugMarkers ? (
-        <>
-          <mesh position={[0, 2, markerOffset]}>
-            <sphereGeometry args={[length / 4, 16, 16]} />
-            <meshBasicMaterial color="#ff3b30" />
-          </mesh>
-          <mesh position={[0, 2, -markerOffset]}>
-            <sphereGeometry args={[length / 4, 16, 16]} />
-            <meshBasicMaterial color="#34c759" />
-          </mesh>
-          <mesh position={[markerOffset, 2, 0]}>
-            <sphereGeometry args={[length / 4, 16, 16]} />
-            <meshBasicMaterial color="#007aff" />
-          </mesh>
-          <mesh position={[-markerOffset, 2, 0]}>
-            <sphereGeometry args={[length / 4, 16, 16]} />
-            <meshBasicMaterial color="#ff9500" />
-          </mesh>
-        </>
-      ) : null}
     </group>
   );
 };
