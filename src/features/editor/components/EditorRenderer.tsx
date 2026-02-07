@@ -4,6 +4,7 @@ import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { LandTiles } from '../../../components/LandTiles';
+import { OceanPatch } from '../../../components/OceanPatch';
 import { latLonToXY } from '../../../lib/geo';
 import { EditorWorkArea, isBBoxBounds } from '../types';
 
@@ -15,8 +16,27 @@ type EditorRendererProps = {
     aspect: number;
   }>;
   workAreas?: EditorWorkArea[];
-  focusTarget?: { x: number; y: number; token: number } | null;
+  focusTarget?: {
+    x: number;
+    y: number;
+    token: number;
+    distanceMeters?: number;
+  } | null;
   onHeadingChange?: (headingDeg: number) => void;
+};
+
+const EDITOR_SUN_DIRECTION = new THREE.Vector3(0.4, 0.8, 0.2).normalize();
+const EDITOR_WAVELENGTH = 220;
+const EDITOR_K = (2 * Math.PI) / EDITOR_WAVELENGTH;
+const EDITOR_SPEED = Math.sqrt(9.81 / EDITOR_K);
+const EDITOR_WAVE = {
+  amplitude: 0.01,
+  wavelength: EDITOR_WAVELENGTH,
+  direction: Math.PI * 0.35,
+  steepness: 0.01,
+  speed: EDITOR_SPEED,
+  k: EDITOR_K,
+  omega: EDITOR_SPEED * EDITOR_K,
 };
 
 const FocusSync: React.FC<{
@@ -175,8 +195,9 @@ const CameraClipLimits: React.FC<{ maxDistance: number }> = ({
 
   React.useEffect(() => {
     if (!camera || !(camera instanceof THREE.PerspectiveCamera)) return;
-    const nextFar = Math.max(camera.far, maxDistance * 3);
-    if (nextFar !== camera.far) {
+    const nextFar = THREE.MathUtils.clamp(maxDistance * 1.6, 12000, 120000);
+    if (nextFar !== camera.far || camera.near !== 2) {
+      camera.near = 2;
       camera.far = nextFar;
       camera.updateProjectionMatrix();
     }
@@ -293,16 +314,25 @@ const EditorRenderer: React.FC<EditorRendererProps> = ({
     const target = controls.target;
     const deltaX = focusTarget.x - target.x;
     const deltaZ = focusTarget.y - target.z;
-    if (deltaX === 0 && deltaZ === 0) return;
+    if (deltaX === 0 && deltaZ === 0 && !focusTarget.distanceMeters) return;
     target.set(focusTarget.x, target.y, focusTarget.y);
-    camera.position.add(new THREE.Vector3(deltaX, 0, deltaZ));
+    if (focusTarget.distanceMeters && focusTarget.distanceMeters > 0) {
+      const direction = camera.position.clone().sub(target);
+      if (direction.lengthSq() === 0) {
+        direction.set(1, 0.8, -1);
+      }
+      direction.normalize().multiplyScalar(focusTarget.distanceMeters);
+      camera.position.copy(target).add(direction);
+    } else {
+      camera.position.add(new THREE.Vector3(deltaX, 0, deltaZ));
+    }
     controls.update();
     focusRef.current = { x: focusTarget.x, y: focusTarget.y };
   }, [focusTarget, focusRef]);
 
   return (
     <Canvas
-      camera={{ position: [200, 220, 200], fov: 55, near: 0.1, far: 50000 }}
+      camera={{ position: [200, 220, -200], fov: 55, near: 2, far: 30000 }}
       className="h-full w-full"
     >
       <ambientLight intensity={0.6} />
@@ -325,10 +355,22 @@ const EditorRenderer: React.FC<EditorRendererProps> = ({
         <CameraHeadingTracker enabled onHeadingChange={onHeadingChange} />
       ) : null}
       <CameraClipLimits maxDistance={maxDistance} />
+      <OceanPatch
+        centerRef={focusRef}
+        wave={EDITOR_WAVE}
+        sunDirection={EDITOR_SUN_DIRECTION}
+        yOffset={-1.25}
+        size={8000}
+        maxScale={24}
+      />
       <group scale={[-1, 1, 1]}>
-        <LandTiles focusRef={focusRef} />
+        <LandTiles
+          focusRef={focusRef}
+          landY={0.75}
+          dynamicRadius
+          maxRadius={10}
+        />
         <WorkAreaBounds workAreas={workAreas} />
-        <gridHelper args={[20000, 80, '#385062', '#1c2a34']} />
       </group>
     </Canvas>
   );

@@ -7,7 +7,10 @@ type EditorInspectorPanelProps = {
   layers: EditorLayer[];
   workAreas: EditorWorkArea[];
   onWorkAreasChange: (next: EditorWorkArea[]) => void;
-  onFocusWorkArea?: (lat: number, lon: number) => void;
+  onFocusWorkArea?: (lat: number, lon: number, radiusMeters: number) => void;
+  onMoveLayer?: (layerId: string, direction: 'up' | 'down') => void;
+  onToggleLayerVisibility?: (layerId: string) => void;
+  onToggleLayerLock?: (layerId: string) => void;
   isOpen: boolean;
   layersOpen: boolean;
   onToggle: () => void;
@@ -19,6 +22,9 @@ const EditorInspectorPanel: React.FC<EditorInspectorPanelProps> = ({
   workAreas,
   onWorkAreasChange,
   onFocusWorkArea,
+  onMoveLayer,
+  onToggleLayerVisibility,
+  onToggleLayerLock,
   isOpen,
   layersOpen,
   onToggle,
@@ -77,7 +83,14 @@ const EditorInspectorPanel: React.FC<EditorInspectorPanelProps> = ({
                 {layersOpen ? 'v' : '>'}
               </span>
             </button>
-            {layersOpen ? <EditorLayerList layers={layers} /> : null}
+            {layersOpen ? (
+              <EditorLayerList
+                layers={layers}
+                onMoveLayer={onMoveLayer}
+                onToggleLayerVisibility={onToggleLayerVisibility}
+                onToggleLayerLock={onToggleLayerLock}
+              />
+            ) : null}
           </>
         ) : null}
       </div>

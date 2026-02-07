@@ -15,7 +15,12 @@ type EditorViewportProps = {
   layerIds?: string[];
   workAreas?: EditorWorkArea[];
   packId: string;
-  focusRequest?: { lat: number; lon: number; token: number } | null;
+  focusRequest?: {
+    lat: number;
+    lon: number;
+    token: number;
+    distanceMeters?: number;
+  } | null;
 };
 
 const EditorViewport: React.FC<EditorViewportProps> = ({
@@ -29,6 +34,12 @@ const EditorViewport: React.FC<EditorViewportProps> = ({
   const [overlayStatus, setOverlayStatus] = React.useState('Overlay: idle');
   const [boundsStatus, setBoundsStatus] = React.useState<string | null>(null);
   const [cameraHeadingDeg, setCameraHeadingDeg] = React.useState(0);
+  const [bootstrapFocus, setBootstrapFocus] = React.useState<{
+    lat: number;
+    lon: number;
+    token: number;
+    distanceMeters?: number;
+  } | null>(null);
   const focusRef = React.useRef({ x: 0, y: 0 });
   const cameraStateRef = React.useRef({ y: 220, fov: 55, aspect: 1.6 });
   const geoOriginRef = React.useRef<{ lat: number; lon: number } | null>(null);
@@ -36,6 +47,79 @@ const EditorViewport: React.FC<EditorViewportProps> = ({
   React.useEffect(() => {
     geoOriginRef.current = null;
   }, [packId]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const key = `editorCameraFocus:${packId}`;
+    const saved = window.localStorage.getItem(key);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as { lat: number; lon: number };
+        if (
+          Number.isFinite(parsed.lat) &&
+          Number.isFinite(parsed.lon) &&
+          Math.abs(parsed.lat) <= 90 &&
+          Math.abs(parsed.lon) <= 180
+        ) {
+          setBootstrapFocus({
+            lat: parsed.lat,
+            lon: parsed.lon,
+            token: 1,
+          });
+          return;
+        }
+      } catch (error) {
+        console.warn('Failed to parse saved camera focus', error);
+      }
+    }
+
+    if (workAreas.length === 0) {
+      setBootstrapFocus(null);
+      return;
+    }
+
+    const area = workAreas[0];
+    if (isBBoxBounds(area.bounds)) {
+      const lat = (area.bounds.minLat + area.bounds.maxLat) / 2;
+      const lon = (area.bounds.minLon + area.bounds.maxLon) / 2;
+      const latMeters =
+        Math.abs(area.bounds.maxLat - area.bounds.minLat) * 0.5 * 111_320;
+      const lonMeters =
+        Math.abs(area.bounds.maxLon - area.bounds.minLon) *
+        0.5 *
+        111_320 *
+        Math.max(0.000001, Math.cos((lat * Math.PI) / 180));
+      const radiusMeters = Math.max(50, Math.max(latMeters, lonMeters));
+      setBootstrapFocus({
+        lat,
+        lon,
+        token: 1,
+        distanceMeters: radiusMeters * 2,
+      });
+      return;
+    }
+
+    if (area.bounds.coordinates.length === 0) {
+      setBootstrapFocus(null);
+      return;
+    }
+
+    const total = area.bounds.coordinates.reduce(
+      (acc, [lat, lon]) => {
+        acc.lat += lat;
+        acc.lon += lon;
+        return acc;
+      },
+      { lat: 0, lon: 0 },
+    );
+    const lat = total.lat / area.bounds.coordinates.length;
+    const lon = total.lon / area.bounds.coordinates.length;
+    setBootstrapFocus({
+      lat,
+      lon,
+      token: 1,
+    });
+  }, [packId, workAreas]);
 
   React.useEffect(() => {
     if (geoOriginRef.current) return;
@@ -140,6 +224,12 @@ const EditorViewport: React.FC<EditorViewportProps> = ({
         x: focusRef.current.x,
         y: focusRef.current.y,
       });
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(
+          `editorCameraFocus:${packId}`,
+          JSON.stringify({ lat, lon }),
+        );
+      }
       const zoom = zoomFromCameraY(cameraStateRef.current.y);
       const tiles = getVisibleOverlayTiles({
         centerLat: lat,
@@ -189,14 +279,21 @@ const EditorViewport: React.FC<EditorViewportProps> = ({
     };
   }, [isInsideWorkAreas, layerIds, packId, workAreas]);
 
+  const effectiveFocusRequest = focusRequest ?? bootstrapFocus;
+
   const focusTarget = React.useMemo(() => {
-    if (!focusRequest) return null;
+    if (!effectiveFocusRequest) return null;
     const { x, y } = latLonToXY({
-      lat: focusRequest.lat,
-      lon: focusRequest.lon,
+      lat: effectiveFocusRequest.lat,
+      lon: effectiveFocusRequest.lon,
     });
-    return { x, y, token: focusRequest.token };
-  }, [focusRequest]);
+    return {
+      x,
+      y,
+      token: effectiveFocusRequest.token,
+      distanceMeters: effectiveFocusRequest.distanceMeters,
+    };
+  }, [effectiveFocusRequest]);
 
   return (
     <section className="absolute inset-0 overflow-hidden bg-editor-viewport">

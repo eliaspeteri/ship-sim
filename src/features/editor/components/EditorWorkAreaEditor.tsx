@@ -4,7 +4,7 @@ import { EditorWorkArea } from '../types';
 type EditorWorkAreaEditorProps = {
   workAreas: EditorWorkArea[];
   onChange: (next: EditorWorkArea[]) => void;
-  onFocusWorkArea?: (lat: number, lon: number) => void;
+  onFocusWorkArea?: (lat: number, lon: number, radiusMeters: number) => void;
 };
 
 const formatBounds = (workArea: EditorWorkArea) => {
@@ -85,6 +85,24 @@ const getPolygonCenter = (coordinates: Array<[number, number]>) => {
     lat: round(sum.lat / coordinates.length, 6),
     lon: round(sum.lon / coordinates.length, 6),
   };
+};
+
+const getPolygonFocusRadius = (
+  coordinates: Array<[number, number]>,
+  centerLat: number,
+  centerLon: number,
+) => {
+  if (coordinates.length === 0) return 500;
+  const metersPerDegLat = 111_320;
+  const metersPerDegLon =
+    metersPerDegLat * Math.max(0.000001, Math.cos(toRadians(centerLat)));
+  let maxMeters = 0;
+  coordinates.forEach(([lat, lon]) => {
+    const dx = (lon - centerLon) * metersPerDegLon;
+    const dy = (lat - centerLat) * metersPerDegLat;
+    maxMeters = Math.max(maxMeters, Math.hypot(dx, dy));
+  });
+  return Math.max(50, round(maxMeters, 1));
 };
 
 const EditorWorkAreaEditor: React.FC<EditorWorkAreaEditorProps> = ({
@@ -214,7 +232,15 @@ const EditorWorkAreaEditor: React.FC<EditorWorkAreaEditorProps> = ({
             : null;
         const centerLat = bboxCenter?.centerLat ?? polygonCenter?.lat ?? 0;
         const centerLon = bboxCenter?.centerLon ?? polygonCenter?.lon ?? 0;
-        const radiusMeters = bboxCenter?.radiusMeters ?? 0;
+        const radiusMeters =
+          bboxCenter?.radiusMeters ??
+          (area.bounds.type === 'polygon'
+            ? getPolygonFocusRadius(
+                area.bounds.coordinates,
+                centerLat,
+                centerLon,
+              )
+            : 500);
         const boundsLocked = area.isLocked ?? false;
         return (
           <div
@@ -239,7 +265,9 @@ const EditorWorkAreaEditor: React.FC<EditorWorkAreaEditorProps> = ({
                   <button
                     type="button"
                     className="cursor-pointer rounded-full border border-editor-control-border bg-editor-control-bg px-2 py-1 text-[11px] text-editor-muted"
-                    onClick={() => onFocusWorkArea(centerLat, centerLon)}
+                    onClick={() =>
+                      onFocusWorkArea(centerLat, centerLon, radiusMeters)
+                    }
                     title="Move camera to work area center"
                   >
                     Focus

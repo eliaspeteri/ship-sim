@@ -1,4 +1,5 @@
 import React from 'react';
+import { useRouter } from 'next/router';
 import { EditorLayer, EditorPack, EditorWorkArea } from './types';
 import { TOOL_DEFS, ToolId } from './editorTools';
 import EditorBottomBar from './components/EditorBottomBar';
@@ -20,6 +21,7 @@ type EditorShellProps = {
 };
 
 const EditorShell: React.FC<EditorShellProps> = ({ pack, layers }) => {
+  const router = useRouter();
   const [activeTool, setActiveTool] = React.useState<ToolId>('select');
   const [leftOpen, setLeftOpen] = React.useState(true);
   const [rightOpen, setRightOpen] = React.useState(true);
@@ -31,10 +33,19 @@ const EditorShell: React.FC<EditorShellProps> = ({ pack, layers }) => {
     lat: number;
     lon: number;
     token: number;
+    distanceMeters?: number;
   } | null>(null);
   const focusTokenRef = React.useRef(0);
   const [compileSummary, setCompileSummary] = React.useState('Compile: idle');
-  const layerIds = React.useMemo(() => layers.map(layer => layer.id), [layers]);
+  const [layerState, setLayerState] = React.useState<EditorLayer[]>(layers);
+  const layerIds = React.useMemo(
+    () => layerState.map(layer => layer.id),
+    [layerState],
+  );
+
+  React.useEffect(() => {
+    setLayerState(layers);
+  }, [layers]);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -106,9 +117,52 @@ const EditorShell: React.FC<EditorShellProps> = ({ pack, layers }) => {
     setActiveTool(toolId);
   };
 
-  const handleFocusWorkArea = React.useCallback((lat: number, lon: number) => {
-    focusTokenRef.current += 1;
-    setFocusRequest({ lat, lon, token: focusTokenRef.current });
+  const handleFocusWorkArea = React.useCallback(
+    (lat: number, lon: number, radiusMeters: number) => {
+      focusTokenRef.current += 1;
+      setFocusRequest({
+        lat,
+        lon,
+        token: focusTokenRef.current,
+        distanceMeters: Math.max(100, radiusMeters * 2),
+      });
+    },
+    [],
+  );
+
+  const handleMoveLayer = React.useCallback(
+    (layerId: string, direction: 'up' | 'down') => {
+      setLayerState(prev => {
+        const currentIndex = prev.findIndex(layer => layer.id === layerId);
+        if (currentIndex < 0) return prev;
+        const nextIndex =
+          direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (nextIndex < 0 || nextIndex >= prev.length) return prev;
+        const next = [...prev];
+        const [moved] = next.splice(currentIndex, 1);
+        next.splice(nextIndex, 0, moved);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const handleToggleLayerVisibility = React.useCallback((layerId: string) => {
+    setLayerState(prev =>
+      prev.map(layer =>
+        layer.id === layerId
+          ? { ...layer, isVisible: !layer.isVisible }
+          : layer,
+      ),
+    );
+  }, []);
+
+  const handleToggleLayerLock = React.useCallback((layerId: string) => {
+    setLayerState(prev =>
+      prev.map(layer =>
+        layer.id === layerId ? { ...layer, isLocked: !layer.isLocked } : layer,
+      ),
+    );
   }, []);
 
   const handlePublish = async () => {
@@ -126,11 +180,18 @@ const EditorShell: React.FC<EditorShellProps> = ({ pack, layers }) => {
       });
       setCompileSummary(`Publish: ${result.artifactCount} artifacts`);
       clearOverlayCache();
-      await fetch(`/api/editor/packs/${pack.id}`, {
+      const statusRes = await fetch(`/api/editor/packs/${pack.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'published' }),
       });
+      if (!statusRes.ok) {
+        throw new Error(`Status update failed: ${statusRes.status}`);
+      }
+      setCompileSummary('Publish: complete');
+      await router.push(
+        `/editor/packs?published=${encodeURIComponent(pack.id)}`,
+      );
     } catch (error) {
       console.error('Publish compile failed', error);
       setCompileSummary('Publish: error');
@@ -181,10 +242,13 @@ const EditorShell: React.FC<EditorShellProps> = ({ pack, layers }) => {
           onSelectTool={handleSelectTool}
         />
         <EditorInspectorPanel
-          layers={layers}
+          layers={layerState}
           workAreas={workAreas}
           onWorkAreasChange={setWorkAreas}
           onFocusWorkArea={handleFocusWorkArea}
+          onMoveLayer={handleMoveLayer}
+          onToggleLayerVisibility={handleToggleLayerVisibility}
+          onToggleLayerLock={handleToggleLayerLock}
           isOpen={rightOpen}
           layersOpen={layersOpen}
           onToggle={() => setRightOpen(open => !open)}
