@@ -1,6 +1,7 @@
 import bpy
+import bmesh
 import math
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 # ============================================================
 # Warehouse Kit (Blender 5.0+)
@@ -15,6 +16,7 @@ COLLECTION_NAME = "WarehouseKit"
 FORWARD_AXIS = "+Y"
 ASSET_TYPE = "warehouse"
 EXPORT_MODE = "all"  # "all" | "modules_only" | "presets_only"
+ENABLED_LODS = ("lod0", "lod1", "lod2")
 
 WALL_HEIGHT = 7.0
 WALL_THICKNESS = 0.24
@@ -31,7 +33,9 @@ LOD_SETTINGS = {
 MODULES = [
     {"name": "warehouse_wall_6m", "kind": "wall", "length": 6.0, "enabled": True},
     {"name": "warehouse_wall_12m", "kind": "wall", "length": 12.0, "enabled": True},
-    {"name": "warehouse_roof_flat_6m", "kind": "roof", "length": 6.0, "enabled": True},
+    {"name": "warehouse_roof_flat_6m", "kind": "roof", "length": 6.0, "roof_type": "flat", "enabled": True},
+    {"name": "warehouse_roof_gable_6m", "kind": "roof", "length": 6.0, "roof_type": "gable", "enabled": True},
+    {"name": "warehouse_roof_sawtooth_6m", "kind": "roof", "length": 6.0, "roof_type": "sawtooth", "enabled": True},
     {"name": "warehouse_roller_door_single", "kind": "door", "width": 4.0, "enabled": True},
     {"name": "warehouse_roller_door_double", "kind": "door", "width": 7.0, "enabled": True},
     {"name": "warehouse_roller_door_single_open", "kind": "door", "width": 4.0, "open": True, "enabled": True},
@@ -39,8 +43,11 @@ MODULES = [
 ]
 
 PRESETS = [
-    {"name": "warehouse_small_12x18", "kind": "preset", "width": 12.0, "length": 18.0, "door_count": 1, "enabled": True},
-    {"name": "warehouse_medium_24x30", "kind": "preset", "width": 24.0, "length": 30.0, "door_count": 2, "enabled": True},
+    {"name": "warehouse_small_12x18", "kind": "preset", "width": 12.0, "length": 18.0, "door_count": 1, "roof_type": "flat", "canopy": True, "dock_bumpers": True, "enabled": False},
+    {"name": "warehouse_medium_24x30", "kind": "preset", "width": 24.0, "length": 30.0, "door_count": 2, "roof_type": "flat", "canopy": True, "dock_bumpers": True, "enabled": False},
+    {"name": "warehouse_low_profile_14x24", "kind": "preset", "width": 14.0, "length": 24.0, "door_count": 2, "wall_height": 5.5, "roof_type": "flat", "canopy": True, "dock_bumpers": True, "enabled": False},
+    {"name": "warehouse_tall_distribution_30x42", "kind": "preset", "width": 30.0, "length": 42.0, "door_count": 4, "wall_height": 9.0, "roof_type": "sawtooth", "canopy": True, "dock_bumpers": True, "enabled": True},
+    {"name": "warehouse_terminal_shed_18x60", "kind": "preset", "width": 18.0, "length": 60.0, "door_count": 3, "wall_height": 7.0, "roof_type": "gable", "canopy": False, "dock_bumpers": True, "enabled": True},
 ]
 
 BOOLEAN_OVERLAP_EPS = 0.002
@@ -154,12 +161,16 @@ def assign_material(obj: bpy.types.Object, mat: bpy.types.Material):
         obj.data.materials[0] = mat
 
 
-def add_box_part(name: str, dims: Tuple[float, float, float], loc: Tuple[float, float, float], col: bpy.types.Collection) -> bpy.types.Object:
-    bpy.ops.mesh.primitive_cube_add(size=1.0, location=loc)
+def add_box_part(name: str, dims: Tuple[float, float, float], loc: Tuple[float, float, float],
+                 col: bpy.types.Collection, rot: Optional[Tuple[float, float, float]] = None) -> bpy.types.Object:
+    kwargs = {"size": 1.0, "location": loc}
+    if rot is not None:
+        kwargs["rotation"] = rot
+    bpy.ops.mesh.primitive_cube_add(**kwargs)
     obj = bpy.context.active_object
     obj.name = name
     obj.scale = (dims[0], dims[1], dims[2])
-    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
     force_into_collection(obj, col)
     return obj
 
@@ -203,6 +214,15 @@ def apply_bevel(obj: bpy.types.Object, width: float):
     mod.segments = 2
     mod.limit_method = "ANGLE"
     mod.angle_limit = math.radians(45.0)
+
+
+def apply_rotation_only(obj: bpy.types.Object):
+    ensure_object_mode()
+    deselect_all()
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+    obj.select_set(False)
 
 
 def create_snap_empty(name: str, location: Tuple[float, float, float], parent: bpy.types.Object, col: bpy.types.Collection):
@@ -294,7 +314,8 @@ def create_vertical_corrugation_cutters(prefix: str, normal_axis: str, repeat_ax
     count = max(1, int(span / spacing))
     groove_w = min(spacing * 0.45, 0.35)
     groove_h = max(0.25, z_max - z_min)
-    groove_t = max(0.01, depth * 1.2)
+    # Prevent through-cuts on thin panels (end caps, clerestory walls, shutters).
+    groove_t = min(max(0.006, depth * 1.2), max(0.006, thickness * 0.7))
     zc = z_min + (z_max - z_min) * 0.5
 
     for i in range(count):
@@ -325,7 +346,8 @@ def create_vertical_corrugation_cutters(prefix: str, normal_axis: str, repeat_ax
 
 
 def apply_roof_corrugation(roof_obj: bpy.types.Object, prefix: str, width: float, length: float,
-                           spacing: float, depth: float, roof_top_z: float, col: bpy.types.Collection):
+                           spacing: float, depth: float, roof_top_z: float, col: bpy.types.Collection,
+                           centered_y: bool = False):
     if spacing <= 0.0 or depth <= 0.0:
         return
 
@@ -336,6 +358,8 @@ def apply_roof_corrugation(roof_obj: bpy.types.Object, prefix: str, width: float
 
     for i in range(count):
         y = (i + 0.5) * (length / count)
+        if centered_y:
+            y -= length * 0.5
         cutters.append(
             add_box_part(
                 f"{prefix}__roof_cut_{i:02d}",
@@ -346,6 +370,234 @@ def apply_roof_corrugation(roof_obj: bpy.types.Object, prefix: str, width: float
         )
 
     apply_boolean_difference(roof_obj, cutters, f"{prefix}_roof_corr")
+
+
+def add_triangle_prism_xz(name: str, x0: float, z0: float, x1: float, z1: float, x2: float, z2: float,
+                          y_center: float, y_thickness: float, col: bpy.types.Collection) -> bpy.types.Object:
+    mesh = bpy.data.meshes.new(name + "_Mesh")
+    bm = bmesh.new()
+    y0 = y_center - y_thickness * 0.5
+    y1 = y_center + y_thickness * 0.5
+
+    v0 = bm.verts.new((x0, y0, z0))
+    v1 = bm.verts.new((x1, y0, z1))
+    v2 = bm.verts.new((x2, y0, z2))
+    v3 = bm.verts.new((x0, y1, z0))
+    v4 = bm.verts.new((x1, y1, z1))
+    v5 = bm.verts.new((x2, y1, z2))
+
+    bm.faces.new((v0, v1, v2))
+    bm.faces.new((v5, v4, v3))
+    bm.faces.new((v0, v3, v4, v1))
+    bm.faces.new((v1, v4, v5, v2))
+    bm.faces.new((v2, v5, v3, v0))
+
+    bm.to_mesh(mesh)
+    bm.free()
+
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    force_into_collection(obj, col)
+    return obj
+
+
+def apply_endcap_corrugation(cap_obj: bpy.types.Object, prefix: str, spacing: float, depth: float,
+                             face_dir: float, col: bpy.types.Collection):
+    if spacing <= 0.0 or depth <= 0.0:
+        return
+    min_x, max_x, min_y, max_y, min_z, max_z = bounds_from_mesh(cap_obj)
+    thickness = max(0.02, max_y - min_y)
+    cx = (min_x + max_x) * 0.5
+    cy = (min_y + max_y) * 0.5
+    cutters = create_vertical_corrugation_cutters(
+        prefix=prefix,
+        normal_axis="Y",
+        repeat_axis="X",
+        center_x=cx,
+        center_y=cy,
+        repeat_min=min_x + 0.05,
+        repeat_max=max_x - 0.05,
+        z_min=min_z,
+        z_max=max_z,
+        depth=depth,
+        spacing=spacing,
+        face_dir=face_dir,
+        thickness=thickness,
+        col=col,
+    )
+    apply_boolean_difference(cap_obj, cutters, f"{prefix}_corr")
+
+
+def apply_clerestory_corrugation(wall_obj: bpy.types.Object, prefix: str, spacing: float, depth: float, col: bpy.types.Collection):
+    if spacing <= 0.0 or depth <= 0.0:
+        return
+    min_x, max_x, min_y, max_y, min_z, max_z = bounds_from_mesh(wall_obj)
+    thickness = max(0.04, max_x - min_x)
+    cx = (min_x + max_x) * 0.5
+    cy = (min_y + max_y) * 0.5
+    cutters_neg = create_vertical_corrugation_cutters(
+        prefix=prefix + "_negx",
+        normal_axis="X",
+        repeat_axis="Y",
+        center_x=cx,
+        center_y=cy,
+        repeat_min=min_y + 0.1,
+        repeat_max=max_y - 0.1,
+        z_min=min_z,
+        z_max=max_z,
+        depth=depth,
+        spacing=spacing,
+        face_dir=-1.0,
+        thickness=thickness,
+        col=col,
+    )
+    apply_boolean_difference(wall_obj, cutters_neg, f"{prefix}_corr_negx")
+
+    cutters_pos = create_vertical_corrugation_cutters(
+        prefix=prefix + "_posx",
+        normal_axis="X",
+        repeat_axis="Y",
+        center_x=cx,
+        center_y=cy,
+        repeat_min=min_y + 0.1,
+        repeat_max=max_y - 0.1,
+        z_min=min_z,
+        z_max=max_z,
+        depth=depth,
+        spacing=spacing,
+        face_dir=1.0,
+        thickness=thickness,
+        col=col,
+    )
+    apply_boolean_difference(wall_obj, cutters_pos, f"{prefix}_corr_posx")
+
+
+def build_roof_parts(prefix: str, width: float, length: float, wall_h: float, roof_type: str,
+                     lod_key: str, col: bpy.types.Collection) -> List[bpy.types.Object]:
+    s = LOD_SETTINGS[lod_key]
+    parts: List[bpy.types.Object] = []
+
+    if roof_type == "gable":
+        rise = max(0.7, min(2.2, width * 0.09))
+        half_w = width * 0.5
+        panel_w = half_w
+        angle = math.atan2(rise, panel_w)
+        # Ensure low outer edge sits flush at wall top.
+        cz = wall_h + (panel_w * 0.5) * math.sin(angle) + (ROOF_THICKNESS * 0.5) * math.cos(angle)
+
+        left = add_box_part(
+            f"{prefix}__roof_gable_l",
+            (panel_w, length, ROOF_THICKNESS),
+            (0.0, 0.0, 0.0),
+            col,
+        )
+        apply_roof_corrugation(left, prefix + "_gable_l", panel_w, length, s["roof_seam_spacing"], s["rib_depth"], ROOF_THICKNESS * 0.5, col, centered_y=True)
+        left.location = (-panel_w * 0.5, length * 0.5, cz)
+        left.rotation_euler = (0.0, -angle, 0.0)
+        apply_rotation_only(left)
+
+        right = add_box_part(
+            f"{prefix}__roof_gable_r",
+            (panel_w, length, ROOF_THICKNESS),
+            (0.0, 0.0, 0.0),
+            col,
+        )
+        apply_roof_corrugation(right, prefix + "_gable_r", panel_w, length, s["roof_seam_spacing"], s["rib_depth"], ROOF_THICKNESS * 0.5, col, centered_y=True)
+        right.location = (panel_w * 0.5, length * 0.5, cz)
+        right.rotation_euler = (0.0, angle, 0.0)
+        apply_rotation_only(right)
+
+        ridge = add_box_part(
+            f"{prefix}__roof_ridge",
+            (0.14, length, 0.12),
+            (0.0, length * 0.5, wall_h + rise + 0.03),
+            col,
+        )
+        # Triangular end closures for gable end gaps.
+        front_tri = add_triangle_prism_xz(
+            f"{prefix}__gable_end_f",
+            -half_w, wall_h, half_w, wall_h, 0.0, wall_h + rise,
+            0.03, 0.06, col
+        )
+        apply_endcap_corrugation(front_tri, f"{prefix}_gable_end_f", s["rib_spacing"], s["rib_depth"], face_dir=-1.0, col=col)
+        back_tri = add_triangle_prism_xz(
+            f"{prefix}__gable_end_b",
+            -half_w, wall_h, half_w, wall_h, 0.0, wall_h + rise,
+            length - 0.03, 0.06, col
+        )
+        apply_endcap_corrugation(back_tri, f"{prefix}_gable_end_b", s["rib_spacing"], s["rib_depth"], face_dir=1.0, col=col)
+        parts.extend([left, right, ridge, front_tri, back_tri])
+
+    elif roof_type == "sawtooth":
+        base_top = wall_h + ROOF_THICKNESS
+        base = add_box_part(
+            f"{prefix}__roof_saw_base",
+            (width, length, ROOF_THICKNESS),
+            (0.0, length * 0.5, wall_h + ROOF_THICKNESS * 0.5),
+            col,
+        )
+        parts.append(base)
+        tooth_count = max(2, int(width / 4.5))
+        tooth_w = width / tooth_count
+        lift = max(0.45, min(1.1, width * 0.03))
+        for i in range(tooth_count):
+            x0 = -width * 0.5 + i * tooth_w
+            x_peak = x0 + tooth_w * 0.30
+            x1 = x0 + tooth_w
+            # Vertical clerestory wall from base roof to apex.
+            wall_piece = add_box_part(
+                f"{prefix}__roof_tooth_wall_{i:02d}",
+                (0.10, length, lift),
+                (x_peak, length * 0.5, base_top + lift * 0.5),
+                col,
+            )
+            apply_clerestory_corrugation(wall_piece, f"{prefix}_roof_tooth_wall_{i:02d}", s["rib_spacing"], s["rib_depth"], col)
+            parts.append(wall_piece)
+
+            # Sloped panel from apex down to next valley; low edge flush to base roof.
+            span = max(0.2, x1 - x_peak)
+            angle = math.atan2(lift, span)
+            cz = base_top + (span * 0.5) * math.sin(angle) + (ROOF_THICKNESS * 0.5) * math.cos(angle)
+            panel = add_box_part(
+                f"{prefix}__roof_tooth_slope_{i:02d}",
+                (span, length, ROOF_THICKNESS),
+                (0.0, 0.0, 0.0),
+                col,
+            )
+            apply_roof_corrugation(panel, f"{prefix}_slope_{i:02d}", span, length, s["roof_seam_spacing"], s["rib_depth"], ROOF_THICKNESS * 0.5, col, centered_y=True)
+            panel.location = ((x_peak + x1) * 0.5, length * 0.5, cz)
+            panel.rotation_euler = (0.0, angle, 0.0)
+            apply_rotation_only(panel)
+            parts.append(panel)
+
+            # True triangular end caps for each sawtooth opening.
+            front_tri = add_triangle_prism_xz(
+                f"{prefix}__roof_tooth_cap_f_{i:02d}",
+                x_peak, base_top, x1, base_top, x_peak, base_top + lift,
+                0.03, 0.06, col
+            )
+            apply_endcap_corrugation(front_tri, f"{prefix}_roof_tooth_cap_f_{i:02d}", s["rib_spacing"], s["rib_depth"], face_dir=-1.0, col=col)
+            back_tri = add_triangle_prism_xz(
+                f"{prefix}__roof_tooth_cap_b_{i:02d}",
+                x_peak, base_top, x1, base_top, x_peak, base_top + lift,
+                length - 0.03, 0.06, col
+            )
+            apply_endcap_corrugation(back_tri, f"{prefix}_roof_tooth_cap_b_{i:02d}", s["rib_spacing"], s["rib_depth"], face_dir=1.0, col=col)
+            parts.extend([front_tri, back_tri])
+
+        apply_roof_corrugation(base, prefix + "_saw_base", width, length, s["roof_seam_spacing"], s["rib_depth"], base_top, col)
+
+    else:
+        roof = add_box_part(
+            f"{prefix}__roof_flat",
+            (width, length, ROOF_THICKNESS),
+            (0.0, length * 0.5, wall_h + ROOF_THICKNESS * 0.5),
+            col,
+        )
+        parts.append(roof)
+        apply_roof_corrugation(roof, prefix + "_flat", width, length, s["roof_seam_spacing"], s["rib_depth"], wall_h + ROOF_THICKNESS, col)
+
+    return parts
 
 
 def build_wall_module(asset_name: str, length: float, lod_key: str, col: bpy.types.Collection) -> bpy.types.Object:
@@ -386,19 +638,9 @@ def build_wall_module(asset_name: str, length: float, lod_key: str, col: bpy.typ
     return obj
 
 
-def build_roof_module(asset_name: str, length: float, lod_key: str, col: bpy.types.Collection) -> bpy.types.Object:
-    s = LOD_SETTINGS[lod_key]
+def build_roof_module(asset_name: str, length: float, lod_key: str, col: bpy.types.Collection, roof_type: str = "flat") -> bpy.types.Object:
     width = 6.0
-    parts: List[bpy.types.Object] = []
-
-    roof = add_box_part(
-        f"{asset_name}__roof",
-        (width, length, ROOF_THICKNESS),
-        (0.0, length * 0.5, ROOF_THICKNESS * 0.5),
-        col,
-    )
-    parts.append(roof)
-    apply_roof_corrugation(roof, asset_name, width, length, s["roof_seam_spacing"], s["rib_depth"], ROOF_THICKNESS, col)
+    parts = build_roof_parts(asset_name, width, length, 0.0, roof_type, lod_key, col)
 
     obj = join_and_name(parts, f"{asset_name}_{lod_key}")
     set_origin_start_face_ground(obj)
@@ -472,20 +714,22 @@ def build_roller_door_module(asset_name: str, width: float, lod_key: str, col: b
 
 
 def build_preset_warehouse(asset_name: str, width: float, length: float, door_count: int, lod_key: str,
-                           col: bpy.types.Collection) -> bpy.types.Object:
+                           col: bpy.types.Collection, roof_type: str = "flat",
+                           canopy: bool = False, dock_bumpers: bool = False, wall_height: float = WALL_HEIGHT) -> bpy.types.Object:
     s = LOD_SETTINGS[lod_key]
     parts: List[bpy.types.Object] = []
 
     half_w = width * 0.5
     t = WALL_THICKNESS
+    wall_h = wall_height
 
     # Four perimeter walls.
-    front = add_box_part(f"{asset_name}__front", (width, t, WALL_HEIGHT), (0.0, t * 0.5, WALL_HEIGHT * 0.5), col)
-    back = add_box_part(f"{asset_name}__back", (width, t, WALL_HEIGHT), (0.0, length - t * 0.5, WALL_HEIGHT * 0.5), col)
-    left = add_box_part(f"{asset_name}__left", (t, length, WALL_HEIGHT), (-half_w + t * 0.5, length * 0.5, WALL_HEIGHT * 0.5), col)
-    right = add_box_part(f"{asset_name}__right", (t, length, WALL_HEIGHT), (half_w - t * 0.5, length * 0.5, WALL_HEIGHT * 0.5), col)
-    roof = add_box_part(f"{asset_name}__roof", (width, length, ROOF_THICKNESS), (0.0, length * 0.5, WALL_HEIGHT + ROOF_THICKNESS * 0.5), col)
-    parts.extend([front, back, left, right, roof])
+    front = add_box_part(f"{asset_name}__front", (width, t, wall_h), (0.0, t * 0.5, wall_h * 0.5), col)
+    back = add_box_part(f"{asset_name}__back", (width, t, wall_h), (0.0, length - t * 0.5, wall_h * 0.5), col)
+    left = add_box_part(f"{asset_name}__left", (t, length, wall_h), (-half_w + t * 0.5, length * 0.5, wall_h * 0.5), col)
+    right = add_box_part(f"{asset_name}__right", (t, length, wall_h), (half_w - t * 0.5, length * 0.5, wall_h * 0.5), col)
+    parts.extend([front, back, left, right])
+    parts.extend(build_roof_parts(asset_name + "_roof", width, length, wall_h, roof_type, lod_key, col))
 
     # Full-height corrugation recesses on all wall faces.
     if s["rib_spacing"] > 0.0 and s["rib_depth"] > 0.0:
@@ -493,7 +737,7 @@ def build_preset_warehouse(asset_name: str, width: float, length: float, door_co
         fb_cutters = []
         fb_cutters += create_vertical_corrugation_cutters(
             asset_name + "_front_posy", "Y", "X", 0.0, t * 0.5,
-            -width * 0.5 + 0.1, width * 0.5 - 0.1, 0.0, WALL_HEIGHT,
+            -width * 0.5 + 0.1, width * 0.5 - 0.1, 0.0, wall_h,
             s["rib_depth"], s["rib_spacing"], -1.0, t, col
         )
         apply_boolean_difference(front, fb_cutters, f"{asset_name}_{lod_key}_front_corr")
@@ -501,7 +745,7 @@ def build_preset_warehouse(asset_name: str, width: float, length: float, door_co
         bb_cutters = []
         bb_cutters += create_vertical_corrugation_cutters(
             asset_name + "_back_negy", "Y", "X", 0.0, length - t * 0.5,
-            -width * 0.5 + 0.1, width * 0.5 - 0.1, 0.0, WALL_HEIGHT,
+            -width * 0.5 + 0.1, width * 0.5 - 0.1, 0.0, wall_h,
             s["rib_depth"], s["rib_spacing"], 1.0, t, col
         )
         apply_boolean_difference(back, bb_cutters, f"{asset_name}_{lod_key}_back_corr")
@@ -509,12 +753,12 @@ def build_preset_warehouse(asset_name: str, width: float, length: float, door_co
         # Side walls (repeat across Y)
         left_cutters = create_vertical_corrugation_cutters(
             asset_name + "_left_negx", "X", "Y", -half_w + t * 0.5, length * 0.5,
-            0.1, length - 0.1, 0.0, WALL_HEIGHT,
+            0.1, length - 0.1, 0.0, wall_h,
             s["rib_depth"], s["rib_spacing"], -1.0, t, col
         )
         right_cutters = create_vertical_corrugation_cutters(
             asset_name + "_right_posx", "X", "Y", half_w - t * 0.5, length * 0.5,
-            0.1, length - 0.1, 0.0, WALL_HEIGHT,
+            0.1, length - 0.1, 0.0, wall_h,
             s["rib_depth"], s["rib_spacing"], 1.0, t, col
         )
         apply_boolean_difference(left, left_cutters, f"{asset_name}_{lod_key}_left_corr")
@@ -546,6 +790,31 @@ def build_preset_warehouse(asset_name: str, width: float, length: float, door_co
         door = build_roller_door_module(f"{asset_name}__door{i}", door_w, lod_key, col, is_open=False)
         door.location = (dx, -0.05, 0.0)
         parts.append(door)
+        if canopy:
+            can = add_box_part(
+                f"{asset_name}__canopy_{i}",
+                (door_w + 0.8, 1.4, 0.12),
+                (dx, -0.7, ROLLER_DOOR_HEIGHT + 0.4),
+                col,
+            )
+            parts.append(can)
+        if dock_bumpers:
+            bump_w = 0.20
+            bump_h = 0.95
+            bump_t = 0.20
+            left_bump = add_box_part(
+                f"{asset_name}__bumper_l_{i}",
+                (bump_w, bump_t, bump_h),
+                (dx - (door_w * 0.5 - 0.25), -0.08, bump_h * 0.5),
+                col,
+            )
+            right_bump = add_box_part(
+                f"{asset_name}__bumper_r_{i}",
+                (bump_w, bump_t, bump_h),
+                (dx + (door_w * 0.5 - 0.25), -0.08, bump_h * 0.5),
+                col,
+            )
+            parts.extend([left_bump, right_bump])
 
     # Rear personnel door (2.0m x 0.6m), attached on back face.
     p_w = 0.6
@@ -565,9 +834,13 @@ def build_preset_warehouse(asset_name: str, width: float, length: float, door_co
     apply_boolean_difference(back, [p_opening], f"{asset_name}_{lod_key}_personnel_opening")
 
     p_face_y = length + p_t * 0.5
-    p_frame = add_box_part(f"{asset_name}__personnel_frame", (p_w + 0.12, p_t, p_h + 0.12), (p_x, p_face_y, p_z), col)
-    p_panel = add_box_part(f"{asset_name}__personnel_panel", (p_w, p_t, p_h), (p_x, p_face_y, p_z), col)
+    p_frame = add_box_part(f"{asset_name}__personnel_frame", (p_w + 0.14, p_t + 0.02, p_h + 0.14), (p_x, p_face_y, p_z), col)
+    p_panel = add_box_part(f"{asset_name}__personnel_panel", (p_w, p_t * 0.7, p_h), (p_x, p_face_y + 0.012, p_z), col)
     parts.extend([p_frame, p_panel])
+    # Add simple handle/lock plate detail.
+    handle = add_box_part(f"{asset_name}__personnel_handle", (0.04, 0.02, 0.14), (p_x + p_w * 0.33, p_face_y + 0.03, 0.95), col)
+    latch = add_box_part(f"{asset_name}__personnel_latch", (0.08, 0.015, 0.04), (p_x + p_w * 0.33, p_face_y + 0.03, 1.05), col)
+    parts.extend([handle, latch])
     if s["rib_depth"] > 0.0:
         band_t = max(0.01, s["rib_depth"] * 0.8)
         pd_cutters = [
@@ -576,8 +849,6 @@ def build_preset_warehouse(asset_name: str, width: float, length: float, door_co
             add_box_part(f"{asset_name}__pd_cut_t", (p_w - 0.08, band_t, 0.08), (p_x, p_y + 0.01 + band_t * 0.5, p_h - 0.04), col),
         ]
         apply_boolean_difference(p_panel, pd_cutters, f"{asset_name}_{lod_key}_pd_corr")
-
-    apply_roof_corrugation(roof, asset_name + "_roof", width, length, s["roof_seam_spacing"], s["rib_depth"], WALL_HEIGHT + ROOF_THICKNESS, col)
 
     obj = join_and_name(parts, f"{asset_name}_{lod_key}")
     set_origin_start_face_ground(obj)
@@ -620,15 +891,26 @@ def build_asset_lods(defn: Dict, col: bpy.types.Collection):
     kind = defn["kind"]
 
     built = {}
-    for lod in ("lod0", "lod1", "lod2"):
+    for lod in ENABLED_LODS:
         if kind == "wall":
             obj = build_wall_module(name, defn["length"], lod, col)
         elif kind == "roof":
-            obj = build_roof_module(name, defn["length"], lod, col)
+            obj = build_roof_module(name, defn["length"], lod, col, roof_type=defn.get("roof_type", "flat"))
         elif kind == "door":
             obj = build_roller_door_module(name, defn["width"], lod, col, is_open=bool(defn.get("open", False)))
         elif kind == "preset":
-            obj = build_preset_warehouse(name, defn["width"], defn["length"], defn["door_count"], lod, col)
+            obj = build_preset_warehouse(
+                name,
+                defn["width"],
+                defn["length"],
+                defn["door_count"],
+                lod,
+                col,
+                roof_type=defn.get("roof_type", "flat"),
+                canopy=bool(defn.get("canopy", False)),
+                dock_bumpers=bool(defn.get("dock_bumpers", False)),
+                wall_height=float(defn.get("wall_height", WALL_HEIGHT)),
+            )
         else:
             continue
 
