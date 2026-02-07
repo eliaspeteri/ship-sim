@@ -936,8 +936,8 @@ export function updateVesselState(
   const pitchRestoring =
     -GRAVITY * gmPitch * mass * (vessel.pitchAngle - waveSlopePitch);
 
-  const pDot = (rollRestoring - vessel.rollDamping * vessel.p) / Ixx;
-  const qDot = (pitchRestoring - vessel.pitchDamping * vessel.q) / Iyy;
+  const pDot = rollRestoring / Ixx - vessel.rollDamping * vessel.p;
+  const qDot = pitchRestoring / Iyy - vessel.pitchDamping * vessel.q;
   vessel.p += pDot * safeDt;
   vessel.q += qDot * safeDt;
 
