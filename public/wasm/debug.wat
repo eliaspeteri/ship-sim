@@ -6135,24 +6135,24 @@
   f64.mul
   local.set $pitchRestoring
   local.get $rollRestoring
+  local.get $Ixx
+  f64.div
   local.get $vessel
   call $assembly/index/VesselState#get:rollDamping
   local.get $vessel
   call $assembly/index/VesselState#get:p
   f64.mul
   f64.sub
-  local.get $Ixx
-  f64.div
   local.set $pDot
   local.get $pitchRestoring
+  local.get $Iyy
+  f64.div
   local.get $vessel
   call $assembly/index/VesselState#get:pitchDamping
   local.get $vessel
   call $assembly/index/VesselState#get:q
   f64.mul
   f64.sub
-  local.get $Iyy
-  f64.div
   local.set $qDot
   local.get $vessel
   local.get $vessel
