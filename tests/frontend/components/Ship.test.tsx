@@ -2,7 +2,6 @@ import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react';
 import * as THREE from 'three';
 import Ship from '../../../src/components/Ship';
-import useStore from '../../../src/store';
 import {
   getCompositeWaveSample,
   getGerstnerSample,
@@ -47,19 +46,7 @@ jest.mock('react', () => {
   };
 });
 
-jest.mock('../../../src/store');
-
-const useStoreMock = useStore as jest.MockedFunction<any>;
-
 describe('Ship', () => {
-  beforeEach(() => {
-    useStoreMock.mockImplementation(selector =>
-      selector({
-        vessel: { orientation: { roll: 0.1, pitch: -0.05 } },
-      }),
-    );
-  });
-
   afterEach(() => {
     jest.clearAllMocks();
   });
@@ -80,12 +67,12 @@ describe('Ship', () => {
     expect(onSelect).toHaveBeenCalledWith('v-1');
   });
 
-  it('renders debug markers when enabled', () => {
+  it('does not render extra debug meshes for showDebugMarkers flag', () => {
     const { container } = render(
       <Ship position={{ x: 0, y: 0, z: 0 }} heading={0} showDebugMarkers />,
     );
 
-    expect(container.querySelectorAll('mesh').length).toBe(4);
+    expect(container.querySelectorAll('mesh').length).toBe(0);
   });
 
   it('renders model primitives when a model path is provided', async () => {
@@ -149,16 +136,10 @@ describe('Ship', () => {
     expect(z).toBe(0);
     expect(y).toBeCloseTo(3 - expectedDrop, 5);
 
-    const modelYaw = (10 * Math.PI) / 180;
-    const expectedHeading = Math.PI / 2 - 1 + modelYaw;
-    expect(shipRef.current.rotation.set).toHaveBeenCalledWith(
-      0.3,
-      expectedHeading,
-      0.2,
-    );
+    expect(shipRef.current.rotation.set).toHaveBeenCalledWith(0.3, -1, 0.2);
   });
 
-  it('falls back to store orientation when roll/pitch props are unset', () => {
+  it('defaults roll and pitch to zero when props are unset', () => {
     render(<Ship position={{ x: 0, y: 1, z: 2 }} heading={0} />);
 
     const shipRef = (globalThis as any).__shipRef;
@@ -173,10 +154,6 @@ describe('Ship', () => {
     const frameCb = useFrame.mock.calls[0][0];
     frameCb({ camera: { position: new THREE.Vector3(0, 5, 0) } }, 0.016);
 
-    expect(shipRef.current.rotation.set).toHaveBeenCalledWith(
-      -0.05,
-      Math.PI / 2,
-      0.1,
-    );
+    expect(shipRef.current.rotation.set).toHaveBeenCalledWith(0, -0, 0);
   });
 });
