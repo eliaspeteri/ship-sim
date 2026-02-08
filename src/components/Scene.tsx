@@ -580,7 +580,7 @@ function SeamarkGroup({
   const meshRefs = useRef<(THREE.Object3D | null)[]>([]);
 
   useFrame(state => {
-    meshRefs.current.forEach(mesh => {
+    meshRefs.current.forEach((mesh, posIndex) => {
       if (!mesh) return;
       const distance = camera.position.distanceTo(mesh.position);
       const baseScale = 10; // visibility baseline
@@ -588,7 +588,6 @@ function SeamarkGroup({
       mesh.scale.set(scale, scale, scale);
 
       // Wave animation: bob vertically and tilt to wave slope
-      const posIndex = meshRefs.current.indexOf(mesh);
       if (posIndex >= 0 && posIndex < positions.length) {
         const pos = positions[posIndex];
         const waveSample = getGerstnerSample(
