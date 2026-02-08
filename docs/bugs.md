@@ -105,14 +105,15 @@ Failed to load settings Error: Authentication required
 - [ ] I can move around a vessel as admin in spectator mode, but I am unable to access the callout popup because the drag handle is very large for small vessels. This doesn't seem to be based on the camera zoom level or vessel's size. It's just a fixed size bubble.
 - [x] When I drag a vessel as admin in spectator mode, there is a "copy" of the vessel rendered at its original position. This copy seems to be created when I alt-tab in and out of the window.
 - [ ] Comparing against the Three.js axis debug lines, it seems like when my ship visually points south (away from blue line), the heading reads as 0. Course has not changed from 45 degrees.
+- [x] Visual yaw direction was inverted versus heading sign (clockwise heading change rendered counterclockwise). Fixed by applying `-heading` at render in `src/components/Ship.tsx`.
 - [ ] When yaw rate is positive, the ship is visually turning clockwise correctly, but the heading is decreasing.
 - [x] In `/vessels` page, none of the persisted vessels are showing up, even when I'm admin, and viewing global space vessels.
-- [ ] When I spawn into map editor for a pack, camera is facing 135 degrees. Let's change it to 45 degrees so the world is right side up. Nothing is loaded immediately, only when I start zooming out.
-- [ ] Editor should remember last camera focus point, and return to it when the map pack is loaded. Alternatively, it should focus on the first work area in the list (assumed primary).
-- [ ] There's no ocean in the editor mode. It's just terrain + black void.
-- [ ] When I press "focus" on a work area in the editor, it should set the camera distance to be about 2x the work area radius. So if the radius is 1000 meters, the camera should be 2000 meters away from the work area, and focused on work area center as it currently is.
-- [ ] I'm unable to change layer order in editor.
-- [ ] Publishing a map pack does not seem to do anything or take me anywhere.
+- [x] When I spawn into map editor for a pack, camera is facing 135 degrees. Let's change it to 45 degrees so the world is right side up. Nothing is loaded immediately, only when I start zooming out.
+- [x] Editor should remember last camera focus point, and return to it when the map pack is loaded. Alternatively, it should focus on the first work area in the list (assumed primary).
+- [x] There's no ocean in the editor mode. It's just terrain + black void.
+- [x] When I press "focus" on a work area in the editor, it should set the camera distance to be about 2x the work area radius. So if the radius is 1000 meters, the camera should be 2000 meters away from the work area, and focused on work area center as it currently is.
+- [x] I'm unable to change layer order in editor.
+- [x] Publishing a map pack does not seem to do anything or take me anywhere.
 - [ ] Terrain data is not detailed enough. Currently using 1:10 NaturalEarth land data, but it does not have full and accurate coverage.
 - [ ] Ocean missing specular reflections, highlights.
 - [ ] No HTTPS, at least in dev.
@@ -142,3 +143,5 @@ React will try to recreate this component tree from scratch using the error boun
 - [ ] I'm able to toggle between spectator mode and player mode even in realistic rulesets.
 - [ ] I don't see a way to leave a vessel, and get back to "join space" modal.
 - [ ] Joining a vessel from hud drawer tab in spectator mode does not put me in player mode even if it assigns me on the vessel.
+- [ ] I get the "join space" modal even if I'm not logged in, and it's my first time visiting the site (empty cookies). I should only get this when I'm logged in.
+- [ ] Sim breaks completely in Firefox
