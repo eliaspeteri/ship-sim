@@ -104,6 +104,7 @@ uniform vec3 uSunDirection;
 uniform vec3 uCameraPos;
 
 uniform vec3 uWaterColor;
+uniform vec3 uSkyColor;
 uniform float uAmbient;
 
 uniform float uSpecPower;
@@ -163,7 +164,12 @@ void main() {
   vec3 H = normalize(L + V);
   float spec = pow(max(dot(N, H), 0.0), uSpecPower) * uSpecStrength;
 
-  vec3 color = mix(diffuse + spec, uFarColor, edge);
+  float ndv = clamp(dot(N, V), 0.0, 1.0);
+  float fresnel = pow(1.0 - ndv, 3.0);
+  vec3 skyReflect = uSkyColor * (0.4 + 0.6 * ndl);
+  vec3 reflection = skyReflect * fresnel;
+
+  vec3 color = mix(diffuse + spec + reflection, uFarColor, edge);
 
   gl_FragColor = vec4(color, 1.0);
 
@@ -182,6 +188,7 @@ export function OceanPatch({
   timeRef,
   sunDirection,
   yOffset = 0,
+  maxScale = 8,
 }: {
   centerRef: React.MutableRefObject<{ x: number; y: number }>;
   size?: number;
@@ -190,6 +197,7 @@ export function OceanPatch({
   timeRef?: React.MutableRefObject<number>;
   sunDirection: THREE.Vector3;
   yOffset?: number;
+  maxScale?: number;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
 
@@ -260,6 +268,8 @@ export function OceanPatch({
     material.uniforms.uSunDirection.value.copy(sunDirection).normalize();
     const deep = new THREE.Color(0x0b2b3d);
     const bright = new THREE.Color(0x1c5a80);
+    const skyDeep = new THREE.Color(0x4a6f8f);
+    const skyBright = new THREE.Color(0xb7d9ff);
     const shade = THREE.MathUtils.lerp(0.35, 1, daylight);
     const waterMixed = deep
       .clone()
@@ -267,11 +277,22 @@ export function OceanPatch({
       .multiplyScalar(shade);
     material.uniforms.uWaterColor.value.copy(waterMixed);
     material.uniforms.uFarColor.value.copy(waterMixed);
+    const skyMixed = skyDeep
+      .clone()
+      .lerp(skyBright, THREE.MathUtils.clamp(daylight, 0, 1));
+    material.uniforms.uSkyColor.value.copy(skyMixed);
     material.uniforms.uAmbient.value = 0.03 + 0.25 * daylight;
     material.uniforms.uSpecStrength.value = 0.02 + 0.12 * daylight;
 
     material.toneMapped = true;
-  }, [material, wave.amplitude, wave.k, wave.omega, wave.direction]);
+  }, [
+    material,
+    sunDirection,
+    wave.amplitude,
+    wave.k,
+    wave.omega,
+    wave.direction,
+  ]);
 
   useEffect(() => {
     material.uniforms.uSunDirection.value.copy(sunDirection).normalize();
@@ -293,7 +314,7 @@ export function OceanPatch({
       );
       // --- NEW: scale patch based on camera height ---
       const h = camera.position.y;
-      const scale = THREE.MathUtils.clamp(h / 220, 1, 8); // tune: 220 and 8
+      const scale = THREE.MathUtils.clamp(h / 220, 1, maxScale);
       meshRef.current.scale.set(scale, 1, scale);
       material.uniforms.uFadeStart.value = size * 0.35 * scale;
       material.uniforms.uFadeEnd.value = size * 0.5 * scale;
