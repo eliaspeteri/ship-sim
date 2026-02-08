@@ -1018,6 +1018,16 @@ const useStore = create<SimulationState>()((set, get) => ({
         failureState,
         damageState,
       );
+      // Keep UI controls in sync with what we send to physics.
+      set(state => ({
+        vessel: {
+          ...state.vessel,
+          controls: {
+            ...state.vessel.controls,
+            ...nextControls,
+          },
+        },
+      }));
       simulationLoop.applyControls(nextControls);
     } catch (error) {
       console.error('Error applying vessel controls to simulation:', error);
