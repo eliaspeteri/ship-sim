@@ -9,7 +9,7 @@ import { MarineRadio } from '../radio';
 import { ConningDisplay, ConningDisplayData } from '../bridge/ConningDisplay';
 import { AlarmIndicator } from '../alarms/AlarmIndicator';
 import DepthSounder from '../DepthSounder';
-import { EcdisDisplay } from '../navigation/EcdisDisplay';
+import { EcdisDisplay } from '../navigation/ecdis/EcdisDisplay';
 import {
   AISTarget,
   ARPASettings,
