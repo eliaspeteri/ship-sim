@@ -14,7 +14,9 @@
   bottom: 16px;
   left: 16px;
   z-index: 10;
-  width: min(360px, calc(100vw - 32px));
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
   padding: 12px;
   border-radius: 10px;
   background: rgba(9, 18, 30, 0.84);
@@ -115,4 +117,54 @@
 
 .button:hover {
   border-color: #6db4ff;
+}
+
+.monitorSection {
+  margin-top: 12px;
+}
+
+.sectionTitle {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8fc5ff;
+}
+
+.monitorGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.monitorCard {
+  border: 1px solid rgba(138, 168, 203, 0.24);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(6, 11, 19, 0.55);
+}
+
+.monitorLabel {
+  font-size: 11px;
+  color: #9db7d1;
+}
+
+.monitorValue {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e7f1ff;
+}
+
+.bridgeSection {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(138, 168, 203, 0.2);
+}
+
+.widgetWrap {
+  margin-bottom: 8px;
+  border: 1px solid rgba(138, 168, 203, 0.16);
+  border-radius: 8px;
+  background: rgba(6, 11, 19, 0.5);
 }

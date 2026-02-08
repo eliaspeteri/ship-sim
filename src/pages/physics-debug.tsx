@@ -16,6 +16,9 @@ import { deriveWaveState } from '../lib/waves';
 import { OceanPatch } from '../components/OceanPatch';
 import { FarWater } from '../components/FarWater';
 import Ship from '../components/Ship';
+import { TelegraphLever } from '../components/TelegraphLever';
+import { HelmControl } from '../components/HelmControl';
+import { ControlLever } from '../components/ControlLever';
 import { DEFAULT_HYDRO } from '../constants/vessel';
 import { RUDDER_MAX_ANGLE_RAD } from '../constants/vessel';
 import {
@@ -307,6 +310,8 @@ const PhysicsDebugPage: NextPage<PhysicsDebugPageProps> & {
   const setCurrentVesselId = useStore(state => state.setCurrentVesselId);
   const setOtherVessels = useStore(state => state.setOtherVessels);
   const updateVessel = useStore(state => state.updateVessel);
+  const applyVesselControls = useStore(state => state.applyVesselControls);
+  const vessel = useStore(state => state.vessel);
   const environment = useStore(state => state.environment);
   const updateEnvironment = useStore(state => state.updateEnvironment);
   const [selectedTemplateId, setSelectedTemplateId] = React.useState(
@@ -336,8 +341,6 @@ const PhysicsDebugPage: NextPage<PhysicsDebugPageProps> & {
 
       const nextVesselId = `physics-debug-${template.id}-${Date.now()}`;
       const renderOptions = template.render || {};
-      const modelYawDeg =
-        renderOptions.modelYawDeg ?? template.modelYawDeg ?? undefined;
 
       if (resetEnvironment) {
         updateEnvironment(DEFAULT_DEBUG_ENVIRONMENT);
@@ -363,7 +366,6 @@ const PhysicsDebugPage: NextPage<PhysicsDebugPageProps> & {
         physics: template.physics,
         render: {
           ...renderOptions,
-          ...(modelYawDeg !== undefined ? { modelYawDeg } : {}),
         },
       });
 
@@ -459,6 +461,33 @@ const PhysicsDebugPage: NextPage<PhysicsDebugPageProps> & {
     const deg = (rad * 180) / Math.PI;
     return ((deg % 360) + 360) % 360;
   }, [environment.wind?.direction]);
+  const rudderDeg = React.useMemo(
+    () => ((vessel.controls.rudderAngle ?? 0) * 180) / Math.PI,
+    [vessel.controls.rudderAngle],
+  );
+  const headingDeg = React.useMemo(
+    () => (((vessel.orientation.heading ?? 0) * 180) / Math.PI + 360) % 360,
+    [vessel.orientation.heading],
+  );
+  const speedMps = Math.hypot(
+    vessel.velocity.surge ?? 0,
+    vessel.velocity.sway ?? 0,
+  );
+  const speedKts = speedMps * 1.94384;
+  const yawRateDeg = React.useMemo(
+    () => ((vessel.angularVelocity.yaw ?? 0) * 180) / Math.PI,
+    [vessel.angularVelocity.yaw],
+  );
+  const telegraphScale = React.useMemo(
+    () => [
+      { label: 'FULL AST', value: -1, major: true },
+      { label: 'HALF AST', value: -0.5 },
+      { label: 'STOP', value: 0, major: true },
+      { label: 'HALF AHD', value: 0.5 },
+      { label: 'FULL AHD', value: 1, major: true },
+    ],
+    [],
+  );
 
   return (
     <div className={styles.page}>
@@ -575,6 +604,111 @@ const PhysicsDebugPage: NextPage<PhysicsDebugPageProps> & {
         >
           Reset Sim State
         </button>
+        <div className={styles.monitorSection}>
+          <div className={styles.sectionTitle}>Monitors</div>
+          <div className={styles.monitorGrid}>
+            <div className={styles.monitorCard}>
+              <div className={styles.monitorLabel}>Speed</div>
+              <div className={styles.monitorValue}>
+                {speedKts.toFixed(2)} kts
+              </div>
+            </div>
+            <div className={styles.monitorCard}>
+              <div className={styles.monitorLabel}>Heading</div>
+              <div className={styles.monitorValue}>
+                {headingDeg.toFixed(1)} deg
+              </div>
+            </div>
+            <div className={styles.monitorCard}>
+              <div className={styles.monitorLabel}>Rudder</div>
+              <div className={styles.monitorValue}>
+                {rudderDeg.toFixed(1)} deg
+              </div>
+            </div>
+            <div className={styles.monitorCard}>
+              <div className={styles.monitorLabel}>Ballast</div>
+              <div className={styles.monitorValue}>
+                {((vessel.controls.ballast ?? 0.5) * 100).toFixed(0)}%
+              </div>
+            </div>
+            <div className={styles.monitorCard}>
+              <div className={styles.monitorLabel}>Roll</div>
+              <div className={styles.monitorValue}>
+                {(((vessel.orientation.roll ?? 0) * 180) / Math.PI).toFixed(1)}{' '}
+                deg
+              </div>
+            </div>
+            <div className={styles.monitorCard}>
+              <div className={styles.monitorLabel}>Pitch</div>
+              <div className={styles.monitorValue}>
+                {(((vessel.orientation.pitch ?? 0) * 180) / Math.PI).toFixed(1)}{' '}
+                deg
+              </div>
+            </div>
+            <div className={styles.monitorCard}>
+              <div className={styles.monitorLabel}>Yaw Rate</div>
+              <div className={styles.monitorValue}>
+                {yawRateDeg.toFixed(2)} deg/s
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className={styles.bridgeSection}>
+          <div className={styles.sectionTitle}>Controls</div>
+          <div className={styles.widgetWrap}>
+            <TelegraphLever
+              label="Engine Telegraph"
+              value={vessel.controls.throttle ?? 0}
+              min={THROTTLE_MIN}
+              max={THROTTLE_MAX}
+              scale={telegraphScale}
+              onChange={value => {
+                applyVesselControls({
+                  throttle: Math.min(
+                    Math.max(value, THROTTLE_MIN),
+                    THROTTLE_MAX,
+                  ),
+                });
+              }}
+            />
+          </div>
+          <div className={styles.widgetWrap}>
+            <HelmControl
+              label="Helm"
+              value={rudderDeg}
+              minAngle={(-RUDDER_MAX_ANGLE_RAD * 180) / Math.PI}
+              maxAngle={(RUDDER_MAX_ANGLE_RAD * 180) / Math.PI}
+              onChange={value => {
+                const rudderAngle = (value * Math.PI) / 180;
+                applyVesselControls({
+                  rudderAngle: Math.min(
+                    Math.max(rudderAngle, -RUDDER_MAX_ANGLE_RAD),
+                    RUDDER_MAX_ANGLE_RAD,
+                  ),
+                });
+              }}
+            />
+          </div>
+          <div className={styles.widgetWrap}>
+            <ControlLever
+              label="Ballast"
+              vertical
+              min={0}
+              max={1}
+              value={vessel.controls.ballast ?? 0.5}
+              scale={[
+                { label: '0%', value: 0 },
+                { label: '50%', value: 0.5 },
+                { label: '100%', value: 1 },
+              ]}
+              onChange={value => {
+                applyVesselControls({
+                  ballast: Math.min(Math.max(value, 0), 1),
+                });
+              }}
+            />
+          </div>
+        </div>
       </aside>
     </div>
   );
