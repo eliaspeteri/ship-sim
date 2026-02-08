@@ -37,18 +37,10 @@ interface ShipProps {
   onSelect?: (id: string) => void;
 }
 
-const SHIP_MODELS = {
-  CONTAINER: '/models/container_ship.glb',
-  TANKER: '/models/tanker_ship.glb',
-  CARGO: '/models/cargo_ship.glb',
-  DEFAULT: null,
-} as const;
-
 const Ship: React.FC<ShipProps> = ({
   vesselId,
   position,
   heading,
-  shipType = 'DEFAULT',
   modelPath = null,
   renderOptions,
   ballast = 0.5,
@@ -63,7 +55,7 @@ const Ship: React.FC<ShipProps> = ({
 }) => {
   const shipRef = useRef<THREE.Group>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
-  const resolvedModelPath = modelPath || SHIP_MODELS[shipType] || null;
+  const resolvedModelPath = modelPath;
   const model = resolvedModelPath ? useGLTF(resolvedModelPath) : null;
   useEffect(() => {
     if (model) {
