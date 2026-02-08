@@ -1219,6 +1219,8 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
             ballast={v.controls?.ballast ?? 0.5}
             draft={v.properties?.draft ?? vesselProperties.draft}
             length={v.properties?.length ?? vesselProperties.length}
+            roll={v.orientation.roll}
+            pitch={v.orientation.pitch}
             wave={waveState}
             waveTimeRef={waveTimeRef}
             applyWaveHeave={v.mode !== 'ai'}
