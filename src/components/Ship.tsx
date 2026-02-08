@@ -156,7 +156,7 @@ const Ship: React.FC<ShipProps> = ({
       const pitchAngle = pitch ?? 0;
 
       // Apply heading, roll, and pitch (roll/pitch from physics; heading from store)
-      obj.rotation.set(pitchAngle, heading, rollAngle);
+      obj.rotation.set(pitchAngle, -heading, rollAngle);
     }
   });
 
