@@ -1234,8 +1234,8 @@ Files: `tsconfig.json`, `package.json`, CI/workflow config
 
 Tasks:
 
-1. Ensure TypeScript coverage includes both `ts` and `tsx` sources for app code.
-2. Add explicit `npm run typecheck` script and use it in routine quality gates.
+1. [x] Ensure TypeScript coverage includes both `ts` and `tsx` sources for app code.
+2. [x] Add explicit `npm run typecheck` script and use it in routine quality gates.
 3. Document expected typecheck command in README/contributor docs.
 
 Acceptance:
