@@ -13,6 +13,7 @@ This backlog now covers the primary cross-cutting risks in the codebase:
 7. Runtime performance hotspots (high-frequency polling/state churn and concentrated tick work).
 8. Reliability gaps (unguarded upstream failures, timer lifecycle issues, blocking request-path operations).
 9. Data consistency drift (parallel in-memory/runtime/DB state authority).
+10. Developer experience/tooling drift (docs-command mismatch, unstable test harness, missing CI guardrails).
 
 The goal is incremental, low-risk refactors in PR-sized steps, with each item mapped to explicit acceptance criteria.
 
@@ -115,13 +116,20 @@ The goal is incremental, low-risk refactors in PR-sized steps, with each item ma
   - Socket cookie parser lacks malformed-cookie guard around `decodeURIComponent` (`src/server/index.ts` `parseCookies`).
   - Credential registration endpoint lacks strong anti-automation controls (`src/pages/api/register.ts`).
 - Performance/reliability/data-consistency smells:
-  - Blocking crypto in request path (`bcrypt.hashSync` in `src/pages/api/register.ts`, `bcrypt.compareSync` in `src/pages/api/auth/[...nextauth].ts`).
+  - Regression risk: avoid reintroducing blocking crypto in request paths (L1 migrated auth/register to async bcrypt).
   - Synchronous editor persistence on request-triggered paths (`src/server/editorCompilationStore.ts`, `src/server/editorPacksStore.ts` use sync fs APIs).
   - Tile proxy API calls do not guard upstream network failures/timeouts (`src/pages/api/tiles/terrain/[z]/[x]/[y].ts`, `src/pages/api/tiles/land/[z]/[x]/[y].ts`).
   - Additional polling loops outside original frontend hotspots:
     - `src/features/editor/components/EditorViewport.tsx` (overlay refresh every 400ms).
     - `src/pages/admin.tsx` (socket connectivity poll and periodic metrics poll).
   - Server background intervals are started outside server bootstrap/test guard (`src/server/index.ts` environment event + broadcast intervals).
+- Developer experience/tooling smells:
+  - Docs-command drift: `README.md` test and runtime instructions have been out of sync with `package.json` scripts.
+  - Frontend test harness drift risk (`jest.config.js` + `ts-jest`/Jest major alignment is brittle and has already produced local setup failures).
+  - Missing CI workflow guardrails (`lint`/`typecheck`/tests are not enforced in repo automation).
+  - Commit hooks only run staged lint/format (`.husky/pre-commit`) and do not gate on typecheck/tests before push.
+  - Docker runtime command drift (`docker-compose.yml` references `scripts/create-admin.ts`, but only `scripts/seed-admin.js` exists).
+  - Local frontend test loop pays avoidable overhead with always-on coverage in Jest config.
 
 ## Prioritization
 
@@ -143,7 +151,11 @@ Unless a task explicitly states a stricter requirement, each PR implementing any
 
 ## Workstream A: Break Up God Components / Modules
 
+Completed: [ ]
+
 ### A1. Decompose `HudDrawer` into container + hooks + per-tab adapters (`P0`)
+
+Completed: [ ]
 
 Files: `src/components/HudDrawer.tsx`, `src/components/hud/*`
 
@@ -167,6 +179,8 @@ Acceptance:
 
 ### A2. Split `HudPanels.tsx` into per-panel files (`P0`)
 
+Completed: [ ]
+
 Files: `src/components/hud/HudPanels.tsx` -> `src/components/hud/panels/*`
 
 Tasks:
@@ -182,6 +196,8 @@ Acceptance:
 3. `tests/frontend/components/hud/HudPanels.test.tsx` passes after import updates.
 
 ### A3. Split `SimPage` orchestration (`P0`)
+
+Completed: [ ]
 
 Files: `src/pages/sim.tsx`, new hooks under `src/features/sim/hooks/*`
 
@@ -200,6 +216,8 @@ Acceptance:
 
 ### A4. Split `Scene` by concern (`P1`)
 
+Completed: [ ]
+
 Files: `src/components/Scene.tsx`, new modules under `src/components/scene/*`
 
 Tasks:
@@ -215,6 +233,8 @@ Acceptance:
 2. No change in camera/admin interaction behavior.
 
 ### A5. Split `RadarDisplay` rendering pipeline (`P1`)
+
+Completed: [ ]
 
 Files: `src/components/radar/RadarDisplay.tsx`, new modules under `src/components/radar/render/*`
 
@@ -234,6 +254,8 @@ Acceptance:
 
 ### A6. Split `MarineRadio` UI state machine (`P2`)
 
+Completed: [ ]
+
 Files: `src/components/radio/MarineRadio.tsx`
 
 Tasks:
@@ -248,6 +270,8 @@ Acceptance:
 2. Behavior parity for channel switching, distress, and scan mode.
 
 ### A7. Split `admin.tsx` and `spaces.tsx` service/hooks (`P2`)
+
+Completed: [ ]
 
 Files: `src/pages/admin.tsx`, `src/pages/spaces.tsx`
 
@@ -264,7 +288,11 @@ Acceptance:
 
 ## Workstream B: Harden Brittle Tests
 
+Completed: [ ]
+
 ### B1. Replace route-internals testing in `api.test.ts` (`P0`)
+
+Completed: [ ]
 
 Files: `tests/frontend/server/api.test.ts`
 
@@ -285,6 +313,8 @@ Acceptance:
 
 ### B2. Reduce mock fan-out in `server/index.test.ts` (`P0`)
 
+Completed: [ ]
+
 Files: `tests/frontend/server/index.test.ts`
 
 Tasks:
@@ -299,6 +329,8 @@ Acceptance:
 2. Tests remain green with same behavior coverage intent.
 
 ### B3. Eliminate private-state poking in `simulationLoop.test.ts` (`P1`)
+
+Completed: [ ]
 
 Files: `tests/frontend/simulationLoop.test.ts`, `src/simulation/simulationLoop.ts`
 
@@ -315,6 +347,8 @@ Acceptance:
 
 ### B4. Rebalance component tests away from broad child mocking (`P1`)
 
+Completed: [ ]
+
 Files: `tests/frontend/components/HudDrawer.test.tsx`, `tests/frontend/SimPage.test.tsx`, `tests/frontend/components/hud/HudPanels.test.tsx`
 
 Tasks:
@@ -330,6 +364,8 @@ Acceptance:
 
 ### B5. Add test guardrails (`P2`)
 
+Completed: [ ]
+
 Files: test lint config and test utilities
 
 Tasks:
@@ -344,6 +380,8 @@ Acceptance:
 2. Existing brittle patterns stop increasing over time.
 
 ### B6. Split and type `socketManager` tests (`P1`)
+
+Completed: [ ]
 
 Files: `tests/frontend/socketManager.test.ts`, `src/networking/socket.ts`
 
@@ -361,7 +399,11 @@ Acceptance:
 
 ## Workstream C: Derivation and Reactivity Hygiene
 
+Completed: [ ]
+
 ### C1. Consolidate vessel-target derivation and projection utilities (`P0`)
+
+Completed: [ ]
 
 Files: `src/components/HudDrawer.tsx`, `src/components/Scene.tsx`, `src/pages/sim.tsx`, new shared helpers under `src/features/sim/selectors/*` (or equivalent)
 
@@ -382,6 +424,8 @@ Acceptance:
 
 ### C2. Remove render-path `useStore.getState()` reads (`P0`)
 
+Completed: [ ]
+
 Files: `src/components/HudDrawer.tsx`
 
 Tasks:
@@ -395,6 +439,8 @@ Acceptance:
 2. Store changes propagate via React subscriptions only.
 
 ### C3. Unify control update pipeline and add rate control (`P0`)
+
+Completed: [ ]
 
 Files: `src/components/HudDrawer.tsx`, `src/pages/sim.tsx`, optional shared hook under `src/features/sim/hooks/*`
 
@@ -412,6 +458,8 @@ Acceptance:
 
 ### C4. Reduce high-frequency UI state churn (`P1`)
 
+Completed: [ ]
+
 Files: `src/components/radar/RadarDisplay.tsx`, `src/components/Scene.tsx`, `src/components/LandTiles.tsx`
 
 Tasks:
@@ -428,7 +476,11 @@ Acceptance:
 
 ## Workstream D: UI Style and Test Typing Quality
 
+Completed: [ ]
+
 ### D1. Migrate inline-style-heavy bridge/nav components to style modules/tokens (`P1`)
+
+Completed: [ ]
 
 Files: `src/components/navigation/ecdis/EcdisSidebar.tsx`, `src/components/radio/MarineRadio.tsx`, `src/components/bridge/ConningDisplay.tsx`
 
@@ -445,6 +497,8 @@ Acceptance:
 3. Snapshot/visual tests updated as needed.
 
 ### D2. Tighten typing in brittle tests (`P1`)
+
+Completed: [ ]
 
 Files:
 
@@ -469,7 +523,11 @@ Acceptance:
 
 ## Workstream E: Server Decomposition and Boundary Hardening
 
+Completed: [ ]
+
 ### E1. Split `src/server/api.ts` into domain routers + shared error wrapper (`P0`)
+
+Completed: [ ]
 
 Files: `src/server/api.ts`, new modules under `src/server/routes/*`
 
@@ -487,6 +545,8 @@ Acceptance:
 
 ### E2. Remove mixed in-memory vs DB vessel/environment authority in API (`P0`)
 
+Completed: [ ]
+
 Files: `src/server/api.ts`, supporting services under `src/server/*`
 
 Tasks:
@@ -502,6 +562,8 @@ Acceptance:
 3. Regression tests cover read/write consistency across affected endpoints.
 
 ### E3. Decompose `src/server/index.ts` runtime orchestration (`P0`)
+
+Completed: [ ]
 
 Files: `src/server/index.ts`, new modules under `src/server/runtime/*` and `src/server/bootstrap/*`
 
@@ -519,6 +581,8 @@ Acceptance:
 
 ### E4. Rework brittle server mega-tests into boundary-level suites (`P1`)
 
+Completed: [ ]
+
 Files: `tests/frontend/server/api.test.ts`, `tests/frontend/server/index.test.ts`
 
 Tasks:
@@ -535,7 +599,11 @@ Acceptance:
 
 ## Workstream F: Assembly Physics Core and Test Stability
 
+Completed: [ ]
+
 ### F1. Split `assembly/index.ts` by concern (`P1`)
+
+Completed: [ ]
 
 Files: `assembly/index.ts`, new modules under `assembly/*` (params, environment, integration, getters)
 
@@ -553,6 +621,8 @@ Acceptance:
 
 ### F2. Make assembly runtime state explicit and resettable (`P1`)
 
+Completed: [ ]
+
 Files: `assembly/index.ts`, `assembly/core.test.ts`
 
 Tasks:
@@ -568,6 +638,8 @@ Acceptance:
 3. Public API semantics are documented and covered by tests.
 
 ### F3. Harden `assembly/core.test.ts` with builders and targeted suites (`P1`)
+
+Completed: [ ]
 
 Files: `assembly/core.test.ts`
 
@@ -585,7 +657,11 @@ Acceptance:
 
 ## Workstream G: CSS Modules to Tailwind Consolidation
 
+Completed: [ ]
+
 ### G1. Define migration guardrails and token mapping (`P0`)
+
+Completed: [ ]
 
 Files: `src/styles/globals.css`, `tailwind.config.js`
 
@@ -620,6 +696,8 @@ Acceptance:
 
 ### G2. Migrate HUD and simulation overlay CSS modules first (`P0`)
 
+Completed: [ ]
+
 Files: `src/components/HudDrawer.module.css`, `src/pages/SimPage.module.css`, `src/components/HudDrawer.tsx`, `src/components/hud/HudPanels.tsx`, `src/components/hud/PhysicsInspectorPanel.tsx`, `src/components/SystemMeter.tsx`, `src/features/sim/SpaceModal.tsx`, `src/features/sim/JoinChoiceModal.tsx`
 
 Tasks:
@@ -635,6 +713,8 @@ Acceptance:
 3. HUD/modal behavior and layout remain unchanged across desktop/mobile.
 
 ### G3. Migrate navigation, dashboard, and control panels (`P1`)
+
+Completed: [ ]
 
 Files: `src/components/Layout.module.css`, `src/components/EnvironmentControls.module.css`, `src/components/ChatPanel.module.css`, `src/components/Dashboard.module.css`, `src/components/Layout.tsx`, `src/components/EnvironmentControls.tsx`, `src/components/ChatPanel.tsx`, `src/components/Dashboard.tsx`
 
@@ -652,6 +732,8 @@ Acceptance:
 
 ### G4. Migrate page-level modules and finalize cleanup (`P1`)
 
+Completed: [ ]
+
 Files: `src/pages/Home.module.css`, `src/pages/Spaces.module.css`, `src/pages/Admin.module.css`, `src/pages/PhysicsDebug.module.css`, `src/pages/Globe.module.css`, `src/components/VesselCallout.module.css`, plus their consuming `tsx` files
 
 Tasks:
@@ -667,6 +749,8 @@ Acceptance:
 3. Styling across home/spaces/admin/physics/globe/callout remains visually consistent.
 
 ### G5. Add style-system guardrails to prevent regression (`P2`)
+
+Completed: [ ]
 
 Files: frontend lint config and docs
 
@@ -684,7 +768,11 @@ Acceptance:
 
 ## Workstream H: Client Networking and Store Core Decomposition
 
+Completed: [ ]
+
 ### H1. Split `src/networking/socket.ts` by responsibility (`P0`)
+
+Completed: [ ]
 
 Files: `src/networking/socket.ts`, new modules under `src/networking/socket/*`
 
@@ -702,6 +790,8 @@ Acceptance:
 
 ### H2. Remove hidden global dependencies from socket manager (`P0`)
 
+Completed: [ ]
+
 Files: `src/networking/socket.ts`, new adapters under `src/networking/adapters/*`
 
 Tasks:
@@ -717,6 +807,8 @@ Acceptance:
 3. Runtime wiring remains backward compatible for existing imports.
 
 ### H3. Slice `src/store/index.ts` into domain stores (`P0`)
+
+Completed: [ ]
 
 Files: `src/store/index.ts`, new slice modules under `src/store/slices/*`
 
@@ -734,6 +826,8 @@ Acceptance:
 
 ### H4. Remove placeholder/dead paths and fix interval lifecycle (`P1`)
 
+Completed: [ ]
+
 Files: `src/networking/socket.ts`, `src/store/index.ts`
 
 Tasks:
@@ -750,7 +844,11 @@ Acceptance:
 
 ## Workstream I: Physics Bridge Call-Site Simplification
 
+Completed: [ ]
+
 ### I1. Replace repeated positional `createVessel(...)` calls with typed input builders (`P0`)
+
+Completed: [ ]
 
 Files: `src/simulation/simulationLoop.ts`, `src/lib/wasmBridge.ts`, `tests/frontend/simulationLoop.test.ts`, `tests/frontend/wasmBridge.test.ts`
 
@@ -768,7 +866,11 @@ Acceptance:
 
 ## Workstream J: Type Safety Hardening
 
+Completed: [ ]
+
 ### J1. Enforce full-app typecheck in CI (`P0`)
+
+Completed: [ ]
 
 Files: `tsconfig.json`, `package.json`, CI workflow config
 
@@ -786,6 +888,8 @@ Acceptance:
 
 ### J2. Remove unsafe auth non-null assertions in server routes (`P0`)
 
+Completed: [ ]
+
 Files: `src/server/api.ts`, `src/server/middleware/authentication.ts`, shared auth helpers under `src/server/*`
 
 Tasks:
@@ -801,6 +905,8 @@ Acceptance:
 3. Behavior remains unchanged for authorized/unauthorized requests.
 
 ### J3. Replace high-risk runtime casts with typed adapters (`P1`)
+
+Completed: [ ]
 
 Files: `src/pages/sim.tsx`, `src/lib/wasmLoader.ts`, `src/server/middleware/authentication.ts`, `src/components/HudDrawer.tsx`
 
@@ -818,6 +924,8 @@ Acceptance:
 
 ### J4. Add lint guardrails for nesting and parameter count (`P1`)
 
+Completed: [ ]
+
 Files: ESLint config and contributor docs
 
 Tasks:
@@ -834,7 +942,11 @@ Acceptance:
 
 ## Workstream K: Security Hardening
 
+Completed: [ ]
+
 ### K1. Close IDOR on settings endpoints (`P0`)
+
+Completed: [ ]
 
 Files: `src/server/api.ts`
 
@@ -852,6 +964,8 @@ Acceptance:
 
 ### K2. Tighten vessel state mutation authorization (`P0`)
 
+Completed: [ ]
+
 Files: `src/server/api.ts`, `src/server/middleware/authorization.ts`
 
 Tasks:
@@ -867,6 +981,8 @@ Acceptance:
 3. Existing allowed owner/admin flows continue to pass.
 
 ### K3. Require auth/authorization for editor write APIs (`P0`)
+
+Completed: [ ]
 
 Files: `src/pages/api/editor/packs/index.ts`, `src/pages/api/editor/packs/[packId].ts`, `src/pages/api/editor/compile.ts`, `src/pages/api/editor/overlay.ts`
 
@@ -884,6 +1000,8 @@ Acceptance:
 
 ### K4. Add request-size/rate guardrails to artifact and register flows (`P0`)
 
+Completed: [ ]
+
 Files: `src/pages/api/editor/compile.ts`, `src/server/editorCompilationStore.ts`, `src/pages/api/register.ts`, server middleware/bootstrap
 
 Tasks:
@@ -899,6 +1017,8 @@ Acceptance:
 3. Normal user/editor flows remain functional within documented limits.
 
 ### K5. Harden production origin controls (`P1`)
+
+Completed: [ ]
 
 Files: `src/server/index.ts`
 
@@ -916,6 +1036,8 @@ Acceptance:
 
 ### K6. Remove secret-bearing query parameters from space access flow (`P1`)
 
+Completed: [ ]
+
 Files: `src/server/api.ts`, frontend callers for space join/list flows
 
 Tasks:
@@ -931,6 +1053,8 @@ Acceptance:
 3. No password material appears in request URLs for this flow.
 
 ### K7. Make cookie parsing resilient in socket handshake (`P1`)
+
+Completed: [ ]
 
 Files: `src/server/index.ts`
 
@@ -948,6 +1072,8 @@ Acceptance:
 
 ### K8. Add security baseline controls and documentation (`P2`)
 
+Completed: [ ]
+
 Files: server bootstrap/config docs, API docs
 
 Tasks:
@@ -962,9 +1088,33 @@ Acceptance:
 2. New endpoint development has a repeatable security review checklist.
 3. Security regressions are caught earlier in CI/review.
 
+### K9. Make credential lockout state user-visible with countdown (`P1`)
+
+Completed: [ ]
+
+Files: credential auth API/error surface, login UI (`src/pages/login.tsx` and related auth components)
+
+Tasks:
+
+1. Expose lockout remaining time in a safe, consistent error shape (for example `retryAfterSeconds`) for credential-login lockout responses.
+2. Render a visible lockout countdown in the login UI and disable submit while lockout is active.
+3. Keep lockout security behavior unchanged (correct password during active lockout is still rejected until expiry).
+4. Add tests for lockout active, countdown display, and post-expiry recovery.
+
+Acceptance:
+
+1. Users see explicit lockout duration and a live countdown after lockout triggers.
+2. Lockout responses remain non-enumerating and do not leak sensitive account state.
+3. Login becomes available again automatically when lockout expires.
+4. Relevant auth and UI tests pass.
+
 ## Workstream L: Performance, Reliability, and State-Consistency Hardening
 
+Completed: [ ]
+
 ### L1. Replace synchronous auth crypto on request paths (`P0`)
+
+Completed: [x]
 
 Files: `src/pages/api/register.ts`, `src/pages/api/auth/[...nextauth].ts`
 
@@ -981,6 +1131,8 @@ Acceptance:
 3. Relevant auth tests pass.
 
 ### L2. Remove synchronous disk writes/reads from hot server paths (`P0`)
+
+Completed: [ ]
 
 Files: `src/server/editorCompilationStore.ts`, `src/server/editorPacksStore.ts`, `src/server/vesselCatalog.ts`
 
@@ -1000,6 +1152,8 @@ Acceptance:
 
 ### L3. Harden tile proxy routes against upstream failures (`P1`)
 
+Completed: [ ]
+
 Files: `src/pages/api/tiles/terrain/[z]/[x]/[y].ts`, `src/pages/api/tiles/land/[z]/[x]/[y].ts`
 
 Tasks:
@@ -1015,6 +1169,8 @@ Acceptance:
 3. Route tests cover success, upstream failure, and timeout paths.
 
 ### L4. Replace fixed polling loops with observer/event-driven triggers where feasible (`P1`)
+
+Completed: [ ]
 
 Files: `src/components/Scene.tsx`, `src/features/editor/components/EditorViewport.tsx`, `src/pages/admin.tsx`
 
@@ -1032,6 +1188,8 @@ Acceptance:
 
 ### L5. Unify runtime/API state authority contracts (`P0`)
 
+Completed: [ ]
+
 Files: `src/server/api.ts`, `src/server/index.ts`, shared server services
 
 Tasks:
@@ -1045,6 +1203,118 @@ Acceptance:
 1. Parallel mutable stores for the same production resource are eliminated.
 2. HTTP and socket consumers read consistent vessel/environment/settings state.
 3. Persistence/reload behavior remains deterministic in tests.
+
+## Workstream M: Developer Experience and Tooling Ergonomics
+
+Completed: [ ]
+
+### M1. Stabilize frontend test harness and docs parity (`P0`)
+
+Completed: [ ]
+
+Files: `jest.config.js`, `package.json`, `README.md`
+
+Tasks:
+
+1. Align Jest transformer stack with supported versions and remove brittle config assumptions.
+2. Ensure README test commands match actual npm scripts and current tooling behavior.
+3. Add a lightweight smoke command for focused auth/api suite verification.
+
+Acceptance:
+
+1. `npm run test:frontend` works on a clean install without manual local tweaks.
+2. README test instructions are accurate and current.
+3. Focused test command(s) for changed areas are documented and reliable.
+
+### M2. Enforce typecheck as a first-class workflow (`P0`)
+
+Completed: [ ]
+
+Files: `tsconfig.json`, `package.json`, CI/workflow config
+
+Tasks:
+
+1. Ensure TypeScript coverage includes both `ts` and `tsx` sources for app code.
+2. Add explicit `npm run typecheck` script and use it in routine quality gates.
+3. Document expected typecheck command in README/contributor docs.
+
+Acceptance:
+
+1. Type errors in `tsx` app code fail the typecheck step.
+2. Typecheck is a standard local and CI command.
+3. Contributors have one documented source-of-truth command for static typing checks.
+
+### M3. Add baseline CI quality gates (`P0`)
+
+Completed: [ ]
+
+Files: `.github/workflows/*`, `package.json`
+
+Tasks:
+
+1. Add CI workflow that runs lint, typecheck, and core tests on PR/push.
+2. Keep CI scope pragmatic (fast baseline first; expand with targeted suites).
+3. Fail fast on broken setup (missing env/config assumptions).
+
+Acceptance:
+
+1. Repository has active automated PR quality gates.
+2. Lint/typecheck/test regressions are caught before merge.
+3. CI setup is documented and reproducible locally.
+
+### M4. Strengthen git hook guardrails for push-time feedback (`P1`)
+
+Completed: [ ]
+
+Files: `.husky/pre-commit`, `.husky/pre-push`, `package.json`
+
+Tasks:
+
+1. Keep pre-commit fast (`lint-staged`) but add pre-push checks for typecheck + targeted tests.
+2. Ensure hook failure messages point to exact fix commands.
+3. Keep hook behavior consistent across environments.
+
+Acceptance:
+
+1. Broken typecheck or critical tests are blocked before push.
+2. Pre-commit remains low-latency for normal coding flow.
+3. Developer hook behavior is predictable and documented.
+
+### M5. Improve local test iteration speed (`P1`)
+
+Completed: [ ]
+
+Files: `jest.config.js`, `package.json`
+
+Tasks:
+
+1. Disable default always-on coverage for local test runs and provide explicit coverage script.
+2. Add fast-targeted test scripts for high-change areas (auth/api, hud/sim core).
+3. Document when to use fast vs full suite commands.
+
+Acceptance:
+
+1. Default local frontend test runs are materially faster.
+2. Coverage remains available via explicit command.
+3. Team has a clear fast-feedback testing path.
+
+### M6. Remove command/bootstrap drift across Docker/scripts/docs (`P1`)
+
+Completed: [ ]
+
+Files: `docker-compose.yml`, `scripts/*`, `README.md`
+
+Tasks:
+
+1. Reconcile server bootstrap command(s) with scripts that actually exist.
+2. Keep auth bootstrap/seed flow explicit and consistent in docs.
+3. Add a lightweight check to detect missing script references in bootstrap paths.
+
+Acceptance:
+
+1. Docker startup does not reference missing scripts.
+2. Auth bootstrap steps are accurate for new contributors.
+3. Command drift is less likely to regress unnoticed.
 
 ## Suggested Execution Order (Small PR Sequence)
 
@@ -1098,6 +1368,13 @@ Acceptance:
 48. `L3` harden tile proxy upstream failure handling.
 49. `L4` replace polling-heavy UI loops with observer/event-driven patterns.
 50. `L5` unify API/runtime state authority contracts.
+51. `K9` make credential lockout state user-visible with countdown.
+52. `M1` stabilize frontend test harness and docs parity.
+53. `M2` enforce full typecheck workflow (`ts` + `tsx` coverage + script).
+54. `M3` add baseline CI quality gates.
+55. `M4` strengthen push-time git hooks.
+56. `M5` improve local test iteration speed.
+57. `M6` remove Docker/scripts/docs command drift.
 
 ## Definition of Done
 
@@ -1129,3 +1406,9 @@ Acceptance:
 26. Polling-heavy UI/runtime loops are replaced with observer/event-driven or bounded lifecycle-managed alternatives.
 27. Production resource state authority is unified (no divergent parallel stores for vessels/environment/settings).
 28. Changed behavior is covered by happy-path, sad-path, and edge-case automated tests.
+29. Credential lockout UX includes visible retry timing (countdown) while preserving lockout security behavior.
+30. README run/test/lint guidance matches actual scripts and current project behavior.
+31. Frontend tests run on a clean install with a stable, documented Jest toolchain.
+32. Full-app typecheck (including `tsx`) is a standard local and CI quality gate.
+33. Repository has automated CI checks for lint, typecheck, and core tests.
+34. Docker/bootstrap commands do not reference missing scripts.
