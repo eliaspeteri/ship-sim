@@ -5,65 +5,106 @@ Multiplayer ship simulation in the browser with a WASM physics core, realtime so
 ## What Works
 
 - AssemblyScript + WASM physics core with fixed timestep integration.
-- Next.js UI with a HUD drawer for navigation, weather, chat, and bridge stubs.
-- NextAuth credentials auth backed by Prisma/Postgres.
-- Spaces (public/private) with invite tokens and per-space weather persistence.
-- Server-driven day/night cycle with per-space environment updates.
-- Chat with global + vessel channels and paginated history.
+- Next.js frontend with HUD/navigation/weather/chat and bridge system stubs.
+- Express + Socket.IO backend with space lifecycle and realtime vessel updates.
+- NextAuth credentials auth with Prisma/Postgres persistence.
+- Spaces (public/private), invite tokens, and per-space weather persistence.
+- Integrated tile stack (`pg_tileserv`, GeoServer, terrain tile hosting).
 
-## What’s Not Included (Deferred)
+## Deferred / In Progress
 
-- Globe/tiling server (sticking to a 2D plane for now).
-- Live weather ingestion, scenarios, and missions/economy loops.
+- Full globe-first gameplay UX (project currently uses a 2D navigation plane).
+- Live weather ingestion, scenarios, and mission/economy depth.
 - Full bridge systems (AIS/ECDIS/GMDSS/conning/radar) beyond current stubs.
 
-## Quickstart
+## Quickstart (Recommended)
+
+Run the full stack in Docker:
 
 ```sh
 npm install
-
-# Start infra services (PostGIS + pg_tileserv + GeoServer)
-npm run docker:infra:up
-
-# Start backend API (default port is 3001)
-npm run server
-
-# In a second terminal, start frontend + WASM build (default port is 3000)
-npm run dev
-
-# Full stack in Docker (frontend + server + infra)
 npm run docker:up
 ```
 
-- Login/register at `http://localhost:3000/login` (defaults: admin/admin).
-- The socket server listens on `http://localhost:3001`.
+Primary endpoints:
+
+- App: `http://localhost:3000`
+- API + sockets: `http://localhost:3001`
+- pg_tileserv: `http://localhost:7800`
+- GeoServer: `http://localhost:8888/geoserver`
+- Terrain tile host: `http://localhost:8090`
+
+Stop everything:
+
+```sh
+npm run docker:down
+```
+
+## Local Dev Mode (Optional)
+
+Use Docker only for infrastructure and run frontend/backend directly:
+
+```sh
+npm install
+npm run docker:infra:up
+
+# Terminal 1
+npm run server
+
+# Terminal 2
+npm run dev
+```
+
+Stop infra-only services:
+
+```sh
+npm run docker:infra:down
+```
+
+## Auth Bootstrap
+
+- Register/login at `http://localhost:3000/login`.
+- If you want a seeded admin account, run:
+
+```sh
+node scripts/seed-admin.js
+```
+
+Defaults for the seeding script are `admin/admin` unless overridden by env vars.
 
 ## Configuration
 
-- See `.env.example` for environment variables (database URL, NextAuth secrets, server URLs).
+Use the example env files as baseline:
 
-## Dev vs Docker
+- `.env.example`
+- `.env.frontend.example`
+- `.env.db.example`
+- `.env.tiles.example`
+- `.env.geoserver.example`
 
-- Local dev (fastest HMR): run infra in Docker with `npm run docker:infra:up`, then run `npm run server` and `npm run dev` locally.
-- Full Docker stack (prod-like): run everything with `npm run docker:up` and stop with `npm run docker:down`.
-
-## Testing & Quality
+## Testing and Quality
 
 ```sh
-npm run astest             # AssemblyScript unit tests
-npm run wasm:check-exports # Validate WASM exports
-npm run lint               # eslint
-npm run format             # prettier
-```
+npm run test                # unit + frontend + assemblyscript
+npm run test:unit           # node test runner tests/unit/*.mjs
+npm run test:frontend       # jest frontend/tests
+npm run test:assemblyscript # as-test
+npm run test:e2e            # smoke e2e (requires SMOKE_E2E=true)
 
-> Jest is currently disabled; use `npm run astest` for physics tests.
+npm run wasm:check-exports  # wasm export contract check
+npm run lint                # eslint
+npm run lint:errors         # eslint --max-warnings 0
+npm run format              # prettier
+```
 
 ## Roadmap
 
-- See `roadmap.md` for the consolidated feature backlog and role/mode plans.
+- Product roadmap: `roadmap.md`
+- Refactor and quality backlog: `docs/refactor-backlog.md`
+- AI coding guardrails: `docs/ai-engineering-guardrails.md`
 
 ## Contributing Notes
 
-- Keep interfaces small at the WASM boundary; no default params; explicit types.
-- Avoid magic numbers—put constants in config modules.
-- Prefer pure functions for physics; isolate rendering, state, and transport.
+- Keep WASM boundary interfaces explicit and stable.
+- Avoid magic numbers; prefer named constants.
+- Prefer pure functions for physics/rules and isolate side effects.
