@@ -1,7 +1,7 @@
 const mockNextAuth = jest.fn(() => 'next-auth-handler');
 const mockCredentialsProvider = jest.fn((config: unknown) => config);
 const mockPrismaAdapter = jest.fn(() => ({ id: 'adapter' }));
-const mockCompareSync = jest.fn();
+const mockCompare = jest.fn();
 const mockSign = jest.fn(() => 'signed-token');
 const mockRecordAuthEvent = jest.fn();
 
@@ -32,7 +32,7 @@ jest.mock('../../../../../src/lib/prisma', () => ({
 jest.mock('bcryptjs', () => ({
   __esModule: true,
   default: {
-    compareSync: (...args: unknown[]) => mockCompareSync(...args),
+    compare: (...args: unknown[]) => mockCompare(...args),
   },
 }));
 
@@ -68,7 +68,7 @@ describe('pages/api/auth/[...nextauth]', () => {
     mockNextAuth.mockClear();
     mockCredentialsProvider.mockClear();
     mockPrismaAdapter.mockClear();
-    mockCompareSync.mockReset();
+    mockCompare.mockReset();
     mockSign.mockReset();
     mockSign.mockReturnValue('signed-token');
     mockRecordAuthEvent.mockReset();
@@ -99,7 +99,7 @@ describe('pages/api/auth/[...nextauth]', () => {
       safetyScore: 0.95,
       passwordHash: 'hashed',
     });
-    mockCompareSync.mockReturnValue(true);
+    mockCompare.mockResolvedValue(true);
 
     await expect(authorize(undefined, {})).resolves.toBeNull();
 
@@ -129,7 +129,7 @@ describe('pages/api/auth/[...nextauth]', () => {
       email: 'bob@example.com',
       passwordHash: 'hashed',
     });
-    mockCompareSync.mockReturnValue(false);
+    mockCompare.mockResolvedValue(false);
 
     for (let i = 0; i < 5; i += 1) {
       await expect(
@@ -141,7 +141,7 @@ describe('pages/api/auth/[...nextauth]', () => {
     ).rejects.toThrow('Too many failed attempts. Try again later.');
 
     nowSpy.mockReturnValue(1_000 + 10 * 60 * 1000 + 1);
-    mockCompareSync.mockReturnValue(true);
+    mockCompare.mockResolvedValue(true);
     await expect(
       authorize({ username: 'bob', password: 'good' }, {}),
     ).resolves.toEqual(expect.objectContaining({ id: 'u2' }));

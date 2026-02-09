@@ -1,4 +1,4 @@
-const mockHashSync = jest.fn();
+const mockHash = jest.fn();
 const mockFindFirst = jest.fn();
 const mockCreate = jest.fn();
 const mockRecordAuthEvent = jest.fn();
@@ -6,7 +6,7 @@ const mockRecordAuthEvent = jest.fn();
 jest.mock('bcryptjs', () => ({
   __esModule: true,
   default: {
-    hashSync: (...args: any[]) => mockHashSync(...args),
+    hash: (...args: any[]) => mockHash(...args),
   },
 }));
 
@@ -34,11 +34,11 @@ const makeRes = () => {
 
 describe('pages/api/register', () => {
   beforeEach(() => {
-    mockHashSync.mockReset();
+    mockHash.mockReset();
     mockFindFirst.mockReset();
     mockCreate.mockReset();
     mockRecordAuthEvent.mockReset();
-    mockHashSync.mockReturnValue('hashed-pass');
+    mockHash.mockResolvedValue('hashed-pass');
   });
 
   it('rejects non-POST requests', async () => {
@@ -102,7 +102,7 @@ describe('pages/api/register', () => {
       res as any,
     );
 
-    expect(mockHashSync).toHaveBeenCalledWith('secret', 10);
+    expect(mockHash).toHaveBeenCalledWith('secret', 10);
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

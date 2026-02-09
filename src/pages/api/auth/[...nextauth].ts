@@ -68,7 +68,10 @@ export const authOptions: NextAuthOptions = {
           recordFailure(key);
           return null;
         }
-        const ok = bcrypt.compareSync(credentials.password, user.passwordHash);
+        const ok = await bcrypt.compare(
+          credentials.password,
+          user.passwordHash,
+        );
         if (!ok) {
           recordFailure(key);
           return null;

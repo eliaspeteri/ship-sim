@@ -38,7 +38,7 @@ export default async function handler(
         .json({ success: false, error: 'Username already exists' });
     }
 
-    const passwordHash = bcrypt.hashSync(password, 10);
+    const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {
         name: username,
