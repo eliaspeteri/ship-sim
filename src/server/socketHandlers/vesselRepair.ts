@@ -3,6 +3,7 @@ import { prisma } from '../../lib/prisma';
 import {
   applyRepair,
   computeRepairCost,
+  DEFAULT_DAMAGE_STATE,
   mergeDamageState,
 } from '../../lib/damage';
 import { syncUserSocketsEconomy } from '../index';
@@ -50,7 +51,9 @@ export function registerVesselRepairHandler({
       return;
     }
 
-    const damageState = mergeDamageState(target.damageState);
+    const damageState = mergeDamageState(
+      target.damageState ?? DEFAULT_DAMAGE_STATE,
+    );
     const cost = computeRepairCost(damageState);
     if (cost <= 0) {
       callback?.({ ok: true, message: 'No repairs needed' });

@@ -4,6 +4,7 @@ import type {
   InterServerEvents,
   ServerToClientEvents,
   SocketData,
+  ChatMessageData,
 } from '../../types/socket.types';
 import type { SimpleVesselState } from '../../types/vessel.types';
 import type { EnvironmentState } from '../../types/environment.types';
@@ -80,7 +81,7 @@ export type SocketHandlerContext = {
     channel: string,
     before: number | undefined,
     take: number,
-  ) => Promise<{ messages: unknown[]; hasMore: boolean }>;
+  ) => Promise<{ messages: ChatMessageData[]; hasMore: boolean }>;
   getActiveMute: (
     userId: string | undefined,
     username: string | undefined,

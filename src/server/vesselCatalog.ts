@@ -51,11 +51,13 @@ const mergePhysicsConfig = (
   update?: VesselPhysicsConfig,
 ): VesselPhysicsConfig | undefined => {
   if (!base && !update) return undefined;
-  return {
+  const merged = {
     ...base,
     ...update,
     params: { ...(base?.params || {}), ...(update?.params || {}) },
   };
+  if (!merged.model || merged.schemaVersion === undefined) return undefined;
+  return merged as VesselPhysicsConfig;
 };
 
 const loadCatalogEntries = (): VesselCatalogEntry[] => {

@@ -12,6 +12,7 @@ export interface AuthenticatedUser {
   credits: number;
   experience: number;
   safetyScore: number;
+  spaceId?: string;
 }
 
 // Extend the Express Request interface to include the user property
@@ -44,6 +45,7 @@ const toAuthenticatedUser = (token: {
   credits?: number;
   experience?: number;
   safetyScore?: number;
+  spaceId?: string;
 }): AuthenticatedUser => {
   const baseRole: Role = token.role || 'player';
   const roles = expandRoles([baseRole]);
@@ -57,6 +59,7 @@ const toAuthenticatedUser = (token: {
     credits: token.credits ?? 0,
     experience: token.experience ?? 0,
     safetyScore: token.safetyScore ?? 1,
+    spaceId: token.spaceId,
   };
 };
 

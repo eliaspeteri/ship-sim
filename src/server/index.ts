@@ -13,6 +13,7 @@ import {
 } from './weatherSystem';
 import { Role, expandRoles, permissionsForRoles } from './roles';
 import {
+  ChatMessageData,
   ClientToServerEvents,
   InterServerEvents,
   ServerToClientEvents,
@@ -26,6 +27,7 @@ import {
   VesselVelocity,
 } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
+import type { DeepPartial } from '../types/utility';
 import { getDefaultRules, mapToRulesetType, Rules } from '../types/rules.types';
 import {
   ensurePosition,
@@ -140,7 +142,13 @@ const DEFAULT_ECONOMY_PROFILE = {
 };
 
 type VesselMode = 'player' | 'ai';
-type CoreVesselProperties = VesselState['properties'];
+type CoreVesselProperties = Pick<
+  VesselState['properties'],
+  'mass' | 'length' | 'beam' | 'draft'
+> &
+  Partial<
+    Omit<VesselState['properties'], 'mass' | 'length' | 'beam' | 'draft'>
+  >;
 export interface VesselRecord {
   id: string;
   spaceId?: string;
@@ -687,7 +695,7 @@ async function loadVesselsFromDb() {
   const rows = await prisma.vessel.findMany();
   if (!rows.length) return;
 
-  rows.forEach(row => {
+  rows.forEach((row: Parameters<typeof buildVesselRecordFromRow>[0]) => {
     const vessel = buildVesselRecordFromRow(row);
     if (vessel.mode === 'player' && vessel.crewIds.size === 0) {
       vessel.mode = 'ai';
@@ -992,7 +1000,7 @@ const getDefaultEnvironment = (name = 'Global'): EnvironmentState => ({
 
 const applyEnvironmentOverrides = (
   spaceId: string,
-  overrides: Partial<EnvironmentState>,
+  overrides: DeepPartial<EnvironmentState>,
 ): EnvironmentState => {
   const env = getEnvironmentForSpace(spaceId);
   const next: EnvironmentState = {
@@ -1384,17 +1392,7 @@ const loadChatHistory = async (
   channel: string,
   before?: number,
   limit = CHAT_HISTORY_PAGE_SIZE,
-): Promise<{
-  messages: {
-    id: string;
-    userId: string;
-    username: string;
-    message: string;
-    timestamp: number;
-    channel: string;
-  }[];
-  hasMore: boolean;
-}> => {
+): Promise<{ messages: ChatMessageData[]; hasMore: boolean }> => {
   const take = Math.min(Math.max(limit, 1), 50);
   const spaceId = channel.startsWith('space:') ? channel.split(':')[1] : null;
   const rows = await prisma.chatMessage.findMany({
@@ -1412,14 +1410,22 @@ const loadChatHistory = async (
   );
   const messages = rows
     .slice(0, take)
-    .map(r => ({
-      id: r.id,
-      userId: r.userId,
-      username: r.username,
-      message: r.message,
-      timestamp: r.createdAt.getTime(),
-      channel,
-    }))
+    .map(
+      (r: {
+        id: string;
+        userId: string;
+        username: string;
+        message: string;
+        createdAt: Date;
+      }) => ({
+        id: r.id,
+        userId: r.userId,
+        username: r.username,
+        message: r.message,
+        timestamp: r.createdAt.getTime(),
+        channel,
+      }),
+    )
     .reverse();
   return { messages, hasMore };
 };
@@ -1922,14 +1928,7 @@ io.on('connection', async socket => {
 
   // Send initial snapshot with recent chat history
   void (async () => {
-    let chatHistory: {
-      id: string;
-      userId: string;
-      username: string;
-      message: string;
-      timestamp: number;
-      channel: string;
-    }[] = [];
+    let chatHistory: ChatMessageData[] = [];
     try {
       const channelsToLoad = [`space:${spaceId}:global`];
       const vesselIdForChat =
@@ -1949,7 +1948,7 @@ io.on('connection', async socket => {
             return messages;
           } catch (err) {
             console.warn(`Failed to load chat history for ${channel}`, err);
-            return [] as typeof chatHistory;
+            return [] as ChatMessageData[];
           }
         }),
       );
@@ -2267,7 +2266,7 @@ async function processEnvironmentEvents() {
       if (event.payload) {
         env = applyEnvironmentOverrides(
           spaceId,
-          event.payload as Partial<EnvironmentState>,
+          event.payload as DeepPartial<EnvironmentState>,
         );
       }
       if (event.name) {
@@ -2304,7 +2303,7 @@ async function processEnvironmentEvents() {
       if (event.endPayload) {
         env = applyEnvironmentOverrides(
           spaceId,
-          event.endPayload as Partial<EnvironmentState>,
+          event.endPayload as DeepPartial<EnvironmentState>,
         );
       } else {
         const pattern = getWeatherPattern();
@@ -2335,10 +2334,14 @@ async function startServer() {
     await loadEnvironmentFromDb(DEFAULT_SPACE_ID);
     const spaces = await prisma.space.findMany({ select: { id: true } });
     await Promise.all(
-      spaces.map(space => seedDefaultMissions(space.id).catch(() => null)),
+      spaces.map((space: { id: string }) =>
+        seedDefaultMissions(space.id).catch(() => null),
+      ),
     );
     await Promise.all(
-      spaces.map(space => refreshSpaceMeta(space.id).catch(() => null)),
+      spaces.map((space: { id: string }) =>
+        refreshSpaceMeta(space.id).catch(() => null),
+      ),
     );
     server.listen(PORT, () => {
       console.info(`Server listening on port ${PORT}`);

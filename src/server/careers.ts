@@ -131,7 +131,9 @@ export const ensureUserCareers = async (userId: string) => {
     where: { userId },
     select: { careerId: true },
   });
-  const existingIds = new Set(existing.map(row => row.careerId));
+  const existingIds = new Set(
+    existing.map((row: { careerId: string }) => row.careerId),
+  );
   const createData = CAREERS.filter(career => !existingIds.has(career.id)).map(
     career => ({
       userId,

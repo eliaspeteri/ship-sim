@@ -101,16 +101,26 @@ export const getPortCongestion = async () => {
     _count: { _all: true },
   });
   const cargoMap = new Map(
-    cargoCounts.map(row => [row.portId || '', row._count._all]),
+    cargoCounts.map(
+      (row: { portId?: string | null; _count: { _all: number } }) => [
+        row.portId || '',
+        row._count._all,
+      ],
+    ),
   );
   const paxMap = new Map(
-    paxCounts.map(row => [row.originPortId || '', row._count._all]),
+    paxCounts.map(
+      (row: { originPortId?: string | null; _count: { _all: number } }) => [
+        row.originPortId || '',
+        row._count._all,
+      ],
+    ),
   );
   return ports.map(port => {
     const cap = PORT_CAPACITY[port.size as keyof typeof PORT_CAPACITY];
     const target = cap?.max ?? 10;
-    const cargo = cargoMap.get(port.id) || 0;
-    const pax = paxMap.get(port.id) || 0;
+    const cargo = Number(cargoMap.get(port.id) ?? 0);
+    const pax = Number(paxMap.get(port.id) ?? 0);
     const load = cargo + pax * 1.5;
     const ratio = Math.min(1, load / Math.max(1, target));
     return { portId: port.id, congestion: ratio };
@@ -214,7 +224,9 @@ export const sweepExpiredCargo = async (now: number) => {
   });
   if (!expired.length) return;
   await prisma.cargoLot.updateMany({
-    where: { id: { in: expired.map(lot => lot.id) } },
+    where: {
+      id: { in: expired.map((lot: { id: string }) => lot.id) },
+    },
     data: { status: 'expired' },
   });
   for (const lot of expired) {

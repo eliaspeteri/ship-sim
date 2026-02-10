@@ -20,7 +20,7 @@ export interface WeatherPattern {
   seaState: number;
   waterDepth: number;
   visibility: number;
-  timeOfDay: number;
+  timeOfDay?: number;
   precipitation: 'none' | 'rain' | 'snow' | 'fog';
   precipitationIntensity: number;
 }
@@ -215,7 +215,8 @@ export function getWeatherByCoordinates(
     // Colder regions - more likely to have snow and high winds
     const pattern = { ...generateRandomWeather() };
     pattern.precipitation = Math.random() > 0.5 ? 'snow' : 'none';
-    pattern.timeOfDay = (pattern.timeOfDay + 3) % 24; // Adjust for polar day/night cycles
+    const baseTime = pattern.timeOfDay ?? currentUtcTimeOfDay();
+    pattern.timeOfDay = (baseTime + 3) % 24; // Adjust for polar day/night cycles
     return pattern;
   } else if (isEquatorial) {
     // Equatorial regions - warmer, more stable weather
@@ -262,6 +263,8 @@ export function transitionWeather(
     }
     return lerp(a, b, t);
   };
+  const currentTimeOfDay = current.timeOfDay ?? currentUtcTimeOfDay();
+  const targetTimeOfDay = target.timeOfDay ?? currentTimeOfDay;
 
   return {
     name: `Transitioning to ${target.name}`,
@@ -295,7 +298,7 @@ export function transitionWeather(
     seaState: Math.round(lerp(current.seaState, target.seaState, progress)),
     waterDepth: lerp(current.waterDepth, target.waterDepth, progress),
     visibility: lerp(current.visibility, target.visibility, progress),
-    timeOfDay: lerp(current.timeOfDay, target.timeOfDay, progress) % 24,
+    timeOfDay: lerp(currentTimeOfDay, targetTimeOfDay, progress) % 24,
     precipitation:
       progress > 0.7 ? target.precipitation : current.precipitation,
     precipitationIntensity: lerp(
