@@ -120,7 +120,7 @@ describe('pages/spaces', () => {
       if (!card) {
         throw new Error('space-1 card not found');
       }
-      return card;
+      return card as HTMLElement;
     };
 
     fireEvent.click(screen.getByRole('button', { name: 'All spaces' }));
