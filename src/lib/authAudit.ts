@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from './prisma';
 
 export type AuthAuditEvent = {
@@ -12,7 +13,9 @@ export async function recordAuthEvent(payload: AuthAuditEvent) {
       data: {
         userId: payload.userId || null,
         event: payload.event,
-        detail: payload.detail || undefined,
+        detail: (payload.detail ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
       },
     });
   } catch (error) {

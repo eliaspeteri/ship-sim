@@ -55,6 +55,41 @@ const DEFAULT_MISSIONS: MissionSeed[] = [
   },
 ];
 
+const normalizeMissionProgress = (
+  progress: unknown,
+): MissionAssignmentData['progress'] | null => {
+  if (!progress || typeof progress !== 'object' || Array.isArray(progress)) {
+    return null;
+  }
+  return progress as MissionAssignmentData['progress'];
+};
+
+const toMissionAssignmentData = (assignment: {
+  id: string;
+  missionId: string;
+  userId: string;
+  vesselId?: string | null;
+  status: string;
+  progress?: unknown | null;
+  startedAt?: Date | null;
+  completedAt?: Date | null;
+  mission?: MissionDefinition | null;
+}): MissionAssignmentData => ({
+  id: assignment.id,
+  missionId: assignment.missionId,
+  userId: assignment.userId,
+  vesselId: assignment.vesselId ?? null,
+  status: assignment.status as MissionAssignmentData['status'],
+  progress: normalizeMissionProgress(assignment.progress),
+  startedAt: assignment.startedAt
+    ? assignment.startedAt.toISOString()
+    : undefined,
+  completedAt: assignment.completedAt
+    ? assignment.completedAt.toISOString()
+    : null,
+  mission: assignment.mission ?? undefined,
+});
+
 const MISSION_PICKUP_RADIUS_M = 220;
 const MISSION_DELIVERY_RADIUS_M = 260;
 
@@ -114,17 +149,17 @@ export async function assignMission(params: {
     return null;
   }
 
-  const existing = (await prisma.missionAssignment.findFirst({
+  const existing = await prisma.missionAssignment.findFirst({
     where: {
       userId: params.userId,
       status: { in: ['assigned', 'in_progress'] },
     },
-  })) as MissionAssignmentData | null;
+  });
   if (existing) {
-    return { ...existing, mission };
+    return { ...toMissionAssignmentData(existing), mission };
   }
 
-  const assignment = (await prisma.missionAssignment.create({
+  const assignment = await prisma.missionAssignment.create({
     data: {
       missionId: params.missionId,
       userId: params.userId,
@@ -132,9 +167,9 @@ export async function assignMission(params: {
       status: 'assigned',
       progress: { stage: 'pickup' },
     },
-  })) as MissionAssignmentData;
+  });
 
-  return { ...assignment, mission };
+  return { ...toMissionAssignmentData(assignment), mission };
 }
 
 export async function updateMissionAssignments(params: {
@@ -163,11 +198,17 @@ export async function updateMissionAssignments(params: {
       mission: { spaceId: params.spaceId },
     },
     include: { mission: true },
-  })) as MissionAssignmentData[];
+  })) as unknown[];
 
   if (!assignments.length) return;
 
-  for (const assignment of assignments) {
+  const normalizedAssignments = assignments.map(assignment =>
+    toMissionAssignmentData(
+      assignment as Parameters<typeof toMissionAssignmentData>[0],
+    ),
+  );
+
+  for (const assignment of normalizedAssignments) {
     const mission = assignment.mission as MissionDefinition | undefined;
     if (!mission) continue;
     const vesselId = assignment.vesselId || undefined;
@@ -192,12 +233,12 @@ export async function updateMissionAssignments(params: {
       if (distance <= MISSION_PICKUP_RADIUS_M) {
         progress.stage = 'delivery';
         progress.pickedUpAt = Date.now();
-        const updated = (await prisma.missionAssignment.update({
+        const updated = await prisma.missionAssignment.update({
           where: { id: assignment.id },
           data: { status: 'in_progress', progress },
-        })) as MissionAssignmentData;
+        });
         params.emitUpdate?.(assignment.userId, {
-          ...updated,
+          ...toMissionAssignmentData(updated),
           mission,
         });
       }
@@ -207,10 +248,10 @@ export async function updateMissionAssignments(params: {
     if (progress.stage === 'delivery') {
       const distance = distanceMeters(vessel.position, destPos);
       if (distance <= MISSION_DELIVERY_RADIUS_M) {
-        const updated = (await prisma.missionAssignment.update({
+        const updated = await prisma.missionAssignment.update({
           where: { id: assignment.id },
           data: { status: 'completed', completedAt: new Date(), progress },
-        })) as MissionAssignmentData;
+        });
         const profile = await applyEconomyAdjustmentWithRevenueShare({
           userId: assignment.userId,
           vesselId: assignment.vesselId,
@@ -256,16 +297,20 @@ export async function updateMissionAssignments(params: {
             delta: 0.5,
           });
         }
-        params.emitUpdate?.(assignment.userId, { ...updated, mission });
+        const normalizedUpdated = toMissionAssignmentData(updated);
+        params.emitUpdate?.(assignment.userId, {
+          ...normalizedUpdated,
+          mission,
+        });
         params.emitEconomyUpdate?.(assignment.userId, profile);
         params.emitUpdate?.(assignment.userId, {
-          ...updated,
+          ...normalizedUpdated,
           mission,
           progress: {
             ...progress,
             awardedCredits: mission.rewardCredits,
             newRank: profile.rank,
-          } as Record<string, unknown>,
+          },
         });
       }
     }

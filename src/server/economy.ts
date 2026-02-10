@@ -8,6 +8,7 @@ import {
   VesselRecord,
 } from '.';
 import { distanceMeters, positionFromXY } from '../lib/position';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { VesselPose } from '../types/vessel.types';
 
@@ -199,7 +200,9 @@ export async function applyEconomyAdjustment(
         vesselId: adjustment.vesselId || null,
         amount: adjustment.deltaCredits ?? 0,
         reason: adjustment.reason,
-        meta: adjustment.meta || undefined,
+        meta: (adjustment.meta ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
       },
     });
   }
@@ -254,7 +257,9 @@ const ensureCrewContracts = async (vessel: VesselRecord) => {
     },
     select: { userId: true },
   });
-  const existingByUser = new Set(existing.map(row => row.userId));
+  const existingByUser = new Set(
+    existing.map((row: { userId: string }) => row.userId),
+  );
   const createData = crewIds
     .filter(userId => !existingByUser.has(userId))
     .map(userId => ({

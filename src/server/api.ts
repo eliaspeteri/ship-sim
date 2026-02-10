@@ -1,5 +1,6 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { authenticateRequest, requireAuth } from './middleware/authentication';
 import { requirePermission, requireRole } from './middleware/authorization';
@@ -309,18 +310,29 @@ router.get('/vessels', async (req, res) => {
       orderBy: { lastUpdate: 'desc' },
     });
     res.json(
-      vessels.map(vessel => ({
-        id: vessel.id,
-        spaceId: vessel.spaceId,
-        ownerId: vessel.ownerId,
-        mode: vessel.mode,
-        isAi: vessel.isAi,
-        lastUpdate: vessel.lastUpdate?.getTime?.() ?? null,
-        position: {
-          lat: vessel.lat,
-          lon: vessel.lon,
-        },
-      })),
+      vessels.map(
+        (vessel: {
+          id: string;
+          spaceId: string;
+          ownerId: string | null;
+          mode: string;
+          isAi: boolean;
+          lastUpdate?: Date | null;
+          lat: number;
+          lon: number;
+        }) => ({
+          id: vessel.id,
+          spaceId: vessel.spaceId,
+          ownerId: vessel.ownerId,
+          mode: vessel.mode,
+          isAi: vessel.isAi,
+          lastUpdate: vessel.lastUpdate?.getTime?.() ?? null,
+          position: {
+            lat: vessel.lat,
+            lon: vessel.lon,
+          },
+        }),
+      ),
     );
   } catch (err) {
     console.error('Failed to load vessels', err);
@@ -727,7 +739,9 @@ router.post('/scenarios/:scenarioId/start', requireAuth, async (req, res) => {
           spaceId: space.id,
           name: scenario.name,
           pattern: scenario.weatherPattern || null,
-          payload: scenario.environmentOverrides || null,
+          payload: scenario.environmentOverrides
+            ? (scenario.environmentOverrides as Prisma.InputJsonValue)
+            : undefined,
           runAt: new Date(),
           enabled: true,
           createdBy: req.user?.userId || null,
@@ -955,13 +969,14 @@ router.post('/economy/vessels/purchase', requireAuth, async (req, res) => {
       storagePortId: portId,
       portId,
     });
-    await prisma.$transaction([
-      prisma.user.update({
+    await prisma.$transaction(async tx => {
+      const txClient = tx as unknown as typeof prisma;
+      await txClient.user.update({
         where: { id: req.user!.userId },
         data: { credits: { decrement: price } },
-      }),
-      prisma.vessel.create({ data: vesselData }),
-    ]);
+      });
+      await txClient.vessel.create({ data: vesselData });
+    });
     res.json({ vesselId, templateId: template.id });
   } catch (err) {
     console.error('Failed to purchase vessel', err);
@@ -1030,8 +1045,9 @@ router.post('/economy/vessels/lease', requireAuth, async (req, res) => {
       leaseeId: leaseType === 'lease' ? req.user!.userId : null,
     });
     const lease = await prisma.$transaction(async tx => {
-      await tx.vessel.create({ data: vesselData });
-      return tx.vesselLease.create({
+      const txClient = tx as unknown as typeof prisma;
+      await txClient.vessel.create({ data: vesselData });
+      return txClient.vesselLease.create({
         data: {
           vesselId,
           ownerId: shipyard.id,
@@ -1733,12 +1749,13 @@ router.post('/economy/leases/end', requireAuth, async (req, res) => {
       : null;
     const port = position ? resolvePortForPosition(position) : null;
     const stored = Boolean(port);
-    await prisma.$transaction([
-      prisma.vesselLease.update({
+    await prisma.$transaction(async tx => {
+      const txClient = tx as unknown as typeof prisma;
+      await txClient.vesselLease.update({
         where: { id: lease.id },
         data: { status: 'completed', endsAt: now },
-      }),
-      prisma.vessel.update({
+      });
+      await txClient.vessel.update({
         where: { id: lease.vesselId },
         data: {
           status: stored ? 'stored' : 'active',
@@ -1749,8 +1766,8 @@ router.post('/economy/leases/end', requireAuth, async (req, res) => {
           mode: 'ai',
           desiredMode: 'ai',
         },
-      }),
-    ]);
+      });
+    });
     res.json({ ok: true });
   } catch (err) {
     console.error('Failed to end lease', err);
@@ -2088,6 +2105,12 @@ const serializeSpace = (space: {
   createdBy: space.createdBy || undefined,
 });
 
+type SpaceWithMeta = Parameters<typeof serializeSpace>[0] & {
+  createdAt: Date;
+  updatedAt: Date;
+  passwordHash?: string | null;
+};
+
 const mergeSpaces = (
   base: ReturnType<typeof serializeSpace>[],
   extra: ReturnType<typeof serializeSpace>[],
@@ -2125,12 +2148,16 @@ router.get('/spaces', async (req, res) => {
         where: { userId: req.user.userId },
         select: { spaceId: true },
       });
-      const ids = known.map(k => k.spaceId).filter(Boolean);
+      const ids = known
+        .map((k: { spaceId?: string | null }) => k.spaceId)
+        .filter((id): id is string => typeof id === 'string');
       if (ids.length > 0) {
         const knownSpaces = await prisma.space.findMany({
           where: { id: { in: ids } },
         });
-        knownSpaces.map(serializeSpace).forEach(s => collected.push(s));
+        knownSpaces
+          .map(serializeSpace)
+          .forEach((s: ReturnType<typeof serializeSpace>) => collected.push(s));
       }
     }
 
@@ -2284,7 +2311,7 @@ router.get('/spaces/mine', requireAuth, async (req, res) => {
       orderBy: { createdAt: 'desc' },
     });
     res.json({
-      spaces: spaces.map(space => ({
+      spaces: spaces.map((space: SpaceWithMeta) => ({
         ...serializeSpace(space),
         createdAt: space.createdAt,
         updatedAt: space.updatedAt,
@@ -2312,7 +2339,7 @@ router.get('/spaces/manage', requireAuth, async (req, res) => {
       res.json({ spaces: [] });
       return;
     }
-    const spaceIds = spaces.map(space => space.id);
+    const spaceIds = spaces.map((space: { id: string }) => space.id);
     const activeSince = new Date(Date.now() - 2 * 60 * 1000);
     const [vesselCounts, activeCounts] = await Promise.all([
       prisma.vessel.groupBy({
@@ -2330,13 +2357,23 @@ router.get('/spaces/manage', requireAuth, async (req, res) => {
       }),
     ]);
     const vesselCountMap = new Map(
-      vesselCounts.map(entry => [entry.spaceId, entry._count._all]),
+      vesselCounts.map(
+        (entry: { spaceId: string; _count: { _all: number } }) => [
+          entry.spaceId,
+          entry._count._all,
+        ],
+      ),
     );
     const activeCountMap = new Map(
-      activeCounts.map(entry => [entry.spaceId, entry._count._all]),
+      activeCounts.map(
+        (entry: { spaceId: string; _count: { _all: number } }) => [
+          entry.spaceId,
+          entry._count._all,
+        ],
+      ),
     );
     res.json({
-      spaces: spaces.map(space => ({
+      spaces: spaces.map((space: SpaceWithMeta) => ({
         ...serializeSpace(space),
         createdAt: space.createdAt,
         updatedAt: space.updatedAt,
