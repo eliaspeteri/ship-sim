@@ -1,5 +1,9 @@
 import { renderHook, act } from '@testing-library/react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useLeverDrag } from '../../src/hooks/useLeverDrag';
+
+const asReactMouseEvent = (event: MouseEvent) =>
+  event as unknown as ReactMouseEvent<Element>;
 
 describe('useLeverDrag', () => {
   it('initializes with initialValue', () => {
@@ -46,7 +50,7 @@ describe('useLeverDrag', () => {
     act(() => {
       const event = new MouseEvent('mousedown', { clientX: 100, clientY: 100 });
       jest.spyOn(event, 'preventDefault').mockImplementation(() => {});
-      result.current.handleMouseDown(event);
+      result.current.handleMouseDown(asReactMouseEvent(event));
     });
 
     rerender({ initialValue: 75 });
@@ -69,7 +73,7 @@ describe('useLeverDrag', () => {
     act(() => {
       const event = new MouseEvent('mousedown', { clientX: 100, clientY: 100 });
       jest.spyOn(event, 'preventDefault').mockImplementation(() => {});
-      result.current.handleMouseDown(event);
+      result.current.handleMouseDown(asReactMouseEvent(event));
     });
 
     act(() => {
@@ -101,7 +105,7 @@ describe('useLeverDrag', () => {
     act(() => {
       const event = new MouseEvent('mousedown', { clientX: 100, clientY: 100 });
       jest.spyOn(event, 'preventDefault').mockImplementation(() => {});
-      result.current.handleMouseDown(event);
+      result.current.handleMouseDown(asReactMouseEvent(event));
     });
 
     act(() => {
@@ -132,7 +136,7 @@ describe('useLeverDrag', () => {
     act(() => {
       const event = new MouseEvent('mousedown', { clientX: 100, clientY: 100 });
       jest.spyOn(event, 'preventDefault').mockImplementation(() => {});
-      result.current.handleMouseDown(event);
+      result.current.handleMouseDown(asReactMouseEvent(event));
     });
 
     act(() => {
@@ -199,7 +203,7 @@ describe('useLeverDrag', () => {
     act(() => {
       const event = new MouseEvent('mousedown', { clientX: 100, clientY: 100 });
       jest.spyOn(event, 'preventDefault').mockImplementation(() => {});
-      result.current.handleMouseDown(event);
+      result.current.handleMouseDown(asReactMouseEvent(event));
     });
 
     expect(result.current.isDragging).toBe(true);
@@ -228,7 +232,7 @@ describe('useLeverDrag', () => {
     act(() => {
       const event = new MouseEvent('mousedown', { clientX: 10, clientY: 10 });
       jest.spyOn(event, 'preventDefault').mockImplementation(() => {});
-      result.current.handleMouseDown(event);
+      result.current.handleMouseDown(asReactMouseEvent(event));
     });
 
     expect(document.body.style.cursor).toBe('ew-resize');
@@ -266,7 +270,7 @@ describe('useLeverDrag', () => {
     act(() => {
       const event = new MouseEvent('mousedown', { clientX: 0, clientY: 0 });
       jest.spyOn(event, 'preventDefault').mockImplementation(() => {});
-      result.current.handleMouseDown(event);
+      result.current.handleMouseDown(asReactMouseEvent(event));
     });
 
     act(() => {
@@ -295,7 +299,7 @@ describe('useLeverDrag', () => {
     act(() => {
       const event = new MouseEvent('mousedown', { clientX: 5, clientY: 5 });
       jest.spyOn(event, 'preventDefault').mockImplementation(() => {});
-      result.current.handleMouseDown(event);
+      result.current.handleMouseDown(asReactMouseEvent(event));
     });
 
     expect(document.body.style.cursor).toBe('ns-resize');

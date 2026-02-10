@@ -106,8 +106,8 @@ describe('EditorViewport', () => {
               minLon: 24,
               maxLon: 25,
             },
-            zoomHint: 10,
-            overlays: [],
+            allowedZoom: [0, 16],
+            sources: [],
           },
         ]}
       />,

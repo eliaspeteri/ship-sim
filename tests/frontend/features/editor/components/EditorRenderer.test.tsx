@@ -46,6 +46,7 @@ jest.mock('@react-three/drei', () => {
         return <div data-testid="orbit-controls" />;
       },
     ),
+    Line: () => <div data-testid="line" />,
   };
 });
 
@@ -121,8 +122,8 @@ describe('EditorRenderer', () => {
               minLon: 24,
               maxLon: 25,
             },
-            zoomHint: 10,
-            overlays: [],
+            allowedZoom: [0, 16],
+            sources: [],
           },
         ]}
       />,

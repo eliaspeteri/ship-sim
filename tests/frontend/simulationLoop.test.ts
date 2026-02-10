@@ -340,7 +340,9 @@ describe('simulation loop', () => {
     (loop as any).updateUIFromPhysics();
 
     expect(storeState.updateVessel).toHaveBeenCalled();
-    const eventTypes = storeState.addEvent.mock.calls.map(call => call[0].type);
+    const eventTypes = (
+      storeState.addEvent.mock.calls as Array<[{ type: string }]>
+    ).map(call => call[0].type);
     expect(eventTypes).toEqual(
       expect.arrayContaining(['grounding', 'low_fuel']),
     );
@@ -404,11 +406,11 @@ describe('simulation loop', () => {
   });
 
   it('start/stop schedules and cancels animation frames', () => {
-    let rafCallback: ((time: number) => void) | null = null;
+    let rafCallback: ((time: number) => void) | undefined;
     const rafSpy = jest
       .spyOn(global, 'requestAnimationFrame' as any)
-      .mockImplementation(cb => {
-        rafCallback = cb;
+      .mockImplementation((cb: unknown) => {
+        rafCallback = cb as (time: number) => void;
         return 1 as unknown as number;
       });
     const cancelSpy = jest

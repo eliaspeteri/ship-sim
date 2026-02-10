@@ -20,6 +20,7 @@ describe('registerVesselUpdateHandler', () => {
       position: { lat: 0, lon: 0, z: 0 },
       orientation: { heading: 0, roll: 0, pitch: 0 },
       velocity: { surge: 0, sway: 0, heave: 0 },
+      yawRate: 0,
       lastUpdate: 0,
     };
 

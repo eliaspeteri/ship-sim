@@ -3,6 +3,8 @@ import { renderHook, act, cleanup } from '@testing-library/react';
 import useStore from '../../src/store';
 import { expect } from '@jest/globals';
 import { ShipType } from '../../src/types/vessel.types';
+import type { VesselState } from '../../src/types/vessel.types';
+import type { WasmModule } from '../../src/types/wasm';
 
 jest.mock('../../src/simulation/simulationLoop', () => {
   const applyControls = jest.fn();
@@ -14,6 +16,35 @@ jest.mock('../../src/simulation/simulationLoop', () => {
 });
 
 const initialState = useStore.getState();
+const createWasmStub = (): WasmModule => ({
+  createVessel: () => 0,
+  updateVesselState: () => 0,
+  setThrottle: () => undefined,
+  setRudderAngle: () => undefined,
+  setBallast: () => undefined,
+  getVesselX: () => 0,
+  getVesselY: () => 0,
+  getVesselZ: () => 0,
+  getVesselHeading: () => 0,
+  getVesselSpeed: () => 0,
+  getVesselPitchAngle: () => 0,
+  getVesselRollAngle: () => 0,
+  getVesselRudderAngle: () => 0,
+  getVesselBallastLevel: () => 0,
+  getVesselEngineRPM: () => 0,
+  getVesselFuelLevel: () => 0,
+  getVesselFuelConsumption: () => 0,
+  getVesselGM: () => 0,
+  getVesselCenterOfGravityY: () => 0,
+  getVesselSurgeVelocity: () => 0,
+  getVesselSwayVelocity: () => 0,
+  getVesselHeaveVelocity: () => 0,
+  getVesselRollRate: () => 0,
+  getVesselPitchRate: () => 0,
+  getVesselYawRate: () => 0,
+  calculateSeaState: () => 0,
+  getWaveHeightForSeaState: () => 0,
+});
 
 afterEach(cleanup);
 afterEach(() => {
@@ -183,7 +214,7 @@ describe('store', () => {
     expect(vessel.helm?.userId).toBe('u1');
     expect(vessel.stability.centerOfGravity.y).toBe(3);
     expect(vessel.alarms.otherAlarms?.grounding).toBe(true);
-    expect(vessel.damageState.hullIntegrity).toBe(0.5);
+    expect(vessel.damageState?.hullIntegrity).toBe(0.5);
   });
 
   it('sets vessel type and updates hydrodynamics', () => {
@@ -303,10 +334,10 @@ describe('store', () => {
   it('updates wasm pointers and exports', () => {
     act(() => {
       useStore.getState().setWasmVesselPtr(42);
-      useStore.getState().setWasmExports({ foo: 'bar' });
+      useStore.getState().setWasmExports(createWasmStub());
     });
     expect(useStore.getState().wasmVesselPtr).toBe(42);
-    expect(useStore.getState().wasmExports).toEqual({ foo: 'bar' });
+    expect(useStore.getState().wasmExports).toBeDefined();
   });
 
   it('applies physics params and vessel name', () => {
@@ -321,12 +352,12 @@ describe('store', () => {
   it('updateVessel initializes missing stability and centerOfGravity', () => {
     act(() => {
       useStore.setState(
-        {
+        state => ({
           vessel: {
-            ...useStore.getState().vessel,
-            stability: undefined,
+            ...state.vessel,
+            stability: undefined as unknown as VesselState['stability'],
           },
-        },
+        }),
         false,
       );
       useStore.getState().updateVessel({

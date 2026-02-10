@@ -23,7 +23,10 @@ const baseState = {
 
 const renderWithState = (stateOverride: Partial<typeof baseState>) => {
   const state = { ...baseState, ...stateOverride };
-  useStoreMock.mockImplementation(selector => selector(state));
+  type StoreState = typeof state;
+  useStoreMock.mockImplementation(
+    (selector: (storeState: StoreState) => unknown) => selector(state),
+  );
   useThreeMock.mockReturnValue({ camera: new THREE.PerspectiveCamera() });
   return render(<SeamarkSprites />);
 };

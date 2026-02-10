@@ -1,17 +1,20 @@
 import { recordAuthEvent } from '../../../src/lib/authAudit';
-import { prismaMock } from './prismaMock';
+const { prismaMock } = require('./prismaMock');
 
 jest.mock('../../../src/lib/prisma', () => ({
-  prisma: {
-    authEvent: {
-      create: jest.fn(),
-    },
-  },
+  prisma: require('./prismaMock').prismaMock,
 }));
 
 describe('recordAuthEvent', () => {
+  let warnSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
+    warnSpy.mockRestore();
   });
 
   it('records auth events with normalized payload', async () => {

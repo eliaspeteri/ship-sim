@@ -1,9 +1,16 @@
 describe('customWasmLoader', () => {
   const originalEnv = process.env.NODE_ENV;
   const originalFetch = global.fetch;
+  const setNodeEnv = (value: string | undefined) => {
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value,
+      writable: true,
+      configurable: true,
+    });
+  };
 
   afterEach(() => {
-    process.env.NODE_ENV = originalEnv;
+    setNodeEnv(originalEnv);
     if (originalFetch) {
       global.fetch = originalFetch;
     } else {
@@ -15,7 +22,7 @@ describe('customWasmLoader', () => {
 
   it('loads and caches the module in development mode', async () => {
     jest.resetModules();
-    process.env.NODE_ENV = 'development';
+    setNodeEnv('development');
 
     const fetchMock = jest.fn().mockResolvedValue({
       ok: true,
@@ -152,7 +159,7 @@ describe('customWasmLoader', () => {
 
   it('throws when fetch fails in production mode', async () => {
     jest.resetModules();
-    process.env.NODE_ENV = 'production';
+    setNodeEnv('production');
 
     const fetchMock = jest.fn().mockResolvedValue({
       ok: false,

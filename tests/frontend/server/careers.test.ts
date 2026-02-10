@@ -18,7 +18,12 @@ const loadCareers = async () => {
 describe('server/careers', () => {
   beforeEach(() => {
     Object.values(prismaMock).forEach(group => {
-      Object.values(group).forEach(fn => fn.mockReset());
+      if (typeof group !== 'object' || group === null) return;
+      Object.values(group).forEach(fn => {
+        if (typeof fn === 'function' && 'mockReset' in fn) {
+          (fn as jest.Mock).mockReset();
+        }
+      });
     });
     getScenariosMock.mockReset();
     getScenariosMock.mockReturnValue([

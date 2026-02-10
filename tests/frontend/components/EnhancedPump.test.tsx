@@ -15,6 +15,7 @@ describe('EnhancedPump', () => {
       value: 0.6,
       isDragging: false,
       handleMouseDown: jest.fn(),
+      handleDoubleClick: jest.fn(),
     });
   });
 

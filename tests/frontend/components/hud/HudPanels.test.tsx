@@ -196,7 +196,9 @@ describe('HudPanels exports', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Release' }));
     expect(onRequestStation).toHaveBeenCalledWith('helm', 'release');
 
-    const claimButtons = screen.getAllByRole('button', { name: 'Claim' });
+    const claimButtons = screen.getAllByRole('button', {
+      name: 'Claim',
+    }) as HTMLButtonElement[];
     const enabledClaimButton = claimButtons.find(button => !button.disabled);
     const disabledClaimButton = claimButtons.find(button => button.disabled);
 

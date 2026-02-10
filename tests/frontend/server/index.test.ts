@@ -1,5 +1,12 @@
 import type { VesselRecord } from '../../../src/server/index';
 
+type TestSocketData = {
+  userId?: string;
+  roles?: string[];
+  mode?: string;
+  autoJoin?: boolean;
+};
+
 const mockIo = {
   in: jest.fn(),
   to: jest.fn(),
@@ -781,7 +788,7 @@ describe('server/index', () => {
     const mod = await loadModule();
     const socket = {
       handshake: { headers: { cookie: '' }, auth: { token: 'abc' } },
-      data: {},
+      data: {} as TestSocketData,
       join: jest.fn(),
     };
     const next = jest.fn();
@@ -801,7 +808,7 @@ describe('server/index', () => {
     });
     const socket = {
       handshake: { headers: { cookie: '' }, auth: { token: 'bad' } },
-      data: {},
+      data: {} as TestSocketData,
       join: jest.fn(),
     };
     const next = jest.fn();
@@ -822,7 +829,7 @@ describe('server/index', () => {
     });
     const socket = {
       handshake: { headers: { cookie: '' }, auth: { token: 'abc' } },
-      data: {},
+      data: {} as TestSocketData,
       join: jest.fn(),
     };
     const next = jest.fn();
@@ -838,7 +845,7 @@ describe('server/index', () => {
     const app = (express.default as unknown as jest.Mock)();
     const req = { method: 'GET', path: '/vessels' };
     const candidates = app.use.mock.calls
-      .map(call => call[0])
+      .map((call: [unknown]) => call[0])
       .filter((fn: any) => typeof fn === 'function');
     let middleware: ((req: any, res: any, next: any) => void) | null = null;
     for (const candidate of candidates) {
@@ -873,7 +880,8 @@ describe('server/index', () => {
       .mockReturnValueOnce(BigInt(300_000_000));
 
     middleware!(req, res, next);
-    finishCb?.();
+    const finish = finishCb as (() => void) | null;
+    finish?.();
 
     expect(next).toHaveBeenCalled();
     expect(recordLog).toHaveBeenCalledWith(

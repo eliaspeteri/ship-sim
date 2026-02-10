@@ -25,12 +25,16 @@ describe('EventLog', () => {
         {
           id: 'event-1',
           message: 'Engine overheat',
+          category: 'engine',
+          type: 'overheat',
           severity: 'critical',
           timestamp: 1000,
         },
         {
           id: 'event-2',
           message: 'Fuel low',
+          category: 'engine',
+          type: 'fuel_low',
           severity: 'warning',
           timestamp: 2000,
         },

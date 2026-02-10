@@ -30,7 +30,10 @@ jest.mock(
 );
 
 describe('EditorInspectorPanel', () => {
-  const baseProps = {
+  const baseProps: Omit<
+    React.ComponentProps<typeof EditorInspectorPanel>,
+    'isOpen'
+  > = {
     layers: [
       {
         id: 'l1',

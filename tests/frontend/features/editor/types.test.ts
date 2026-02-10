@@ -7,10 +7,7 @@ describe('editor types guards', () => {
   it('detects polygon and bbox bounds', () => {
     const polygon = {
       type: 'polygon' as const,
-      coordinates: [
-        [60, 24],
-        [61, 25],
-      ],
+      coordinates: [[60, 24] as [number, number], [61, 25] as [number, number]],
     };
     const bbox = {
       type: 'bbox' as const,

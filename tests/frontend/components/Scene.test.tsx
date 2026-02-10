@@ -204,7 +204,10 @@ describe('Scene', () => {
 
   it('renders callout and admin actions for selected vessel in spectator mode', async () => {
     const state = buildState();
-    useStoreMock.mockImplementation(selector => selector(state));
+    type StoreState = typeof state;
+    useStoreMock.mockImplementation(
+      (selector: (storeState: StoreState) => unknown) => selector(state),
+    );
 
     render(
       <Scene
@@ -234,7 +237,10 @@ describe('Scene', () => {
 
   it('does not expose admin actions in player mode', async () => {
     const state = buildState({ roles: [], otherVessels: {} });
-    useStoreMock.mockImplementation(selector => selector(state));
+    type StoreState = typeof state;
+    useStoreMock.mockImplementation(
+      (selector: (storeState: StoreState) => unknown) => selector(state),
+    );
 
     render(
       <Scene
@@ -275,7 +281,10 @@ describe('Scene', () => {
     document.body.appendChild(footer);
 
     const state = buildState();
-    useStoreMock.mockImplementation(selector => selector(state));
+    type StoreState = typeof state;
+    useStoreMock.mockImplementation(
+      (selector: (storeState: StoreState) => unknown) => selector(state),
+    );
 
     const { container } = render(
       <Scene

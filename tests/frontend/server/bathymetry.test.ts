@@ -1,7 +1,9 @@
 import { jest } from '@jest/globals';
 
+type ReadFileMock = (path: string) => Promise<string>;
+
 jest.mock('fs/promises', () => {
-  const readFile = jest.fn();
+  const readFile = jest.fn<ReadFileMock>();
   return {
     __esModule: true,
     readFile,
@@ -9,10 +11,16 @@ jest.mock('fs/promises', () => {
   };
 });
 
-const loadModule = async (setupFs?: (readFile: jest.Mock) => void) => {
+const loadModule = async (
+  setupFs?: (readFile: jest.MockedFunction<ReadFileMock>) => void,
+) => {
   jest.resetModules();
   const fs = await import('fs/promises');
-  const readFile = (fs.default as { readFile: jest.Mock }).readFile;
+  const readFile = (
+    fs.default as unknown as {
+      readFile: jest.MockedFunction<ReadFileMock>;
+    }
+  ).readFile;
   if (setupFs) setupFs(readFile);
   return import('../../../src/server/bathymetry');
 };

@@ -138,34 +138,36 @@ describe('editorPacksStore', () => {
       name: 'My-Pack',
       description: 'Second one',
     });
-    expect(created.pack.slug).toBe('my-pack-2');
-    expect(created.pack.id).toBe('pack-123456789');
+    expect(created.pack).toBeDefined();
+    const createdPack = created.pack!;
+    expect(createdPack.slug).toBe('my-pack-2');
+    expect(createdPack.id).toBe('pack-123456789');
 
-    const draftToSubmitted = transitionPackStatus(created.pack.id, 'submitted');
+    const draftToSubmitted = transitionPackStatus(createdPack.id, 'submitted');
     expect(draftToSubmitted).toEqual(
       expect.objectContaining({ status: 'submitted' }),
     );
     const submittedToPublished = transitionPackStatus(
-      created.pack.id,
+      createdPack.id,
       'published',
     );
     expect(submittedToPublished).toEqual(
       expect.objectContaining({ status: 'published', visibility: 'published' }),
     );
-    expect(transitionPackStatus(created.pack.id, 'draft')).toBeNull();
+    expect(transitionPackStatus(createdPack.id, 'draft')).toBeNull();
 
-    const updated = updatePack(created.pack.id, {
+    const updated = updatePack(createdPack.id, {
       description: 'Updated description',
     });
     expect(updated).toEqual(
       expect.objectContaining({ description: 'Updated description' }),
     );
-    expect(getPack(created.pack.id)).toEqual(
-      expect.objectContaining({ id: created.pack.id }),
+    expect(getPack(createdPack.id)).toEqual(
+      expect.objectContaining({ id: createdPack.id }),
     );
 
-    expect(deletePack(created.pack.id)).toBe(true);
-    expect(deletePack(created.pack.id)).toBe(false);
+    expect(deletePack(createdPack.id)).toBe(true);
+    expect(deletePack(createdPack.id)).toBe(false);
 
     dateNowSpy.mockRestore();
   });

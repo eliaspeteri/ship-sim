@@ -1,24 +1,30 @@
 import { prismaMock } from '../../../lib/prismaMock';
 
-const mockNextAuth = jest.fn(() => 'next-auth-handler');
-const mockCredentialsProvider = jest.fn((config: unknown) => config);
-const mockPrismaAdapter = jest.fn(() => ({ id: 'adapter' }));
+const mockNextAuth = jest.fn<unknown, unknown[]>(() => 'next-auth-handler');
+const mockCredentialsProvider = jest.fn<unknown, unknown[]>(
+  (config: unknown) => config,
+);
+const mockPrismaAdapter = jest.fn<unknown, unknown[]>(() => ({
+  id: 'adapter',
+}));
 const mockCompare = jest.fn();
-const mockSign = jest.fn(() => 'signed-token');
+const mockSign = jest.fn<unknown, unknown[]>(() => 'signed-token');
 const mockRecordAuthEvent = jest.fn();
 
 jest.mock('next-auth', () => ({
   __esModule: true,
-  default: (...args: unknown[]) => mockNextAuth(...args),
+  default: (...args: Parameters<typeof mockNextAuth>) => mockNextAuth(...args),
 }));
 
 jest.mock('next-auth/providers/credentials', () => ({
   __esModule: true,
-  default: (...args: unknown[]) => mockCredentialsProvider(...args),
+  default: (...args: Parameters<typeof mockCredentialsProvider>) =>
+    mockCredentialsProvider(...args),
 }));
 
 jest.mock('@next-auth/prisma-adapter', () => ({
-  PrismaAdapter: (...args: unknown[]) => mockPrismaAdapter(...args),
+  PrismaAdapter: (...args: Parameters<typeof mockPrismaAdapter>) =>
+    mockPrismaAdapter(...args),
 }));
 
 jest.mock('../../../../../src/lib/prisma', () => ({
@@ -35,7 +41,7 @@ jest.mock('bcryptjs', () => ({
 jest.mock('jsonwebtoken', () => ({
   __esModule: true,
   default: {
-    sign: (...args: unknown[]) => mockSign(...args),
+    sign: (...args: Parameters<typeof mockSign>) => mockSign(...args),
   },
 }));
 
@@ -50,7 +56,7 @@ const loadModule = async () => {
 
 const getAuthorize = async () => {
   const mod = await loadModule();
-  const provider = mod.authOptions.providers?.[0] as {
+  const provider = mod.authOptions.providers?.[0] as unknown as {
     authorize: (
       credentials: { username?: string; password?: string } | undefined,
       req: unknown,

@@ -1,8 +1,11 @@
 import bcrypt from 'bcryptjs';
+const { prismaMock } = require('../lib/prismaMock');
 
 type MockedAsync = jest.Mock<Promise<unknown>, [unknown?]>;
 
-const getLogsMock = jest.fn(() => []);
+const getLogsMock = jest.fn<{ level: string; message: string }[], [unknown?]>(
+  () => [],
+);
 const clearLogsMock = jest.fn();
 
 jest.mock('../../../src/server/middleware/authentication', () => ({
@@ -19,7 +22,7 @@ jest.mock('../../../src/server/middleware/authorization', () => ({
 }));
 
 jest.mock('../../../src/lib/prisma', () => ({
-  prisma: prismaMock,
+  prisma: require('../lib/prismaMock').prismaMock,
 }));
 
 jest.mock('../../../src/server/metrics', () => ({
@@ -37,7 +40,7 @@ jest.mock('../../../src/server/metrics', () => ({
 
 jest.mock('../../../src/server/observability', () => ({
   recordLog: jest.fn(),
-  getLogs: (...args: unknown[]) => getLogsMock(...args),
+  getLogs: (...args: Parameters<typeof getLogsMock>) => getLogsMock(...args),
   clearLogs: (...args: unknown[]) => clearLogsMock(...args),
 }));
 
@@ -146,7 +149,6 @@ jest.mock('../../../src/server/vesselCatalog', () => ({
 }));
 
 import router from '../../../src/server/api';
-import { prismaMock } from '../lib/prismaMock';
 
 const resetPrismaMocks = () => {
   Object.values(prismaMock).forEach(entry => {

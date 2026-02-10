@@ -20,7 +20,7 @@ type VesselRecord = {
   mode: 'player' | 'ai';
   desiredMode: 'player' | 'ai';
   lastCrewAt: number;
-  position: { lat: number; lon: number; z?: number };
+  position: { lat: number; lon: number; z: number };
   orientation: { heading: number; roll: number; pitch: number };
   velocity: { surge: number; sway: number; heave: number };
   properties: { mass: number; length: number; beam: number; draft: number };

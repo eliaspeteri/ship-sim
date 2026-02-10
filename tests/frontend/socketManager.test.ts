@@ -4,6 +4,15 @@ import {
 } from '../../src/features/sim/constants';
 
 type StoreState = Record<string, any>;
+type SocketHandler = (payload?: any) => void;
+type SocketMock = {
+  connected: boolean;
+  auth: Record<string, unknown>;
+  on: (event: string, cb: SocketHandler) => SocketMock;
+  emit: jest.Mock;
+  connect: jest.Mock;
+  disconnect: jest.Mock;
+};
 
 const flushPromises = async (ticks = 3) => {
   for (let i = 0; i < ticks; i += 1) {
@@ -90,12 +99,12 @@ const createStoreState = (overrides: Partial<StoreState> = {}): StoreState => {
 const setupSocketManager = (overrides: Partial<StoreState> = {}) => {
   jest.resetModules();
   const storeState = createStoreState(overrides);
-  const handlers: Record<string, (payload?: any) => void> = {};
+  const handlers: Record<string, SocketHandler> = {};
   const simulationLoop = {
     syncVesselFromStore: jest.fn(),
     teleportVessel: jest.fn(),
   };
-  const socket = {
+  const socket: SocketMock = {
     connected: true,
     auth: {},
     on: jest.fn((event: string, cb: (payload?: any) => void) => {
@@ -107,7 +116,10 @@ const setupSocketManager = (overrides: Partial<StoreState> = {}) => {
     disconnect: jest.fn(),
   };
 
-  const ioMock = jest.fn(() => socket);
+  const ioMock = jest.fn<
+    SocketMock,
+    [string, { auth: Record<string, unknown> }?]
+  >(() => socket);
 
   jest.doMock('socket.io-client', () => ({
     __esModule: true,
@@ -164,13 +176,17 @@ describe('socket manager (frontend)', () => {
     socketManager.connect('ws://example');
 
     expect(ioMock).toHaveBeenCalledTimes(1);
-    const [url, options] = ioMock.mock.calls[0];
+    const [url, options] = ioMock.mock.calls[0] as unknown as [
+      string,
+      { auth: Record<string, unknown> },
+    ];
     expect(url).toBe('ws://example');
-    expect(options.auth.spaceId).toBe('harbor');
-    expect(options.auth.username).toBe('Anonymous');
-    expect(options.auth.mode).toBe('player');
-    expect(options.auth.autoJoin).toBe(true);
-    expect(options.auth.userId).toMatch(/^user_/);
+    const auth = options?.auth as Record<string, unknown>;
+    expect(auth.spaceId).toBe('harbor');
+    expect(auth.username).toBe('Anonymous');
+    expect(auth.mode).toBe('player');
+    expect(auth.autoJoin).toBe(true);
+    expect(auth.userId).toMatch(/^user_/);
     expect(storeState.setCurrentVesselId).toHaveBeenCalledWith(null);
 
     socketManager.connect('ws://example');
@@ -601,7 +617,9 @@ describe('socket manager (frontend)', () => {
         }),
       }),
     );
-    const eventTypes = storeState.addEvent.mock.calls.map(call => call[0].type);
+    const eventTypes = (
+      storeState.addEvent.mock.calls as Array<[{ type: string }]>
+    ).map(call => call[0].type);
     expect(eventTypes).toEqual(
       expect.arrayContaining([
         'engine_failure',
@@ -723,6 +741,7 @@ describe('socket manager (frontend)', () => {
 
     socketManager.requestRepair('v-1');
     expect(storeState.setNotice).toHaveBeenCalledWith({
+      type: 'info',
       message: 'Repaired',
     });
 
@@ -733,8 +752,8 @@ describe('socket manager (frontend)', () => {
     });
     socketManager.requestRepair('v-1');
     expect(storeState.setNotice).toHaveBeenCalledWith({
+      type: 'error',
       message: 'Nope',
-      kind: 'error',
     });
 
     socketManager.sendAdminVesselMove('v-1', { x: 3, y: 4 });

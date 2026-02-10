@@ -1,14 +1,16 @@
 import { buildRulesetAuditEntry } from '../../../src/lib/rulesetAudit';
+import { getDefaultRules, RulesetType } from '../../../src/types/rules.types';
 
 describe('rulesetAudit', () => {
   it('returns null when no changes', () => {
+    const baseRules = getDefaultRules(RulesetType.CASUAL);
     const entry = buildRulesetAuditEntry({
       spaceId: 'space-1',
       spaceName: 'Test',
-      previousRulesetType: 'CASUAL',
-      nextRulesetType: 'CASUAL',
-      previousRules: { type: 'CASUAL' },
-      nextRules: { type: 'CASUAL' },
+      previousRulesetType: RulesetType.CASUAL,
+      nextRulesetType: RulesetType.CASUAL,
+      previousRules: baseRules,
+      nextRules: baseRules,
       changedBy: 'user-1',
     });
 
@@ -16,13 +18,14 @@ describe('rulesetAudit', () => {
   });
 
   it('records ruleset type changes', () => {
+    const baseRules = getDefaultRules(RulesetType.CASUAL);
     const entry = buildRulesetAuditEntry({
       spaceId: 'space-1',
       spaceName: 'Test',
-      previousRulesetType: 'CASUAL',
-      nextRulesetType: 'REALISM',
-      previousRules: { type: 'CASUAL' },
-      nextRules: { type: 'CASUAL' },
+      previousRulesetType: RulesetType.CASUAL,
+      nextRulesetType: RulesetType.REALISM,
+      previousRules: baseRules,
+      nextRules: baseRules,
       changedBy: 'user-1',
     });
 
@@ -33,13 +36,20 @@ describe('rulesetAudit', () => {
   });
 
   it('records rules changes', () => {
+    const baseRules = getDefaultRules(RulesetType.CASUAL);
     const entry = buildRulesetAuditEntry({
       spaceId: 'space-1',
       spaceName: 'Test',
-      previousRulesetType: 'CASUAL',
-      nextRulesetType: 'CASUAL',
-      previousRules: { type: 'CASUAL', assists: { docking: true } },
-      nextRules: { type: 'CASUAL', assists: { docking: false } },
+      previousRulesetType: RulesetType.CASUAL,
+      nextRulesetType: RulesetType.CASUAL,
+      previousRules: {
+        ...baseRules,
+        assists: { ...baseRules.assists, docking: true },
+      },
+      nextRules: {
+        ...baseRules,
+        assists: { ...baseRules.assists, docking: false },
+      },
       changedBy: 'user-1',
     });
 

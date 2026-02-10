@@ -26,6 +26,7 @@ describe('RotaryDial', () => {
         label="Heading"
         unit="deg"
         precision={1}
+        onChange={jest.fn()}
       />,
     );
 
@@ -43,7 +44,14 @@ describe('RotaryDial', () => {
     }));
 
     render(
-      <RotaryDial value={3} min={0} max={10} showValue={false} label="Trim" />,
+      <RotaryDial
+        value={3}
+        min={0}
+        max={10}
+        showValue={false}
+        label="Trim"
+        onChange={jest.fn()}
+      />,
     );
 
     expect(screen.getByText('Trim')).toBeInTheDocument();

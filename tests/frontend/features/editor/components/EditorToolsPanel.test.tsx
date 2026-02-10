@@ -6,7 +6,7 @@ import EditorToolsPanel from '../../../../../src/features/editor/components/Edit
 describe('EditorToolsPanel', () => {
   const tools = [
     { id: 'select', label: 'Select', key: '1', icon: 'S' },
-    { id: 'draw', label: 'Draw', key: '2', icon: 'D' },
+    { id: 'draw', label: 'Draw', key: '3', icon: 'D' },
   ] as const;
 
   it('renders open panel and selects tools', () => {
@@ -27,7 +27,7 @@ describe('EditorToolsPanel', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Collapse tools panel' }),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'D 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'D 3' }));
 
     expect(onToggle).toHaveBeenCalled();
     expect(onSelectTool).toHaveBeenCalledWith('draw');

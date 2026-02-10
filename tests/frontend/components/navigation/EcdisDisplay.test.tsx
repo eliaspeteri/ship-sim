@@ -53,12 +53,15 @@ jest.mock('three', () => {
 
     constructor() {
       this.domElement.getBoundingClientRect = () => ({
+        x: 0,
+        y: 0,
         left: 0,
         top: 0,
         width: 500,
         height: 500,
         right: 500,
         bottom: 500,
+        toJSON: () => ({}),
       });
     }
   }
