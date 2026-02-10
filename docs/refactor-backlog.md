@@ -876,9 +876,9 @@ Files: `tsconfig.json`, `package.json`, CI workflow config
 
 Tasks:
 
-1. Add explicit `typecheck` script (`tsc --noEmit`) and wire it into CI.
-2. Expand `tsconfig.json` include patterns to type-check `*.tsx` files (not only `*.ts`).
-3. Keep exclusions intentional and documented (for example, generated artifacts or AssemblyScript boundaries).
+1. [ ] Add explicit `typecheck` script (`tsc --noEmit`) and wire it into CI.
+2. [ ] Expand `tsconfig.json` include patterns to type-check `*.tsx` files (not only `*.ts`).
+3. [ ] Keep exclusions intentional and documented (for example, generated artifacts or AssemblyScript boundaries).
 
 Acceptance:
 
