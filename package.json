@@ -30,8 +30,7 @@
     "wasm:check-exports": "npm run asbuild && npx tsx scripts/check-wasm-exports.ts",
     "server": "npx tsx watch src/server/index.ts",
     "prepare": "husky",
-    "typecheck": "tsc --pretty --noEmit",
-    "typecheck:server": "tsc --pretty --noEmit -p server/"
+    "typecheck": "tsc --pretty --noEmit"
   },
   "dependencies": {
     "@assemblyscript/loader": "^0.27.35",
