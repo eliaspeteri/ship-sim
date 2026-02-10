@@ -40,7 +40,8 @@ export default function SeamarkSprites() {
           ? (props['seamark:type'] as string)
           : '';
       if (type.includes('cardinal')) {
-        const dir = props['seamark:buoy_cardinal:category'] || 'north';
+        const dirProp = props['seamark:buoy_cardinal:category'];
+        const dir = typeof dirProp === 'string' ? dirProp : 'north';
         pat = dirToPatternId(dir);
       }
       patternArr.push(pat);

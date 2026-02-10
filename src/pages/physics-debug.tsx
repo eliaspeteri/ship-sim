@@ -28,6 +28,7 @@ import {
   THROTTLE_STEP,
 } from '../features/sim/constants';
 import { ShipType } from '../types/vessel.types';
+import type { VesselPhysicsConfig } from '../types/physics.types';
 import styles from './PhysicsDebug.module.css';
 import { xyToLatLon, latLonToXY } from '../lib/geo';
 
@@ -46,11 +47,7 @@ type DebugTemplate = {
     maxSpeed: number;
   };
   hydrodynamics?: Partial<typeof DEFAULT_HYDRO>;
-  physics?: {
-    model: string;
-    schemaVersion: number;
-    params?: Record<string, number>;
-  };
+  physics?: VesselPhysicsConfig;
   render?: {
     modelYawDeg?: number;
     sinkFactor?: number;

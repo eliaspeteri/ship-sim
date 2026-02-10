@@ -450,7 +450,8 @@ export function HudEcdisPanel({
   shipPosition: { lat: number; lon: number; z?: number };
   heading: number | undefined;
 }) {
-  return <EcdisDisplay shipPosition={shipPosition} heading={heading} />;
+  const normalizedPosition = { ...shipPosition, z: shipPosition.z ?? 0 };
+  return <EcdisDisplay shipPosition={normalizedPosition} heading={heading} />;
 }
 
 export function HudConningPanel({
@@ -1030,7 +1031,7 @@ export function HudChatPanel({
   return (
     <div className={styles.sectionCard}>
       <ChatPanel
-        spaceId={spaceId || null}
+        spaceId={spaceId ?? 'global'}
         vesselChannel={
           currentVesselId
             ? `vessel:${currentVesselId.split('_')[0] || ''}`

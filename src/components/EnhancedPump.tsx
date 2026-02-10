@@ -674,7 +674,7 @@ export const EnhancedPump: React.FC<EnhancedPumpProps> = ({
               fill="#A0AEC0"
               onMouseDown={e => {
                 e.stopPropagation();
-                handleMouseDown(e.nativeEvent as unknown as MouseEvent);
+                handleMouseDown(e);
               }}
               style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
             />

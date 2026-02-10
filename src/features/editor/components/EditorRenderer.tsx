@@ -1,6 +1,6 @@
 import React from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { Line, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { LandTiles } from '../../../components/LandTiles';
@@ -228,30 +228,23 @@ const WorkAreaBounds: React.FC<{ workAreas: EditorWorkArea[] }> = ({
         const points = corners.map(
           point => new THREE.Vector3(point.x, 1, point.y),
         );
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        return { id: area.id, geometry };
+        return { id: area.id, points };
       });
   }, [workAreas]);
-
-  React.useEffect(() => {
-    return () => {
-      lines.forEach(line => line.geometry.dispose());
-    };
-  }, [lines]);
 
   if (lines.length === 0) return null;
 
   return (
     <group>
       {lines.map(line => (
-        <line key={line.id} geometry={line.geometry}>
-          <lineBasicMaterial
-            color="#5fd3ff"
-            transparent
-            opacity={0.85}
-            depthTest={false}
-          />
-        </line>
+        <Line
+          key={line.id}
+          points={line.points}
+          color="#5fd3ff"
+          transparent
+          opacity={0.85}
+          depthTest={false}
+        />
       ))}
     </group>
   );

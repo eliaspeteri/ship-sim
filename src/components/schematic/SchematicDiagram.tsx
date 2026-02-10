@@ -366,7 +366,9 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({
           </g>
         );
 
-      case 'tank':
+      case 'tank': {
+        const level =
+          typeof component.data?.level === 'number' ? component.data.level : 0;
         return (
           <g>
             <rect
@@ -381,16 +383,15 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({
             />
             <rect
               x={-size / 2 + 2}
-              y={
-                -size / 2 + 2 + (size - 4) * (1 - (component.data?.level || 0))
-              }
+              y={-size / 2 + 2 + (size - 4) * (1 - level)}
               width={size - 4}
-              height={(size - 4) * (component.data?.level || 0)}
+              height={(size - 4) * level}
               fill={color}
               opacity={0.7}
             />
           </g>
         );
+      }
 
       case 'exchanger':
         return (

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useRouter } from 'next/router';
 
-const EditorIndexPage: React.FC = () => {
+const EditorIndexPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const router = useRouter();
 
   React.useEffect(() => {

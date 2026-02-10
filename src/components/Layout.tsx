@@ -14,14 +14,20 @@ type LayoutProps = {
 
 const NAV_HEIGHT = 72;
 
-const navLinks = [
+type NavLink = {
+  href: string;
+  label: string;
+  tag?: string;
+};
+
+const navLinks: NavLink[] = [
   { href: '/', label: 'Home' },
   { href: '/sim', label: 'Simulator' },
   { href: '/vessels', label: 'Vessels' },
   { href: '/globe', label: 'Map', tag: 'beta' },
 ];
 
-const protectedNavLinks = [{ href: '/spaces', label: 'Spaces' }];
+const protectedNavLinks: NavLink[] = [{ href: '/spaces', label: 'Spaces' }];
 
 const Layout: React.FC<LayoutProps> = ({
   children,

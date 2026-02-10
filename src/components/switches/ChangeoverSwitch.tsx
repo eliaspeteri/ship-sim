@@ -252,11 +252,7 @@ export function ChangeoverSwitch(
         {/* Center handle - draggable */}
         <g
           transform={`rotate(${getCurrentAngle()}, ${radius}, ${radius})`}
-          onMouseDown={
-            !disabled
-              ? e => handleMouseDown(e.nativeEvent as unknown as MouseEvent)
-              : undefined
-          }
+          onMouseDown={!disabled ? e => handleMouseDown(e) : undefined}
           style={{
             cursor: disabled ? 'not-allowed' : isDragging ? 'grabbing' : 'grab',
           }}

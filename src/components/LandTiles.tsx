@@ -33,6 +33,8 @@ function zoomFromCameraDistance(distance: number) {
 export function LandTiles(props: {
   focusRef: React.MutableRefObject<{ x: number; y: number }>;
   radius?: number; // 2 => 5x5
+  dynamicRadius?: boolean;
+  maxRadius?: number;
   landY?: number;
   heightScale?: number;
   seaLevel?: number;
@@ -42,6 +44,8 @@ export function LandTiles(props: {
   const {
     focusRef,
     radius = 2,
+    dynamicRadius = false,
+    maxRadius,
     landY = 0.75,
     heightScale = 1,
     seaLevel = 0,
@@ -73,6 +77,10 @@ export function LandTiles(props: {
     const dz = camera.position.z - focusRef.current.y;
     const distance = Math.hypot(dx, dy, dz);
     const z = zoomFromCameraDistance(distance);
+    const radiusCap = Math.max(radius, maxRadius ?? radius);
+    const radiusForTiles = dynamicRadius
+      ? Math.min(radiusCap, Math.max(radius, Math.ceil(distance / 4000)))
+      : radius;
 
     const focusXY = { x: focusRef.current.x, y: focusRef.current.y };
     const { lat, lon } = xyToLatLon(focusXY);
@@ -80,15 +88,15 @@ export function LandTiles(props: {
     const { x: cx, y: cy } = lonLatToTileXY(lon, lat, z);
 
     const keys: string[] = [];
-    for (let dx = -radius; dx <= radius; dx++) {
-      for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radiusForTiles; dx <= radiusForTiles; dx++) {
+      for (let dy = -radiusForTiles; dy <= radiusForTiles; dy++) {
         keys.push(`${z}/${cx + dx}/${cy + dy}`);
       }
     }
 
     return { z, cx, cy, keys };
     // queryTick forces recalculation at a controlled cadence
-  }, [camera, focusRef, radius, queryTick]);
+  }, [camera, dynamicRadius, focusRef, maxRadius, queryTick, radius]);
 
   // Throttle updates: only bump queryTick when the (z,cx,cy) changes
   useEffect(() => {

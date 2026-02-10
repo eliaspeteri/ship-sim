@@ -11,6 +11,7 @@ import type { EditorPack } from '../../../../features/editor/types';
 
 const EditorUserPackWorkspace: React.FC & {
   fullBleedLayout?: boolean;
+  navBack?: boolean;
 } = () => {
   const router = useRouter();
   const { user, packId } = router.query;
