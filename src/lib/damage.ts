@@ -26,6 +26,15 @@ export const normalizeDamageState = (
   floodingDamage: clamp01(state?.floodingDamage ?? 0),
 });
 
+export const mergeDamageState = (
+  base: DamageState,
+  update?: Partial<DamageState> | null,
+): DamageState =>
+  normalizeDamageState({
+    ...base,
+    ...(update || {}),
+  });
+
 export const computeRepairCost = (state: DamageState): number => {
   const hull = 1 - state.hullIntegrity;
   const engine = 1 - state.engineHealth;

@@ -2,6 +2,7 @@ import useStore from '../store';
 import { loadWasm } from '../lib/wasmLoader';
 import { WasmBridge } from '../lib/wasmBridge';
 import type { VesselState } from '../types/vessel.types';
+import type { DeepPartial } from '../types/utility';
 import { safe } from '../lib/safe';
 import socketManager from '../networking/socket';
 import { positionFromXY, positionToXY } from '../lib/position';
@@ -569,7 +570,7 @@ export class SimulationLoop {
 
     try {
       // Initialize update object with proper typing
-      const vesselUpdate: Partial<VesselState> = {};
+      const vesselUpdate: DeepPartial<VesselState> = {};
 
       // Position and orientation updates
       const positionUpdate = positionFromXY({

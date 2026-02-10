@@ -1,11 +1,15 @@
 import { create } from 'zustand';
 import { getSimulationLoop } from '../simulation/simulationLoop';
 import {
-  VesselState,
-  ShipType,
+  CrewStation,
+  CrewStationAssignment,
   SimpleVesselState,
+  ShipType,
+  VesselState,
+  VesselStations,
 } from '../types/vessel.types';
 import { WasmModule } from '../types/wasm';
+import { DeepPartial } from '../types/utility';
 import { EventLogEntry } from '../types/events.types';
 import { EnvironmentState } from '../types/environment.types';
 import * as GeoJSON from 'geojson';
@@ -175,6 +179,33 @@ const normalizeChatMessage = (msg: ChatMessageData): ChatMessageData => ({
   channel: normalizeChannel(msg.channel),
 });
 
+const mergeStationAssignment = (
+  current: CrewStationAssignment | undefined,
+  update?: DeepPartial<CrewStationAssignment>,
+): CrewStationAssignment | undefined => {
+  if (!update) return current;
+  const next: CrewStationAssignment = {
+    userId: update.userId ?? current?.userId ?? null,
+    username: update.username ?? current?.username ?? null,
+  };
+  return next;
+};
+
+const mergeNumberParams = (
+  base?: Record<string, number>,
+  update?: Record<string, number | undefined>,
+): Record<string, number> => {
+  const merged: Record<string, number> = { ...(base || {}) };
+  if (update) {
+    Object.entries(update).forEach(([key, value]) => {
+      if (typeof value === 'number') {
+        merged[key] = value;
+      }
+    });
+  }
+  return merged;
+};
+
 const mergeChatMessages = (
   existing: ChatMessageData[],
   incoming: ChatMessageData[],
@@ -245,7 +276,7 @@ interface SimulationState {
   currentVesselId: string | null;
   otherVessels: Record<string, SimpleVesselState>;
   resetVessel: () => void;
-  updateVessel: (vessel: Partial<VesselState>) => void;
+  updateVessel: (vessel: DeepPartial<VesselState>) => void;
   setPhysicsParams: (params: Record<string, number>) => void;
   setVesselName: (name: string) => void;
   setVesselType: (type: ShipType) => void;
@@ -254,7 +285,7 @@ interface SimulationState {
 
   // Environment state
   environment: EnvironmentState;
-  updateEnvironment: (environment: Partial<EnvironmentState>) => void;
+  updateEnvironment: (environment: DeepPartial<EnvironmentState>) => void;
   setDayNightCycle: (enabled: boolean) => void;
 
   // Seamarks
@@ -268,7 +299,7 @@ interface SimulationState {
 
   // Machinery systems
   machinerySystems: MachinerySystemStatus;
-  updateMachineryStatus: (status: Partial<MachinerySystemStatus>) => void;
+  updateMachineryStatus: (status: DeepPartial<MachinerySystemStatus>) => void;
   triggerFailure: (
     failureType: keyof MachinerySystemStatus['failures'],
     active: boolean,
@@ -276,7 +307,7 @@ interface SimulationState {
 
   // Navigation
   navigation: NavigationData;
-  updateNavigation: (nav: Partial<NavigationData>) => void;
+  updateNavigation: (nav: DeepPartial<NavigationData>) => void;
   addWaypoint: (x: number, y: number, name: string) => void;
   removeWaypoint: (index: number) => void;
 
@@ -286,7 +317,7 @@ interface SimulationState {
 
   // WASM exports for interacting with the WebAssembly module
   wasmExports?: WasmModule;
-  setWasmExports?: (exports: WasmModule) => void;
+  setWasmExports: (exports: WasmModule) => void;
 
   // Apply vessel controls
   applyVesselControls: (controls: {
@@ -295,6 +326,19 @@ interface SimulationState {
     ballast?: number;
     bowThruster?: number;
   }) => void;
+
+  // Water status (legacy placeholder)
+  updateWaterStatus: (
+    set: (state: SimulationState) => void,
+    get: () => SimulationState,
+  ) => (state: SimulationState) => void;
+
+  // Vessel property helper
+  updateVesselProperties: (
+    set: (
+      updater: (state: SimulationState) => Partial<SimulationState>,
+    ) => void,
+  ) => (newProperties: Partial<VesselState['properties']>) => void;
 }
 
 // Default states
@@ -632,22 +676,36 @@ const useStore = create<SimulationState>()((set, get) => ({
         }
 
         if (vesselUpdate.helm) {
-          updatedVessel.helm = {
-            ...updatedVessel.helm,
-            ...vesselUpdate.helm,
-          };
+          updatedVessel.helm = mergeStationAssignment(
+            updatedVessel.helm,
+            vesselUpdate.helm,
+          );
         }
 
         if (vesselUpdate.stations) {
-          updatedVessel.stations = {
+          const nextStations: VesselStations = {
             ...(updatedVessel.stations || {}),
-            ...vesselUpdate.stations,
           };
+          (
+            Object.entries(vesselUpdate.stations) as [
+              CrewStation,
+              DeepPartial<CrewStationAssignment> | undefined,
+            ][]
+          ).forEach(([station, assignment]) => {
+            const merged = mergeStationAssignment(
+              nextStations[station],
+              assignment,
+            );
+            if (merged) {
+              nextStations[station] = merged;
+            }
+          });
+          updatedVessel.stations = nextStations;
           if (vesselUpdate.stations.helm) {
-            updatedVessel.helm = {
-              ...updatedVessel.helm,
-              ...vesselUpdate.stations.helm,
-            };
+            updatedVessel.helm = mergeStationAssignment(
+              updatedVessel.helm,
+              vesselUpdate.stations.helm,
+            );
           }
         }
 
@@ -666,13 +724,28 @@ const useStore = create<SimulationState>()((set, get) => ({
         }
 
         if (vesselUpdate.physics) {
+          const currentPhysics = updatedVessel.physics ?? {
+            model: 'displacement',
+            schemaVersion: 1,
+            params: {},
+          };
+          const nextModel =
+            vesselUpdate.physics.model ??
+            currentPhysics.model ??
+            'displacement';
+          const nextSchemaVersion =
+            vesselUpdate.physics.schemaVersion ??
+            currentPhysics.schemaVersion ??
+            1;
           updatedVessel.physics = {
-            ...(updatedVessel.physics || {}),
+            ...currentPhysics,
             ...vesselUpdate.physics,
-            params: {
-              ...(updatedVessel.physics?.params || {}),
-              ...(vesselUpdate.physics.params || {}),
-            },
+            model: nextModel,
+            schemaVersion: nextSchemaVersion,
+            params: mergeNumberParams(
+              currentPhysics.params,
+              vesselUpdate.physics.params as Record<string, number | undefined>,
+            ),
           };
         }
 
@@ -699,49 +772,72 @@ const useStore = create<SimulationState>()((set, get) => ({
 
         // Handle stability property safely
         if (vesselUpdate.stability) {
-          // Ensure stability exists in both source and target
-          if (!updatedVessel.stability) {
-            updatedVessel.stability = {
-              metacentricHeight: 2.0,
-              centerOfGravity: { x: 0, y: 0, z: 6.0 },
-              trim: 0,
-              list: 0,
-            };
-          }
-
-          // Create updated stability object
-          const updatedStability = {
-            ...updatedVessel.stability,
-            ...vesselUpdate.stability,
+          const baseStability = updatedVessel.stability ?? {
+            metacentricHeight: 2.0,
+            centerOfGravity: { x: 0, y: 0, z: 6.0 },
+            trim: 0,
+            list: 0,
+          };
+          const stabilityUpdate = vesselUpdate.stability;
+          const nextStability: VesselState['stability'] = {
+            metacentricHeight:
+              stabilityUpdate.metacentricHeight ??
+              baseStability.metacentricHeight,
+            centerOfGravity: {
+              x:
+                stabilityUpdate.centerOfGravity?.x ??
+                baseStability.centerOfGravity.x,
+              y:
+                stabilityUpdate.centerOfGravity?.y ??
+                baseStability.centerOfGravity.y,
+              z:
+                stabilityUpdate.centerOfGravity?.z ??
+                baseStability.centerOfGravity.z,
+            },
+            trim: stabilityUpdate.trim ?? baseStability.trim,
+            list: stabilityUpdate.list ?? baseStability.list,
           };
 
-          // Handle centerOfGravity property separately
-          if (vesselUpdate.stability.centerOfGravity) {
-            if (!updatedStability.centerOfGravity) {
-              updatedStability.centerOfGravity = { x: 0, y: 0, z: 6.0 };
-            }
-
-            updatedStability.centerOfGravity = {
-              ...updatedStability.centerOfGravity,
-              ...vesselUpdate.stability.centerOfGravity,
-            };
-          }
-
-          updatedVessel.stability = updatedStability;
+          updatedVessel.stability = nextStability;
         }
 
         if (vesselUpdate.alarms) {
-          updatedVessel.alarms = {
-            ...updatedVessel.alarms,
-            ...vesselUpdate.alarms,
-          };
-
-          if (vesselUpdate.alarms.otherAlarms) {
-            updatedVessel.alarms.otherAlarms = {
-              ...updatedVessel.alarms.otherAlarms,
-              ...vesselUpdate.alarms.otherAlarms,
-            };
+          const nextAlarms = { ...updatedVessel.alarms };
+          const alarmUpdates = vesselUpdate.alarms;
+          if (typeof alarmUpdates.engineOverheat === 'boolean') {
+            nextAlarms.engineOverheat = alarmUpdates.engineOverheat;
           }
+          if (typeof alarmUpdates.lowOilPressure === 'boolean') {
+            nextAlarms.lowOilPressure = alarmUpdates.lowOilPressure;
+          }
+          if (typeof alarmUpdates.lowFuel === 'boolean') {
+            nextAlarms.lowFuel = alarmUpdates.lowFuel;
+          }
+          if (typeof alarmUpdates.fireDetected === 'boolean') {
+            nextAlarms.fireDetected = alarmUpdates.fireDetected;
+          }
+          if (typeof alarmUpdates.collisionAlert === 'boolean') {
+            nextAlarms.collisionAlert = alarmUpdates.collisionAlert;
+          }
+          if (typeof alarmUpdates.stabilityWarning === 'boolean') {
+            nextAlarms.stabilityWarning = alarmUpdates.stabilityWarning;
+          }
+          if (typeof alarmUpdates.generatorFault === 'boolean') {
+            nextAlarms.generatorFault = alarmUpdates.generatorFault;
+          }
+          if (typeof alarmUpdates.blackout === 'boolean') {
+            nextAlarms.blackout = alarmUpdates.blackout;
+          }
+          if (alarmUpdates.otherAlarms) {
+            const nextOther = { ...nextAlarms.otherAlarms };
+            Object.entries(alarmUpdates.otherAlarms).forEach(([key, value]) => {
+              if (typeof value === 'boolean') {
+                nextOther[key] = value;
+              }
+            });
+            nextAlarms.otherAlarms = nextOther;
+          }
+          updatedVessel.alarms = nextAlarms;
         }
 
         if (vesselUpdate.failureState) {
@@ -939,24 +1035,30 @@ const useStore = create<SimulationState>()((set, get) => ({
   // Navigation
   navigation: defaultNavigationData,
   updateNavigation: navUpdate =>
-    set(state => ({
-      navigation: {
-        ...state.navigation,
-        ...navUpdate,
-        route: navUpdate.route
-          ? {
-              ...state.navigation.route,
-              ...navUpdate.route,
-            }
-          : state.navigation.route,
-        charts: navUpdate.charts
-          ? {
-              ...state.navigation.charts,
-              ...navUpdate.charts,
-            }
-          : state.navigation.charts,
-      },
-    })),
+    set(state => {
+      const nextWaypoints = navUpdate.route?.waypoints
+        ? (navUpdate.route.waypoints as NavigationData['route']['waypoints'])
+        : state.navigation.route.waypoints;
+      return {
+        navigation: {
+          ...state.navigation,
+          ...navUpdate,
+          route: navUpdate.route
+            ? {
+                ...state.navigation.route,
+                ...navUpdate.route,
+                waypoints: nextWaypoints,
+              }
+            : state.navigation.route,
+          charts: navUpdate.charts
+            ? {
+                ...state.navigation.charts,
+                ...navUpdate.charts,
+              }
+            : state.navigation.charts,
+        },
+      };
+    }),
 
   addWaypoint: (x, y, name) =>
     set(state => ({

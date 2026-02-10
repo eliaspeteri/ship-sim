@@ -21,6 +21,8 @@ export interface MissionProgress {
   stage: 'pickup' | 'delivery';
   lastDistance?: number;
   pickedUpAt?: number;
+  awardedCredits?: number;
+  newRank?: number;
 }
 
 export interface MissionAssignmentData {

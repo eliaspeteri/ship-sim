@@ -967,9 +967,12 @@ class SocketManager {
       { vesselId },
       (res?: { ok: boolean; message?: string }) => {
         if (res?.ok) {
-          store.setNotice({ message: res.message || 'Repairs complete' });
+          store.setNotice({
+            type: 'info',
+            message: res.message || 'Repairs complete',
+          });
         } else if (res?.message) {
-          store.setNotice({ message: res.message, kind: 'error' });
+          store.setNotice({ type: 'error', message: res.message });
         }
       },
     );

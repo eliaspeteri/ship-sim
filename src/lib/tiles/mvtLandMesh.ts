@@ -55,7 +55,10 @@ async function fetchTerrainRgbTile(
   canvas.width = bitmap.width;
   canvas.height = bitmap.height;
 
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d') as
+    | globalThis.OffscreenCanvasRenderingContext2D
+    | globalThis.CanvasRenderingContext2D
+    | null;
   if (!ctx) {
     bitmap.close?.();
     return null;

@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
 import { useState, useEffect, useCallback, useRef } from 'react';
+import type { MouseEvent as ReactMouseEvent, MouseEventHandler } from 'react';
 
 interface UseLeverDragProps {
   initialValue: number;
@@ -21,12 +22,12 @@ interface UseLeverDragReturn {
    * Mouse down event handler to initiate dragging.
    * Attach this to the draggable element (e.g., lever handle or SVG area).
    */
-  handleMouseDown: (e: MouseEvent) => void; // Use Element for broader compatibility
+  handleMouseDown: MouseEventHandler<globalThis.Element>;
   /**
    * Double click event handler to reset the value to the middle.
    * Attach this to the main component element (e.g., SVG).
    */
-  handleDoubleClick: (e: MouseEvent) => void; // Use Element for broader compatibility
+  handleDoubleClick: MouseEventHandler<globalThis.Element>;
 }
 
 /**
@@ -64,7 +65,7 @@ export const useLeverDrag = ({
 
   // Callback to initiate the drag sequence on mouse down.
   const handleMouseDown = useCallback(
-    (e: MouseEvent) => {
+    (e: ReactMouseEvent<globalThis.Element>) => {
       setIsDragging(true);
       startPosRef.current = { x: e.clientX, y: e.clientY };
       // Store the value at the moment dragging starts.
@@ -105,7 +106,7 @@ export const useLeverDrag = ({
 
   // Callback for handling double click to reset value.
   const handleDoubleClick = useCallback(
-    (e: MouseEvent) => {
+    (e: ReactMouseEvent<globalThis.Element>) => {
       if (resetOnDoubleClick) {
         const middleValue = min + (max - min) / 2;
         setValue(middleValue);
