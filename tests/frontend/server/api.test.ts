@@ -2,38 +2,6 @@ import bcrypt from 'bcryptjs';
 
 type MockedAsync = jest.Mock<Promise<unknown>, [unknown?]>;
 
-const createModelMock = (): Record<string, MockedAsync> =>
-  new Proxy(
-    {},
-    {
-      get(target, prop: string | symbol) {
-        if (!(prop in target)) {
-          target[prop] = jest.fn(async () => null) as MockedAsync;
-        }
-        return target[prop];
-      },
-    },
-  );
-
-const prismaMock: Record<string, unknown> = new Proxy(
-  {
-    $transaction: jest.fn(async (arg: unknown) => {
-      if (typeof arg === 'function') {
-        return (arg as (tx: unknown) => unknown)(prismaMock);
-      }
-      return arg;
-    }),
-  },
-  {
-    get(target, prop: string | symbol) {
-      if (!(prop in target)) {
-        target[prop] = createModelMock();
-      }
-      return target[prop];
-    },
-  },
-);
-
 const getLogsMock = jest.fn(() => []);
 const clearLogsMock = jest.fn();
 
@@ -178,6 +146,7 @@ jest.mock('../../../src/server/vesselCatalog', () => ({
 }));
 
 import router from '../../../src/server/api';
+import { prismaMock } from '../lib/prismaMock';
 
 const resetPrismaMocks = () => {
   Object.values(prismaMock).forEach(entry => {

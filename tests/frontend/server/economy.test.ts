@@ -1,3 +1,5 @@
+import { prismaMock } from '../lib/prismaMock';
+
 type VesselRecord = {
   id: string;
   spaceId?: string;
@@ -46,40 +48,6 @@ jest.mock('../../../src/server/index', () => ({
   persistVesselToDb,
   syncUserSocketsEconomy,
 }));
-
-const prismaMock = {
-  user: {
-    findUnique: jest.fn(),
-    update: jest.fn(),
-  },
-  economyTransaction: {
-    create: jest.fn(),
-  },
-  crewContract: {
-    findMany: jest.fn(),
-    createMany: jest.fn(),
-    updateMany: jest.fn(),
-  },
-  loan: {
-    findMany: jest.fn(),
-    findFirst: jest.fn(),
-    update: jest.fn(),
-  },
-  vesselSale: {
-    create: jest.fn(),
-  },
-  insurancePolicy: {
-    findMany: jest.fn(),
-    update: jest.fn(),
-  },
-  vesselLease: {
-    findFirst: jest.fn(),
-    update: jest.fn(),
-  },
-  cargoLot: {
-    findMany: jest.fn(),
-  },
-};
 
 jest.mock('../../../src/lib/prisma', () => ({
   prisma: prismaMock,

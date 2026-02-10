@@ -1,15 +1,11 @@
+import { prismaMock } from '../../../lib/prismaMock';
+
 const mockNextAuth = jest.fn(() => 'next-auth-handler');
 const mockCredentialsProvider = jest.fn((config: unknown) => config);
 const mockPrismaAdapter = jest.fn(() => ({ id: 'adapter' }));
 const mockCompare = jest.fn();
 const mockSign = jest.fn(() => 'signed-token');
 const mockRecordAuthEvent = jest.fn();
-
-const prismaMock = {
-  user: {
-    findFirst: jest.fn(),
-  },
-};
 
 jest.mock('next-auth', () => ({
   __esModule: true,

@@ -1,4 +1,5 @@
 import { recordAuthEvent } from '../../../src/lib/authAudit';
+import { prismaMock } from './prismaMock';
 
 jest.mock('../../../src/lib/prisma', () => ({
   prisma: {
@@ -8,17 +9,13 @@ jest.mock('../../../src/lib/prisma', () => ({
   },
 }));
 
-const prismaMock = jest.requireMock('../../../src/lib/prisma') as {
-  prisma: { authEvent: { create: jest.Mock } };
-};
-
 describe('recordAuthEvent', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
 
   it('records auth events with normalized payload', async () => {
-    prismaMock.prisma.authEvent.create.mockResolvedValue({});
+    prismaMock.authEvent.create.mockResolvedValue({});
 
     await recordAuthEvent({
       userId: 'user-1',
@@ -26,7 +23,7 @@ describe('recordAuthEvent', () => {
       detail: { provider: 'credentials' },
     });
 
-    expect(prismaMock.prisma.authEvent.create).toHaveBeenCalledWith({
+    expect(prismaMock.authEvent.create).toHaveBeenCalledWith({
       data: {
         userId: 'user-1',
         event: 'login',
@@ -36,7 +33,7 @@ describe('recordAuthEvent', () => {
   });
 
   it('normalizes null values for prisma payload', async () => {
-    prismaMock.prisma.authEvent.create.mockResolvedValue({});
+    prismaMock.authEvent.create.mockResolvedValue({});
 
     await recordAuthEvent({
       userId: null,
@@ -44,7 +41,7 @@ describe('recordAuthEvent', () => {
       detail: null,
     });
 
-    expect(prismaMock.prisma.authEvent.create).toHaveBeenCalledWith({
+    expect(prismaMock.authEvent.create).toHaveBeenCalledWith({
       data: {
         userId: null,
         event: 'logout',
@@ -54,7 +51,7 @@ describe('recordAuthEvent', () => {
   });
 
   it('swallows prisma errors', async () => {
-    prismaMock.prisma.authEvent.create.mockRejectedValue(new Error('boom'));
+    prismaMock.authEvent.create.mockRejectedValue(new Error('boom'));
 
     await recordAuthEvent({ event: 'login' });
 

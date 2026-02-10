@@ -1,23 +1,4 @@
-const prismaMock = {
-  careerPath: {
-    createMany: jest.fn(),
-  },
-  exam: {
-    createMany: jest.fn(),
-  },
-  userCareer: {
-    findMany: jest.fn(),
-    createMany: jest.fn(),
-    findUnique: jest.fn(),
-    update: jest.fn(),
-  },
-  reputation: {
-    upsert: jest.fn(),
-  },
-  license: {
-    create: jest.fn(),
-  },
-};
+import { prismaMock } from '../lib/prismaMock';
 
 const getScenariosMock = jest.fn();
 
