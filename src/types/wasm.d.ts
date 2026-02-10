@@ -5,6 +5,12 @@
 
 export interface WasmModule {
   memory?: WebAssembly.Memory;
+  // AssemblyScript runtime helpers (optional in custom loader)
+  __pin?: (ptr: number) => number;
+  __unpin?: (ptr: number) => void;
+  __collect?: () => void;
+  __getArray?: (...args: unknown[]) => unknown[];
+  __getArrayView?: (...args: unknown[]) => ArrayBufferView;
   // Vessel creation and management
   createVessel: (
     x: number,

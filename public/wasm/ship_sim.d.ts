@@ -45,6 +45,40 @@ export declare function createVessel(x: number, y: number, z: number, psi: numbe
  */
 export declare function destroyVessel(_vesselPtr: number): void;
 /**
+ * assembly/index/getVesselParamsBufferPtr
+ * @returns `usize`
+ */
+export declare function getVesselParamsBufferPtr(): number;
+/**
+ * assembly/index/getVesselParamsBufferCapacity
+ * @returns `i32`
+ */
+export declare function getVesselParamsBufferCapacity(): number;
+/**
+ * assembly/index/setVesselParams
+ * @param vesselPtr `usize`
+ * @param modelId `i32`
+ * @param paramsPtr `usize`
+ * @param paramsLen `i32`
+ */
+export declare function setVesselParams(vesselPtr: number, modelId: number, paramsPtr: number, paramsLen: number): void;
+/**
+ * assembly/index/getEnvironmentBufferPtr
+ * @returns `usize`
+ */
+export declare function getEnvironmentBufferPtr(): number;
+/**
+ * assembly/index/getEnvironmentBufferCapacity
+ * @returns `i32`
+ */
+export declare function getEnvironmentBufferCapacity(): number;
+/**
+ * assembly/index/setEnvironment
+ * @param paramsPtr `usize`
+ * @param paramsLen `i32`
+ */
+export declare function setEnvironment(paramsPtr: number, paramsLen: number): void;
+/**
  * assembly/index/updateVesselState
  * @param vesselPtr `usize`
  * @param dt `f64`
