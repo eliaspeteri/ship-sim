@@ -1,3 +1,5 @@
+import type { WasmBridge } from '../../src/lib/wasmBridge';
+
 type StoreState = Record<string, any>;
 
 const mockHydro = {
@@ -156,7 +158,7 @@ const setupSimulation = (overrides: Partial<StoreState> = {}) => {
   });
 
   const loop = getSimulationLoop();
-  (loop as any).wasmBridge = wasmBridge;
+  loop.setWasmBridgeForTest(wasmBridge as unknown as WasmBridge);
   return { loop, SimulationLoop, storeState, wasmBridge, socketManager };
 };
 
@@ -232,7 +234,7 @@ describe('simulation loop', () => {
     loop.refreshPhysicsParams();
     expect(wasmBridge.setVesselParams).not.toHaveBeenCalled();
 
-    (loop as any).wasmBridge = null;
+    loop.setWasmBridgeForTest(null);
     storeState.wasmVesselPtr = 10;
     loop.refreshPhysicsParams();
     expect(wasmBridge.setVesselParams).not.toHaveBeenCalled();
@@ -276,7 +278,7 @@ describe('simulation loop', () => {
     });
     wasmBridge.updateVesselState.mockReturnValue(2);
 
-    (loop as any).updatePhysics(0.016);
+    loop.updatePhysicsForTest(0.016);
 
     expect(wasmBridge.setEnvironment).toHaveBeenCalledWith([
       5, 0, 1, 0.2, 2, 10, 0.5, 0.2, 100,
@@ -299,7 +301,7 @@ describe('simulation loop', () => {
     });
     wasmBridge.getVesselX.mockReturnValue(NaN);
 
-    (loop as any).updatePhysics(0.016);
+    loop.updatePhysicsForTest(0.016);
 
     expect(console.warn).toHaveBeenCalled();
     expect(console.error).toHaveBeenCalled();
@@ -314,7 +316,7 @@ describe('simulation loop', () => {
       throw new Error('boom');
     });
 
-    (loop as any).updatePhysics(0.016);
+    loop.updatePhysicsForTest(0.016);
 
     expect(console.error).toHaveBeenCalled();
     expect(storeState.updateVessel).not.toHaveBeenCalled();
@@ -337,7 +339,7 @@ describe('simulation loop', () => {
     });
     wasmBridge.getVesselFuelLevel.mockReturnValue(0.05);
 
-    (loop as any).updateUIFromPhysics();
+    loop.updateUIFromPhysicsForTest();
 
     expect(storeState.updateVessel).toHaveBeenCalled();
     const eventTypes = (
@@ -361,7 +363,7 @@ describe('simulation loop', () => {
     });
 
     nowSpy.mockReturnValue(10000);
-    (loop as any).updateUIFromPhysics();
+    loop.updateUIFromPhysicsForTest();
     expect(storeState.addEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         category: 'system',
@@ -370,7 +372,7 @@ describe('simulation loop', () => {
     );
 
     nowSpy.mockReturnValue(12000);
-    (loop as any).updateUIFromPhysics();
+    loop.updateUIFromPhysicsForTest();
     expect(storeState.addEvent).toHaveBeenCalledTimes(1);
   });
 
@@ -433,7 +435,7 @@ describe('simulation loop', () => {
       .spyOn(global, 'requestAnimationFrame' as any)
       .mockImplementation(() => 1 as unknown as number);
     const { loop } = setupSimulation();
-    (loop as any).animationFrameId = 123;
+    loop.setAnimationFrameIdForTest(123);
 
     loop.start();
 
@@ -443,13 +445,14 @@ describe('simulation loop', () => {
   it('perf logging sends warn and info based on timing', () => {
     const { loop, socketManager } = setupSimulation();
 
-    (loop as any).updatePhysics = jest.fn();
-    (loop as any).updateUIFromPhysics = jest.fn();
-    (loop as any).stopped = true;
+    loop.setLoopTestHooks({
+      updatePhysics: jest.fn(),
+      updateUIFromPhysics: jest.fn(),
+    });
+    loop.setStoppedForTest(true);
 
-    (loop as any).lastFrameTime = 5950;
-    (loop as any).lastPerfLogMs = 0;
-    (loop as any).loop(6005);
+    loop.setPerfTimingForTest({ lastFrameTime: 5950, lastPerfLogMs: 0 });
+    loop.loopForTest(6005);
 
     expect(console.warn).toHaveBeenCalled();
     expect(socketManager.sendClientLog).toHaveBeenCalledWith(
@@ -458,9 +461,8 @@ describe('simulation loop', () => {
 
     socketManager.sendClientLog.mockClear();
     jest.clearAllMocks();
-    (loop as any).lastFrameTime = 5990;
-    (loop as any).lastPerfLogMs = 0;
-    (loop as any).loop(6005);
+    loop.setPerfTimingForTest({ lastFrameTime: 5990, lastPerfLogMs: 0 });
+    loop.loopForTest(6005);
 
     expect(console.info).toHaveBeenCalled();
     expect(socketManager.sendClientLog).not.toHaveBeenCalled();

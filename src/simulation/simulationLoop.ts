@@ -20,6 +20,10 @@ const buildHydroParams = (vessel: VesselState) =>
   buildDisplacementParams(vessel);
 
 export class SimulationLoop {
+  private loopTestHooks: {
+    updatePhysics?: (dt: number) => void;
+    updateUIFromPhysics?: () => void;
+  } = {};
   private wasmBridge: WasmBridge | null = null;
   private animationFrameId: number | null = null;
   private lastFrameTime: number = 0;
@@ -221,12 +225,20 @@ export class SimulationLoop {
     this.accumulatedTime += deltaTime;
 
     while (this.accumulatedTime >= this.fixedTimeStep) {
-      this.updatePhysics(this.fixedTimeStep);
+      if (this.loopTestHooks.updatePhysics) {
+        this.loopTestHooks.updatePhysics(this.fixedTimeStep);
+      } else {
+        this.updatePhysics(this.fixedTimeStep);
+      }
       this.accumulatedTime -= this.fixedTimeStep;
     }
 
     // Update UI state from physics state
-    this.updateUIFromPhysics();
+    if (this.loopTestHooks.updateUIFromPhysics) {
+      this.loopTestHooks.updateUIFromPhysics();
+    } else {
+      this.updateUIFromPhysics();
+    }
 
     // Perf budget log every interval in dev/preprod
     if (
@@ -274,6 +286,50 @@ export class SimulationLoop {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
+  }
+
+  // Test seams for replacing brittle private-state poking in unit tests.
+  public setWasmBridgeForTest(bridge: WasmBridge | null): void {
+    this.wasmBridge = bridge;
+  }
+
+  public updatePhysicsForTest(dt: number): void {
+    this.updatePhysics(dt);
+  }
+
+  public updateUIFromPhysicsForTest(): void {
+    this.updateUIFromPhysics();
+  }
+
+  public setAnimationFrameIdForTest(id: number | null): void {
+    this.animationFrameId = id;
+  }
+
+  public setStoppedForTest(stopped: boolean): void {
+    this.stopped = stopped;
+  }
+
+  public setPerfTimingForTest(params: {
+    lastFrameTime?: number;
+    lastPerfLogMs?: number;
+  }): void {
+    if (params.lastFrameTime !== undefined) {
+      this.lastFrameTime = params.lastFrameTime;
+    }
+    if (params.lastPerfLogMs !== undefined) {
+      this.lastPerfLogMs = params.lastPerfLogMs;
+    }
+  }
+
+  public setLoopTestHooks(hooks: {
+    updatePhysics?: (dt: number) => void;
+    updateUIFromPhysics?: () => void;
+  }): void {
+    this.loopTestHooks = hooks;
+  }
+
+  public loopForTest(currentTime: number): void {
+    this.loop(currentTime);
   }
 
   /**
