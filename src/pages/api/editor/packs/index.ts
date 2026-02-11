@@ -1,7 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createPack, listPacks } from '../../../../server/editorPacksStore';
+import { requireEditorActor } from '../auth';
 
-const handler = (req: NextApiRequest, res: NextApiResponse) => {
+const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === 'GET') {
     const { userId } = req.query;
     const resolvedUserId =
@@ -11,21 +12,17 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   if (req.method === 'POST') {
-    const {
-      name,
-      description,
-      regionSummary,
-      ownerId,
-      visibility,
-      submitForReview,
-    } = req.body as {
-      name?: string;
-      description?: string;
-      regionSummary?: string;
-      ownerId?: string;
-      visibility?: 'draft' | 'published' | 'curated';
-      submitForReview?: boolean;
-    };
+    const actor = await requireEditorActor(req, res);
+    if (!actor) return;
+
+    const { name, description, regionSummary, visibility, submitForReview } =
+      req.body as {
+        name?: string;
+        description?: string;
+        regionSummary?: string;
+        visibility?: 'draft' | 'published' | 'curated';
+        submitForReview?: boolean;
+      };
     if (!name || !description) {
       res.status(400).json({ error: 'Missing pack name/description' });
       return;
@@ -34,7 +31,7 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
       name,
       description,
       regionSummary,
-      ownerId: ownerId || 'demo',
+      ownerId: actor.userId,
       visibility,
       submitForReview,
     });

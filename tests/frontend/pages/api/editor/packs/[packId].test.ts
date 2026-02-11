@@ -4,6 +4,11 @@ const mockGetPackBySlug = jest.fn();
 const mockHasDuplicateName = jest.fn();
 const mockTransitionPackStatus = jest.fn();
 const mockUpdatePack = jest.fn();
+const mockGetToken = jest.fn();
+
+jest.mock('next-auth/jwt', () => ({
+  getToken: (...args: any[]) => mockGetToken(...args),
+}));
 
 jest.mock('../../../../../../src/server/editorPacksStore', () => ({
   deletePack: (...args: any[]) => mockDeletePack(...args),
@@ -33,22 +38,26 @@ describe('pages/api/editor/packs/[packId]', () => {
       mockTransitionPackStatus,
       mockUpdatePack,
     ].forEach(mock => mock.mockReset());
+    mockGetToken.mockReset();
   });
 
-  it('validates pack id', () => {
+  it('validates pack id', async () => {
     const res = makeRes();
 
-    handler({ method: 'GET', query: { packId: ['x'] } } as any, res as any);
+    await handler(
+      { method: 'GET', query: { packId: ['x'] } } as any,
+      res as any,
+    );
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: 'Invalid pack id' });
   });
 
-  it('gets pack by slug when owner provided', () => {
+  it('gets pack by slug when owner provided', async () => {
     const res = makeRes();
     mockGetPackBySlug.mockReturnValue({ id: 'p1' });
 
-    handler(
+    await handler(
       { method: 'GET', query: { packId: 'slug', ownerId: 'owner-1' } } as any,
       res as any,
     );
@@ -57,21 +66,43 @@ describe('pages/api/editor/packs/[packId]', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it('returns 404 when get misses', () => {
+  it('returns 404 when get misses', async () => {
     const res = makeRes();
     mockGetPack.mockReturnValue(null);
 
-    handler({ method: 'GET', query: { packId: 'p1' } } as any, res as any);
+    await handler(
+      { method: 'GET', query: { packId: 'p1' } } as any,
+      res as any,
+    );
 
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({ error: 'Pack not found' });
   });
 
-  it('handles status transition patch', () => {
+  it('rejects unauthenticated patch requests', async () => {
     const res = makeRes();
+    mockGetToken.mockResolvedValue(null);
+
+    await handler(
+      {
+        method: 'PATCH',
+        query: { packId: 'p1' },
+        body: { status: 'submitted' },
+      } as any,
+      res as any,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Authentication required' });
+  });
+
+  it('handles status transition patch for owner', async () => {
+    const res = makeRes();
+    mockGetToken.mockResolvedValue({ sub: 'o1', role: 'player' });
+    mockGetPack.mockReturnValue({ id: 'p1', ownerId: 'o1', status: 'draft' });
     mockTransitionPackStatus.mockReturnValue({ id: 'p1', status: 'submitted' });
 
-    handler(
+    await handler(
       {
         method: 'PATCH',
         query: { packId: 'p1' },
@@ -83,11 +114,13 @@ describe('pages/api/editor/packs/[packId]', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it('rejects invalid status transition', () => {
+  it('rejects invalid status transition', async () => {
     const res = makeRes();
+    mockGetToken.mockResolvedValue({ sub: 'o1', role: 'player' });
+    mockGetPack.mockReturnValue({ id: 'p1', ownerId: 'o1', status: 'draft' });
     mockTransitionPackStatus.mockReturnValue(null);
 
-    handler(
+    await handler(
       {
         method: 'PATCH',
         query: { packId: 'p1' },
@@ -102,8 +135,29 @@ describe('pages/api/editor/packs/[packId]', () => {
     });
   });
 
-  it('handles duplicate and revoke validations for patch', () => {
+  it('forbids non-owner patch', async () => {
     const res = makeRes();
+    mockGetToken.mockResolvedValue({ sub: 'o2', role: 'player' });
+    mockGetPack.mockReturnValue({ id: 'p1', ownerId: 'o1', status: 'draft' });
+
+    await handler(
+      {
+        method: 'PATCH',
+        query: { packId: 'p1' },
+        body: { name: 'Updated' },
+      } as any,
+      res as any,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Not authorized to update this pack',
+    });
+  });
+
+  it('handles duplicate and revoke validations for patch', async () => {
+    const res = makeRes();
+    mockGetToken.mockResolvedValue({ sub: 'o1', role: 'player' });
     mockGetPack.mockReturnValue({
       id: 'p1',
       ownerId: 'o1',
@@ -111,7 +165,7 @@ describe('pages/api/editor/packs/[packId]', () => {
     });
     mockHasDuplicateName.mockReturnValue(true);
 
-    handler(
+    await handler(
       {
         method: 'PATCH',
         query: { packId: 'p1' },
@@ -125,7 +179,7 @@ describe('pages/api/editor/packs/[packId]', () => {
     const res2 = makeRes();
     mockHasDuplicateName.mockReturnValue(false);
 
-    handler(
+    await handler(
       {
         method: 'PATCH',
         query: { packId: 'p1' },
@@ -140,13 +194,14 @@ describe('pages/api/editor/packs/[packId]', () => {
     });
   });
 
-  it('updates pack', () => {
+  it('updates pack', async () => {
     const res = makeRes();
+    mockGetToken.mockResolvedValue({ sub: 'o1', role: 'player' });
     mockGetPack.mockReturnValue({ id: 'p1', ownerId: 'o1', status: 'draft' });
     mockHasDuplicateName.mockReturnValue(false);
     mockUpdatePack.mockReturnValue({ id: 'p1', name: 'Updated' });
 
-    handler(
+    await handler(
       {
         method: 'PATCH',
         query: { packId: 'p1' },
@@ -161,25 +216,54 @@ describe('pages/api/editor/packs/[packId]', () => {
     });
   });
 
-  it('deletes pack and returns 204', () => {
+  it('forbids non-owner delete', async () => {
     const res = makeRes();
+    mockGetToken.mockResolvedValue({ sub: 'o2', role: 'player' });
+    mockGetPack.mockReturnValue({ id: 'p1', ownerId: 'o1', status: 'draft' });
+
+    await handler(
+      { method: 'DELETE', query: { packId: 'p1' } } as any,
+      res as any,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Not authorized to delete this pack',
+    });
+  });
+
+  it('deletes pack and returns 204', async () => {
+    const res = makeRes();
+    mockGetToken.mockResolvedValue({ sub: 'o1', role: 'player' });
+    mockGetPack.mockReturnValue({ id: 'p1', ownerId: 'o1', status: 'draft' });
     mockDeletePack.mockReturnValue(true);
 
-    handler({ method: 'DELETE', query: { packId: 'p1' } } as any, res as any);
+    await handler(
+      { method: 'DELETE', query: { packId: 'p1' } } as any,
+      res as any,
+    );
 
     expect(res.status).toHaveBeenCalledWith(204);
     expect(res.end).toHaveBeenCalled();
   });
 
-  it('returns 404 on delete miss and 405 on unknown method', () => {
+  it('returns 404 on delete miss and 405 on unknown method', async () => {
     const res = makeRes();
+    mockGetToken.mockResolvedValue({ sub: 'o1', role: 'player' });
+    mockGetPack.mockReturnValue(null);
     mockDeletePack.mockReturnValue(false);
 
-    handler({ method: 'DELETE', query: { packId: 'p1' } } as any, res as any);
+    await handler(
+      { method: 'DELETE', query: { packId: 'p1' } } as any,
+      res as any,
+    );
     expect(res.status).toHaveBeenCalledWith(404);
 
     const res2 = makeRes();
-    handler({ method: 'PUT', query: { packId: 'p1' } } as any, res2 as any);
+    await handler(
+      { method: 'PUT', query: { packId: 'p1' } } as any,
+      res2 as any,
+    );
     expect(res2.status).toHaveBeenCalledWith(405);
   });
 });

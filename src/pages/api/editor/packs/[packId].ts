@@ -7,8 +7,9 @@ import {
   transitionPackStatus,
   updatePack,
 } from '../../../../server/editorPacksStore';
+import { canManagePack, requireEditorActor } from '../auth';
 
-const handler = (req: NextApiRequest, res: NextApiResponse) => {
+const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { packId } = req.query;
   if (!packId || Array.isArray(packId)) {
     res.status(400).json({ error: 'Invalid pack id' });
@@ -31,6 +32,19 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   if (req.method === 'PATCH') {
+    const actor = await requireEditorActor(req, res);
+    if (!actor) return;
+
+    const existing = getPack(packId);
+    if (!existing) {
+      res.status(404).json({ error: 'Pack not found' });
+      return;
+    }
+    if (!canManagePack(actor, existing.ownerId)) {
+      res.status(403).json({ error: 'Not authorized to update this pack' });
+      return;
+    }
+
     const { status, ...patch } = req.body as {
       status?: 'draft' | 'submitted' | 'published';
       name?: string;
@@ -45,11 +59,6 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
         return;
       }
       res.status(200).json({ pack: updated });
-      return;
-    }
-    const existing = getPack(packId);
-    if (!existing) {
-      res.status(404).json({ error: 'Pack not found' });
       return;
     }
     if (
@@ -74,6 +83,19 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   if (req.method === 'DELETE') {
+    const actor = await requireEditorActor(req, res);
+    if (!actor) return;
+
+    const existing = getPack(packId);
+    if (!existing) {
+      res.status(404).json({ error: 'Pack not found' });
+      return;
+    }
+    if (!canManagePack(actor, existing.ownerId)) {
+      res.status(403).json({ error: 'Not authorized to delete this pack' });
+      return;
+    }
+
     const ok = deletePack(packId);
     if (!ok) {
       res.status(404).json({ error: 'Pack not found' });
