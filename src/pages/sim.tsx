@@ -7,14 +7,12 @@ import { HudDrawer } from '../components/HudDrawer';
 import useStore from '../store';
 import socketManager from '../networking/socket';
 import { initializeSimulation, startSimulation } from '../simulation';
-import { getSimulationLoop } from '../simulation';
 import { MAX_CREW, RUDDER_MAX_ANGLE_RAD } from '../constants/vessel';
 import { positionToXY } from '../lib/position';
 import { getScenarios, ScenarioDefinition } from '../lib/scenarios';
 import { getApiBase } from '../lib/api';
 import { getDefaultRules, mapToRulesetType } from '../types/rules.types';
 import { bboxAroundLatLon, setGeoOrigin } from '../lib/geo';
-import { applyFailureControlLimits } from '../lib/failureControls';
 import {
   DEFAULT_SPACE_ID,
   NOTICE_CLEAR_MS,
@@ -793,35 +791,6 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
           rudderAngle: canAdjustRudder ? rudder : controls.rudderAngle,
         },
       });
-
-      try {
-        const simulationLoop = getSimulationLoop();
-        const nextControls: {
-          throttle?: number;
-          rudderAngle?: number;
-          ballast?: number;
-        } = {};
-        if (canAdjustThrottle) {
-          nextControls.throttle = throttle;
-          nextControls.ballast = controls.ballast;
-        }
-        if (canAdjustRudder) {
-          nextControls.rudderAngle = rudder;
-        }
-        const limitedControls = applyFailureControlLimits(
-          nextControls,
-          state.vessel.failureState,
-          state.vessel.damageState,
-        );
-        simulationLoop.applyControls(limitedControls);
-        socketManager.sendControlUpdate(
-          limitedControls.throttle,
-          limitedControls.rudderAngle,
-          limitedControls.ballast,
-        );
-      } catch (error) {
-        console.error('Error applying keyboard controls:', error);
-      }
     };
 
     window.addEventListener('keydown', handleKeyDown);

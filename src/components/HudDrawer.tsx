@@ -52,6 +52,7 @@ import {
 import { HudPhysicsInspectorPanel } from './hud/PhysicsInspectorPanel';
 import {
   COMPASS_ZERO_OFFSET_DEG,
+  CONTROL_SEND_MIN_INTERVAL_MS,
   COURSE_SPEED_THRESHOLD_MS,
   DEFAULT_BALLAST,
   DEFAULT_GUARD_ZONE,
@@ -179,6 +180,15 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const [ballastLocal, setBallastLocal] = useState(
     controls?.ballast ?? DEFAULT_BALLAST,
   );
+  const pendingControlRef = React.useRef<{
+    throttle?: number;
+    rudderAngle?: number;
+    ballast?: number;
+  } | null>(null);
+  const controlTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const lastControlSendAtRef = React.useRef(0);
   const [adminTargetId, setAdminTargetId] = useState<string>('');
   const [adminLat, setAdminLat] = useState('');
   const [adminLon, setAdminLon] = useState('');
@@ -777,48 +787,87 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     setBallastLocal(controls.ballast ?? DEFAULT_BALLAST);
   }, [controls?.throttle, controls?.rudderAngle, controls?.ballast, controls]);
 
+  React.useEffect(() => {
+    return () => {
+      if (controlTimerRef.current) {
+        clearTimeout(controlTimerRef.current);
+      }
+      controlTimerRef.current = null;
+      pendingControlRef.current = null;
+    };
+  }, []);
+
   // apply controls to sim + server
   React.useEffect(() => {
-    if (mode === 'spectator') return;
-    if (!controls) return;
-    if (!canAdjustThrottle && !canAdjustRudder) return;
-    const simulationLoop = getSimulationLoop();
-    try {
-      const clampedRudder = clampRudderAngle(rudderAngleLocal);
-      const nextControls: {
-        throttle?: number;
-        rudderAngle?: number;
-        ballast?: number;
-      } = {};
-      if (canAdjustThrottle) {
-        nextControls.throttle = throttleLocal;
-        nextControls.ballast = ballastLocal;
+    if (mode === 'spectator' || (!canAdjustThrottle && !canAdjustRudder)) {
+      if (controlTimerRef.current) {
+        clearTimeout(controlTimerRef.current);
       }
-      if (canAdjustRudder) {
-        nextControls.rudderAngle = clampedRudder;
-      }
-      const limitedControls = applyFailureControlLimits(
-        nextControls,
-        vessel.failureState,
-        vessel.damageState,
-      );
-      simulationLoop.applyControls(limitedControls);
-      socketManager.sendControlUpdate(
-        limitedControls.throttle,
-        limitedControls.rudderAngle,
-        limitedControls.ballast,
-      );
-    } catch (error) {
-      console.error('Error applying controls from HUD:', error);
+      controlTimerRef.current = null;
+      pendingControlRef.current = null;
+      return;
     }
+
+    const clampedRudder = clampRudderAngle(rudderAngleLocal);
+    const nextControls: {
+      throttle?: number;
+      rudderAngle?: number;
+      ballast?: number;
+    } = {};
+    if (canAdjustThrottle) {
+      nextControls.throttle = throttleLocal;
+      nextControls.ballast = ballastLocal;
+    }
+    if (canAdjustRudder) {
+      nextControls.rudderAngle = clampedRudder;
+    }
+
+    const limitedControls = applyFailureControlLimits(
+      nextControls,
+      vessel.failureState,
+      vessel.damageState,
+    );
+    pendingControlRef.current = limitedControls;
+
+    const flushPendingControls = () => {
+      const queued = pendingControlRef.current;
+      if (!queued) return;
+      try {
+        const simulationLoop = getSimulationLoop();
+        simulationLoop.applyControls(queued);
+        socketManager.sendControlUpdate(
+          queued.throttle,
+          queued.rudderAngle,
+          queued.ballast,
+        );
+        lastControlSendAtRef.current = Date.now();
+      } catch (error) {
+        console.error('Error applying controls from HUD:', error);
+      } finally {
+        pendingControlRef.current = null;
+        controlTimerRef.current = null;
+      }
+    };
+
+    const now = Date.now();
+    const elapsed = now - lastControlSendAtRef.current;
+    if (elapsed >= CONTROL_SEND_MIN_INTERVAL_MS && !controlTimerRef.current) {
+      flushPendingControls();
+      return;
+    }
+
+    if (controlTimerRef.current) return;
+    const delay = Math.max(0, CONTROL_SEND_MIN_INTERVAL_MS - elapsed);
+    controlTimerRef.current = setTimeout(flushPendingControls, delay);
   }, [
     ballastLocal,
     canAdjustRudder,
     canAdjustThrottle,
-    controls,
     mode,
     rudderAngleLocal,
     throttleLocal,
+    vessel.damageState,
+    vessel.failureState,
   ]);
 
   const navStats = useMemo(

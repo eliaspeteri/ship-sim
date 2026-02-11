@@ -137,6 +137,7 @@ export const ECONOMY_TRANSACTIONS_LIMIT = 8;
 
 export const MS_PER_SECOND = 1000;
 export const MINUTES_PER_HOUR = 60;
+export const CONTROL_SEND_MIN_INTERVAL_MS = 75;
 
 export const DEFAULT_COORD_DECIMALS = 1;
 export const PERCENT_DECIMALS = 0;

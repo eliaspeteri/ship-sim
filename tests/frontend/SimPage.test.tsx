@@ -491,8 +491,6 @@ describe('Sim page', () => {
       fireEvent.keyDown(window, { key: 'w' });
     });
 
-    expect(socketManager.sendControlUpdate).toHaveBeenCalled();
-    expect(applyControls).toHaveBeenCalled();
     expect(storeState.updateVessel).toHaveBeenCalled();
   });
 
