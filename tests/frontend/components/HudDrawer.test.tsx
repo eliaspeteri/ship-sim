@@ -22,6 +22,7 @@ const stopReplayRecordingMock = jest.fn();
 const startReplayPlaybackMock = jest.fn();
 const stopReplayPlaybackMock = jest.fn();
 const clearReplayMock = jest.fn();
+const chatPanelPropsMock = jest.fn();
 
 const storeState: any = {
   mode: 'player',
@@ -216,7 +217,10 @@ jest.mock('../../../src/components/hud/HudPanels', () => ({
     </div>
   ),
   HudAlarmsPanel: () => <div>Alarms panel</div>,
-  HudChatPanel: () => <div>Chat panel</div>,
+  HudChatPanel: (props: any) => {
+    chatPanelPropsMock(props);
+    return <div>Chat panel</div>;
+  },
   HudConningPanel: () => <div>Conning panel</div>,
   HudNavControls: ({
     setThrottleLocal,
@@ -282,6 +286,7 @@ describe('HudDrawer', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    chatPanelPropsMock.mockClear();
     global.fetch = fetchMock as any;
     Object.assign(storeState, JSON.parse(JSON.stringify(snapshot)));
     storeState.setNotice = setNoticeMock;
@@ -391,5 +396,36 @@ describe('HudDrawer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Spaces' }));
     expect(onOpenSpaces).toHaveBeenCalled();
+  });
+
+  it('updates chat panel props when selected space or vessel changes', async () => {
+    const { rerender } = render(<HudDrawer />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chat' }));
+    await waitFor(() => {
+      expect(chatPanelPropsMock).toHaveBeenCalled();
+    });
+
+    let latestChatProps = chatPanelPropsMock.mock.calls.at(-1)?.[0];
+    expect(latestChatProps).toEqual(
+      expect.objectContaining({
+        spaceId: 'global',
+        currentVesselId: 'own-vessel',
+      }),
+    );
+
+    storeState.spaceId = 'space-2';
+    storeState.currentVesselId = 'vessel-2';
+    rerender(<HudDrawer />);
+
+    await waitFor(() => {
+      latestChatProps = chatPanelPropsMock.mock.calls.at(-1)?.[0];
+      expect(latestChatProps).toEqual(
+        expect.objectContaining({
+          spaceId: 'space-2',
+          currentVesselId: 'vessel-2',
+        }),
+      );
+    });
   });
 });

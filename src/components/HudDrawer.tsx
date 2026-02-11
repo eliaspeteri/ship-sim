@@ -1253,8 +1253,8 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
           ) : null}
           {tab === 'chat' ? (
             <HudChatPanel
-              spaceId={useStore.getState().spaceId || undefined}
-              currentVesselId={useStore.getState().currentVesselId || undefined}
+              spaceId={spaceId || undefined}
+              currentVesselId={currentVesselId || undefined}
             />
           ) : null}
           {tab === 'events' ? <HudEventsPanel /> : null}
