@@ -114,6 +114,55 @@ export function requireRole(roles: string[]) {
 }
 
 /**
+ * Express middleware to ensure a request is bound to the subject user or an allowed role.
+ * @param paramKey - Request param name that holds the subject user id
+ * @param roles - Roles that can bypass subject binding (defaults to admin)
+ */
+export function requireSelfOrRole(
+  paramKey: string,
+  roles: string[] = ['admin'],
+) {
+  return function (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ): void {
+    if (!req.user) {
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Authentication required',
+      });
+      return;
+    }
+
+    const subjectId = req.params?.[paramKey];
+    if (!subjectId) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message: `Missing ${paramKey}`,
+      });
+      return;
+    }
+
+    if (req.user.userId === subjectId) {
+      next();
+      return;
+    }
+
+    const hasRole = req.user.roles.some(role => roles.includes(role));
+    if (hasRole) {
+      next();
+      return;
+    }
+
+    res.status(403).json({
+      error: 'Forbidden',
+      message: 'You do not have access to this resource',
+    });
+  };
+}
+
+/**
  * Socket.io middleware to check if socket has permission for an action
  * @param socket - Socket instance
  * @param resource - Resource name to check against

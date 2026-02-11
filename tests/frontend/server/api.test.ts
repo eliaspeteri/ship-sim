@@ -19,6 +19,23 @@ jest.mock('../../../src/server/middleware/authentication', () => ({
 jest.mock('../../../src/server/middleware/authorization', () => ({
   requirePermission: () => (_req: any, _res: any, next: any) => next(),
   requireRole: () => (_req: any, _res: any, next: any) => next(),
+  requireSelfOrRole:
+    (paramKey: string, roles: string[] = ['admin']) =>
+    (req: any, res: any, next: any) => {
+      const subjectId = req?.params?.[paramKey];
+      const userId = req?.user?.userId;
+      const userRoles = Array.isArray(req?.user?.roles) ? req.user.roles : [];
+      if (userId && subjectId && userId === subjectId) {
+        next();
+        return;
+      }
+      if (userRoles.some((role: string) => roles.includes(role))) {
+        next();
+        return;
+      }
+      res.status(403).json({ error: 'Forbidden' });
+      next();
+    },
 }));
 
 jest.mock('../../../src/lib/prisma', () => ({
@@ -1242,6 +1259,99 @@ describe('server/api router', () => {
         vesselCount: expect.any(Number),
       }),
     );
+  });
+
+  it('restricts settings access to self unless admin', async () => {
+    const normalUser = { userId: 'settings-user-self', roles: ['player'] };
+    const otherUserId = 'settings-user-other';
+
+    const selfPost = await invokeRoute('post', '/settings/:userId', {
+      params: { userId: normalUser.userId },
+      user: normalUser,
+      body: { soundEnabled: false },
+    });
+    expect(selfPost.res.statusCode).toBe(200);
+
+    const selfGet = await invokeRoute('get', '/settings/:userId', {
+      params: { userId: normalUser.userId },
+      user: normalUser,
+    });
+    expect(selfGet.res.statusCode).toBe(200);
+
+    const otherGet = await invokeRoute('get', '/settings/:userId', {
+      params: { userId: otherUserId },
+      user: normalUser,
+    });
+    expect(otherGet.res.statusCode).toBe(403);
+
+    const otherPost = await invokeRoute('post', '/settings/:userId', {
+      params: { userId: otherUserId },
+      user: normalUser,
+      body: { soundEnabled: true },
+    });
+    expect(otherPost.res.statusCode).toBe(403);
+
+    const adminUser = { userId: 'settings-admin', roles: ['admin'] };
+    const adminPost = await invokeRoute('post', '/settings/:userId', {
+      params: { userId: otherUserId },
+      user: adminUser,
+      body: { soundEnabled: true },
+    });
+    expect(adminPost.res.statusCode).toBe(200);
+
+    const adminGet = await invokeRoute('get', '/settings/:userId', {
+      params: { userId: otherUserId },
+      user: adminUser,
+    });
+    expect(adminGet.res.statusCode).toBe(200);
+  });
+
+  it('enforces owner-or-admin policy for vessel mutation routes', async () => {
+    const ownerUser = { userId: 'vessel-owner', roles: ['player'] };
+    const otherUserId = 'vessel-other';
+    const adminUser = { userId: 'vessel-admin', roles: ['admin'] };
+
+    const ownerUpdate = await invokeRoute('post', '/vessels/:userId', {
+      params: { userId: ownerUser.userId },
+      user: ownerUser,
+      body: {
+        position: { lat: 60.17, lon: 24.94, z: 1 },
+        orientation: { heading: 1.2, roll: 0.1, pitch: -0.1 },
+        velocity: { surge: 3, sway: 0.5, heave: -0.1 },
+        properties: { mass: 20000, length: 80, beam: 14, draft: 4 },
+      },
+    });
+    expect(ownerUpdate.res.statusCode).toBe(200);
+
+    const crossUserUpdate = await invokeRoute('post', '/vessels/:userId', {
+      params: { userId: otherUserId },
+      user: ownerUser,
+      body: {
+        position: { lat: 60.17, lon: 24.94, z: 1 },
+      },
+    });
+    expect(crossUserUpdate.res.statusCode).toBe(403);
+
+    const adminUpdate = await invokeRoute('post', '/vessels/:userId', {
+      params: { userId: otherUserId },
+      user: adminUser,
+      body: {
+        position: { lat: 60.17, lon: 24.94, z: 1 },
+      },
+    });
+    expect(adminUpdate.res.statusCode).toBe(200);
+
+    const crossUserDelete = await invokeRoute('delete', '/vessels/:userId', {
+      params: { userId: otherUserId },
+      user: ownerUser,
+    });
+    expect(crossUserDelete.res.statusCode).toBe(403);
+
+    const adminDelete = await invokeRoute('delete', '/vessels/:userId', {
+      params: { userId: otherUserId },
+      user: adminUser,
+    });
+    expect(adminDelete.res.statusCode).toBe(200);
   });
 
   it('smoke-invokes all registered route handlers', async () => {

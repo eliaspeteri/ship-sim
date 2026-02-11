@@ -3,7 +3,11 @@ import bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { authenticateRequest, requireAuth } from './middleware/authentication';
-import { requirePermission, requireRole } from './middleware/authorization';
+import {
+  requirePermission,
+  requireRole,
+  requireSelfOrRole,
+} from './middleware/authorization';
 import type { Role } from './roles';
 import { VesselState, ShipType } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
@@ -422,6 +426,7 @@ router.get('/vessels/:userId', requireAuth, function (req, res) {
 router.post(
   '/vessels/:userId',
   requireAuth,
+  requireSelfOrRole('userId'),
   requirePermission('vessel', 'update'),
   function (req, res) {
     const { userId } = req.params;
@@ -459,6 +464,7 @@ router.post(
 router.delete(
   '/vessels/:userId',
   requireAuth,
+  requireSelfOrRole('userId'),
   requirePermission('vessel', 'delete'),
   function (req, res) {
     const { userId } = req.params;
@@ -2578,72 +2584,82 @@ router.delete('/logs', requireAuth, requireRole(['admin']), (_req, res) => {
 });
 
 // GET /api/settings/:userId
-router.get('/settings/:userId', requireAuth, function (req, res) {
-  const { userId } = req.params;
+router.get(
+  '/settings/:userId',
+  requireAuth,
+  requireSelfOrRole('userId'),
+  function (req, res) {
+    const { userId } = req.params;
 
-  const settings = userSettingsStore[userId];
-  if (!settings) {
-    res.status(404).json({ error: 'Settings not found' });
-    return;
-  }
-  res.json(settings);
-});
+    const settings = userSettingsStore[userId];
+    if (!settings) {
+      res.status(404).json({ error: 'Settings not found' });
+      return;
+    }
+    res.json(settings);
+  },
+);
 
 // POST /api/settings/:userId
-router.post('/settings/:userId', requireAuth, function (req, res) {
-  const { userId } = req.params;
-  const {
-    soundEnabled,
-    units,
-    speedUnit,
-    distanceUnit,
-    timeZoneMode,
-    timeZone,
-    notificationLevel,
-    interfaceDensity,
-  } = req.body;
-  const existing = userSettingsStore[userId];
+router.post(
+  '/settings/:userId',
+  requireAuth,
+  requireSelfOrRole('userId'),
+  function (req, res) {
+    const { userId } = req.params;
+    const {
+      soundEnabled,
+      units,
+      speedUnit,
+      distanceUnit,
+      timeZoneMode,
+      timeZone,
+      notificationLevel,
+      interfaceDensity,
+    } = req.body;
+    const existing = userSettingsStore[userId];
 
-  const settings: UserSettings = {
-    id: existing?.id ?? Date.now(),
-    userId,
-    soundEnabled:
-      soundEnabled !== undefined
-        ? soundEnabled
-        : (existing?.soundEnabled ?? true),
-    units:
-      units === 'imperial' || units === 'nautical'
-        ? units
-        : existing?.units || 'metric',
-    speedUnit:
-      speedUnit === 'kmh' || speedUnit === 'mph' || speedUnit === 'knots'
-        ? speedUnit
-        : existing?.speedUnit || 'knots',
-    distanceUnit:
-      distanceUnit === 'km' || distanceUnit === 'mi' || distanceUnit === 'nm'
-        ? distanceUnit
-        : existing?.distanceUnit || 'nm',
-    timeZoneMode: timeZoneMode === 'manual' ? 'manual' : 'auto',
-    timeZone:
-      typeof timeZone === 'string' && timeZone.trim().length > 0
-        ? timeZone.trim()
-        : existing?.timeZone || 'UTC',
-    notificationLevel:
-      notificationLevel === 'all' ||
-      notificationLevel === 'mentions' ||
-      notificationLevel === 'none'
-        ? notificationLevel
-        : existing?.notificationLevel || 'mentions',
-    interfaceDensity:
-      interfaceDensity === 'compact'
-        ? 'compact'
-        : existing?.interfaceDensity || 'comfortable',
-    createdAt: existing?.createdAt ?? new Date(),
-    updatedAt: new Date(),
-  };
-  userSettingsStore[userId] = settings;
-  res.json(settings);
-});
+    const settings: UserSettings = {
+      id: existing?.id ?? Date.now(),
+      userId,
+      soundEnabled:
+        soundEnabled !== undefined
+          ? soundEnabled
+          : (existing?.soundEnabled ?? true),
+      units:
+        units === 'imperial' || units === 'nautical'
+          ? units
+          : existing?.units || 'metric',
+      speedUnit:
+        speedUnit === 'kmh' || speedUnit === 'mph' || speedUnit === 'knots'
+          ? speedUnit
+          : existing?.speedUnit || 'knots',
+      distanceUnit:
+        distanceUnit === 'km' || distanceUnit === 'mi' || distanceUnit === 'nm'
+          ? distanceUnit
+          : existing?.distanceUnit || 'nm',
+      timeZoneMode: timeZoneMode === 'manual' ? 'manual' : 'auto',
+      timeZone:
+        typeof timeZone === 'string' && timeZone.trim().length > 0
+          ? timeZone.trim()
+          : existing?.timeZone || 'UTC',
+      notificationLevel:
+        notificationLevel === 'all' ||
+        notificationLevel === 'mentions' ||
+        notificationLevel === 'none'
+          ? notificationLevel
+          : existing?.notificationLevel || 'mentions',
+      interfaceDensity:
+        interfaceDensity === 'compact'
+          ? 'compact'
+          : existing?.interfaceDensity || 'comfortable',
+      createdAt: existing?.createdAt ?? new Date(),
+      updatedAt: new Date(),
+    };
+    userSettingsStore[userId] = settings;
+    res.json(settings);
+  },
+);
 
 // POST /api/profile - update account identity or password
 router.post('/profile', requireAuth, async function (req, res) {
