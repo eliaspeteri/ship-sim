@@ -952,6 +952,161 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     },
     [setPhysicsParams],
   );
+  const panelRenderers: Partial<Record<HudTab, () => React.ReactNode>> = {
+    vessels: () => (
+      <HudVesselsPanel
+        fleetLoading={fleetLoading}
+        fleetError={fleetError}
+        fleetInSpace={fleetInSpace}
+        fleetOtherSpace={fleetOtherSpace}
+        resolveNearestPort={resolveNearestPort}
+        shortId={shortId}
+        normalizedSpaceId={normalizedSpaceId}
+        otherVessels={otherVessels || {}}
+        onJoinVessel={id => {
+          socketManager.setJoinPreference('player', true);
+          socketManager.requestJoinVessel(id);
+        }}
+      />
+    ),
+    navigation: () => <HudNavigationPanel navStats={navStats} />,
+    crew: () => (
+      <HudCrewPanel
+        crewRoster={crewRoster}
+        stationByUser={stationByUser}
+        helmStation={helmStation}
+        engineStation={engineStation}
+        radioStation={radioStation}
+        sessionUserId={sessionUserId}
+        crewIds={crewIds}
+        isAdmin={isAdmin}
+        onRequestStation={(station, action) =>
+          socketManager.requestStation(station, action)
+        }
+      />
+    ),
+    ecdis: () => (
+      <HudEcdisPanel
+        shipPosition={vessel.position}
+        heading={vessel.orientation.heading}
+      />
+    ),
+    conning: () => <HudConningPanel conningData={conningData} />,
+    sounder: () => <HudSounderPanel depthValue={depthValue} />,
+    weather: () => <HudWeatherPanel />,
+    systems: () => (
+      <HudSystemsPanel
+        engineRunning={engineRunning}
+        fuelPercent={fuelPercent}
+        loadPercent={loadPercent}
+        batteryPercent={batteryPercent}
+        ballastPercent={ballastPercent}
+        canAdjustThrottle={canAdjustThrottle}
+        engineState={engineState}
+        electrical={electrical}
+        powerBalance={powerBalance}
+        damageState={damageState}
+        repairCost={repairCost}
+        speedMs={speedMs}
+        draftEstimate={draftEstimate}
+        stability={stability}
+        vesselProperties={vessel.properties}
+        waterDepth={waterDepth}
+        underKeel={underKeel}
+        setBallastLocal={setBallastLocal}
+        onRequestRepair={() =>
+          socketManager.requestRepair(currentVesselId || undefined)
+        }
+      />
+    ),
+    missions: () => (
+      <HudMissionsPanel
+        account={account}
+        socketLatencyMs={socketLatencyMs}
+        rankProgress={rankProgress}
+        xpToNext={xpToNext}
+        economyLoading={economyLoading}
+        economyError={economyError}
+        economyTransactions={economyTransactions}
+        activeAssignments={activeAssignments}
+        missions={missions}
+        assignmentsByMission={assignmentsByMission}
+        canAcceptMissions={canAcceptMissions}
+        missionError={missionError}
+        missionBusyId={missionBusyId}
+        onAssignMission={missionId => void handleAssignMission(missionId)}
+      />
+    ),
+    replay: () => (
+      <HudReplayPanel
+        replay={replay}
+        replayDuration={replayDuration}
+        startReplayRecording={startReplayRecording}
+        stopReplayRecording={stopReplayRecording}
+        startReplayPlayback={startReplayPlayback}
+        stopReplayPlayback={stopReplayPlayback}
+        clearReplay={clearReplay}
+      />
+    ),
+    chat: () => (
+      <HudChatPanel
+        spaceId={spaceId || undefined}
+        currentVesselId={currentVesselId || undefined}
+      />
+    ),
+    events: () => <HudEventsPanel />,
+    radio: () => <HudRadioPanel />,
+    radar: () => (
+      <HudRadarPanel
+        radarSettings={radarSettings}
+        setRadarSettings={setRadarSettings}
+        radarEbl={radarEbl}
+        setRadarEbl={setRadarEbl}
+        radarVrm={radarVrm}
+        setRadarVrm={setRadarVrm}
+        radarGuardZone={radarGuardZone}
+        setRadarGuardZone={setRadarGuardZone}
+        radarArpaSettings={radarArpaSettings}
+        setRadarArpaSettings={setRadarArpaSettings}
+        radarArpaEnabled={radarArpaEnabled}
+        setRadarArpaEnabled={setRadarArpaEnabled}
+        radarArpaTargets={radarArpaTargets}
+        setRadarArpaTargets={setRadarArpaTargets}
+        radarTargets={radarTargets}
+        aisTargets={aisTargets}
+        radarEnvironment={radarEnvironment}
+        ownShipData={ownShipData}
+      />
+    ),
+    alarms: () => <HudAlarmsPanel alarmItems={alarmItems} />,
+    admin: () =>
+      isAdmin ? (
+        <div className={styles.sectionGrid}>
+          <HudAdminPanel
+            adminTargets={adminTargets}
+            adminTargetId={adminTargetId}
+            setAdminTargetId={setAdminTargetId}
+            adminLat={adminLat}
+            setAdminLat={setAdminLat}
+            adminLon={adminLon}
+            setAdminLon={setAdminLon}
+            selectedAdminTarget={selectedAdminTarget}
+            onMove={handleAdminMove}
+            onMoveToSelf={handleAdminMoveToSelf}
+          />
+        </div>
+      ) : null,
+    debug: () =>
+      showDebugTab ? (
+        <div className={styles.sectionGrid}>
+          <HudPhysicsInspectorPanel
+            vessel={vessel}
+            onApplyParams={handlePhysicsParamsApply}
+          />
+        </div>
+      ) : null,
+  };
+  const activePanel = tab ? (panelRenderers[tab]?.() ?? null) : null;
 
   return (
     <div className={styles.hudRoot} data-hud-root>
@@ -961,162 +1116,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
             tab === 'navigation' ? styles.hudPanelWide : ''
           }`}
         >
-          {tab === 'vessels' ? (
-            <HudVesselsPanel
-              fleetLoading={fleetLoading}
-              fleetError={fleetError}
-              fleetInSpace={fleetInSpace}
-              fleetOtherSpace={fleetOtherSpace}
-              resolveNearestPort={resolveNearestPort}
-              shortId={shortId}
-              normalizedSpaceId={normalizedSpaceId}
-              otherVessels={otherVessels || {}}
-              onJoinVessel={id => {
-                socketManager.setJoinPreference('player', true);
-                socketManager.requestJoinVessel(id);
-              }}
-            />
-          ) : null}
-          {tab === 'navigation' ? (
-            <HudNavigationPanel navStats={navStats} />
-          ) : null}
-          {tab === 'crew' ? (
-            <HudCrewPanel
-              crewRoster={crewRoster}
-              stationByUser={stationByUser}
-              helmStation={helmStation}
-              engineStation={engineStation}
-              radioStation={radioStation}
-              sessionUserId={sessionUserId}
-              crewIds={crewIds}
-              isAdmin={isAdmin}
-              onRequestStation={(station, action) =>
-                socketManager.requestStation(station, action)
-              }
-            />
-          ) : null}
-          {tab === 'ecdis' ? (
-            <HudEcdisPanel
-              shipPosition={vessel.position}
-              heading={vessel.orientation.heading}
-            />
-          ) : null}
-          {tab === 'conning' ? (
-            <HudConningPanel conningData={conningData} />
-          ) : null}
-          {tab === 'sounder' ? (
-            <HudSounderPanel depthValue={depthValue} />
-          ) : null}
-          {tab === 'weather' ? <HudWeatherPanel /> : null}
-          {tab === 'systems' ? (
-            <HudSystemsPanel
-              engineRunning={engineRunning}
-              fuelPercent={fuelPercent}
-              loadPercent={loadPercent}
-              batteryPercent={batteryPercent}
-              ballastPercent={ballastPercent}
-              canAdjustThrottle={canAdjustThrottle}
-              engineState={engineState}
-              electrical={electrical}
-              powerBalance={powerBalance}
-              damageState={damageState}
-              repairCost={repairCost}
-              speedMs={speedMs}
-              draftEstimate={draftEstimate}
-              stability={stability}
-              vesselProperties={vessel.properties}
-              waterDepth={waterDepth}
-              underKeel={underKeel}
-              setBallastLocal={setBallastLocal}
-              onRequestRepair={() =>
-                socketManager.requestRepair(currentVesselId || undefined)
-              }
-            />
-          ) : null}
-          {tab === 'missions' ? (
-            <HudMissionsPanel
-              account={account}
-              socketLatencyMs={socketLatencyMs}
-              rankProgress={rankProgress}
-              xpToNext={xpToNext}
-              economyLoading={economyLoading}
-              economyError={economyError}
-              economyTransactions={economyTransactions}
-              activeAssignments={activeAssignments}
-              missions={missions}
-              assignmentsByMission={assignmentsByMission}
-              canAcceptMissions={canAcceptMissions}
-              missionError={missionError}
-              missionBusyId={missionBusyId}
-              onAssignMission={missionId => void handleAssignMission(missionId)}
-            />
-          ) : null}
-          {tab === 'replay' ? (
-            <HudReplayPanel
-              replay={replay}
-              replayDuration={replayDuration}
-              startReplayRecording={startReplayRecording}
-              stopReplayRecording={stopReplayRecording}
-              startReplayPlayback={startReplayPlayback}
-              stopReplayPlayback={stopReplayPlayback}
-              clearReplay={clearReplay}
-            />
-          ) : null}
-          {tab === 'chat' ? (
-            <HudChatPanel
-              spaceId={spaceId || undefined}
-              currentVesselId={currentVesselId || undefined}
-            />
-          ) : null}
-          {tab === 'events' ? <HudEventsPanel /> : null}
-          {tab === 'radio' ? <HudRadioPanel /> : null}
-          {tab === 'radar' ? (
-            <HudRadarPanel
-              radarSettings={radarSettings}
-              setRadarSettings={setRadarSettings}
-              radarEbl={radarEbl}
-              setRadarEbl={setRadarEbl}
-              radarVrm={radarVrm}
-              setRadarVrm={setRadarVrm}
-              radarGuardZone={radarGuardZone}
-              setRadarGuardZone={setRadarGuardZone}
-              radarArpaSettings={radarArpaSettings}
-              setRadarArpaSettings={setRadarArpaSettings}
-              radarArpaEnabled={radarArpaEnabled}
-              setRadarArpaEnabled={setRadarArpaEnabled}
-              radarArpaTargets={radarArpaTargets}
-              setRadarArpaTargets={setRadarArpaTargets}
-              radarTargets={radarTargets}
-              aisTargets={aisTargets}
-              radarEnvironment={radarEnvironment}
-              ownShipData={ownShipData}
-            />
-          ) : null}
-          {tab === 'alarms' ? <HudAlarmsPanel alarmItems={alarmItems} /> : null}
-          {tab === 'admin' && isAdmin ? (
-            <div className={styles.sectionGrid}>
-              <HudAdminPanel
-                adminTargets={adminTargets}
-                adminTargetId={adminTargetId}
-                setAdminTargetId={setAdminTargetId}
-                adminLat={adminLat}
-                setAdminLat={setAdminLat}
-                adminLon={adminLon}
-                setAdminLon={setAdminLon}
-                selectedAdminTarget={selectedAdminTarget}
-                onMove={handleAdminMove}
-                onMoveToSelf={handleAdminMoveToSelf}
-              />
-            </div>
-          ) : null}
-          {tab === 'debug' && showDebugTab ? (
-            <div className={styles.sectionGrid}>
-              <HudPhysicsInspectorPanel
-                vessel={vessel}
-                onApplyParams={handlePhysicsParamsApply}
-              />
-            </div>
-          ) : null}
+          {activePanel}
         </div>
       ) : null}
       {mode !== 'spectator' && !tab ? (
