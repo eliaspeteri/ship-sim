@@ -26,9 +26,7 @@ import {
   estimateTimeZoneOffsetHours,
   formatTimeOfDay,
 } from '../lib/time';
-import { applyFailureControlLimits } from '../lib/failureControls';
 import { computeRepairCost, normalizeDamageState } from '../lib/damage';
-import { clampRudderAngle } from '../constants/vessel';
 import styles from './HudDrawer.module.css';
 import {
   HudAdminPanel,
@@ -113,12 +111,13 @@ import {
   formatKnotsValue,
   toDegrees,
 } from './hud/format';
+import { EconomyPort, HudTab } from './hud/types';
 import {
-  EconomyPort,
-  EconomyTransaction,
-  FleetVessel,
-  HudTab,
-} from './hud/types';
+  HudControlUpdate,
+  useHudControlsSync,
+} from '../features/sim/hooks/useHudControlsSync';
+import { useHudFleetData } from '../features/sim/hooks/useHudFleetData';
+import { useHudMissionData } from '../features/sim/hooks/useHudMissionData';
 
 interface HudDrawerProps {
   onOpenSpaces?: () => void;
@@ -177,37 +176,15 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   );
   const [radarArpaEnabled, setRadarArpaEnabled] = useState(false);
   const [radarArpaTargets, setRadarArpaTargets] = useState<ARPATarget[]>([]);
-  const [throttleLocal, setThrottleLocal] = useState(controls?.throttle || 0);
-  const [rudderAngleLocal, setRudderAngleLocal] = useState(
-    controls?.rudderAngle || 0,
-  );
-  const [ballastLocal, setBallastLocal] = useState(
-    controls?.ballast ?? DEFAULT_BALLAST,
-  );
-  const pendingControlRef = React.useRef<{
-    throttle?: number;
-    rudderAngle?: number;
-    ballast?: number;
-  } | null>(null);
-  const controlTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-  const lastControlSendAtRef = React.useRef(0);
   const [adminTargetId, setAdminTargetId] = useState<string>('');
   const [adminLat, setAdminLat] = useState('');
   const [adminLon, setAdminLon] = useState('');
-  const [missionError, setMissionError] = useState<string | null>(null);
-  const [missionBusyId, setMissionBusyId] = useState<string | null>(null);
-  const [economyTransactions, setEconomyTransactions] = useState<
-    EconomyTransaction[]
-  >([]);
-  const [economyLoading, setEconomyLoading] = useState(false);
-  const [economyError, setEconomyError] = useState<string | null>(null);
-  const [fleet, setFleet] = useState<FleetVessel[]>([]);
-  const [fleetLoading, setFleetLoading] = useState(false);
-  const [fleetError, setFleetError] = useState<string | null>(null);
-  const [fleetPorts, setFleetPorts] = useState<EconomyPort[]>(HUD_PORTS);
   const apiBase = useMemo(() => getApiBase(), []);
+  const { fleet, fleetLoading, fleetError, fleetPorts } = useHudFleetData({
+    apiBase,
+    tab,
+    fallbackPorts: HUD_PORTS,
+  });
   const shortId = React.useCallback(
     (id: string) => (id.length > 10 ? `${id.slice(0, 10)}…` : id),
     [],
@@ -255,6 +232,51 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   const canAdjustThrottle = isEngine || (!engineStation?.userId && isHelm);
   const canAdjustRudder = isHelm;
   const canAcceptMissions = roles.includes('player') || roles.includes('admin');
+  const dispatchControlUpdate = React.useCallback(
+    (nextControls: HudControlUpdate) => {
+      const simulationLoop = getSimulationLoop();
+      simulationLoop.applyControls(nextControls);
+      socketManager.sendControlUpdate(
+        nextControls.throttle,
+        nextControls.rudderAngle,
+        nextControls.ballast,
+      );
+    },
+    [],
+  );
+  const {
+    throttleLocal,
+    setThrottleLocal,
+    rudderAngleLocal,
+    setRudderAngleLocal,
+    ballastLocal,
+    setBallastLocal,
+  } = useHudControlsSync({
+    controls,
+    mode,
+    canAdjustThrottle,
+    canAdjustRudder,
+    defaultBallast: DEFAULT_BALLAST,
+    minSendIntervalMs: CONTROL_SEND_MIN_INTERVAL_MS,
+    failureState: vessel.failureState,
+    damageState: vessel.damageState,
+    dispatchControlUpdate,
+  });
+  const {
+    missionError,
+    missionBusyId,
+    economyTransactions,
+    economyLoading,
+    economyError,
+    handleAssignMission,
+  } = useHudMissionData({
+    apiBase,
+    tab,
+    currentVesselId,
+    setAccount,
+    setNotice,
+    upsertMissionAssignment,
+  });
   const engineState = vessel.engineState;
   const electrical = vessel.electricalSystem;
   const stability = vessel.stability;
@@ -728,97 +750,6 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     setAdminLon('');
   }, [adminTargetId, isAdmin]);
 
-  // sync controls from store
-  React.useEffect(() => {
-    if (!controls) return;
-    setThrottleLocal(controls.throttle ?? 0);
-    setRudderAngleLocal(controls.rudderAngle ?? 0);
-    setBallastLocal(controls.ballast ?? DEFAULT_BALLAST);
-  }, [controls?.throttle, controls?.rudderAngle, controls?.ballast, controls]);
-
-  React.useEffect(() => {
-    return () => {
-      if (controlTimerRef.current) {
-        clearTimeout(controlTimerRef.current);
-      }
-      controlTimerRef.current = null;
-      pendingControlRef.current = null;
-    };
-  }, []);
-
-  // apply controls to sim + server
-  React.useEffect(() => {
-    if (mode === 'spectator' || (!canAdjustThrottle && !canAdjustRudder)) {
-      if (controlTimerRef.current) {
-        clearTimeout(controlTimerRef.current);
-      }
-      controlTimerRef.current = null;
-      pendingControlRef.current = null;
-      return;
-    }
-
-    const clampedRudder = clampRudderAngle(rudderAngleLocal);
-    const nextControls: {
-      throttle?: number;
-      rudderAngle?: number;
-      ballast?: number;
-    } = {};
-    if (canAdjustThrottle) {
-      nextControls.throttle = throttleLocal;
-      nextControls.ballast = ballastLocal;
-    }
-    if (canAdjustRudder) {
-      nextControls.rudderAngle = clampedRudder;
-    }
-
-    const limitedControls = applyFailureControlLimits(
-      nextControls,
-      vessel.failureState,
-      vessel.damageState,
-    );
-    pendingControlRef.current = limitedControls;
-
-    const flushPendingControls = () => {
-      const queued = pendingControlRef.current;
-      if (!queued) return;
-      try {
-        const simulationLoop = getSimulationLoop();
-        simulationLoop.applyControls(queued);
-        socketManager.sendControlUpdate(
-          queued.throttle,
-          queued.rudderAngle,
-          queued.ballast,
-        );
-        lastControlSendAtRef.current = Date.now();
-      } catch (error) {
-        console.error('Error applying controls from HUD:', error);
-      } finally {
-        pendingControlRef.current = null;
-        controlTimerRef.current = null;
-      }
-    };
-
-    const now = Date.now();
-    const elapsed = now - lastControlSendAtRef.current;
-    if (elapsed >= CONTROL_SEND_MIN_INTERVAL_MS && !controlTimerRef.current) {
-      flushPendingControls();
-      return;
-    }
-
-    if (controlTimerRef.current) return;
-    const delay = Math.max(0, CONTROL_SEND_MIN_INTERVAL_MS - elapsed);
-    controlTimerRef.current = setTimeout(flushPendingControls, delay);
-  }, [
-    ballastLocal,
-    canAdjustRudder,
-    canAdjustThrottle,
-    mode,
-    rudderAngleLocal,
-    throttleLocal,
-    vessel.damageState,
-    vessel.failureState,
-  ]);
-
   const navStats = useMemo(
     () => [
       {
@@ -979,124 +910,6 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     window.addEventListener('resize', updateHeight);
     return () => window.removeEventListener('resize', updateHeight);
   }, [visibleTabs.length]);
-
-  const handleAssignMission = async (missionId: string) => {
-    if (!missionId) return;
-    setMissionError(null);
-    setMissionBusyId(missionId);
-    try {
-      const res = await fetch(`${apiBase}/api/missions/${missionId}/assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ vesselId: currentVesselId }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || `Request failed: ${res.status}`);
-      }
-      const data = await res.json();
-      if (data?.assignment) {
-        upsertMissionAssignment(data.assignment);
-      }
-      setNotice({
-        type: 'info',
-        message: 'Mission assignment updated.',
-      });
-    } catch (err) {
-      console.error('Failed to assign mission', err);
-      setMissionError(
-        err instanceof Error ? err.message : 'Failed to assign mission.',
-      );
-    } finally {
-      setMissionBusyId(null);
-    }
-  };
-
-  React.useEffect(() => {
-    if (tab !== 'missions') return;
-    let active = true;
-    const loadEconomy = async () => {
-      setEconomyLoading(true);
-      setEconomyError(null);
-      try {
-        const res = await fetch(`${apiBase}/api/economy/summary`, {
-          credentials: 'include',
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data?.error || `Request failed: ${res.status}`);
-        }
-        const data = await res.json();
-        if (!active) return;
-        if (data?.profile) {
-          setAccount(data.profile);
-        }
-        setEconomyTransactions(
-          Array.isArray(data?.transactions) ? data.transactions : [],
-        );
-      } catch (err) {
-        if (!active) return;
-        console.error('Failed to load economy summary', err);
-        setEconomyError(
-          err instanceof Error
-            ? err.message
-            : 'Unable to load economy summary.',
-        );
-      } finally {
-        if (active) {
-          setEconomyLoading(false);
-        }
-      }
-    };
-    void loadEconomy();
-    return () => {
-      active = false;
-    };
-  }, [apiBase, setAccount, tab]);
-
-  React.useEffect(() => {
-    if (tab !== 'vessels') return;
-    let active = true;
-    const loadFleet = async () => {
-      setFleetLoading(true);
-      setFleetError(null);
-      try {
-        const [fleetRes, portsRes] = await Promise.all([
-          fetch(`${apiBase}/api/economy/fleet`, { credentials: 'include' }),
-          fetch(`${apiBase}/api/economy/ports`, { credentials: 'include' }),
-        ]);
-        const responses = [fleetRes, portsRes];
-        for (const res of responses) {
-          if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
-            throw new Error(data?.error || `Request failed: ${res.status}`);
-          }
-        }
-        const fleetData = await fleetRes.json();
-        const portData = await portsRes.json();
-        if (!active) return;
-        setFleet(Array.isArray(fleetData?.fleet) ? fleetData.fleet : []);
-        setFleetPorts(
-          Array.isArray(portData?.ports) && portData.ports.length > 0
-            ? portData.ports
-            : HUD_PORTS,
-        );
-      } catch (err) {
-        if (!active) return;
-        console.error('Failed to load fleet', err);
-        setFleetError(
-          err instanceof Error ? err.message : 'Unable to load fleet.',
-        );
-      } finally {
-        if (active) setFleetLoading(false);
-      }
-    };
-    void loadFleet();
-    return () => {
-      active = false;
-    };
-  }, [apiBase, tab]);
 
   const handleAdminMove = () => {
     if (!adminTargetId) return;
