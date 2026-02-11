@@ -28,6 +28,7 @@ import { useSpaceSelectionFlow } from '../features/sim/hooks/useSpaceSelectionFl
 import { useSimSessionBootstrap } from '../features/sim/hooks/useSimSessionBootstrap';
 import { useMissionBootstrap } from '../features/sim/hooks/useMissionBootstrap';
 import { useSimKeyboardControls } from '../features/sim/hooks/useSimKeyboardControls';
+import { deriveJoinableVessels } from '../features/sim/selectors/vesselSelectors';
 
 /**
  * Simulation page for Ship Simulator.
@@ -135,26 +136,10 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   useSimKeyboardControls();
 
   const joinableVessels = React.useMemo(() => {
-    return Object.entries(otherVessels || {})
-      .filter(([, nextVessel]) => {
-        if (!nextVessel) return false;
-        const crewCount =
-          nextVessel.crewCount ?? nextVessel.crewIds?.length ?? 0;
-        return (
-          nextVessel.mode === 'player' && crewCount > 0 && crewCount < MAX_CREW
-        );
-      })
-      .map(([id, nextVessel]) => {
-        const crewCount =
-          nextVessel.crewCount ?? nextVessel.crewIds?.length ?? 0;
-        const label =
-          nextVessel.helm?.username ||
-          nextVessel.helm?.userId ||
-          nextVessel.ownerId ||
-          id;
-        return { id, crewCount, label };
-      })
-      .sort((a, b) => a.crewCount - b.crewCount);
+    return deriveJoinableVessels({
+      otherVessels,
+      maxCrew: MAX_CREW,
+    });
   }, [otherVessels]);
 
   const startScenario = React.useCallback(

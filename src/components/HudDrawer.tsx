@@ -51,6 +51,11 @@ import {
 } from './hud/HudPanels';
 import { HudPhysicsInspectorPanel } from './hud/PhysicsInspectorPanel';
 import {
+  projectVesselsFromOwnShip,
+  resolveActiveSpaceId,
+  selectInSpaceVessels,
+} from '../features/sim/selectors/vesselSelectors';
+import {
   COMPASS_ZERO_OFFSET_DEG,
   CONTROL_SEND_MIN_INTERVAL_MS,
   COURSE_SPEED_THRESHOLD_MS,
@@ -73,7 +78,6 @@ import {
   HUD_TABS,
   KNOTS_PER_MS,
   LAT_LON_DECIMALS,
-  METERS_PER_NM,
   MIN_RANK_XP,
   MINUTES_PER_HOUR,
   NAV_BALLAST_DECIMALS,
@@ -421,143 +425,100 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     ],
   );
 
+  const activeSpaceId = useMemo(() => resolveActiveSpaceId(spaceId), [spaceId]);
+
+  const inSpaceVessels = useMemo(
+    () =>
+      selectInSpaceVessels({
+        otherVessels,
+        spaceId: activeSpaceId,
+        excludeVesselId: currentVesselId,
+      }),
+    [activeSpaceId, currentVesselId, otherVessels],
+  );
+
+  const projectedVessels = useMemo(
+    () =>
+      projectVesselsFromOwnShip({
+        ownPosition: {
+          lat: vessel.position.lat,
+          lon: vessel.position.lon,
+        },
+        vessels: inSpaceVessels,
+      }),
+    [inSpaceVessels, vessel.position.lat, vessel.position.lon],
+  );
+
   const radarTargets: RadarTarget[] = useMemo(() => {
-    const results: RadarTarget[] = [];
-    const ownXY = positionToXY({
-      lat: vessel.position.lat,
-      lon: vessel.position.lon,
-    });
-
-    Object.entries(otherVessels || {}).forEach(([id, other]) => {
-      if (!other) return;
-      if (id === currentVesselId) return;
-      const targetSpace =
-        (other as { spaceId?: string }).spaceId || spaceId || DEFAULT_SPACE_ID;
-      if (targetSpace !== (spaceId || DEFAULT_SPACE_ID)) return;
-
-      const properties = (
-        other as { properties?: { length?: number; beam?: number } }
-      ).properties;
-
-      const otherXY = positionToXY({
-        lat: other.position?.lat ?? vessel.position.lat,
-        lon: other.position?.lon ?? vessel.position.lon,
-      });
-      const deltaX = otherXY.x - ownXY.x;
-      const deltaY = otherXY.y - ownXY.y;
-      const distanceMeters = Math.sqrt(deltaX ** 2 + deltaY ** 2);
-      if (
-        !Number.isFinite(distanceMeters) ||
-        distanceMeters < RADAR_MIN_DISTANCE_M
+    return projectedVessels
+      .filter(
+        projected =>
+          Number.isFinite(projected.distanceMeters) &&
+          projected.distanceMeters >= RADAR_MIN_DISTANCE_M,
       )
-        return;
+      .map(projected => {
+        const { speed, course } = toWorldVelocity(projected.vessel);
+        const properties = projected.vessel.properties;
+        const size = Math.min(
+          RADAR_TARGET_SIZE_MAX,
+          Math.max(
+            RADAR_TARGET_SIZE_MIN,
+            ((properties?.length ??
+              properties?.beam ??
+              RADAR_TARGET_SIZE_DEFAULT_METERS) as number) /
+              RADAR_TARGET_SIZE_SCALE_METERS,
+          ),
+        );
 
-      const distanceNm = distanceMeters / METERS_PER_NM;
-      const bearingDeg = ((Math.atan2(deltaX, deltaY) * DEG_PER_RAD +
-        FULL_CIRCLE_DEG) %
-        FULL_CIRCLE_DEG) as number;
-      const { speed, course } = toWorldVelocity(other);
-      const size = Math.min(
-        RADAR_TARGET_SIZE_MAX,
-        Math.max(
-          RADAR_TARGET_SIZE_MIN,
-          ((properties?.length ??
-            properties?.beam ??
-            RADAR_TARGET_SIZE_DEFAULT_METERS) as number) /
-            RADAR_TARGET_SIZE_SCALE_METERS,
-        ),
-      );
-
-      results.push({
-        id,
-        distance: distanceNm,
-        bearing: bearingDeg,
-        size,
-        speed: speed * KNOTS_PER_MS,
-        course,
-        type: 'ship',
-        isTracked: false,
+        return {
+          id: projected.id,
+          distance: projected.distanceNm,
+          bearing: projected.bearingDeg,
+          size,
+          speed: speed * KNOTS_PER_MS,
+          course,
+          type: 'ship' as const,
+          isTracked: false,
+        };
       });
-    });
-
-    return results;
-  }, [
-    currentVesselId,
-    otherVessels,
-    spaceId,
-    toWorldVelocity,
-    vessel.orientation.heading,
-    vessel.position.lat,
-    vessel.position.lon,
-  ]);
+  }, [projectedVessels, toWorldVelocity]);
 
   const aisTargets: AISTarget[] = useMemo(() => {
-    const results: AISTarget[] = [];
-    const ownXY = positionToXY({
-      lat: vessel.position.lat,
-      lon: vessel.position.lon,
-    });
-
-    Object.entries(otherVessels || {}).forEach(([id, other]) => {
-      if (!other) return;
-      if (id === currentVesselId) return;
-      const targetSpace =
-        (other as { spaceId?: string }).spaceId || spaceId || DEFAULT_SPACE_ID;
-      if (targetSpace !== (spaceId || DEFAULT_SPACE_ID)) return;
-
-      const otherXY = positionToXY({
-        lat: other.position?.lat ?? vessel.position.lat,
-        lon: other.position?.lon ?? vessel.position.lon,
-      });
-      const deltaX = otherXY.x - ownXY.x;
-      const deltaY = otherXY.y - ownXY.y;
-      const distanceMeters = Math.sqrt(deltaX ** 2 + deltaY ** 2);
-      if (
-        !Number.isFinite(distanceMeters) ||
-        distanceMeters < RADAR_MIN_DISTANCE_M
+    return projectedVessels
+      .filter(
+        projected =>
+          Number.isFinite(projected.distanceMeters) &&
+          projected.distanceMeters >= RADAR_MIN_DISTANCE_M,
       )
-        return;
+      .map(projected => {
+        const { speed, course } = toWorldVelocity(projected.vessel);
+        const other = projected.vessel;
+        const id = projected.id;
+        const headingDeg =
+          ((toDegrees(other.orientation?.heading ?? 0) % FULL_CIRCLE_DEG) +
+            FULL_CIRCLE_DEG) %
+          FULL_CIRCLE_DEG;
+        const headingCompass =
+          (((COMPASS_ZERO_OFFSET_DEG - headingDeg) % FULL_CIRCLE_DEG) +
+            FULL_CIRCLE_DEG) %
+          FULL_CIRCLE_DEG;
+        const label =
+          other.helm?.username ||
+          (other as { properties?: { name?: string } }).properties?.name ||
+          `Vessel ${shortId(id)}`;
 
-      const distanceNm = distanceMeters / METERS_PER_NM;
-      const bearingDeg = ((Math.atan2(deltaX, deltaY) * DEG_PER_RAD +
-        FULL_CIRCLE_DEG) %
-        FULL_CIRCLE_DEG) as number;
-      const { speed, course } = toWorldVelocity(other);
-      const headingDeg =
-        ((toDegrees(other.orientation?.heading ?? 0) % FULL_CIRCLE_DEG) +
-          FULL_CIRCLE_DEG) %
-        FULL_CIRCLE_DEG;
-      const headingCompass =
-        (((COMPASS_ZERO_OFFSET_DEG - headingDeg) % FULL_CIRCLE_DEG) +
-          FULL_CIRCLE_DEG) %
-        FULL_CIRCLE_DEG;
-      const label =
-        other.helm?.username ||
-        (other as { properties?: { name?: string } }).properties?.name ||
-        `Vessel ${shortId(id)}`;
-
-      results.push({
-        mmsi: id,
-        name: label,
-        distance: distanceNm,
-        bearing: bearingDeg,
-        course,
-        speed: speed * KNOTS_PER_MS,
-        heading: headingCompass,
-        vesselType: 'ship',
+        return {
+          mmsi: id,
+          name: label,
+          distance: projected.distanceNm,
+          bearing: projected.bearingDeg,
+          course,
+          speed: speed * KNOTS_PER_MS,
+          heading: headingCompass,
+          vesselType: 'ship',
+        };
       });
-    });
-
-    return results;
-  }, [
-    currentVesselId,
-    otherVessels,
-    shortId,
-    spaceId,
-    toWorldVelocity,
-    vessel.position.lat,
-    vessel.position.lon,
-  ]);
+  }, [projectedVessels, shortId, toWorldVelocity]);
 
   const conningData = useMemo(() => {
     const now = new Date();
@@ -726,21 +687,15 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       });
     }
 
-    Object.entries(otherVessels || {}).forEach(([id, other]) => {
-      if (!other) return;
-      const targetSpace =
-        (other as { spaceId?: string }).spaceId || spaceId || DEFAULT_SPACE_ID;
-      if (targetSpace !== (spaceId || DEFAULT_SPACE_ID)) return;
-      const otherXY = positionToXY({
-        lat: other.position?.lat ?? vessel.position.lat,
-        lon: other.position?.lon ?? vessel.position.lon,
-      });
+    projectedVessels.forEach(projected => {
+      const id = projected.id;
+      const other = projected.vessel;
       targets.push({
         id,
         label: `Vessel ${shortId(id)}`,
         position: {
-          x: otherXY.x,
-          y: otherXY.y,
+          x: projected.x,
+          y: projected.y,
           lat: other.position?.lat,
           lon: other.position?.lon,
         },
@@ -748,13 +703,7 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
     });
 
     return targets;
-  }, [
-    currentVesselId,
-    otherVessels,
-    spaceId,
-    vessel.position.lat,
-    vessel.position.lon,
-  ]);
+  }, [currentVesselId, projectedVessels, shortId]);
 
   const selectedAdminTarget = useMemo(
     () => adminTargets.find(target => target.id === adminTargetId),

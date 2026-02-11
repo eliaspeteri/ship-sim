@@ -27,6 +27,11 @@ import { Seamarks } from './scene/Seamarks';
 import { CameraHeadingTracker } from './scene/CameraHeadingTracker';
 import { GeoDebugMarkers } from './scene/GeoDebugMarkers';
 import { AdminVesselOverlay } from './scene/AdminVesselOverlay';
+import {
+  deriveSceneDragTargets,
+  selectInSpaceVessels,
+  selectSceneVesselSnapshot,
+} from '../features/sim/selectors/vesselSelectors';
 
 interface SceneProps {
   vesselPosition: {
@@ -97,22 +102,22 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
     [isDragging, isSpectator],
   );
 
+  const inSpaceVessels = React.useMemo(
+    () =>
+      selectInSpaceVessels({
+        otherVessels,
+        excludeVesselId: currentVesselId,
+      }),
+    [currentVesselId, otherVessels],
+  );
+
   const selectedSnapshot = React.useMemo(() => {
-    if (!selectedVesselId) return null;
-
-    if (selectedVesselId === currentVesselId) {
-      return {
-        id: selectedVesselId,
-        position: vesselState.position,
-        orientation: vesselState.orientation,
-        velocity: vesselState.velocity,
-        controls: vesselState.controls,
-        waterDepth: vesselState.waterDepth,
-        properties: vesselState.properties,
-      };
-    }
-
-    return otherVessels[selectedVesselId] || null;
+    return selectSceneVesselSnapshot({
+      selectedVesselId,
+      currentVesselId,
+      vessel: vesselState,
+      otherVessels,
+    });
   }, [currentVesselId, otherVessels, selectedVesselId, vesselState]);
 
   React.useEffect(() => {
@@ -133,34 +138,18 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
   );
 
   const dragTargets = React.useMemo(() => {
-    if (!isAdmin || !isSpectator) return [];
-
-    const targets: Array<{ id: string; x: number; y: number }> = [];
-
-    if (currentVesselId) {
-      targets.push({
-        id: currentVesselId,
-        x: vesselPosition.x,
-        y: vesselPosition.y,
-      });
-    }
-
-    Object.entries(otherVessels || {}).forEach(([id, vessel]) => {
-      if (!vessel?.position) return;
-      if (id === currentVesselId) return;
-      targets.push({
-        id,
-        x: vessel.position.x ?? 0,
-        y: vessel.position.y ?? 0,
-      });
+    return deriveSceneDragTargets({
+      isAdmin,
+      isSpectator,
+      currentVesselId,
+      vesselPosition: { x: vesselPosition.x, y: vesselPosition.y },
+      vessels: inSpaceVessels,
     });
-
-    return targets;
   }, [
     currentVesselId,
+    inSpaceVessels,
     isAdmin,
     isSpectator,
-    otherVessels,
     vesselPosition.x,
     vesselPosition.y,
   ]);
@@ -360,7 +349,7 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
           />
         ) : null}
 
-        {Object.entries(otherVessels || {}).map(([id, vessel]) => (
+        {inSpaceVessels.map(({ id, vessel }) => (
           <Ship
             key={id}
             vesselId={id}
