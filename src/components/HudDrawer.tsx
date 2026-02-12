@@ -27,25 +27,23 @@ import {
 } from '../lib/time';
 import { computeRepairCost, normalizeDamageState } from '../lib/damage';
 import styles from './HudDrawer.module.css';
-import {
-  HudAdminPanel,
-  HudAlarmsPanel,
-  HudChatPanel,
-  HudConningPanel,
-  HudNavControls,
-  HudCrewPanel,
-  HudEcdisPanel,
-  HudEventsPanel,
-  HudMissionsPanel,
-  HudNavigationPanel,
-  HudRadarPanel,
-  HudRadioPanel,
-  HudReplayPanel,
-  HudSounderPanel,
-  HudSystemsPanel,
-  HudVesselsPanel,
-  HudWeatherPanel,
-} from './hud/HudPanels';
+import { HudAdminPanel } from './hud/panels/HudAdminPanel';
+import { HudAlarmsPanel } from './hud/panels/HudAlarmsPanel';
+import { HudChatPanel } from './hud/panels/HudChatPanel';
+import { HudConningPanel } from './hud/panels/HudConningPanel';
+import { HudNavControls } from './hud/panels/HudNavControls';
+import { HudCrewPanel } from './hud/panels/HudCrewPanel';
+import { HudEcdisPanel } from './hud/panels/HudEcdisPanel';
+import { HudEventsPanel } from './hud/panels/HudEventsPanel';
+import { HudMissionsPanel } from './hud/panels/HudMissionsPanel';
+import { HudNavigationPanel } from './hud/panels/HudNavigationPanel';
+import { HudRadarPanel } from './hud/panels/HudRadarPanel';
+import { HudRadioPanel } from './hud/panels/HudRadioPanel';
+import { HudReplayPanel } from './hud/panels/HudReplayPanel';
+import { HudSounderPanel } from './hud/panels/HudSounderPanel';
+import { HudSystemsPanel } from './hud/panels/HudSystemsPanel';
+import { HudVesselsPanel } from './hud/panels/HudVesselsPanel';
+import { HudWeatherPanel } from './hud/panels/HudWeatherPanel';
 import { HudPhysicsInspectorPanel } from './hud/PhysicsInspectorPanel';
 import {
   projectVesselsFromOwnShip,

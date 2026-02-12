@@ -7,7 +7,7 @@ import {
   HudNavigationPanel,
   HudSounderPanel,
   HudVesselsPanel,
-} from '../../../../src/components/hud/HudPanels';
+} from '../../../../src/components/hud/panels';
 
 jest.mock('../../../../src/components/EnvironmentControls', () => {
   function EnvironmentControlsMock() {

@@ -205,7 +205,7 @@ jest.mock('../../../src/lib/api', () => ({
   getApiBase: () => 'http://api.test',
 }));
 
-jest.mock('../../../src/components/hud/HudPanels', () => ({
+jest.mock('../../../src/components/hud/panels/HudAdminPanel', () => ({
   HudAdminPanel: ({ onMove, onMoveToSelf }: any) => (
     <div>
       <button onClick={onMove} type="button">
@@ -216,12 +216,24 @@ jest.mock('../../../src/components/hud/HudPanels', () => ({
       </button>
     </div>
   ),
+}));
+
+jest.mock('../../../src/components/hud/panels/HudAlarmsPanel', () => ({
   HudAlarmsPanel: () => <div>Alarms panel</div>,
+}));
+
+jest.mock('../../../src/components/hud/panels/HudChatPanel', () => ({
   HudChatPanel: (props: any) => {
     chatPanelPropsMock(props);
     return <div>Chat panel</div>;
   },
+}));
+
+jest.mock('../../../src/components/hud/panels/HudConningPanel', () => ({
   HudConningPanel: () => <div>Conning panel</div>,
+}));
+
+jest.mock('../../../src/components/hud/panels/HudNavControls', () => ({
   HudNavControls: ({
     setThrottleLocal,
     setRudderAngleLocal,
@@ -238,33 +250,69 @@ jest.mock('../../../src/components/hud/HudPanels', () => ({
       </button>
     </div>
   ),
+}));
+
+jest.mock('../../../src/components/hud/panels/HudCrewPanel', () => ({
   HudCrewPanel: ({ onRequestStation }: any) => (
     <button onClick={() => onRequestStation('helm', 'claim')} type="button">
       Request station
     </button>
   ),
+}));
+
+jest.mock('../../../src/components/hud/panels/HudEcdisPanel', () => ({
   HudEcdisPanel: () => <div>ECDIS panel</div>,
+}));
+
+jest.mock('../../../src/components/hud/panels/HudEventsPanel', () => ({
   HudEventsPanel: () => <div>Events panel</div>,
+}));
+
+jest.mock('../../../src/components/hud/panels/HudMissionsPanel', () => ({
   HudMissionsPanel: ({ onAssignMission }: any) => (
     <button onClick={() => onAssignMission('m1')} type="button">
       Assign mission
     </button>
   ),
+}));
+
+jest.mock('../../../src/components/hud/panels/HudNavigationPanel', () => ({
   HudNavigationPanel: () => <div>Navigation panel</div>,
+}));
+
+jest.mock('../../../src/components/hud/panels/HudRadarPanel', () => ({
   HudRadarPanel: () => <div>Radar panel</div>,
+}));
+
+jest.mock('../../../src/components/hud/panels/HudRadioPanel', () => ({
   HudRadioPanel: () => <div>Radio panel</div>,
+}));
+
+jest.mock('../../../src/components/hud/panels/HudReplayPanel', () => ({
   HudReplayPanel: () => <div>Replay panel</div>,
+}));
+
+jest.mock('../../../src/components/hud/panels/HudSounderPanel', () => ({
   HudSounderPanel: () => <div>Sounder panel</div>,
+}));
+
+jest.mock('../../../src/components/hud/panels/HudSystemsPanel', () => ({
   HudSystemsPanel: ({ onRequestRepair }: any) => (
     <button onClick={onRequestRepair} type="button">
       Request repair
     </button>
   ),
+}));
+
+jest.mock('../../../src/components/hud/panels/HudVesselsPanel', () => ({
   HudVesselsPanel: ({ onJoinVessel }: any) => (
     <button onClick={() => onJoinVessel('other-vessel')} type="button">
       Join vessel
     </button>
   ),
+}));
+
+jest.mock('../../../src/components/hud/panels/HudWeatherPanel', () => ({
   HudWeatherPanel: () => <div>Weather panel</div>,
 }));
 
