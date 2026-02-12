@@ -661,7 +661,7 @@ Completed: [ ]
 
 ### G1. Define migration guardrails and token mapping (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/styles/globals.css`, `tailwind.config.js`
 
@@ -683,10 +683,10 @@ Relevant files currently in CSS scope:
 
 Tasks:
 
-1. Document allowed CSS after migration: global reset/base styles and theme variables only.
-2. Move reusable visual primitives (buttons, cards, pills, overlays) into Tailwind tokenized utility patterns.
-3. Expand Tailwind theme tokens where needed so module CSS values map to named utilities.
-4. Define explicit exceptions where Tailwind is not feasible (for example: highly specific pseudo-element geometry) and keep them minimal.
+1. [x] Document allowed CSS after migration: global reset/base styles and theme variables only.
+2. [x] Move reusable visual primitives (buttons, cards, pills, overlays) into Tailwind tokenized utility patterns.
+3. [x] Expand Tailwind theme tokens where needed so module CSS values map to named utilities.
+4. [x] Define explicit exceptions where Tailwind is not feasible (for example: highly specific pseudo-element geometry) and keep them minimal.
 
 Acceptance:
 
