@@ -20,6 +20,11 @@ const packArtifacts = new Map<string, Map<string, StoredArtifact>>();
 const dataDir = path.join(process.cwd(), 'data');
 const artifactsFile = path.join(dataDir, 'editor-artifacts.json');
 
+export const ARTIFACT_LIMITS = {
+  maxPerPack: 2000,
+  maxTotal: 10000,
+};
+
 const artifactKey = (tile: TileKey, layerId: string, lod: number) =>
   `${tile.z}/${tile.x}/${tile.y}:${layerId}:${lod}`;
 
@@ -51,6 +56,49 @@ const saveToDisk = () => {
   fs.writeFileSync(artifactsFile, JSON.stringify(data, null, 2));
 };
 
+const trimPack = (packId: string, packMap: Map<string, StoredArtifact>) => {
+  if (packMap.size <= ARTIFACT_LIMITS.maxPerPack) return;
+  const entries = Array.from(packMap.entries()).sort((a, b) =>
+    a[1].storedAt.localeCompare(b[1].storedAt),
+  );
+  const excess = packMap.size - ARTIFACT_LIMITS.maxPerPack;
+  for (let i = 0; i < excess; i += 1) {
+    packMap.delete(entries[i][0]);
+  }
+  if (packMap.size === 0) {
+    packArtifacts.delete(packId);
+  }
+};
+
+const trimGlobal = () => {
+  const allEntries: Array<{ packId: string; key: string; storedAt: string }> =
+    [];
+  packArtifacts.forEach((packMap, packId) => {
+    packMap.forEach((artifact, key) => {
+      allEntries.push({ packId, key, storedAt: artifact.storedAt });
+    });
+  });
+  if (allEntries.length <= ARTIFACT_LIMITS.maxTotal) return;
+  allEntries.sort((a, b) => a.storedAt.localeCompare(b.storedAt));
+  const excess = allEntries.length - ARTIFACT_LIMITS.maxTotal;
+  for (let i = 0; i < excess; i += 1) {
+    const entry = allEntries[i];
+    const packMap = packArtifacts.get(entry.packId);
+    if (!packMap) continue;
+    packMap.delete(entry.key);
+    if (packMap.size === 0) {
+      packArtifacts.delete(entry.packId);
+    }
+  }
+};
+
+const enforceLimits = () => {
+  packArtifacts.forEach((packMap, packId) => {
+    trimPack(packId, packMap);
+  });
+  trimGlobal();
+};
+
 export const storeArtifacts = (
   packId: string,
   artifacts: Omit<StoredArtifact, 'packId' | 'storedAt'>[],
@@ -63,6 +111,7 @@ export const storeArtifacts = (
     packMap.set(key, { ...artifact, packId, storedAt });
   });
   packArtifacts.set(packId, packMap);
+  enforceLimits();
   saveToDisk();
   return storedAt;
 };

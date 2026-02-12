@@ -24,12 +24,20 @@ jest.mock('../../../../src/lib/authAudit', () => ({
 }));
 
 import handler from '../../../../src/pages/api/register';
+import { REGISTER_LIMITS } from '../../../../src/server/requestLimits';
 
 const makeRes = () => {
   const json = jest.fn();
-  const status = jest.fn(() => ({ json }));
-  const setHeader = jest.fn();
-  return { json, status, setHeader };
+  const res = {
+    statusCode: 200,
+    status: jest.fn((code: number) => {
+      res.statusCode = code;
+      return { json };
+    }),
+    json,
+    setHeader: jest.fn(),
+  };
+  return res;
 };
 
 describe('pages/api/register', () => {
@@ -145,5 +153,45 @@ describe('pages/api/register', () => {
     });
 
     errorSpy.mockRestore();
+  });
+
+  it('rejects overly long credentials', async () => {
+    const res = makeRes();
+    const longName = 'a'.repeat(REGISTER_LIMITS.maxUsernameLength + 1);
+
+    await handler(
+      {
+        method: 'POST',
+        body: { username: longName, password: 'secret' },
+      } as any,
+      res as any,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: 'Username or password is too long',
+    });
+  });
+
+  it('rate limits repeated registration attempts', async () => {
+    const attempts = REGISTER_LIMITS.rateLimit.max + 1;
+    const ip = '10.0.0.1';
+    let lastStatus = 0;
+
+    for (let i = 0; i < attempts; i += 1) {
+      const res = makeRes();
+      await handler(
+        {
+          method: 'POST',
+          body: { username: 'ratelimit-user' },
+          socket: { remoteAddress: ip },
+        } as any,
+        res as any,
+      );
+      lastStatus = res.statusCode;
+    }
+
+    expect(lastStatus).toBe(429);
   });
 });

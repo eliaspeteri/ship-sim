@@ -15,11 +15,20 @@ jest.mock('../../../../../src/server/editorPacksStore', () => ({
 }));
 
 import handler from '../../../../../src/pages/api/editor/compile';
+import { COMPILE_LIMITS } from '../../../../../src/server/requestLimits';
 
 const makeRes = () => {
   const json = jest.fn();
-  const status = jest.fn(() => ({ json }));
-  return { status, json };
+  const res = {
+    statusCode: 200,
+    status: jest.fn((code: number) => {
+      res.statusCode = code;
+      return { json };
+    }),
+    json,
+    setHeader: jest.fn(),
+  };
+  return res;
 };
 
 describe('pages/api/editor/compile', () => {
@@ -144,5 +153,56 @@ describe('pages/api/editor/compile', () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(mockStoreArtifacts).toHaveBeenCalled();
+  });
+
+  it('rejects oversized compile payloads', async () => {
+    const res = makeRes();
+    mockGetToken.mockResolvedValue({ sub: 'owner-1', role: 'player' });
+    mockGetPack.mockReturnValue({ id: 'pack-1', ownerId: 'owner-1' });
+
+    const tiles = Array.from(
+      { length: COMPILE_LIMITS.maxTiles + 1 },
+      (_value, index) => ({ z: 1, x: index, y: index }),
+    );
+
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          packId: 'pack-1',
+          layerIds: ['l1'],
+          tiles,
+        },
+      } as any,
+      res as any,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(413);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Compile request too large',
+    });
+  });
+
+  it('rate limits repeated compile requests', async () => {
+    mockGetToken.mockResolvedValue({ sub: 'rate-limit-user', role: 'player' });
+    mockGetPack.mockReturnValue({ id: 'pack-1', ownerId: 'rate-limit-user' });
+
+    const body = {
+      packId: 'pack-1',
+      layerIds: ['l1'],
+      tiles: [{ z: 1, x: 1, y: 1 }],
+    };
+
+    let sawRateLimit = false;
+    for (let i = 0; i < COMPILE_LIMITS.rateLimit.max + 2; i += 1) {
+      const res = makeRes();
+      await handler({ method: 'POST', body } as any, res as any);
+      if (res.statusCode === 429) {
+        sawRateLimit = true;
+        break;
+      }
+    }
+
+    expect(sawRateLimit).toBe(true);
   });
 });

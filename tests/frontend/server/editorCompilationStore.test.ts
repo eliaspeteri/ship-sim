@@ -121,4 +121,35 @@ describe('editorCompilationStore', () => {
     expect(missing).toEqual([]);
     expect(mockedFs.writeFileSync).toHaveBeenCalledTimes(1);
   });
+
+  it('trims artifacts when limits are exceeded', async () => {
+    const toIsoSpy = jest
+      .spyOn(Date.prototype, 'toISOString')
+      .mockReturnValue('2026-02-08T00:00:00.000Z');
+    const { storeArtifacts, ARTIFACT_LIMITS } = await loadStore();
+
+    ARTIFACT_LIMITS.maxPerPack = 2;
+    ARTIFACT_LIMITS.maxTotal = 3;
+
+    storeArtifacts('pack-a', [
+      sampleArtifact,
+      { ...sampleArtifact, tile: { z: 10, x: 20, y: 31 }, layerId: 'l2' },
+      { ...sampleArtifact, tile: { z: 10, x: 20, y: 32 }, layerId: 'l3' },
+    ]);
+
+    let serialized = mockedFs.writeFileSync.mock.calls[0]?.[1] as string;
+    let payload = JSON.parse(serialized);
+    expect(payload).toHaveLength(2);
+
+    storeArtifacts('pack-b', [
+      { ...sampleArtifact, tile: { z: 9, x: 10, y: 11 }, layerId: 'b1' },
+      { ...sampleArtifact, tile: { z: 9, x: 10, y: 12 }, layerId: 'b2' },
+    ]);
+
+    serialized = mockedFs.writeFileSync.mock.calls.at(-1)?.[1] as string;
+    payload = JSON.parse(serialized);
+    expect(payload).toHaveLength(3);
+
+    toIsoSpy.mockRestore();
+  });
 });

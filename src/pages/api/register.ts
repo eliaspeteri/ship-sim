@@ -3,6 +3,25 @@ import bcrypt from 'bcryptjs';
 
 import { prisma } from '../../lib/prisma';
 import { recordAuthEvent } from '../../lib/authAudit';
+import { createRateLimiter } from '../../server/rateLimit';
+import { REGISTER_LIMITS } from '../../server/requestLimits';
+
+const registerLimiter = createRateLimiter(REGISTER_LIMITS.rateLimit);
+
+const getClientIp = (req: NextApiRequest) => {
+  const forwarded = req.headers?.['x-forwarded-for'];
+  const raw = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  const fromHeader = typeof raw === 'string' ? raw.split(',')[0]?.trim() : '';
+  return fromHeader || req.socket?.remoteAddress || 'unknown';
+};
+
+const normalizeUsername = (value: unknown) =>
+  typeof value === 'string' ? value.trim() : '';
+
+const setRetryAfterHeader = (res: NextApiResponse, retryAfterMs: number) => {
+  const seconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
+  res.setHeader('Retry-After', String(seconds));
+};
 
 export default async function handler(
   req: NextApiRequest,
@@ -19,17 +38,36 @@ export default async function handler(
     username?: string;
     password?: string;
   };
+  const normalizedUsername = normalizeUsername(username);
+  const rateLimitKey = `${getClientIp(req)}:${normalizedUsername || 'unknown'}`;
+  const rateLimit = registerLimiter.check(rateLimitKey);
+  if (!rateLimit.allowed) {
+    setRetryAfterHeader(res, rateLimit.retryAfterMs);
+    return res.status(429).json({
+      success: false,
+      error: 'Too many registration attempts. Try again later.',
+    });
+  }
 
-  if (!username || !password) {
+  if (!normalizedUsername || !password) {
     return res
       .status(400)
       .json({ success: false, error: 'Username and password are required' });
   }
 
+  if (
+    normalizedUsername.length > REGISTER_LIMITS.maxUsernameLength ||
+    password.length > REGISTER_LIMITS.maxPasswordLength
+  ) {
+    return res
+      .status(400)
+      .json({ success: false, error: 'Username or password is too long' });
+  }
+
   try {
     // name is not unique in the schema, so use findFirst for existence check
     const existing = await prisma.user.findFirst({
-      where: { name: username },
+      where: { name: normalizedUsername },
       select: { id: true },
     });
     if (existing) {
@@ -41,7 +79,7 @@ export default async function handler(
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {
-        name: username,
+        name: normalizedUsername,
         role: 'player',
         rank: 1,
         experience: 0,
