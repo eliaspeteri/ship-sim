@@ -888,15 +888,15 @@ Acceptance:
 
 ### J2. Remove unsafe auth non-null assertions in server routes (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/server/api.ts`, `src/server/middleware/authentication.ts`, shared auth helpers under `src/server/*`
 
 Tasks:
 
-1. Replace repeated `req.user!` access with a typed guard/helper (`requireUser(req)` or equivalent) that narrows once.
-2. Refactor route handlers to consume narrowed user context rather than repeating non-null assertions.
-3. Add tests that validate authenticated and unauthenticated branches at handler boundaries.
+1. [x] Replace repeated `req.user!` access with a typed guard/helper (`requireUser(req)` or equivalent) that narrows once.
+2. [x] Refactor route handlers to consume narrowed user context rather than repeating non-null assertions.
+3. [x] Add tests that validate authenticated and unauthenticated branches at handler boundaries.
 
 Acceptance:
 
