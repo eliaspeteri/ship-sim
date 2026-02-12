@@ -848,7 +848,7 @@ Completed: [ ]
 
 ### I1. Replace repeated positional `createVessel(...)` calls with typed input builders (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/simulation/simulationLoop.ts`, `src/lib/wasmBridge.ts`, `tests/frontend/simulationLoop.test.ts`, `tests/frontend/wasmBridge.test.ts`
 
