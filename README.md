@@ -105,6 +105,7 @@ npm run format              # prettier
 - Product roadmap: `roadmap.md`
 - Refactor and quality backlog: `docs/refactor-backlog.md`
 - AI coding guardrails: `docs/ai-engineering-guardrails.md`
+- Tailwind migration guardrails: `docs/tailwind-migration-guardrails.md`
 
 ## Contributing Notes
 

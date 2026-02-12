@@ -3,7 +3,31 @@ module.exports = {
   content: ['./src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          'Space Grotesk',
+          'Sora',
+          'Manrope',
+          'IBM Plex Sans',
+          'Segoe UI',
+          'sans-serif',
+        ],
+        mono: ['Space Mono', 'IBM Plex Mono', 'SFMono-Regular', 'monospace'],
+      },
       colors: {
+        ui: {
+          panel: 'rgba(10, 22, 32, 0.86)',
+          'panel-border': 'rgba(97, 137, 160, 0.28)',
+          card: 'rgba(10, 20, 30, 0.9)',
+          'card-border': 'rgba(97, 137, 160, 0.35)',
+          overlay: 'rgba(7, 18, 28, 0.82)',
+          'overlay-border': 'rgba(137, 186, 211, 0.3)',
+          pill: 'rgba(14, 26, 38, 0.8)',
+          'pill-border': 'rgba(137, 186, 211, 0.35)',
+          muted: 'rgba(170, 192, 202, 0.7)',
+          accent: '#25b2a6',
+          'accent-strong': '#1b8f8a',
+        },
         editor: {
           text: '#edf5f8',
           muted: 'rgba(199, 218, 230, 0.7)',
@@ -41,6 +65,10 @@ module.exports = {
           'accent-text': '#120c08',
         },
       },
+      borderRadius: {
+        'ui-panel': '0.75rem',
+        'ui-card': '0.75rem',
+      },
       backgroundImage: {
         'editor-shell':
           'radial-gradient(120% 120% at 10% 10%, rgba(28, 63, 82, 0.75) 0%, rgba(10, 20, 32, 0.95) 48%, rgba(6, 10, 16, 0.98) 100%), linear-gradient(135deg, rgba(7, 14, 22, 0.95), rgba(3, 8, 14, 0.98))',
@@ -51,7 +79,13 @@ module.exports = {
           'linear-gradient(transparent 95%, rgba(90, 135, 160, 0.18) 96%), linear-gradient(90deg, transparent 95%, rgba(90, 135, 160, 0.18) 96%)',
       },
       boxShadow: {
+        'ui-panel': '0 10px 24px rgba(0, 0, 0, 0.32)',
+        'ui-overlay': '0 18px 42px rgba(0, 0, 0, 0.44)',
         'editor-accent': '0 0 0 1px rgba(245, 176, 95, 0.4)',
+      },
+      spacing: {
+        'ui-panel-x': '1rem',
+        'ui-panel-y': '0.75rem',
       },
     },
   },
