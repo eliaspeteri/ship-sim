@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import socketManager from '../networking/socket';
+import { socketManager } from '../networking/socket';
 import { getApiBase } from '../lib/api';
 import styles from './Admin.module.css';
 

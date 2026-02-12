@@ -145,7 +145,7 @@ const setupSimulation = (overrides: Partial<StoreState> = {}) => {
 
   jest.doMock('../../src/networking/socket', () => ({
     __esModule: true,
-    default: socketManager,
+    socketManager: socketManager,
   }));
 
   let SimulationLoop: any;

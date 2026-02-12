@@ -198,7 +198,7 @@ jest.mock('../../../src/simulation', () => ({
 
 jest.mock('../../../src/networking/socket', () => ({
   __esModule: true,
-  default: socketManagerMock,
+  socketManager: socketManagerMock,
 }));
 
 jest.mock('../../../src/lib/api', () => ({

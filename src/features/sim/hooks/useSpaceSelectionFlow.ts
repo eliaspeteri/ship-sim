@@ -1,6 +1,6 @@
 import React from 'react';
 import { NextRouter } from 'next/router';
-import socketManager from '../../../networking/socket';
+import { socketManager } from '../../../networking/socket';
 import { getApiBase } from '../../../lib/api';
 import {
   getDefaultRules,

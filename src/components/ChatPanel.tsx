@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import useStore from '../store';
-import socketManager from '../networking/socket';
+import { socketManager } from '../networking/socket';
 import styles from './ChatPanel.module.css';
 
 interface ChatPanelProps {

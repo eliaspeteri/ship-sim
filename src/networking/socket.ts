@@ -1,8 +1,14 @@
 import io from 'socket.io-client';
-import { createDefaultSocketStoreAdapter, SocketStoreAdapter } from './adapters/socketStoreAdapter';
+import {
+  createDefaultSocketStoreAdapter,
+  SocketStoreAdapter,
+} from './adapters/socketStoreAdapter';
 import { SimpleVesselState } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
-import { SimulationUpdateData, VesselTeleportData } from '../types/socket.types';
+import {
+  SimulationUpdateData,
+  VesselTeleportData,
+} from '../types/socket.types';
 import { ClientConnectOpts, ClientSocket } from './socket/types';
 import {
   attemptReconnect,
@@ -180,7 +186,8 @@ class SocketManager {
       handleSimulationUpdate: this.handleSimulationUpdate.bind(this),
       handleVesselTeleport: this.handleVesselTeleport.bind(this),
       handleEnvironmentUpdate: this.handleEnvironmentUpdate.bind(this),
-      setJoinPreference: (mode, autoJoin) => this.setJoinPreference(mode, autoJoin),
+      setJoinPreference: (mode, autoJoin) =>
+        this.setJoinPreference(mode, autoJoin),
       switchSpace: spaceId => this.switchSpace(spaceId),
       clearChatHistoryLoading: channel => {
         this.chatHistoryLoading.delete(channel);
@@ -198,7 +205,8 @@ class SocketManager {
   }
 
   private startResyncWatcher(): void {
-    this.connection.lastSimulationUpdateAt = this.simulationState.lastSimulationUpdateAt;
+    this.connection.lastSimulationUpdateAt =
+      this.simulationState.lastSimulationUpdateAt;
     startResyncWatcher(this.connection, this.socket);
   }
 
@@ -219,7 +227,8 @@ class SocketManager {
       },
       data,
     );
-    this.connection.lastSimulationUpdateAt = this.simulationState.lastSimulationUpdateAt;
+    this.connection.lastSimulationUpdateAt =
+      this.simulationState.lastSimulationUpdateAt;
   }
 
   private handleVesselTeleport(data: VesselTeleportData): void {
@@ -244,7 +253,11 @@ class SocketManager {
     sendVesselUpdate(this.socket, this.userId, this.getStoreState().vessel);
   }
 
-  sendControlUpdate(throttle?: number, rudderAngle?: number, ballast?: number): void {
+  sendControlUpdate(
+    throttle?: number,
+    rudderAngle?: number,
+    ballast?: number,
+  ): void {
     if (!this.socket?.connected) return;
     if (
       throttle === undefined &&
@@ -261,7 +274,11 @@ class SocketManager {
       ballast,
     });
 
-    if (!changes.hasThrottleChange && !changes.hasRudderChange && !changes.hasBallastChange) {
+    if (
+      !changes.hasThrottleChange &&
+      !changes.hasRudderChange &&
+      !changes.hasBallastChange
+    ) {
       return;
     }
 
@@ -272,9 +289,15 @@ class SocketManager {
     });
 
     this.lastControlSent = {
-      throttle: changes.hasThrottleChange ? throttle : this.lastControlSent.throttle,
-      rudderAngle: changes.hasRudderChange ? rudderAngle : this.lastControlSent.rudderAngle,
-      ballast: changes.hasBallastChange ? ballast : this.lastControlSent.ballast,
+      throttle: changes.hasThrottleChange
+        ? throttle
+        : this.lastControlSent.throttle,
+      rudderAngle: changes.hasRudderChange
+        ? rudderAngle
+        : this.lastControlSent.rudderAngle,
+      ballast: changes.hasBallastChange
+        ? ballast
+        : this.lastControlSent.ballast,
       timestamp: performance.now(),
     };
 
@@ -337,7 +360,8 @@ class SocketManager {
       const hasMessages =
         store.chatMessages.filter(
           msg =>
-            (msg.channel || 'global') === normalizedChannel || msg.channel === channel,
+            (msg.channel || 'global') === normalizedChannel ||
+            msg.channel === channel,
         ).length > 0;
       if (meta?.loaded || hasMessages) {
         store.setChatHistoryMeta(normalizedChannel || channel, {
@@ -585,5 +609,3 @@ export const createSocketManager = (
 };
 
 export const socketManager = createSocketManager();
-
-export default socketManager;

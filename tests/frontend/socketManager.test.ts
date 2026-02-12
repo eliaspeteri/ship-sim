@@ -3,9 +3,48 @@ import {
   STORAGE_SPACE_SELECTED_KEY,
 } from '../../src/features/sim/constants';
 import { createSocketManager } from '../../src/networking/socket';
+import useStore from '../../src/store';
+import io from 'socket.io-client';
 
-type StoreState = Record<string, any>;
-type SocketHandler = (payload?: any) => void;
+type StoreState = {
+  [key: string]: unknown;
+  spaceId: string;
+  roles: string[];
+  mode: string;
+  sessionUserId: string | null;
+  currentVesselId: string | null;
+  vessel: Record<string, unknown>;
+  otherVessels: Record<string, unknown>;
+  chatHistoryMeta: Record<string, unknown>;
+  chatMessages: ChatRecord[];
+  seamarks: { radiusMeters: number; [key: string]: unknown };
+  setCurrentVesselId: jest.Mock;
+  setSpaceId: jest.Mock;
+  setMode: jest.Mock;
+  setChatMessages: jest.Mock;
+  setChatHistoryMeta: jest.Mock;
+  mergeChatMessages: jest.Mock;
+  replaceChannelMessages: jest.Mock;
+  setNotice: jest.Mock;
+  setRoles: jest.Mock;
+  setSessionUserId: jest.Mock;
+  setOtherVessels: jest.Mock;
+  updateVessel: jest.Mock;
+  setCrew: jest.Mock;
+  updateEnvironment: jest.Mock;
+  setAccount: jest.Mock;
+  upsertMissionAssignment: jest.Mock;
+  addChatMessage: jest.Mock;
+  addEvent: jest.Mock;
+  setSeamarks: jest.Mock;
+  setSocketLatencyMs: jest.Mock;
+  setSpaceInfo: jest.Mock;
+  updateMachineryStatus: jest.Mock;
+  setMissionAssignments: jest.Mock;
+  setMissions: jest.Mock;
+};
+type SocketHandler = (payload?: unknown) => void;
+type ChatRecord = { channel?: string; [key: string]: unknown };
 type SocketMock = {
   connected: boolean;
   auth: Record<string, unknown>;
@@ -49,20 +88,22 @@ const createStoreState = (overrides: Partial<StoreState> = {}): StoreState => {
     setCurrentVesselId: jest.fn((vesselId: string | null) => {
       state.currentVesselId = vesselId;
     }),
-    setChatMessages: jest.fn((messages: unknown[]) => {
+    setChatMessages: jest.fn((messages: ChatRecord[]) => {
       state.chatMessages = messages;
     }),
     setChatHistoryMeta: jest.fn((channel: string, meta: unknown) => {
       state.chatHistoryMeta[channel] = meta;
     }),
-    mergeChatMessages: jest.fn((messages: unknown[]) => {
+    mergeChatMessages: jest.fn((messages: ChatRecord[]) => {
       state.chatMessages = [...state.chatMessages, ...messages];
     }),
-    replaceChannelMessages: jest.fn((channel: string, messages: any[]) => {
-      state.chatMessages = state.chatMessages
-        .filter((msg: any) => msg.channel !== channel)
-        .concat(messages);
-    }),
+    replaceChannelMessages: jest.fn(
+      (channel: string, messages: ChatRecord[]) => {
+        state.chatMessages = state.chatMessages
+          .filter(msg => msg.channel !== channel)
+          .concat(messages);
+      },
+    ),
     setNotice: jest.fn(),
     setRoles: jest.fn((roles: string[]) => {
       state.roles = roles;
@@ -80,7 +121,7 @@ const createStoreState = (overrides: Partial<StoreState> = {}): StoreState => {
     updateEnvironment: jest.fn(),
     setAccount: jest.fn(),
     upsertMissionAssignment: jest.fn(),
-    addChatMessage: jest.fn((message: unknown) => {
+    addChatMessage: jest.fn((message: ChatRecord) => {
       state.chatMessages = [...state.chatMessages, message];
     }),
     addEvent: jest.fn(),
@@ -103,7 +144,7 @@ const setupSocketManager = (overrides: Partial<StoreState> = {}) => {
   const socket: SocketMock = {
     connected: true,
     auth: {},
-    on: jest.fn((event: string, cb: (payload?: any) => void) => {
+    on: jest.fn((event: string, cb: (payload?: unknown) => void) => {
       handlers[event] = cb;
       return socket;
     }),
@@ -118,9 +159,10 @@ const setupSocketManager = (overrides: Partial<StoreState> = {}) => {
   >(() => socket);
 
   const socketManager = createSocketManager({
-    ioClient: ioMock as any,
+    ioClient: ioMock as unknown as typeof io,
     storeAdapter: {
-      getState: () => storeState as any,
+      getState: () =>
+        storeState as unknown as ReturnType<typeof useStore.getState>,
     },
   });
 
@@ -690,11 +732,17 @@ describe('socket manager (frontend)', () => {
     const { socketManager, socket, storeState } = setupSocketManager();
 
     socketManager.connect('ws://example');
-    socket.emit.mockImplementation((event: string, payload: any, cb?: any) => {
-      if (event === 'vessel:repair' && typeof cb === 'function') {
-        cb({ ok: true, message: 'Repaired' });
-      }
-    });
+    socket.emit.mockImplementation(
+      (
+        event: string,
+        _payload: unknown,
+        cb?: (result?: { ok: boolean; message?: string }) => void,
+      ) => {
+        if (event === 'vessel:repair' && typeof cb === 'function') {
+          cb({ ok: true, message: 'Repaired' });
+        }
+      },
+    );
 
     socketManager.requestHelm('claim');
     expect(socket.emit).toHaveBeenCalledWith('vessel:helm', {
@@ -732,11 +780,17 @@ describe('socket manager (frontend)', () => {
       message: 'Repaired',
     });
 
-    socket.emit.mockImplementation((event: string, payload: any, cb?: any) => {
-      if (event === 'vessel:repair' && typeof cb === 'function') {
-        cb({ ok: false, message: 'Nope' });
-      }
-    });
+    socket.emit.mockImplementation(
+      (
+        event: string,
+        _payload: unknown,
+        cb?: (result?: { ok: boolean; message?: string }) => void,
+      ) => {
+        if (event === 'vessel:repair' && typeof cb === 'function') {
+          cb({ ok: false, message: 'Nope' });
+        }
+      },
+    );
     socketManager.requestRepair('v-1');
     expect(storeState.setNotice).toHaveBeenCalledWith({
       type: 'error',

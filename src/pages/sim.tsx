@@ -5,7 +5,7 @@ import Scene from '../components/Scene';
 import Dashboard from '../components/Dashboard';
 import { HudDrawer } from '../components/HudDrawer';
 import useStore from '../store';
-import socketManager from '../networking/socket';
+import { socketManager } from '../networking/socket';
 import { MAX_CREW } from '../constants/vessel';
 import { positionToXY } from '../lib/position';
 import { getScenarios, ScenarioDefinition } from '../lib/scenarios';

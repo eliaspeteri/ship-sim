@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { getSimulationLoop } from '../simulation';
-import socketManager from '../networking/socket';
+import { socketManager } from '../networking/socket';
 import {
   AISTarget,
   ARPASettings,

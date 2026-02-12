@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import useStore from '../store';
-import socketManager from '../networking/socket';
+import { socketManager } from '../networking/socket';
 import {
   applyOffsetToTimeOfDay,
   estimateTimeZoneOffsetHours,

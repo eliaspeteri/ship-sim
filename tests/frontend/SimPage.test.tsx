@@ -7,7 +7,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import SimPage from '../../src/pages/sim';
-import socketManager from '../../src/networking/socket';
+import { socketManager } from '../../src/networking/socket';
 import { initializeSimulation, startSimulation } from '../../src/simulation';
 import {
   STORAGE_ACTIVE_VESSEL_KEY,
@@ -180,7 +180,7 @@ jest.mock('../../src/features/sim/JoinChoiceModal', () => ({
 }));
 jest.mock('../../src/networking/socket', () => ({
   __esModule: true,
-  default: {
+  socketManager: {
     switchSpace: jest.fn(),
     setJoinPreference: jest.fn(),
     requestNewVessel: jest.fn(),

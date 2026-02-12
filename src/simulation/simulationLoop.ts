@@ -4,7 +4,7 @@ import { CreateVesselInput, WasmBridge } from '../lib/wasmBridge';
 import type { VesselState } from '../types/vessel.types';
 import type { DeepPartial } from '../types/utility';
 import { safe } from '../lib/safe';
-import socketManager from '../networking/socket';
+import { socketManager } from '../networking/socket';
 import { positionFromXY, positionToXY } from '../lib/position';
 import { clampRudderAngle, DEFAULT_HYDRO } from '../constants/vessel';
 import { deriveWaveState } from '../lib/waves';

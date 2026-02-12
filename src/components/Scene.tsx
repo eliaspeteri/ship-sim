@@ -7,7 +7,7 @@ import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import useStore from '../store';
 import Ship from './Ship';
-import socketManager from '../networking/socket';
+import { socketManager } from '../networking/socket';
 import { deriveWaveState } from '../lib/waves';
 import { OceanPatch } from './OceanPatch';
 import { FarWater } from './FarWater';

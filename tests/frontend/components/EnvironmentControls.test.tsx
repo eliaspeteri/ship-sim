@@ -7,7 +7,7 @@ const mockSendWeatherControl = jest.fn();
 
 jest.mock('../../../src/networking/socket', () => ({
   __esModule: true,
-  default: {
+  socketManager: {
     isConnected: jest.fn(() => true),
     sendWeatherControl: (...args: any[]) => mockSendWeatherControl(...args),
   },

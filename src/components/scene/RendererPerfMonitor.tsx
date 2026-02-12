@@ -1,6 +1,6 @@
 import React from 'react';
 import { useFrame } from '@react-three/fiber';
-import socketManager from '../../networking/socket';
+import { socketManager } from '../../networking/socket';
 
 export function RendererPerfMonitor({ enabled }: { enabled: boolean }) {
   const frameCounter = React.useRef(0);

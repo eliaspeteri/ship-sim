@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Scene from '../../../src/components/Scene';
 import useStore from '../../../src/store';
-import socketManager from '../../../src/networking/socket';
+import { socketManager } from '../../../src/networking/socket';
 
 let lastCalloutProps: any = null;
 let lastCameraHeadingProps: any = null;
@@ -67,11 +67,13 @@ jest.mock('@react-three/drei', () => {
 jest.mock('../../../src/store');
 
 jest.mock('../../../src/networking/socket', () => ({
-  sendAdminVesselMove: jest.fn(),
-  sendAdminVesselStop: jest.fn(),
-  sendAdminVesselMode: jest.fn(),
-  sendAdminVesselRemove: jest.fn(),
-  sendClientLog: jest.fn(),
+  socketManager: {
+    sendAdminVesselMove: jest.fn(),
+    sendAdminVesselStop: jest.fn(),
+    sendAdminVesselMode: jest.fn(),
+    sendAdminVesselRemove: jest.fn(),
+    sendClientLog: jest.fn(),
+  },
 }));
 
 jest.mock('../../../src/components/Ship', () => {

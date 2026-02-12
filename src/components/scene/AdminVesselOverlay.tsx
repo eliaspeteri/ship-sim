@@ -1,6 +1,6 @@
 import React from 'react';
 import VesselCallout from '../VesselCallout';
-import socketManager from '../../networking/socket';
+import { socketManager } from '../../networking/socket';
 import {
   courseFromWorldVelocity,
   ensurePosition,

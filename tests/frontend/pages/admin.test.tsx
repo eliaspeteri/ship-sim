@@ -8,7 +8,7 @@ import {
 } from '@testing-library/react';
 
 import AdminPage from '../../../src/pages/admin';
-import socketManager from '../../../src/networking/socket';
+import { socketManager } from '../../../src/networking/socket';
 
 const useSessionMock = jest.fn();
 const replaceMock = jest.fn();
@@ -24,7 +24,7 @@ jest.mock('next/router', () => ({
 
 jest.mock('../../../src/networking/socket', () => ({
   __esModule: true,
-  default: {
+  socketManager: {
     isConnected: jest.fn(() => true),
     connect: jest.fn(),
     waitForConnection: jest.fn(() => Promise.resolve()),

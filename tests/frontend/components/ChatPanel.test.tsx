@@ -2,11 +2,11 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ChatPanel } from '../../../src/components/ChatPanel';
 import useStore from '../../../src/store';
-import socketManager from '../../../src/networking/socket';
+import { socketManager } from '../../../src/networking/socket';
 
 jest.mock('../../../src/networking/socket', () => ({
   __esModule: true,
-  default: {
+  socketManager: {
     requestChatHistory: jest.fn(),
     sendChatMessage: jest.fn(),
   },
