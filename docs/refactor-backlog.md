@@ -292,7 +292,7 @@ Completed: [ ]
 
 ### B1. Replace route-internals testing in `api.test.ts` (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `tests/frontend/server/api.test.ts`
 
