@@ -21,7 +21,6 @@ module.exports = {
       },
     ],
   },
-  coverageProvider: 'v8',
   collectCoverage: true,
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts'],
   coverageDirectory: 'coverage',
