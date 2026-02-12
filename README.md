@@ -91,6 +91,7 @@ npm run test:frontend       # jest frontend/tests
 npm run test:assemblyscript # as-test
 npm run test:e2e            # smoke e2e (requires SMOKE_E2E=true)
 
+npm run typecheck           # tsc --noEmit
 npm run wasm:check-exports  # wasm export contract check
 npm run lint                # eslint
 npm run lint:errors         # eslint --max-warnings 0

@@ -424,7 +424,7 @@ Acceptance:
 
 ### C2. Remove render-path `useStore.getState()` reads (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/components/HudDrawer.tsx`
 
@@ -1228,7 +1228,7 @@ Acceptance:
 
 ### M2. Enforce typecheck as a first-class workflow (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `tsconfig.json`, `package.json`, CI/workflow config
 
@@ -1236,7 +1236,7 @@ Tasks:
 
 1. [x] Ensure TypeScript coverage includes both `ts` and `tsx` sources for app code.
 2. [x] Add explicit `npm run typecheck` script and use it in routine quality gates.
-3. Document expected typecheck command in README/contributor docs.
+3. [x] Document expected typecheck command in README/contributor docs.
 
 Acceptance:
 
@@ -1246,7 +1246,7 @@ Acceptance:
 
 ### M3. Add baseline CI quality gates (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `.github/workflows/*`, `package.json`
 
