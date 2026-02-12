@@ -772,7 +772,7 @@ Completed: [ ]
 
 ### H1. Split `src/networking/socket.ts` by responsibility (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/networking/socket.ts`, new modules under `src/networking/socket/*`
 
