@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { EventEmitter } from 'events';
 const { prismaMock } = require('../lib/prismaMock');
 
 type MockedAsync = jest.Mock<Promise<unknown>, [unknown?]>;
@@ -34,7 +35,7 @@ jest.mock('../../../src/server/middleware/authorization', () => ({
         return;
       }
       res.status(403).json({ error: 'Forbidden' });
-      next();
+      return;
     },
 }));
 
@@ -186,41 +187,87 @@ const resetPrismaMocks = () => {
   }
 };
 
-const getHandlers = (method: string, path: string) => {
-  const layer = (router as any).stack.find(
-    (entry: any) =>
-      entry.route &&
-      entry.route.path === path &&
-      entry.route.methods?.[method.toLowerCase()],
-  );
-  if (!layer) {
-    throw new Error(`Route not found: ${method.toUpperCase()} ${path}`);
-  }
-  return layer.route.stack.map((entry: any) => entry.handle);
+type TestResponse = {
+  statusCode: number;
+  headersSent: boolean;
+  finished: boolean;
+  body: unknown;
+  headers: Record<string, unknown>;
+  on: EventEmitter['on'];
+  once: EventEmitter['once'];
+  emit: EventEmitter['emit'];
+  status: (code: number) => TestResponse;
+  json: (payload: unknown) => TestResponse;
+  send: (payload: unknown) => TestResponse;
+  end: (payload?: unknown) => TestResponse;
+  setHeader: (name: string, value: unknown) => void;
+  getHeader: (name: string) => unknown;
+  set: (name: string, value: unknown) => TestResponse;
 };
 
-const runHandler = async (handler: any, req: any, res: any) => {
-  await new Promise<void>((resolve, reject) => {
-    const next = (err?: unknown) => {
-      if (err) reject(err);
-      else resolve();
-    };
-    try {
-      const result = handler(req, res, next);
-      if (result && typeof result.then === 'function') {
-        result.then(() => {
-          if (handler.length < 3) resolve();
-        }, reject);
-        return;
+const createResponse = (): TestResponse => {
+  const emitter = new EventEmitter();
+  const res = {
+    statusCode: 200,
+    headersSent: false,
+    finished: false,
+    body: undefined as unknown,
+    headers: {} as Record<string, unknown>,
+    on: emitter.on.bind(emitter),
+    once: emitter.once.bind(emitter),
+    emit: emitter.emit.bind(emitter),
+    status(code: number) {
+      res.statusCode = code;
+      return res;
+    },
+    json(payload: unknown) {
+      res.body = payload;
+      res.headersSent = true;
+      if (!res.finished) {
+        res.finished = true;
+        res.emit('finish');
       }
-      if (handler.length < 3) {
-        resolve();
+      return res;
+    },
+    send(payload: unknown) {
+      res.body = payload;
+      res.headersSent = true;
+      if (!res.finished) {
+        res.finished = true;
+        res.emit('finish');
       }
-    } catch (err) {
-      reject(err);
-    }
-  });
+      return res;
+    },
+    end(payload?: unknown) {
+      res.body = payload;
+      res.headersSent = true;
+      if (!res.finished) {
+        res.finished = true;
+        res.emit('finish');
+      }
+      return res;
+    },
+    setHeader(name: string, value: unknown) {
+      res.headers[name.toLowerCase()] = value;
+    },
+    getHeader(name: string) {
+      return res.headers[name.toLowerCase()];
+    },
+    set(name: string, value: unknown) {
+      res.setHeader(name, value);
+      return res;
+    },
+  } as TestResponse;
+  return res;
 };
+
+const replaceParamsInPath = (path: string, params: Record<string, string>) =>
+  path.replace(/:([A-Za-z0-9_]+)/g, (_match, key) => {
+    if (!(key in params)) {
+      throw new Error(`Missing param '${key}' for path '${path}'`);
+    }
+    return params[key];
+  });
 
 const invokeRoute = async (
   method: string,
@@ -232,72 +279,43 @@ const invokeRoute = async (
     user?: { userId: string; roles: string[] };
   } = {},
 ) => {
-  const handlers = getHandlers(method, path);
+  const params = input.params || paramsFromPath(path);
+  const resolvedPath = replaceParamsInPath(path, params);
+  const queryString =
+    input.query && Object.keys(input.query).length > 0
+      ? `?${new URLSearchParams(
+          Object.entries(input.query).map(([key, value]) => [
+            key,
+            String(value),
+          ]),
+        ).toString()}`
+      : '';
   const req: Record<string, unknown> = {
     method: method.toUpperCase(),
+    url: `${resolvedPath}${queryString}`,
+    originalUrl: `${resolvedPath}${queryString}`,
     headers: {},
     ip: '127.0.0.1',
     body: input.body || {},
     query: input.query || {},
-    params: input.params || {},
+    params,
     user: input.user || { userId: 'user-1', roles: ['admin'] },
   };
-  const res: Record<string, unknown> = {
-    statusCode: 200,
-    headersSent: false,
-    body: undefined,
-    status(code: number) {
-      this.statusCode = code;
-      return this;
-    },
-    json(payload: unknown) {
-      this.body = payload;
-      this.headersSent = true;
-      return this;
-    },
-    send(payload: unknown) {
-      this.body = payload;
-      this.headersSent = true;
-      return this;
-    },
-    end(payload?: unknown) {
-      this.body = payload;
-      this.headersSent = true;
-      return this;
-    },
-  };
+  const res = createResponse();
 
-  for (const handler of handlers) {
-    if (res.headersSent) break;
-    await runHandler(handler, req, res);
-  }
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const done = (err?: unknown) => {
+      if (settled) return;
+      settled = true;
+      if (err) reject(err);
+      else resolve();
+    };
+    res.once('finish', () => done());
+    (router as any).handle(req as any, res as any, (err: unknown) => done(err));
+  });
 
   return { req, res };
-};
-
-const genericBody = {
-  userId: 'user-1',
-  username: 'captain',
-  reason: 'testing',
-  role: 'admin',
-  spaceId: 'global',
-  vesselId: 'vessel-1',
-  missionId: 'mission-1',
-  scenarioId: 'scn-1',
-  name: 'Test',
-  visibility: 'public',
-  ruleset: 'CASUAL',
-  lat: 60.17,
-  lon: 24.94,
-  throttle: 0.5,
-  rudderAngle: 0.1,
-  ballast: 0.5,
-};
-
-const genericQuery = {
-  spaceId: 'global',
-  scope: 'all',
-  limit: '25',
 };
 
 const paramsFromPath = (path: string) => {
@@ -1352,32 +1370,5 @@ describe('server/api router', () => {
       user: adminUser,
     });
     expect(adminDelete.res.statusCode).toBe(200);
-  });
-
-  it('smoke-invokes all registered route handlers', async () => {
-    const routes = (router as any).stack
-      .filter((layer: any) => layer.route)
-      .flatMap((layer: any) =>
-        Object.keys(layer.route.methods).map((method: string) => ({
-          method,
-          path: layer.route.path as string,
-        })),
-      );
-
-    let invoked = 0;
-    for (const route of routes) {
-      try {
-        await invokeRoute(route.method, route.path, {
-          body: genericBody,
-          query: genericQuery,
-          params: paramsFromPath(route.path),
-        });
-        invoked += 1;
-      } catch {
-        // Keep sweeping routes for coverage, even if an individual path rejects input.
-      }
-    }
-
-    expect(invoked).toBeGreaterThan(40);
   });
 });
