@@ -946,15 +946,15 @@ Completed: [ ]
 
 ### K1. Close IDOR on settings endpoints (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/server/api.ts`
 
 Tasks:
 
-1. [ ] Enforce subject binding on `GET/POST /settings/:userId` (self-only unless admin).
-2. [ ] Add explicit authorization helper for user-scoped resources to avoid repeated ad-hoc checks.
-3. [ ] Add regression tests for self-access, cross-user denial, and admin override.
+1. [x] Enforce subject binding on `GET/POST /settings/:userId` (self-only unless admin).
+2. [x] Add explicit authorization helper for user-scoped resources to avoid repeated ad-hoc checks.
+3. [x] Add regression tests for self-access, cross-user denial, and admin override.
 
 Acceptance:
 
@@ -964,15 +964,15 @@ Acceptance:
 
 ### K2. Tighten vessel state mutation authorization (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/server/api.ts`, `src/server/middleware/authorization.ts`
 
 Tasks:
 
-1. [ ] Add strict ownership/role checks on vessel mutation routes keyed by `:userId`.
-2. [ ] Prevent generic `vessel:update` permission from granting cross-user mutation power.
-3. [ ] Add tests proving cross-user updates/deletes are denied.
+1. [x] Add strict ownership/role checks on vessel mutation routes keyed by `:userId`.
+2. [x] Prevent generic `vessel:update` permission from granting cross-user mutation power.
+3. [x] Add tests proving cross-user updates/deletes are denied.
 
 Acceptance:
 
@@ -982,7 +982,7 @@ Acceptance:
 
 ### K3. Require auth/authorization for editor write APIs (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/pages/api/editor/packs/index.ts`, `src/pages/api/editor/packs/[packId].ts`, `src/pages/api/editor/compile.ts`, `src/pages/api/editor/overlay.ts`
 
@@ -1000,7 +1000,7 @@ Acceptance:
 
 ### K4. Add request-size/rate guardrails to artifact and register flows (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/pages/api/editor/compile.ts`, `src/server/editorCompilationStore.ts`, `src/pages/api/register.ts`, server middleware/bootstrap
 
