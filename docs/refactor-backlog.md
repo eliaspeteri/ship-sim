@@ -1210,15 +1210,15 @@ Completed: [ ]
 
 ### M1. Stabilize frontend test harness and docs parity (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `jest.config.js`, `package.json`, `README.md`
 
 Tasks:
 
-1. Align Jest transformer stack with supported versions and remove brittle config assumptions.
-2. Ensure README test commands match actual npm scripts and current tooling behavior.
-3. Add a lightweight smoke command for focused auth/api suite verification.
+1. [x] Align Jest transformer stack with supported versions and remove brittle config assumptions.
+2. [x] Ensure README test commands match actual npm scripts and current tooling behavior.
+3. [x] Add a lightweight smoke command for focused auth/api suite verification.
 
 Acceptance:
 
