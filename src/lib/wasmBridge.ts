@@ -1,5 +1,112 @@
 import { WasmModule } from '../types/wasm';
 
+export type CreateVesselInput = {
+  position: { x: number; y: number; z: number };
+  orientation: { heading: number; roll: number; pitch: number };
+  velocity: { surge: number; sway: number; heave: number };
+  angularVelocity: { yaw: number; roll: number; pitch: number };
+  controls: { throttle: number; rudderAngle: number };
+  properties: {
+    mass: number;
+    length: number;
+    beam: number;
+    draft: number;
+    blockCoefficient: number;
+  };
+  hydrodynamics: {
+    rudderForceCoefficient: number;
+    rudderStallAngle: number;
+    rudderMaxAngle: number;
+    dragCoefficient: number;
+    yawDamping: number;
+    yawDampingQuad: number;
+    swayDamping: number;
+  };
+  propulsion: {
+    maxThrust: number;
+    maxSpeed: number;
+  };
+  stability: {
+    rollDamping: number;
+    pitchDamping: number;
+    heaveStiffness: number;
+    heaveDamping: number;
+  };
+};
+
+type CreateVesselArgs = [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+];
+
+export const buildCreateVesselArgs = (
+  input: CreateVesselInput,
+): CreateVesselArgs =>
+  [
+    input.position.x,
+    input.position.y,
+    input.position.z,
+    input.orientation.heading,
+    input.orientation.roll,
+    input.orientation.pitch,
+    input.velocity.surge,
+    input.velocity.sway,
+    input.velocity.heave,
+    input.angularVelocity.yaw,
+    input.angularVelocity.roll,
+    input.angularVelocity.pitch,
+    input.controls.throttle,
+    input.controls.rudderAngle,
+    input.properties.mass,
+    input.properties.length,
+    input.properties.beam,
+    input.properties.draft,
+    input.properties.blockCoefficient,
+    input.hydrodynamics.rudderForceCoefficient,
+    input.hydrodynamics.rudderStallAngle,
+    input.hydrodynamics.rudderMaxAngle,
+    input.hydrodynamics.dragCoefficient,
+    input.hydrodynamics.yawDamping,
+    input.hydrodynamics.yawDampingQuad,
+    input.hydrodynamics.swayDamping,
+    input.propulsion.maxThrust,
+    input.propulsion.maxSpeed,
+    input.stability.rollDamping,
+    input.stability.pitchDamping,
+    input.stability.heaveStiffness,
+    input.stability.heaveDamping,
+  ] as CreateVesselArgs;
+
 /**
  * Thin wrapper around the WASM physics module.
  * Only exposes the functions the simulation loop uses today.
@@ -161,6 +268,10 @@ export class WasmBridge {
       heaveStiffness,
       heaveDamping,
     );
+  }
+
+  createVesselFromInput(input: CreateVesselInput): number {
+    return this.wasmModule.createVessel(...buildCreateVesselArgs(input));
   }
 
   destroyVessel(vesselPtr: number): void {

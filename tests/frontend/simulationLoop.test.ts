@@ -72,7 +72,7 @@ const createStoreState = (overrides: Partial<StoreState> = {}): StoreState => {
 };
 
 const createWasmBridge = () => ({
-  createVessel: jest.fn().mockReturnValue(123),
+  createVesselFromInput: jest.fn().mockReturnValue(123),
   destroyVessel: jest.fn(),
   setVesselParams: jest.fn(),
   setEnvironment: jest.fn(),
@@ -185,7 +185,7 @@ describe('simulation loop', () => {
     await loop.initialize();
 
     expect(storeState.setWasmVesselPtr).toHaveBeenCalledWith(null);
-    expect(wasmBridge.createVessel).not.toHaveBeenCalled();
+    expect(wasmBridge.createVesselFromInput).not.toHaveBeenCalled();
   });
 
   it('initialize creates vessel, sets params, and updates store', async () => {
@@ -196,7 +196,7 @@ describe('simulation loop', () => {
 
     await loop.initialize();
 
-    expect(wasmBridge.createVessel).toHaveBeenCalled();
+    expect(wasmBridge.createVesselFromInput).toHaveBeenCalled();
     expect(wasmBridge.setVesselParams).toHaveBeenCalledWith(
       123,
       'displacement',
@@ -383,7 +383,7 @@ describe('simulation loop', () => {
 
     loop.teleportVessel({ x: 10, y: 20, z: 2 });
 
-    expect(wasmBridge.createVessel).toHaveBeenCalled();
+    expect(wasmBridge.createVesselFromInput).toHaveBeenCalled();
     expect(wasmBridge.destroyVessel).toHaveBeenCalledWith(9);
     expect(storeState.setWasmVesselPtr).toHaveBeenCalledWith(123);
     expect(storeState.updateVessel).toHaveBeenCalledWith(
@@ -402,7 +402,7 @@ describe('simulation loop', () => {
 
     loop.syncVesselFromStore();
 
-    expect(wasmBridge.createVessel).toHaveBeenCalled();
+    expect(wasmBridge.createVesselFromInput).toHaveBeenCalled();
     expect(wasmBridge.destroyVessel).toHaveBeenCalledWith(5);
     expect(storeState.setWasmVesselPtr).toHaveBeenCalledWith(123);
   });

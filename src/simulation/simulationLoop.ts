@@ -1,6 +1,6 @@
 import useStore from '../store';
 import { loadWasm } from '../lib/wasmLoader';
-import { WasmBridge } from '../lib/wasmBridge';
+import { CreateVesselInput, WasmBridge } from '../lib/wasmBridge';
 import type { VesselState } from '../types/vessel.types';
 import type { DeepPartial } from '../types/utility';
 import { safe } from '../lib/safe';
@@ -18,6 +18,98 @@ let simulationInstance: SimulationLoop | null = null;
 
 const buildHydroParams = (vessel: VesselState) =>
   buildDisplacementParams(vessel);
+
+type CreateVesselOverrides = {
+  position?: { x?: number; y?: number; z?: number };
+  orientation?: { heading?: number; roll?: number; pitch?: number };
+  velocity?: { surge?: number; sway?: number; heave?: number };
+  angularVelocity?: { yaw?: number; roll?: number; pitch?: number };
+  controls?: { throttle?: number; rudderAngle?: number };
+};
+
+const buildCreateVesselInput = (
+  vessel: VesselState,
+  overrides: CreateVesselOverrides = {},
+): CreateVesselInput => {
+  const blockCoeff = Number.isFinite(vessel.properties.blockCoefficient)
+    ? vessel.properties.blockCoefficient
+    : 0.8;
+  const hydro = buildHydroParams(vessel);
+  const { x: baseX, y: baseY } = positionToXY({
+    lat: vessel.position.lat,
+    lon: vessel.position.lon,
+  });
+
+  const x = safe(overrides.position?.x ?? baseX, 0);
+  const y = safe(overrides.position?.y ?? baseY, 0);
+  const z = safe(overrides.position?.z ?? vessel.position.z, 0);
+
+  return {
+    position: { x, y, z },
+    orientation: {
+      heading: safe(
+        overrides.orientation?.heading ?? vessel.orientation.heading,
+        0,
+      ),
+      roll: safe(overrides.orientation?.roll ?? vessel.orientation.roll, 0),
+      pitch: safe(overrides.orientation?.pitch ?? vessel.orientation.pitch, 0),
+    },
+    velocity: {
+      surge: safe(overrides.velocity?.surge ?? vessel.velocity.surge, 0),
+      sway: safe(overrides.velocity?.sway ?? vessel.velocity.sway, 0),
+      heave: safe(overrides.velocity?.heave ?? vessel.velocity.heave, 0),
+    },
+    angularVelocity: {
+      yaw: safe(
+        overrides.angularVelocity?.yaw ?? vessel.angularVelocity.yaw,
+        0,
+      ),
+      roll: safe(
+        overrides.angularVelocity?.roll ?? vessel.angularVelocity.roll,
+        0,
+      ),
+      pitch: safe(
+        overrides.angularVelocity?.pitch ?? vessel.angularVelocity.pitch,
+        0,
+      ),
+    },
+    controls: {
+      throttle: safe(
+        overrides.controls?.throttle ?? vessel.controls.throttle,
+        0,
+      ),
+      rudderAngle: clampRudderAngle(
+        safe(overrides.controls?.rudderAngle ?? vessel.controls.rudderAngle, 0),
+      ),
+    },
+    properties: {
+      mass: safe(vessel.properties.mass, 14950000),
+      length: safe(vessel.properties.length, 212),
+      beam: safe(vessel.properties.beam, 28),
+      draft: safe(vessel.properties.draft, 9.1),
+      blockCoefficient: blockCoeff,
+    },
+    hydrodynamics: {
+      rudderForceCoefficient: hydro.rudderForceCoefficient,
+      rudderStallAngle: hydro.rudderStallAngle,
+      rudderMaxAngle: hydro.rudderMaxAngle,
+      dragCoefficient: hydro.dragCoefficient,
+      yawDamping: hydro.yawDamping,
+      yawDampingQuad: hydro.yawDampingQuad,
+      swayDamping: hydro.swayDamping,
+    },
+    propulsion: {
+      maxThrust: hydro.maxThrust,
+      maxSpeed: hydro.maxSpeed,
+    },
+    stability: {
+      rollDamping: hydro.rollDamping,
+      pitchDamping: hydro.pitchDamping,
+      heaveStiffness: hydro.heaveStiffness,
+      heaveDamping: hydro.heaveDamping,
+    },
+  };
+};
 
 export class SimulationLoop {
   private loopTestHooks: {
@@ -77,14 +169,7 @@ export class SimulationLoop {
         return;
       }
       const { vessel } = state;
-      const {
-        position,
-        orientation,
-        velocity,
-        controls,
-        angularVelocity,
-        properties,
-      } = vessel;
+      const { position, velocity, controls } = vessel;
       // Ensure vessel is created at rest unless restoring a running state
       const initialSurge = safe(velocity.surge, 0);
       const initialSway = safe(velocity.sway, 0);
@@ -108,44 +193,16 @@ export class SimulationLoop {
       const sway = isRestoring ? initialSway : 0;
       const heave = isRestoring ? initialHeave : 0;
       const throttle = isRestoring ? initialThrottle : 0;
-      const blockCoeff = Number.isFinite(properties.blockCoefficient)
-        ? properties.blockCoefficient
-        : 0.8;
-      const hydro = buildHydroParams(vessel);
-      const vesselPtr = this.wasmBridge.createVessel(
-        safe(initialX, 0),
-        safe(initialY, 0),
-        safe(position.z, 0),
-        safe(orientation.heading, 0),
-        safe(orientation.roll, 0),
-        safe(orientation.pitch, 0),
-        surge,
-        sway,
-        heave,
-        safe(angularVelocity.yaw, 0),
-        safe(angularVelocity.roll, 0),
-        safe(angularVelocity.pitch, 0),
-        throttle,
-        clampRudderAngle(safe(controls.rudderAngle, 0)),
-        safe(properties.mass, 14950000),
-        safe(properties.length, 212),
-        safe(properties.beam, 28),
-        safe(properties.draft, 9.1),
-        blockCoeff,
-        hydro.rudderForceCoefficient,
-        hydro.rudderStallAngle,
-        hydro.rudderMaxAngle,
-        hydro.dragCoefficient,
-        hydro.yawDamping,
-        hydro.yawDampingQuad,
-        hydro.swayDamping,
-        hydro.maxThrust,
-        hydro.maxSpeed,
-        hydro.rollDamping,
-        hydro.pitchDamping,
-        hydro.heaveStiffness,
-        hydro.heaveDamping,
-      );
+      const vesselInput = buildCreateVesselInput(vessel, {
+        position: {
+          x: safe(initialX, 0),
+          y: safe(initialY, 0),
+          z: safe(position.z, 0),
+        },
+        velocity: { surge, sway, heave },
+        controls: { throttle, rudderAngle: controls.rudderAngle },
+      });
+      const vesselPtr = this.wasmBridge.createVesselFromInput(vesselInput);
       this.applyPhysicsParams(vesselPtr, vessel);
       state.setWasmVesselPtr(vesselPtr);
 
@@ -494,44 +551,17 @@ export class SimulationLoop {
     const state = useStore.getState();
     const { vessel } = state;
     const nextZ = position.z ?? vessel.position.z ?? 0;
-    const blockCoeff = Number.isFinite(vessel.properties.blockCoefficient)
-      ? vessel.properties.blockCoefficient
-      : 0.8;
-    const hydro = buildHydroParams(vessel);
-    const nextPtr = this.wasmBridge.createVessel(
-      safe(position.x, 0),
-      safe(position.y, 0),
-      safe(nextZ, 0),
-      safe(vessel.orientation.heading, 0),
-      safe(vessel.orientation.roll, 0),
-      safe(vessel.orientation.pitch, 0),
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      clampRudderAngle(0),
-      safe(vessel.properties.mass, 14950000),
-      safe(vessel.properties.length, 212),
-      safe(vessel.properties.beam, 28),
-      safe(vessel.properties.draft, 9.1),
-      blockCoeff,
-      hydro.rudderForceCoefficient,
-      hydro.rudderStallAngle,
-      hydro.rudderMaxAngle,
-      hydro.dragCoefficient,
-      hydro.yawDamping,
-      hydro.yawDampingQuad,
-      hydro.swayDamping,
-      hydro.maxThrust,
-      hydro.maxSpeed,
-      hydro.rollDamping,
-      hydro.pitchDamping,
-      hydro.heaveStiffness,
-      hydro.heaveDamping,
-    );
+    const vesselInput = buildCreateVesselInput(vessel, {
+      position: {
+        x: safe(position.x, 0),
+        y: safe(position.y, 0),
+        z: safe(nextZ, 0),
+      },
+      velocity: { surge: 0, sway: 0, heave: 0 },
+      angularVelocity: { yaw: 0, roll: 0, pitch: 0 },
+      controls: { throttle: 0, rudderAngle: 0 },
+    });
+    const nextPtr = this.wasmBridge.createVesselFromInput(vesselInput);
     this.applyPhysicsParams(nextPtr, vessel);
 
     if (state.wasmVesselPtr) {
@@ -563,44 +593,10 @@ export class SimulationLoop {
       lat: vessel.position.lat,
       lon: vessel.position.lon,
     });
-    const blockCoeff = Number.isFinite(vessel.properties.blockCoefficient)
-      ? vessel.properties.blockCoefficient
-      : 0.8;
-    const hydro = buildHydroParams(vessel);
-    const nextPtr = this.wasmBridge.createVessel(
-      safe(x, 0),
-      safe(y, 0),
-      safe(vessel.position.z, 0),
-      safe(vessel.orientation.heading, 0),
-      safe(vessel.orientation.roll, 0),
-      safe(vessel.orientation.pitch, 0),
-      safe(vessel.velocity.surge, 0),
-      safe(vessel.velocity.sway, 0),
-      safe(vessel.velocity.heave, 0),
-      safe(vessel.angularVelocity.yaw, 0),
-      safe(vessel.angularVelocity.roll, 0),
-      safe(vessel.angularVelocity.pitch, 0),
-      safe(vessel.controls.throttle, 0),
-      clampRudderAngle(safe(vessel.controls.rudderAngle, 0)),
-      safe(vessel.properties.mass, 14950000),
-      safe(vessel.properties.length, 212),
-      safe(vessel.properties.beam, 28),
-      safe(vessel.properties.draft, 9.1),
-      blockCoeff,
-      hydro.rudderForceCoefficient,
-      hydro.rudderStallAngle,
-      hydro.rudderMaxAngle,
-      hydro.dragCoefficient,
-      hydro.yawDamping,
-      hydro.yawDampingQuad,
-      hydro.swayDamping,
-      hydro.maxThrust,
-      hydro.maxSpeed,
-      hydro.rollDamping,
-      hydro.pitchDamping,
-      hydro.heaveStiffness,
-      hydro.heaveDamping,
-    );
+    const vesselInput = buildCreateVesselInput(vessel, {
+      position: { x: safe(x, 0), y: safe(y, 0), z: safe(vessel.position.z, 0) },
+    });
+    const nextPtr = this.wasmBridge.createVesselFromInput(vesselInput);
     this.applyPhysicsParams(nextPtr, vessel);
     if (state.wasmVesselPtr) {
       this.wasmBridge.destroyVessel(state.wasmVesselPtr);
