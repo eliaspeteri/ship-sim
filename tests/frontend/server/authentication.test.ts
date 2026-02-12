@@ -2,7 +2,10 @@
 import type { Request } from 'express';
 import jwt from 'jsonwebtoken';
 import { getToken } from 'next-auth/jwt';
-import { authenticateRequest } from '../../../src/server/middleware/authentication';
+import {
+  authenticateRequest,
+  requireUser,
+} from '../../../src/server/middleware/authentication';
 
 jest.mock('next-auth/jwt', () => ({
   getToken: jest.fn(),
@@ -101,5 +104,45 @@ describe('authentication middleware', () => {
 
     expect(req.user).toBeUndefined();
     expect(next).toHaveBeenCalled();
+  });
+
+  it('requireUser returns the user when authenticated', () => {
+    const req = makeReq({
+      user: {
+        userId: 'user-1',
+        username: 'Ada',
+        roles: ['player'],
+        permissions: [],
+        rank: 1,
+        credits: 0,
+        experience: 0,
+        safetyScore: 1,
+      } as any,
+    });
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as any;
+
+    const user = requireUser(req, res);
+
+    expect(user).toBe(req.user);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('requireUser returns null and responds 401 when missing', () => {
+    const req = makeReq();
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as any;
+
+    const user = requireUser(req, res);
+
+    expect(user).toBeNull();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Authentication required',
+    });
   });
 });

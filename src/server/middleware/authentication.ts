@@ -138,3 +138,14 @@ export const requireAuth = (
     next();
   }
 };
+
+export const requireUser = (
+  req: Request,
+  res: Response,
+): AuthenticatedUser | null => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Authentication required' });
+    return null;
+  }
+  return req.user;
+};

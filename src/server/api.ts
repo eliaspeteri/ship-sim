@@ -2,7 +2,12 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
-import { authenticateRequest, requireAuth } from './middleware/authentication';
+import {
+  authenticateRequest,
+  requireAuth,
+  requireUser,
+  type AuthenticatedUser,
+} from './middleware/authentication';
 import {
   requirePermission,
   requireRole,
@@ -182,19 +187,20 @@ const router = express.Router();
 const DEFAULT_SPACE_ID = process.env.DEFAULT_SPACE_ID || 'global';
 
 const canManageSpace = async (
-  req: { user?: { userId: string; roles: string[] } },
+  user: AuthenticatedUser | null,
   spaceId: string,
 ) => {
-  if (req.user?.roles?.includes('admin')) return true;
-  if (!req.user?.userId) return false;
+  if (!user) return false;
+  if (user.roles.includes('admin')) return true;
+  const userId = user.userId;
   const space = await prisma.space.findUnique({
     where: { id: spaceId },
     select: { createdBy: true },
   });
-  if (space?.createdBy && space.createdBy === req.user.userId) return true;
+  if (space?.createdBy && space.createdBy === userId) return true;
   const access = await prisma.spaceAccess.findUnique({
     where: {
-      userId_spaceId: { userId: req.user.userId, spaceId },
+      userId_spaceId: { userId, spaceId },
     },
     select: { role: true },
   });
@@ -515,11 +521,13 @@ router.post(
 
 // Environment scheduling (space owner or admin)
 router.get('/environment/events', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   const spaceId =
     typeof req.query.spaceId === 'string'
       ? req.query.spaceId
       : DEFAULT_SPACE_ID;
-  if (!(await canManageSpace(req, spaceId))) {
+  if (!(await canManageSpace(user, spaceId))) {
     res
       .status(403)
       .json({ error: 'Not authorized to view environment events' });
@@ -538,9 +546,11 @@ router.get('/environment/events', requireAuth, async (req, res) => {
 });
 
 router.post('/environment/events', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   const spaceId =
     typeof req.body?.spaceId === 'string' ? req.body.spaceId : DEFAULT_SPACE_ID;
-  if (!(await canManageSpace(req, spaceId))) {
+  if (!(await canManageSpace(user, spaceId))) {
     res
       .status(403)
       .json({ error: 'Not authorized to schedule environment events' });
@@ -574,7 +584,7 @@ router.post('/environment/events', requireAuth, async (req, res) => {
         runAt,
         endAt,
         enabled: req.body?.enabled !== false,
-        createdBy: req.user?.userId || null,
+        createdBy: user.userId,
       },
     });
     res.status(201).json(event);
@@ -585,6 +595,8 @@ router.post('/environment/events', requireAuth, async (req, res) => {
 });
 
 router.delete('/environment/events/:eventId', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   const eventId = req.params.eventId;
   try {
     const event = await prisma.environmentEvent.findUnique({
@@ -594,7 +606,7 @@ router.delete('/environment/events/:eventId', requireAuth, async (req, res) => {
       res.status(404).json({ error: 'Event not found' });
       return;
     }
-    if (!(await canManageSpace(req, event.spaceId))) {
+    if (!(await canManageSpace(user, event.spaceId))) {
       res.status(403).json({ error: 'Not authorized to delete this event' });
       return;
     }
@@ -612,17 +624,19 @@ router.get(
   requireAuth,
   requirePermission('mission', 'list'),
   async (req, res) => {
+    const user = requireUser(req, res);
+    if (!user) return;
     const spaceId =
       typeof req.query.spaceId === 'string'
         ? req.query.spaceId
         : DEFAULT_SPACE_ID;
-    const rank = req.user?.rank ?? 1;
+    const rank = user.rank ?? 1;
     try {
       const missions = (await prisma.mission.findMany({
         where: {
           spaceId,
           active: true,
-          ...(req.user?.roles?.includes('admin')
+          ...(user.roles.includes('admin')
             ? {}
             : { requiredRank: { lte: rank } }),
         },
@@ -642,6 +656,8 @@ router.post(
   requirePermission('mission', 'assign'),
   async (req, res) => {
     const { missionId } = req.params;
+    const user = requireUser(req, res);
+    if (!user) return;
     try {
       const mission = (await prisma.mission.findUnique({
         where: { id: missionId },
@@ -650,14 +666,14 @@ router.post(
         res.status(404).json({ error: 'Mission not found' });
         return;
       }
-      const rank = req.user?.rank ?? 1;
-      if (!req.user?.roles?.includes('admin') && rank < mission.requiredRank) {
+      const rank = user.rank ?? 1;
+      if (!user.roles.includes('admin') && rank < mission.requiredRank) {
         res.status(403).json({ error: 'Rank too low for this mission' });
         return;
       }
       const existing = (await prisma.missionAssignment.findFirst({
         where: {
-          userId: req.user!.userId,
+          userId: user.userId,
           status: { in: ['assigned', 'in_progress'] },
         },
       })) as MissionAssignmentData | null;
@@ -668,7 +684,7 @@ router.post(
       const assignment = await prisma.missionAssignment.create({
         data: {
           missionId,
-          userId: req.user!.userId,
+          userId: user.userId,
           vesselId: req.body?.vesselId || null,
           status: 'assigned',
           progress: { stage: 'pickup' },
@@ -687,13 +703,15 @@ router.get(
   requireAuth,
   requirePermission('mission', 'list'),
   async (req, res) => {
+    const user = requireUser(req, res);
+    if (!user) return;
     const status =
       typeof req.query.status === 'string' ? req.query.status : undefined;
     const statusList = status ? status.split(',') : undefined;
     try {
       const assignments = await prisma.missionAssignment.findMany({
         where: {
-          userId: req.user!.userId,
+          userId: user.userId,
           ...(statusList ? { status: { in: statusList } } : {}),
         },
         include: { mission: true },
@@ -709,18 +727,20 @@ router.get(
 
 router.post('/scenarios/:scenarioId/start', requireAuth, async (req, res) => {
   const { scenarioId } = req.params;
+  const user = requireUser(req, res);
+  if (!user) return;
   const scenario = getScenarios().find(item => item.id === scenarioId);
   if (!scenario) {
     res.status(404).json({ error: 'Scenario not found' });
     return;
   }
-  const rank = req.user?.rank ?? 1;
-  if (!req.user?.roles?.includes('admin') && rank < scenario.rankRequired) {
+  const rank = user.rank ?? 1;
+  if (!user.roles.includes('admin') && rank < scenario.rankRequired) {
     res.status(403).json({ error: 'Rank too low for this scenario' });
     return;
   }
   try {
-    const name = `${scenario.name} (${req.user?.userId?.slice(0, 6) || 'pilot'})`;
+    const name = `${scenario.name} (${user.userId.slice(0, 6) || 'pilot'})`;
     const space = await prisma.space.create({
       data: {
         name,
@@ -728,12 +748,12 @@ router.post('/scenarios/:scenarioId/start', requireAuth, async (req, res) => {
         kind: 'scenario',
         rankRequired: scenario.rankRequired,
         rules: scenario.rules,
-        createdBy: req.user?.userId || null,
+        createdBy: user.userId,
       },
     });
     await prisma.spaceAccess.create({
       data: {
-        userId: req.user!.userId,
+        userId: user.userId,
         spaceId: space.id,
         role: 'host',
         inviteToken: space.inviteToken || null,
@@ -750,7 +770,7 @@ router.post('/scenarios/:scenarioId/start', requireAuth, async (req, res) => {
             : undefined,
           runAt: new Date(),
           enabled: true,
-          createdBy: req.user?.userId || null,
+          createdBy: user.userId,
         },
       });
     }
@@ -769,10 +789,12 @@ router.get(
   requireAuth,
   requirePermission('economy', 'read'),
   async (req, res) => {
+    const user = requireUser(req, res);
+    if (!user) return;
     try {
-      const profile = await getEconomyProfile(req.user!.userId);
+      const profile = await getEconomyProfile(user.userId);
       const transactions = await prisma.economyTransaction.findMany({
-        where: { userId: req.user!.userId },
+        where: { userId: user.userId },
         orderBy: { createdAt: 'desc' },
         take: 20,
       });
@@ -800,9 +822,11 @@ router.get(
   requireAuth,
   requirePermission('economy', 'read'),
   async (req, res) => {
+    const user = requireUser(req, res);
+    if (!user) return;
     try {
-      const profile = await getEconomyProfile(req.user!.userId);
-      const fleet = await loadUserFleet(req.user!.userId);
+      const profile = await getEconomyProfile(user.userId);
+      const fleet = await loadUserFleet(user.userId);
       const activeVessel = fleet[0];
       const currentPort = activeVessel
         ? resolvePortForPosition(toVesselPosition(activeVessel))
@@ -828,34 +852,34 @@ router.get(
         }),
       );
       const loans = await prisma.loan.findMany({
-        where: { userId: req.user!.userId },
+        where: { userId: user.userId },
         orderBy: { createdAt: 'desc' },
       });
       const insurance = await prisma.insurancePolicy.findMany({
-        where: { ownerId: req.user!.userId },
+        where: { ownerId: user.userId },
         orderBy: { createdAt: 'desc' },
       });
       const leases = await prisma.vesselLease.findMany({
         where: {
-          OR: [{ ownerId: req.user!.userId }, { lesseeId: req.user!.userId }],
+          OR: [{ ownerId: user.userId }, { lesseeId: user.userId }],
         },
         orderBy: { createdAt: 'desc' },
       });
       const sales = await prisma.vesselSale.findMany({
         where: {
-          OR: [{ sellerId: req.user!.userId }, { buyerId: req.user!.userId }],
+          OR: [{ sellerId: user.userId }, { buyerId: user.userId }],
         },
         orderBy: { createdAt: 'desc' },
       });
       const passengerContracts = await prisma.passengerContract.findMany({
         where: {
-          OR: [{ operatorId: req.user!.userId }, { status: 'listed' }],
+          OR: [{ operatorId: user.userId }, { status: 'listed' }],
         },
         orderBy: { createdAt: 'desc' },
         take: 20,
       });
       const missions = await prisma.mission.findMany({
-        where: { spaceId: req.user?.spaceId || 'global', active: true },
+        where: { spaceId: user.spaceId || 'global', active: true },
         orderBy: { rewardCredits: 'desc' },
         take: 10,
       });
@@ -931,6 +955,8 @@ router.get('/economy/vessels/catalog', requireAuth, async (_req, res) => {
 });
 
 router.post('/economy/vessels/purchase', requireAuth, async (req, res) => {
+  const actor = requireUser(req, res);
+  if (!actor) return;
   try {
     const templateId =
       typeof req.body?.templateId === 'string' ? req.body.templateId : null;
@@ -953,15 +979,15 @@ router.post('/economy/vessels/purchase', requireAuth, async (req, res) => {
       res.status(400).json({ error: 'Vessel not available for purchase' });
       return;
     }
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.userId },
+    const userRecord = await prisma.user.findUnique({
+      where: { id: actor.userId },
       select: { credits: true, rank: true },
     });
-    if ((user?.rank ?? 1) < (template.commerce?.minRank ?? 1)) {
+    if ((userRecord?.rank ?? 1) < (template.commerce?.minRank ?? 1)) {
       res.status(403).json({ error: 'Rank too low for this vessel' });
       return;
     }
-    if ((user?.credits ?? 0) < price) {
+    if ((userRecord?.credits ?? 0) < price) {
       res.status(400).json({ error: 'Insufficient credits' });
       return;
     }
@@ -970,7 +996,7 @@ router.post('/economy/vessels/purchase', requireAuth, async (req, res) => {
       id: vesselId,
       templateId: template.id,
       spaceId,
-      ownerId: req.user!.userId,
+      ownerId: actor.userId,
       status: 'stored',
       storagePortId: portId,
       portId,
@@ -978,7 +1004,7 @@ router.post('/economy/vessels/purchase', requireAuth, async (req, res) => {
     await prisma.$transaction(async tx => {
       const txClient = tx as unknown as typeof prisma;
       await txClient.user.update({
-        where: { id: req.user!.userId },
+        where: { id: actor.userId },
         data: { credits: { decrement: price } },
       });
       await txClient.vessel.create({ data: vesselData });
@@ -991,6 +1017,8 @@ router.post('/economy/vessels/purchase', requireAuth, async (req, res) => {
 });
 
 router.post('/economy/vessels/lease', requireAuth, async (req, res) => {
+  const actor = requireUser(req, res);
+  if (!actor) return;
   try {
     const templateId =
       typeof req.body?.templateId === 'string' ? req.body.templateId : null;
@@ -1029,11 +1057,11 @@ router.post('/economy/vessels/lease', requireAuth, async (req, res) => {
       res.status(400).json({ error: 'Vessel not available for lease' });
       return;
     }
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.userId },
+    const userRecord = await prisma.user.findUnique({
+      where: { id: actor.userId },
       select: { rank: true },
     });
-    if ((user?.rank ?? 1) < (template.commerce?.minRank ?? 1)) {
+    if ((userRecord?.rank ?? 1) < (template.commerce?.minRank ?? 1)) {
       res.status(403).json({ error: 'Rank too low for this vessel' });
       return;
     }
@@ -1047,8 +1075,8 @@ router.post('/economy/vessels/lease', requireAuth, async (req, res) => {
       status: leaseType === 'lease' ? 'leased' : 'chartered',
       storagePortId: portId,
       portId,
-      chartererId: leaseType === 'charter' ? req.user!.userId : null,
-      leaseeId: leaseType === 'lease' ? req.user!.userId : null,
+      chartererId: leaseType === 'charter' ? actor.userId : null,
+      leaseeId: leaseType === 'lease' ? actor.userId : null,
     });
     const lease = await prisma.$transaction(async tx => {
       const txClient = tx as unknown as typeof prisma;
@@ -1057,7 +1085,7 @@ router.post('/economy/vessels/lease', requireAuth, async (req, res) => {
         data: {
           vesselId,
           ownerId: shipyard.id,
-          lesseeId: req.user!.userId,
+          lesseeId: actor.userId,
           type: leaseType,
           ratePerHour: rate,
           revenueShare:
@@ -1156,6 +1184,8 @@ router.get(
 );
 
 router.post('/economy/cargo/assign', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const { cargoId, vesselId } = req.body || {};
     if (!cargoId || !vesselId) {
@@ -1163,7 +1193,7 @@ router.post('/economy/cargo/assign', requireAuth, async (req, res) => {
       return;
     }
     const cargo = await prisma.cargoLot.findUnique({ where: { id: cargoId } });
-    if (!cargo || (cargo.ownerId && cargo.ownerId !== req.user!.userId)) {
+    if (!cargo || (cargo.ownerId && cargo.ownerId !== user.userId)) {
       res.status(404).json({ error: 'Cargo not found' });
       return;
     }
@@ -1239,7 +1269,7 @@ router.post('/economy/cargo/assign', requireAuth, async (req, res) => {
       where: { id: cargo.id },
       data: {
         vesselId,
-        carrierId: req.user!.userId,
+        carrierId: user.userId,
         status: 'loading',
         readyAt,
         portId: null,
@@ -1253,6 +1283,8 @@ router.post('/economy/cargo/assign', requireAuth, async (req, res) => {
 });
 
 router.post('/economy/cargo/release', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const { cargoId } = req.body || {};
     if (!cargoId) {
@@ -1260,7 +1292,7 @@ router.post('/economy/cargo/release', requireAuth, async (req, res) => {
       return;
     }
     const cargo = await prisma.cargoLot.findUnique({ where: { id: cargoId } });
-    if (!cargo || (cargo.ownerId && cargo.ownerId !== req.user!.userId)) {
+    if (!cargo || (cargo.ownerId && cargo.ownerId !== user.userId)) {
       res.status(404).json({ error: 'Cargo not found' });
       return;
     }
@@ -1353,6 +1385,8 @@ router.get('/economy/passengers', requireAuth, async (req, res) => {
 });
 
 router.post('/economy/passengers/accept', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const { contractId, vesselId } = req.body || {};
     if (!contractId || !vesselId) {
@@ -1434,7 +1468,7 @@ router.post('/economy/passengers/accept', requireAuth, async (req, res) => {
       where: { id: contract.id },
       data: {
         vesselId,
-        operatorId: req.user!.userId,
+        operatorId: user.userId,
         status: 'boarding',
         readyAt,
       },
@@ -1447,8 +1481,10 @@ router.post('/economy/passengers/accept', requireAuth, async (req, res) => {
 });
 
 router.get('/economy/fleet', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
-    const fleet = await loadUserFleet(req.user!.userId);
+    const fleet = await loadUserFleet(user.userId);
     res.json({ fleet });
   } catch (err) {
     console.error('Failed to load fleet', err);
@@ -1457,9 +1493,11 @@ router.get('/economy/fleet', requireAuth, async (req, res) => {
 });
 
 router.get('/economy/loans', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const loans = await prisma.loan.findMany({
-      where: { userId: req.user!.userId },
+      where: { userId: user.userId },
       orderBy: { createdAt: 'desc' },
     });
     res.json({ loans });
@@ -1470,16 +1508,18 @@ router.get('/economy/loans', requireAuth, async (req, res) => {
 });
 
 router.post('/economy/loans/request', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const amount = Number(req.body?.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
       res.status(400).json({ error: 'Invalid loan amount' });
       return;
     }
-    const rank = req.user?.rank ?? 1;
+    const rank = user.rank ?? 1;
     const maxLoan = 5000 + rank * 2000;
     const existing = await prisma.loan.aggregate({
-      where: { userId: req.user!.userId, status: 'active' },
+      where: { userId: user.userId, status: 'active' },
       _sum: { balance: true },
     });
     const activeBalance = existing._sum.balance ?? 0;
@@ -1498,7 +1538,7 @@ router.post('/economy/loans/request', requireAuth, async (req, res) => {
         : 0.08;
     const loan = await prisma.loan.create({
       data: {
-        userId: req.user!.userId,
+        userId: user.userId,
         principal: amount,
         balance: amount,
         interestRate,
@@ -1507,7 +1547,7 @@ router.post('/economy/loans/request', requireAuth, async (req, res) => {
       },
     });
     await prisma.user.update({
-      where: { id: req.user!.userId },
+      where: { id: user.userId },
       data: { credits: { increment: amount } },
     });
     res.json({ loan });
@@ -1518,6 +1558,8 @@ router.post('/economy/loans/request', requireAuth, async (req, res) => {
 });
 
 router.post('/economy/loans/repay', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const loanId = req.body?.loanId;
     const amount = Number(req.body?.amount);
@@ -1526,22 +1568,22 @@ router.post('/economy/loans/repay', requireAuth, async (req, res) => {
       return;
     }
     const loan = await prisma.loan.findUnique({ where: { id: loanId } });
-    if (!loan || loan.userId !== req.user!.userId) {
+    if (!loan || loan.userId !== user.userId) {
       res.status(404).json({ error: 'Loan not found' });
       return;
     }
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.userId },
+    const userRecord = await prisma.user.findUnique({
+      where: { id: user.userId },
       select: { credits: true },
     });
-    const available = user?.credits ?? 0;
+    const available = userRecord?.credits ?? 0;
     const payAmount = Math.min(amount, loan.balance, available);
     if (payAmount <= 0) {
       res.status(400).json({ error: 'Insufficient credits' });
       return;
     }
     await prisma.user.update({
-      where: { id: req.user!.userId },
+      where: { id: user.userId },
       data: { credits: { decrement: payAmount } },
     });
     const nextBalance = loan.balance - payAmount;
@@ -1560,9 +1602,11 @@ router.post('/economy/loans/repay', requireAuth, async (req, res) => {
 });
 
 router.get('/economy/insurance', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const policies = await prisma.insurancePolicy.findMany({
-      where: { ownerId: req.user!.userId },
+      where: { ownerId: user.userId },
       orderBy: { createdAt: 'desc' },
     });
     res.json({ policies });
@@ -1573,6 +1617,8 @@ router.get('/economy/insurance', requireAuth, async (req, res) => {
 });
 
 router.post('/economy/insurance/purchase', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const { vesselId, coverage, deductible, premiumRate } = req.body || {};
     if (!vesselId || !coverage || premiumRate === undefined) {
@@ -1580,7 +1626,7 @@ router.post('/economy/insurance/purchase', requireAuth, async (req, res) => {
       return;
     }
     const vessel = await prisma.vessel.findUnique({ where: { id: vesselId } });
-    if (!vessel || vessel.ownerId !== req.user!.userId) {
+    if (!vessel || vessel.ownerId !== user.userId) {
       res.status(403).json({ error: 'Not authorized' });
       return;
     }
@@ -1591,7 +1637,7 @@ router.post('/economy/insurance/purchase', requireAuth, async (req, res) => {
     const policy = await prisma.insurancePolicy.create({
       data: {
         vesselId,
-        ownerId: req.user!.userId,
+        ownerId: user.userId,
         type:
           req.body?.type === 'loss' || req.body?.type === 'salvage'
             ? req.body.type
@@ -1613,6 +1659,8 @@ router.post('/economy/insurance/purchase', requireAuth, async (req, res) => {
 });
 
 router.post('/economy/insurance/cancel', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const policyId = req.body?.policyId;
     if (!policyId) {
@@ -1622,7 +1670,7 @@ router.post('/economy/insurance/cancel', requireAuth, async (req, res) => {
     const policy = await prisma.insurancePolicy.findUnique({
       where: { id: policyId },
     });
-    if (!policy || policy.ownerId !== req.user!.userId) {
+    if (!policy || policy.ownerId !== user.userId) {
       res.status(404).json({ error: 'Policy not found' });
       return;
     }
@@ -1638,10 +1686,12 @@ router.post('/economy/insurance/cancel', requireAuth, async (req, res) => {
 });
 
 router.get('/economy/leases', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const leases = await prisma.vesselLease.findMany({
       where: {
-        OR: [{ ownerId: req.user!.userId }, { lesseeId: req.user!.userId }],
+        OR: [{ ownerId: user.userId }, { lesseeId: user.userId }],
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -1653,6 +1703,8 @@ router.get('/economy/leases', requireAuth, async (req, res) => {
 });
 
 router.post('/economy/leases', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const { vesselId, ratePerHour } = req.body || {};
     if (!vesselId || !ratePerHour) {
@@ -1660,14 +1712,14 @@ router.post('/economy/leases', requireAuth, async (req, res) => {
       return;
     }
     const vessel = await prisma.vessel.findUnique({ where: { id: vesselId } });
-    if (!vessel || vessel.ownerId !== req.user!.userId) {
+    if (!vessel || vessel.ownerId !== user.userId) {
       res.status(403).json({ error: 'Not authorized' });
       return;
     }
     const lease = await prisma.vesselLease.create({
       data: {
         vesselId,
-        ownerId: req.user!.userId,
+        ownerId: user.userId,
         type: req.body?.type === 'lease' ? 'lease' : 'charter',
         ratePerHour: Number(ratePerHour),
         revenueShare: Number(req.body?.revenueShare) || 0,
@@ -1683,6 +1735,8 @@ router.post('/economy/leases', requireAuth, async (req, res) => {
 });
 
 router.post('/economy/leases/accept', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const leaseId = req.body?.leaseId;
     if (!leaseId) {
@@ -1700,7 +1754,7 @@ router.post('/economy/leases/accept', requireAuth, async (req, res) => {
       where: { id: lease.id },
       data: {
         status: 'active',
-        lesseeId: req.user!.userId,
+        lesseeId: user.userId,
         startedAt: new Date(),
       },
     });
@@ -1708,10 +1762,10 @@ router.post('/economy/leases/accept', requireAuth, async (req, res) => {
       where: { id: updated.vesselId },
       data:
         updated.type === 'lease'
-          ? { status: 'leased', leaseeId: req.user!.userId, chartererId: null }
+          ? { status: 'leased', leaseeId: user.userId, chartererId: null }
           : {
               status: 'chartered',
-              chartererId: req.user!.userId,
+              chartererId: user.userId,
               leaseeId: null,
             },
     });
@@ -1723,6 +1777,8 @@ router.post('/economy/leases/accept', requireAuth, async (req, res) => {
 });
 
 router.post('/economy/leases/end', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const leaseId = req.body?.leaseId;
     if (!leaseId) {
@@ -1736,7 +1792,7 @@ router.post('/economy/leases/end', requireAuth, async (req, res) => {
       res.status(404).json({ error: 'Lease not active' });
       return;
     }
-    const userId = req.user!.userId;
+    const userId = user.userId;
     const canEnd = lease.lesseeId === userId || lease.ownerId === userId;
     if (!canEnd) {
       res.status(403).json({ error: 'Not authorized to end lease' });
@@ -1782,10 +1838,12 @@ router.post('/economy/leases/end', requireAuth, async (req, res) => {
 });
 
 router.get('/economy/sales', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const sales = await prisma.vesselSale.findMany({
       where: {
-        OR: [{ sellerId: req.user!.userId }, { buyerId: req.user!.userId }],
+        OR: [{ sellerId: user.userId }, { buyerId: user.userId }],
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -1797,6 +1855,8 @@ router.get('/economy/sales', requireAuth, async (req, res) => {
 });
 
 router.post('/economy/sales', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const { vesselId, price } = req.body || {};
     if (!vesselId || !price) {
@@ -1804,14 +1864,14 @@ router.post('/economy/sales', requireAuth, async (req, res) => {
       return;
     }
     const vessel = await prisma.vessel.findUnique({ where: { id: vesselId } });
-    if (!vessel || vessel.ownerId !== req.user!.userId) {
+    if (!vessel || vessel.ownerId !== user.userId) {
       res.status(403).json({ error: 'Not authorized' });
       return;
     }
     const sale = await prisma.vesselSale.create({
       data: {
         vesselId,
-        sellerId: req.user!.userId,
+        sellerId: user.userId,
         type: req.body?.type === 'auction' ? 'auction' : 'sale',
         price: Number(price),
         reservePrice: req.body?.reservePrice
@@ -1832,6 +1892,8 @@ router.post('/economy/sales', requireAuth, async (req, res) => {
 });
 
 router.post('/economy/sales/buy', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const saleId = req.body?.saleId;
     if (!saleId) {
@@ -1847,16 +1909,16 @@ router.post('/economy/sales/buy', requireAuth, async (req, res) => {
       res.status(400).json({ error: 'Reserve not met' });
       return;
     }
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.userId },
+    const userRecord = await prisma.user.findUnique({
+      where: { id: user.userId },
       select: { credits: true },
     });
-    if ((user?.credits ?? 0) < sale.price) {
+    if ((userRecord?.credits ?? 0) < sale.price) {
       res.status(400).json({ error: 'Insufficient credits' });
       return;
     }
     await prisma.user.update({
-      where: { id: req.user!.userId },
+      where: { id: user.userId },
       data: { credits: { decrement: sale.price } },
     });
     await prisma.user.update({
@@ -1866,7 +1928,7 @@ router.post('/economy/sales/buy', requireAuth, async (req, res) => {
     await prisma.vessel.update({
       where: { id: sale.vesselId },
       data: {
-        ownerId: req.user!.userId,
+        ownerId: user.userId,
         status: 'active',
         chartererId: null,
         leaseeId: null,
@@ -1874,7 +1936,7 @@ router.post('/economy/sales/buy', requireAuth, async (req, res) => {
     });
     await prisma.vesselSale.update({
       where: { id: sale.id },
-      data: { status: 'sold', buyerId: req.user!.userId, endsAt: new Date() },
+      data: { status: 'sold', buyerId: user.userId, endsAt: new Date() },
     });
     res.json({ ok: true });
   } catch (err) {
@@ -1884,6 +1946,8 @@ router.post('/economy/sales/buy', requireAuth, async (req, res) => {
 });
 
 router.post('/economy/vessels/storage', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const { vesselId, action } = req.body || {};
     if (!vesselId) {
@@ -1892,9 +1956,9 @@ router.post('/economy/vessels/storage', requireAuth, async (req, res) => {
     }
     const vessel = await prisma.vessel.findUnique({ where: { id: vesselId } });
     const isOperator =
-      vessel?.ownerId === req.user!.userId ||
-      vessel?.chartererId === req.user!.userId ||
-      vessel?.leaseeId === req.user!.userId;
+      vessel?.ownerId === user.userId ||
+      vessel?.chartererId === user.userId ||
+      vessel?.leaseeId === user.userId;
     if (!vessel || !isOperator) {
       res.status(404).json({ error: 'Vessel not found' });
       return;
@@ -1932,10 +1996,12 @@ router.get(
   requireAuth,
   requirePermission('economy', 'read'),
   async (req, res) => {
+    const user = requireUser(req, res);
+    if (!user) return;
     const limit = Math.min(Number(req.query.limit ?? 50) || 50, 200);
     try {
       const transactions = await prisma.economyTransaction.findMany({
-        where: { userId: req.user!.userId },
+        where: { userId: user.userId },
         orderBy: { createdAt: 'desc' },
         take: limit,
       });
@@ -1952,10 +2018,12 @@ router.get('/careers', requireAuth, async (_req, res) => {
 });
 
 router.get('/careers/status', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
-    await ensureUserCareers(req.user!.userId);
+    await ensureUserCareers(user.userId);
     const careers = await prisma.userCareer.findMany({
-      where: { userId: req.user!.userId },
+      where: { userId: user.userId },
       include: { career: true },
       orderBy: { careerId: 'asc' },
     });
@@ -1967,20 +2035,22 @@ router.get('/careers/status', requireAuth, async (req, res) => {
 });
 
 router.post('/careers/activate', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const careerId = req.body?.careerId;
     if (!careerId) {
       res.status(400).json({ error: 'Missing career id' });
       return;
     }
-    await ensureUserCareers(req.user!.userId);
+    await ensureUserCareers(user.userId);
     await prisma.userCareer.updateMany({
-      where: { userId: req.user!.userId },
+      where: { userId: user.userId },
       data: { active: false },
     });
     const updated = await prisma.userCareer.update({
       where: {
-        userId_careerId: { userId: req.user!.userId, careerId },
+        userId_careerId: { userId: user.userId, careerId },
       },
       data: { active: true },
     });
@@ -1992,9 +2062,11 @@ router.post('/careers/activate', requireAuth, async (req, res) => {
 });
 
 router.get('/licenses', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const licenses = await prisma.license.findMany({
-      where: { userId: req.user!.userId },
+      where: { userId: user.userId },
       orderBy: { createdAt: 'desc' },
     });
     res.json({ licenses });
@@ -2005,6 +2077,8 @@ router.get('/licenses', requireAuth, async (req, res) => {
 });
 
 router.post('/licenses/renew', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const licenseKey = req.body?.licenseKey;
     if (!licenseKey) {
@@ -2017,7 +2091,7 @@ router.post('/licenses/renew', requireAuth, async (req, res) => {
         ? Number(req.body.durationDays)
         : 90;
     await issueLicense({
-      userId: req.user!.userId,
+      userId: user.userId,
       licenseKey,
       durationDays,
     });
@@ -2033,6 +2107,8 @@ router.get('/exams', requireAuth, async (_req, res) => {
 });
 
 router.post('/exams/:id/attempt', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const examId = req.params.id;
     const score = Number(req.body?.score);
@@ -2049,14 +2125,14 @@ router.post('/exams/:id/attempt', requireAuth, async (req, res) => {
     const attempt = await prisma.examAttempt.create({
       data: {
         examId: exam.id,
-        userId: req.user!.userId,
+        userId: user.userId,
         score,
         passed,
       },
     });
     if (passed && exam.licenseKey) {
       await issueLicense({
-        userId: req.user!.userId,
+        userId: user.userId,
         licenseKey: exam.licenseKey,
         durationDays: 180,
       });
@@ -2069,9 +2145,11 @@ router.post('/exams/:id/attempt', requireAuth, async (req, res) => {
 });
 
 router.get('/reputation', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const reputation = await prisma.reputation.findMany({
-      where: { userId: req.user!.userId },
+      where: { userId: user.userId },
       orderBy: { scopeType: 'asc' },
     });
     res.json({ reputation });
@@ -2149,9 +2227,10 @@ router.get('/spaces', async (req, res) => {
       publicSpaces.map(serializeSpace);
 
     // Include known spaces for the current user
-    if (includeKnown && req.user?.userId) {
+    const userId = req.user?.userId;
+    if (includeKnown && userId) {
       const known = await prisma.spaceAccess.findMany({
-        where: { userId: req.user.userId },
+        where: { userId },
         select: { spaceId: true },
       });
       const ids = known
@@ -2203,6 +2282,8 @@ router.get('/spaces', async (req, res) => {
 
 // POST /api/spaces - create a new space
 router.post('/spaces', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   const name = (req.body?.name || '').trim();
   if (!name) {
     res.status(400).json({ error: 'Space name is required' });
@@ -2211,7 +2292,7 @@ router.post('/spaces', requireAuth, async (req, res) => {
   const visibility = req.body?.visibility === 'private' ? 'private' : 'public';
   const requestedKind = req.body?.kind;
   const kind =
-    req.user?.roles?.includes('admin') &&
+    user.roles.includes('admin') &&
     (requestedKind === 'tutorial' || requestedKind === 'scenario')
       ? requestedKind
       : 'free';
@@ -2220,9 +2301,7 @@ router.post('/spaces', requireAuth, async (req, res) => {
     ? Math.max(1, Math.round(rankRequiredRaw))
     : 1;
   const rules =
-    req.user?.roles?.includes('admin') && req.body?.rules
-      ? req.body.rules
-      : null;
+    user.roles.includes('admin') && req.body?.rules ? req.body.rules : null;
   const rulesetType = req.body?.rulesetType;
   const password =
     typeof req.body?.password === 'string' ? req.body.password : undefined;
@@ -2252,26 +2331,24 @@ router.post('/spaces', requireAuth, async (req, res) => {
         rankRequired,
         rulesetType: rulesetType || 'CASUAL',
         rules,
-        createdBy: req.user?.userId || null,
+        createdBy: user.userId,
       },
     });
     await seedDefaultMissions(space.id).catch(err => {
       console.warn('Failed to seed default missions', err);
     });
-    if (req.user?.userId) {
-      await prisma.spaceAccess.upsert({
-        where: {
-          userId_spaceId: { userId: req.user.userId, spaceId: space.id },
-        },
-        update: { role: 'host', inviteToken: space.inviteToken || null },
-        create: {
-          userId: req.user.userId,
-          spaceId: space.id,
-          inviteToken: space.inviteToken || null,
-          role: 'host',
-        },
-      });
-    }
+    await prisma.spaceAccess.upsert({
+      where: {
+        userId_spaceId: { userId: user.userId, spaceId: space.id },
+      },
+      update: { role: 'host', inviteToken: space.inviteToken || null },
+      create: {
+        userId: user.userId,
+        spaceId: space.id,
+        inviteToken: space.inviteToken || null,
+        role: 'host',
+      },
+    });
     res.status(201).json(serializeSpace(space));
   } catch (err) {
     console.error('Failed to create space', err);
@@ -2281,6 +2358,8 @@ router.post('/spaces', requireAuth, async (req, res) => {
 
 // POST /api/spaces/known - upsert a known space for the user
 router.post('/spaces/known', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   const { spaceId, inviteToken } = req.body || {};
   if (!spaceId || typeof spaceId !== 'string') {
     res.status(400).json({ error: 'spaceId is required' });
@@ -2293,10 +2372,10 @@ router.post('/spaces/known', requireAuth, async (req, res) => {
       return;
     }
     await prisma.spaceAccess.upsert({
-      where: { userId_spaceId: { userId: req.user!.userId, spaceId } },
+      where: { userId_spaceId: { userId: user.userId, spaceId } },
       update: { inviteToken: inviteToken || space.inviteToken || null },
       create: {
-        userId: req.user!.userId,
+        userId: user.userId,
         spaceId,
         inviteToken: inviteToken || space.inviteToken || null,
         role: 'member',
@@ -2311,9 +2390,11 @@ router.post('/spaces/known', requireAuth, async (req, res) => {
 
 // GET /api/spaces/mine - list spaces created by the current user
 router.get('/spaces/mine', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   try {
     const spaces = await prisma.space.findMany({
-      where: { createdBy: req.user!.userId },
+      where: { createdBy: user.userId },
       orderBy: { createdAt: 'desc' },
     });
     res.json({
@@ -2332,10 +2413,11 @@ router.get('/spaces/mine', requireAuth, async (req, res) => {
 
 // GET /api/spaces/manage - list spaces for management (admin can view all)
 router.get('/spaces/manage', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   const scope = typeof req.query.scope === 'string' ? req.query.scope : 'mine';
-  const isAdmin = req.user?.roles?.includes('admin');
-  const where =
-    scope === 'all' && isAdmin ? {} : { createdBy: req.user!.userId };
+  const isAdmin = user.roles.includes('admin');
+  const where = scope === 'all' && isAdmin ? {} : { createdBy: user.userId };
   try {
     const spaces = await prisma.space.findMany({
       where,
@@ -2396,6 +2478,8 @@ router.get('/spaces/manage', requireAuth, async (req, res) => {
 
 // PATCH /api/spaces/:spaceId - update a space (owner only)
 router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   const { spaceId } = req.params;
   try {
     const space = await prisma.space.findUnique({ where: { id: spaceId } });
@@ -2403,7 +2487,7 @@ router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
       res.status(404).json({ error: 'Space not found' });
       return;
     }
-    if (!(await canManageSpace(req, spaceId))) {
+    if (!(await canManageSpace(user, spaceId))) {
       res.status(403).json({ error: 'Not authorized to edit this space' });
       return;
     }
@@ -2456,17 +2540,17 @@ router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
       updates.passwordHash = null;
     }
     if (
-      req.user?.roles?.includes('admin') &&
+      user.roles.includes('admin') &&
       (requestedKind === 'free' ||
         requestedKind === 'tutorial' ||
         requestedKind === 'scenario')
     ) {
       updates.kind = requestedKind;
     }
-    if (req.user?.roles?.includes('admin') && Number.isFinite(requestedRank)) {
+    if (user.roles.includes('admin') && Number.isFinite(requestedRank)) {
       updates.rankRequired = Math.max(1, Math.round(requestedRank));
     }
-    if (hasRulesField && (await canManageSpace(req, spaceId))) {
+    if (hasRulesField && (await canManageSpace(user, spaceId))) {
       updates.rules = requestedRules ?? null;
     }
     if (
@@ -2507,7 +2591,7 @@ router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
         updates.rules !== undefined
           ? normalizeRules(updates.rules)
           : normalizeRules(space.rules),
-      changedBy: req.user?.userId ?? null,
+      changedBy: user.userId,
     });
     if (auditEntry) {
       recordLog({ level: 'info', source: 'ruleset', ...auditEntry });
@@ -2521,6 +2605,8 @@ router.patch('/spaces/:spaceId', requireAuth, async (req, res) => {
 
 // DELETE /api/spaces/:spaceId - delete a space (owner only)
 router.delete('/spaces/:spaceId', requireAuth, async (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
   const { spaceId } = req.params;
   if (spaceId === DEFAULT_SPACE_ID) {
     res.status(400).json({ error: 'Default space cannot be deleted' });
@@ -2532,7 +2618,7 @@ router.delete('/spaces/:spaceId', requireAuth, async (req, res) => {
       res.status(404).json({ error: 'Space not found' });
       return;
     }
-    if (!(await canManageSpace(req, spaceId))) {
+    if (!(await canManageSpace(user, spaceId))) {
       res.status(403).json({ error: 'Not authorized to delete this space' });
       return;
     }
@@ -2663,11 +2749,9 @@ router.post(
 
 // POST /api/profile - update account identity or password
 router.post('/profile', requireAuth, async function (req, res) {
-  const userId = req.user?.userId;
-  if (!userId) {
-    res.status(401).json({ error: 'Authentication required' });
-    return;
-  }
+  const user = requireUser(req, res);
+  if (!user) return;
+  const userId = user.userId;
   const { username, email, password, currentPassword } = req.body || {};
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -2847,6 +2931,8 @@ router.post(
       res.status(400).json({ error: 'userId or username is required' });
       return;
     }
+    const user = requireUser(req, res);
+    if (!user) return;
     try {
       const ban = await prisma.ban.create({
         data: {
@@ -2854,7 +2940,7 @@ router.post(
           username: username || null,
           spaceId: spaceId || DEFAULT_SPACE_ID,
           reason: reason || null,
-          createdBy: req.user?.userId || null,
+          createdBy: user.userId,
           expiresAt: expiresAt ? new Date(expiresAt) : null,
         },
       });
@@ -2891,6 +2977,8 @@ router.post(
       res.status(400).json({ error: 'userId or username is required' });
       return;
     }
+    const user = requireUser(req, res);
+    if (!user) return;
     try {
       const mute = await prisma.mute.create({
         data: {
@@ -2898,7 +2986,7 @@ router.post(
           username: username || null,
           spaceId: spaceId || DEFAULT_SPACE_ID,
           reason: reason || null,
-          createdBy: req.user?.userId || null,
+          createdBy: user.userId,
           expiresAt: expiresAt ? new Date(expiresAt) : null,
         },
       });

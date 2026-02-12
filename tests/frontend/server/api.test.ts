@@ -15,6 +15,13 @@ jest.mock('../../../src/server/middleware/authentication', () => ({
     next();
   },
   requireAuth: (_req: any, _res: any, next: any) => next(),
+  requireUser: (req: any, res: any) => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required' });
+      return null;
+    }
+    return req.user;
+  },
 }));
 
 jest.mock('../../../src/server/middleware/authorization', () => ({
