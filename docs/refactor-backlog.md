@@ -155,7 +155,7 @@ Completed: [ ]
 
 ### A1. Decompose `HudDrawer` into container + hooks + per-tab adapters (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/components/HudDrawer.tsx`, `src/components/hud/*`
 
@@ -179,7 +179,7 @@ Acceptance:
 
 ### A2. Split `HudPanels.tsx` into per-panel files (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/components/hud/HudPanels.tsx` -> `src/components/hud/panels/*`
 
@@ -197,7 +197,7 @@ Acceptance:
 
 ### A3. Split `SimPage` orchestration (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/pages/sim.tsx`, new hooks under `src/features/sim/hooks/*`
 
@@ -216,7 +216,7 @@ Acceptance:
 
 ### A4. Split `Scene` by concern (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/components/Scene.tsx`, new modules under `src/components/scene/*`
 
@@ -313,7 +313,7 @@ Acceptance:
 
 ### B2. Reduce mock fan-out in `server/index.test.ts` (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `tests/frontend/server/index.test.ts`
 
@@ -330,7 +330,7 @@ Acceptance:
 
 ### B3. Eliminate private-state poking in `simulationLoop.test.ts` (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `tests/frontend/simulationLoop.test.ts`, `src/simulation/simulationLoop.ts`
 
@@ -403,7 +403,7 @@ Completed: [ ]
 
 ### C1. Consolidate vessel-target derivation and projection utilities (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/components/HudDrawer.tsx`, `src/components/Scene.tsx`, `src/pages/sim.tsx`, new shared helpers under `src/features/sim/selectors/*` (or equivalent)
 
@@ -440,7 +440,7 @@ Acceptance:
 
 ### C3. Unify control update pipeline and add rate control (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/components/HudDrawer.tsx`, `src/pages/sim.tsx`, optional shared hook under `src/features/sim/hooks/*`
 
@@ -952,9 +952,9 @@ Files: `src/server/api.ts`
 
 Tasks:
 
-1. Enforce subject binding on `GET/POST /settings/:userId` (self-only unless admin).
-2. Add explicit authorization helper for user-scoped resources to avoid repeated ad-hoc checks.
-3. Add regression tests for self-access, cross-user denial, and admin override.
+1. [ ] Enforce subject binding on `GET/POST /settings/:userId` (self-only unless admin).
+2. [ ] Add explicit authorization helper for user-scoped resources to avoid repeated ad-hoc checks.
+3. [ ] Add regression tests for self-access, cross-user denial, and admin override.
 
 Acceptance:
 
@@ -970,9 +970,9 @@ Files: `src/server/api.ts`, `src/server/middleware/authorization.ts`
 
 Tasks:
 
-1. Add strict ownership/role checks on vessel mutation routes keyed by `:userId`.
-2. Prevent generic `vessel:update` permission from granting cross-user mutation power.
-3. Add tests proving cross-user updates/deletes are denied.
+1. [ ] Add strict ownership/role checks on vessel mutation routes keyed by `:userId`.
+2. [ ] Prevent generic `vessel:update` permission from granting cross-user mutation power.
+3. [ ] Add tests proving cross-user updates/deletes are denied.
 
 Acceptance:
 
