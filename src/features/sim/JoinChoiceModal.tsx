@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from '../../pages/SimPage.module.css';
+import { simStyles as styles } from './simStyles';
 import { ScenarioDefinition } from '../../lib/scenarios';
 
 type Port = { name: string; position: { lat: number; lon: number } };

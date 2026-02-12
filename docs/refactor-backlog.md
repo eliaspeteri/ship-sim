@@ -696,7 +696,7 @@ Acceptance:
 
 ### G2. Migrate HUD and simulation overlay CSS modules first (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/components/HudDrawer.module.css`, `src/pages/SimPage.module.css`, `src/components/HudDrawer.tsx`, `src/components/hud/HudPanels.tsx`, `src/components/hud/PhysicsInspectorPanel.tsx`, `src/components/SystemMeter.tsx`, `src/features/sim/SpaceModal.tsx`, `src/features/sim/JoinChoiceModal.tsx`
 

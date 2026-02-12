@@ -1,6 +1,6 @@
 import React from 'react';
 import { SystemMeter } from '../../SystemMeter';
-import styles from '../../HudDrawer.module.css';
+import { hudStyles as styles } from '../hudStyles';
 import {
   BALLAST_SLIDER_STEP,
   BEAM_DECIMALS,

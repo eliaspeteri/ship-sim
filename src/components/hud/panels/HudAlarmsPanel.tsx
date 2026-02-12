@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlarmIndicator } from '../../alarms/AlarmIndicator';
-import styles from '../../HudDrawer.module.css';
+import { hudStyles as styles } from '../hudStyles';
 import { ALARM_ICON_SIZE_PX } from '../constants';
 
 export function HudAlarmsPanel({

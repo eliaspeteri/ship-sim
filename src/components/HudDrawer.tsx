@@ -26,7 +26,7 @@ import {
   formatTimeOfDay,
 } from '../lib/time';
 import { computeRepairCost, normalizeDamageState } from '../lib/damage';
-import styles from './HudDrawer.module.css';
+import { hudStyles as styles } from './hud/hudStyles';
 import { HudAdminPanel } from './hud/panels/HudAdminPanel';
 import { HudAlarmsPanel } from './hud/panels/HudAlarmsPanel';
 import { HudChatPanel } from './hud/panels/HudChatPanel';

@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from '../../pages/SimPage.module.css';
+import { simStyles as styles } from './simStyles';
 import { Rules } from '../../types/rules.types';
 import { SpaceFlow, SpaceSummary } from './types';
 

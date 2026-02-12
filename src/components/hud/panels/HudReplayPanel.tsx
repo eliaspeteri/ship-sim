@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from '../../HudDrawer.module.css';
+import { hudStyles as styles } from '../hudStyles';
 import {
   MS_PER_SECOND,
   REPLAY_MIN_FRAMES,

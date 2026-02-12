@@ -10,7 +10,7 @@ import {
   RadarTarget,
   VRM,
 } from '../../radar';
-import styles from '../../HudDrawer.module.css';
+import { hudStyles as styles } from '../hudStyles';
 import { RADAR_DISPLAY_SIZE_PX } from '../constants';
 import { OwnShipData } from '../../radar/arpa';
 import { RadarEnvironment } from '../../radar/types';

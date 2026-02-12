@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from '../../HudDrawer.module.css';
+import { hudStyles as styles } from '../hudStyles';
 import {
   ACCOUNT_DECIMALS,
   ECONOMY_TRANSACTIONS_LIMIT,

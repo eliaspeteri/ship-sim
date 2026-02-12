@@ -3,7 +3,7 @@ import {
   ConningDisplay,
   ConningDisplayData,
 } from '../../bridge/ConningDisplay';
-import styles from '../../HudDrawer.module.css';
+import { hudStyles as styles } from '../hudStyles';
 
 export function HudConningPanel({
   conningData,

@@ -2,7 +2,7 @@ import React from 'react';
 import { TelegraphLever } from '../../TelegraphLever';
 import { HelmControl } from '../../HelmControl';
 import RudderAngleIndicator from '../../RudderAngleIndicator';
-import styles from '../../HudDrawer.module.css';
+import { hudStyles as styles } from '../hudStyles';
 import {
   RUDDER_STALL_ANGLE_DEG,
   clampRudderAngle,

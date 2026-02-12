@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from '../../HudDrawer.module.css';
+import { hudStyles as styles } from '../hudStyles';
 import { LAT_LON_DECIMALS } from '../constants';
 import { formatCoord } from '../format';
 

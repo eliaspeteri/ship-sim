@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChatPanel } from '../../ChatPanel';
-import styles from '../../HudDrawer.module.css';
+import { hudStyles as styles } from '../hudStyles';
 
 export function HudChatPanel({
   spaceId,

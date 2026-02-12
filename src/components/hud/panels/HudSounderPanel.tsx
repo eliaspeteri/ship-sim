@@ -1,6 +1,6 @@
 import React from 'react';
 import DepthSounder from '../../DepthSounder';
-import styles from '../../HudDrawer.module.css';
+import { hudStyles as styles } from '../hudStyles';
 
 export function HudSounderPanel({ depthValue }: { depthValue?: number }) {
   return (

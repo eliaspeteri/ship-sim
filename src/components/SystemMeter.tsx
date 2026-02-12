@@ -1,4 +1,4 @@
-import styles from './HudDrawer.module.css';
+import { hudStyles as styles } from './hud/hudStyles';
 import { METER_DANGER_THRESHOLD, METER_WARN_THRESHOLD } from './hud/constants';
 import { clamp01 } from './hud/format';
 
