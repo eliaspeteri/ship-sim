@@ -3,109 +3,111 @@ import { DEFAULT_HYDRO } from '../../../src/constants/vessel';
 import { ShipType } from '../../../src/types/vessel.types';
 
 jest.mock('fs', () => {
-  const mocked = {
-    existsSync: jest.fn(),
-    readdirSync: jest.fn(),
-    readFileSync: jest.fn(),
+  const promises = {
+    readFile: jest.fn(),
+    readdir: jest.fn(),
   };
   return {
     __esModule: true,
-    default: mocked,
-    ...mocked,
+    default: { promises },
+    promises,
   };
 });
 
 type MockedFs = {
-  existsSync: jest.Mock;
-  readdirSync: jest.Mock;
-  readFileSync: jest.Mock;
+  promises: {
+    readFile: jest.Mock;
+    readdir: jest.Mock;
+  };
 };
 let mockedFs = fs as unknown as MockedFs;
 
-const loadCatalog = async () => {
-  return import('../../../src/server/vesselCatalog');
-};
+const loadCatalog = async () => import('../../../src/server/vesselCatalog');
 
 describe('vesselCatalog', () => {
   beforeEach(() => {
     jest.resetModules();
     mockedFs = jest.requireMock('fs') as MockedFs;
-    mockedFs.existsSync.mockReset();
-    mockedFs.readdirSync.mockReset();
-    mockedFs.readFileSync.mockReset();
-    mockedFs.existsSync.mockReturnValue(false);
-    mockedFs.readdirSync.mockReturnValue([]);
+    mockedFs.promises.readFile.mockReset();
+    mockedFs.promises.readdir.mockReset();
+    mockedFs.promises.readdir.mockRejectedValue(
+      Object.assign(new Error('missing'), { code: 'ENOENT' }),
+    );
   });
 
   it('loads catalog and merges mod entries', async () => {
-    mockedFs.existsSync.mockReturnValue(true);
-    mockedFs.readdirSync.mockReturnValue(['override.json', 'notes.txt']);
-    mockedFs.readFileSync.mockImplementation((filePath: string) => {
+    mockedFs.promises.readdir.mockResolvedValue(['override.json', 'notes.txt']);
+    mockedFs.promises.readFile.mockImplementation((filePath: string) => {
       if (filePath.includes('catalog.json')) {
-        return JSON.stringify([
-          {
-            id: 'starter-container',
-            name: 'Starter',
-            shipType: ShipType.CONTAINER,
-            properties: {
-              mass: 1,
-              length: 2,
-              beam: 3,
-              draft: 4,
-              blockCoefficient: 0.8,
-              maxSpeed: 20,
+        return Promise.resolve(
+          JSON.stringify([
+            {
+              id: 'starter-container',
+              name: 'Starter',
+              shipType: ShipType.CONTAINER,
+              properties: {
+                mass: 1,
+                length: 2,
+                beam: 3,
+                draft: 4,
+                blockCoefficient: 0.8,
+                maxSpeed: 20,
+              },
+              hydrodynamics: { maxThrust: 100 },
+              physics: {
+                model: 'displacement',
+                schemaVersion: 1,
+                params: { drag: 1 },
+              },
+              commerce: { purchasePrice: 1000 },
+              tags: ['base'],
             },
-            hydrodynamics: { maxThrust: 100 },
-            physics: {
-              model: 'displacement',
-              schemaVersion: 1,
-              params: { drag: 1 },
-            },
-            commerce: { purchasePrice: 1000 },
-            tags: ['base'],
-          },
-        ]);
+          ]),
+        );
       }
-      return JSON.stringify({
-        entries: [
-          {
-            id: 'starter-container',
-            name: 'Starter Mk2',
-            shipType: ShipType.CONTAINER,
-            properties: {
-              mass: 10,
-              length: 2,
-              beam: 3,
-              draft: 4,
-              blockCoefficient: 0.8,
-              maxSpeed: 21,
+      return Promise.resolve(
+        JSON.stringify({
+          entries: [
+            {
+              id: 'starter-container',
+              name: 'Starter Mk2',
+              shipType: ShipType.CONTAINER,
+              properties: {
+                mass: 10,
+                length: 2,
+                beam: 3,
+                draft: 4,
+                blockCoefficient: 0.8,
+                maxSpeed: 21,
+              },
+              hydrodynamics: { yawDamping: 2 },
+              physics: {
+                model: 'displacement',
+                schemaVersion: 2,
+                params: { lift: 3 },
+              },
+              commerce: { charterRatePerHour: 50 },
+              tags: ['mod'],
             },
-            hydrodynamics: { yawDamping: 2 },
-            physics: {
-              model: 'displacement',
-              schemaVersion: 2,
-              params: { lift: 3 },
+            {
+              id: 'new-vessel',
+              name: 'Mod Vessel',
+              shipType: ShipType.CARGO,
+              properties: {
+                mass: 100,
+                length: 20,
+                beam: 8,
+                draft: 5,
+                blockCoefficient: 0.7,
+                maxSpeed: 18,
+              },
             },
-            commerce: { charterRatePerHour: 50 },
-            tags: ['mod'],
-          },
-          {
-            id: 'new-vessel',
-            name: 'Mod Vessel',
-            shipType: ShipType.CARGO,
-            properties: {
-              mass: 100,
-              length: 20,
-              beam: 8,
-              draft: 5,
-              blockCoefficient: 0.7,
-              maxSpeed: 18,
-            },
-          },
-        ],
-      });
+          ],
+        }),
+      );
     });
-    const { getVesselCatalog } = await loadCatalog();
+    const { getVesselCatalog, warmVesselCatalog } = await loadCatalog();
+    await warmVesselCatalog();
 
     const catalog = getVesselCatalog();
     const mergedStarter = catalog.byId.get('starter-container');
@@ -133,44 +135,64 @@ describe('vesselCatalog', () => {
     expect(modEntry).toEqual(expect.objectContaining({ id: 'new-vessel' }));
   });
 
-  it('returns cached catalog until ttl expires', async () => {
-    mockedFs.readFileSync.mockReturnValue(
-      JSON.stringify([
-        {
-          id: 'starter-container',
-          name: 'Starter',
-          shipType: ShipType.CONTAINER,
-          properties: {
-            mass: 1,
-            length: 2,
-            beam: 3,
-            draft: 4,
-            blockCoefficient: 0.8,
-            maxSpeed: 20,
+  it('serves cached catalog and refreshes asynchronously after ttl', async () => {
+    mockedFs.promises.readFile
+      .mockResolvedValueOnce(
+        JSON.stringify([
+          {
+            id: 'starter-container',
+            name: 'Starter',
+            shipType: ShipType.CONTAINER,
+            properties: {
+              mass: 1,
+              length: 2,
+              beam: 3,
+              draft: 4,
+              blockCoefficient: 0.8,
+              maxSpeed: 20,
+            },
           },
-        },
-      ]),
-    );
-    const nowSpy = jest
-      .spyOn(Date, 'now')
-      .mockReturnValueOnce(1_000)
-      .mockReturnValueOnce(3_000)
-      .mockReturnValueOnce(20_001);
-    const { getVesselCatalog } = await loadCatalog();
+        ]),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify([
+          {
+            id: 'starter-container',
+            name: 'Starter v2',
+            shipType: ShipType.CONTAINER,
+            properties: {
+              mass: 1,
+              length: 2,
+              beam: 3,
+              draft: 4,
+              blockCoefficient: 0.8,
+              maxSpeed: 20,
+            },
+          },
+        ]),
+      );
 
+    const nowSpy = jest.spyOn(Date, 'now');
+    nowSpy.mockReturnValue(1_000);
+    const { getVesselCatalog, warmVesselCatalog } = await loadCatalog();
+    await warmVesselCatalog();
     const first = getVesselCatalog();
-    const second = getVesselCatalog();
-    const third = getVesselCatalog();
+    expect(first.byId.get('starter-container')?.name).toBe('Starter');
 
-    expect(second).toBe(first);
-    expect(third).not.toBe(first);
-    expect(mockedFs.readFileSync).toHaveBeenCalledTimes(2);
+    nowSpy.mockReturnValue(20_500);
+    const staleRead = getVesselCatalog();
+    expect(staleRead.byId.get('starter-container')?.name).toBe('Starter');
+
+    await warmVesselCatalog();
+    const refreshed = getVesselCatalog();
+    expect(refreshed.byId.get('starter-container')?.name).toBe('Starter v2');
+    expect(mockedFs.promises.readFile).toHaveBeenCalledTimes(2);
 
     nowSpy.mockRestore();
   });
 
   it('resolves known template and falls back to hardcoded default', async () => {
-    mockedFs.readFileSync.mockReturnValue(
+    mockedFs.promises.readFile.mockResolvedValue(
       JSON.stringify([
         {
           id: 'starter-container',
@@ -188,6 +210,7 @@ describe('vesselCatalog', () => {
       ]),
     );
     const moduleWithStarter = await loadCatalog();
+    await moduleWithStarter.warmVesselCatalog();
     const starter =
       moduleWithStarter.resolveVesselTemplate('starter-container');
     const fallbackToStarter =
@@ -198,13 +221,15 @@ describe('vesselCatalog', () => {
 
     jest.resetModules();
     mockedFs = jest.requireMock('fs') as MockedFs;
-    mockedFs.existsSync.mockReset();
-    mockedFs.readdirSync.mockReset();
-    mockedFs.readFileSync.mockReset();
-    mockedFs.existsSync.mockReturnValue(false);
-    mockedFs.readdirSync.mockReturnValue([]);
-    mockedFs.readFileSync.mockReturnValue(JSON.stringify([]));
+    mockedFs.promises.readFile.mockReset();
+    mockedFs.promises.readdir.mockReset();
+    mockedFs.promises.readdir.mockRejectedValue(
+      Object.assign(new Error('missing'), { code: 'ENOENT' }),
+    );
+    mockedFs.promises.readFile.mockResolvedValue(JSON.stringify([]));
+
     const moduleWithoutStarter = await loadCatalog();
+    await moduleWithoutStarter.warmVesselCatalog();
     const hardcoded = moduleWithoutStarter.resolveVesselTemplate(null);
 
     expect(hardcoded).toEqual(

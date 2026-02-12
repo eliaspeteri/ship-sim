@@ -7,7 +7,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     const { userId } = req.query;
     const resolvedUserId =
       typeof userId === 'string' && userId.trim().length > 0 ? userId : 'demo';
-    res.status(200).json({ packs: listPacks(resolvedUserId) });
+    res.status(200).json({ packs: await listPacks(resolvedUserId) });
     return;
   }
 
@@ -27,7 +27,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       res.status(400).json({ error: 'Missing pack name/description' });
       return;
     }
-    const result = createPack({
+    const result = await createPack({
       name,
       description,
       regionSummary,

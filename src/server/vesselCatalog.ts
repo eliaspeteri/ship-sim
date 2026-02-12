@@ -1,4 +1,4 @@
-import fs from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 import { DEFAULT_HYDRO } from '../constants/vessel';
 import { ShipType } from '../types/vessel.types';
@@ -16,9 +16,41 @@ const CATALOG_PATH = path.join(
 );
 const MODS_DIR = path.join(process.cwd(), 'data', 'vessels', 'mods');
 const DEFAULT_TEMPLATE_ID = 'starter-container';
+const CACHE_TTL_MS = 10_000;
 
-const readJsonFile = (filePath: string): unknown => {
-  const raw = fs.readFileSync(filePath, 'utf8');
+const FALLBACK_ENTRY: VesselCatalogEntry = {
+  id: DEFAULT_TEMPLATE_ID,
+  name: 'Default Vessel',
+  shipType: ShipType.DEFAULT,
+  modelPath: null,
+  physics: {
+    model: 'displacement',
+    schemaVersion: 1,
+  },
+  properties: {
+    mass: 1_000_000,
+    length: 120,
+    beam: 20,
+    draft: 6,
+    blockCoefficient: 0.8,
+    maxSpeed: 20,
+  },
+  hydrodynamics: {},
+  commerce: {},
+  tags: [],
+};
+
+const makeCatalog = (entries: VesselCatalogEntry[]): VesselCatalog => ({
+  entries,
+  byId: new Map(entries.map(entry => [entry.id, entry])),
+});
+
+let cachedCatalog: VesselCatalog = makeCatalog([FALLBACK_ENTRY]);
+let cachedAt = 0;
+let refreshPromise: Promise<void> | null = null;
+
+const readJsonFile = async (filePath: string): Promise<unknown> => {
+  const raw = await fs.readFile(filePath, 'utf8');
   return JSON.parse(raw);
 };
 
@@ -32,19 +64,6 @@ const normalizeCatalogEntries = (payload: unknown): VesselCatalogEntry[] => {
   }
   return [];
 };
-
-const mergeEntry = (
-  base: VesselCatalogEntry,
-  update: VesselCatalogEntry,
-): VesselCatalogEntry => ({
-  ...base,
-  ...update,
-  properties: { ...base.properties, ...update.properties },
-  hydrodynamics: { ...base.hydrodynamics, ...update.hydrodynamics },
-  physics: mergePhysicsConfig(base.physics, update.physics),
-  commerce: { ...base.commerce, ...update.commerce },
-  tags: update.tags ?? base.tags,
-});
 
 const mergePhysicsConfig = (
   base?: VesselPhysicsConfig,
@@ -60,41 +79,81 @@ const mergePhysicsConfig = (
   return merged as VesselPhysicsConfig;
 };
 
-const loadCatalogEntries = (): VesselCatalogEntry[] => {
-  const basePayload = readJsonFile(CATALOG_PATH);
+const mergeEntry = (
+  base: VesselCatalogEntry,
+  update: VesselCatalogEntry,
+): VesselCatalogEntry => ({
+  ...base,
+  ...update,
+  properties: { ...base.properties, ...update.properties },
+  hydrodynamics: { ...base.hydrodynamics, ...update.hydrodynamics },
+  physics: mergePhysicsConfig(base.physics, update.physics),
+  commerce: { ...base.commerce, ...update.commerce },
+  tags: update.tags ?? base.tags,
+});
+
+const loadCatalogEntries = async (): Promise<VesselCatalogEntry[]> => {
+  const basePayload = await readJsonFile(CATALOG_PATH);
   const baseEntries = normalizeCatalogEntries(basePayload);
   const merged = new Map(baseEntries.map(entry => [entry.id, entry]));
 
-  if (fs.existsSync(MODS_DIR)) {
-    const files = fs
-      .readdirSync(MODS_DIR)
-      .filter(name => name.toLowerCase().endsWith('.json'));
+  try {
+    const files = (await fs.readdir(MODS_DIR)).filter(name =>
+      name.toLowerCase().endsWith('.json'),
+    );
     for (const file of files) {
-      const payload = readJsonFile(path.join(MODS_DIR, file));
+      const payload = await readJsonFile(path.join(MODS_DIR, file));
       const entries = normalizeCatalogEntries(payload);
       for (const entry of entries) {
         const existing = merged.get(entry.id);
         merged.set(entry.id, existing ? mergeEntry(existing, entry) : entry);
       }
     }
+  } catch (error) {
+    const isMissingDir =
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'ENOENT';
+    if (!isMissingDir) throw error;
   }
 
   return Array.from(merged.values());
 };
 
-let cachedCatalog: VesselCatalog | null = null;
-let cachedAt = 0;
-const CACHE_TTL_MS = 10_000;
+const refreshCatalog = async () => {
+  const entries = await loadCatalogEntries();
+  if (entries.length > 0) {
+    cachedCatalog = makeCatalog(entries);
+    cachedAt = Date.now();
+  }
+};
+
+const scheduleRefresh = () => {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = refreshCatalog()
+    .catch(error => {
+      console.warn('Failed to refresh vessel catalog', error);
+    })
+    .finally(() => {
+      refreshPromise = null;
+    });
+  return refreshPromise;
+};
+
+export const warmVesselCatalog = async (): Promise<void> => {
+  await scheduleRefresh();
+};
 
 export const getVesselCatalog = (): VesselCatalog => {
   const now = Date.now();
-  if (cachedCatalog && now - cachedAt < CACHE_TTL_MS) {
+  if (cachedAt === 0) {
+    void scheduleRefresh();
     return cachedCatalog;
   }
-  const entries = loadCatalogEntries();
-  const byId = new Map(entries.map(entry => [entry.id, entry]));
-  cachedCatalog = { entries, byId };
-  cachedAt = now;
+  if (now - cachedAt >= CACHE_TTL_MS) {
+    void scheduleRefresh();
+  }
   return cachedCatalog;
 };
 
@@ -105,30 +164,7 @@ export const resolveVesselTemplate = (
   if (templateId && byId.has(templateId)) {
     return byId.get(templateId)!;
   }
-  return (
-    byId.get(DEFAULT_TEMPLATE_ID) ||
-    entries[0] || {
-      id: DEFAULT_TEMPLATE_ID,
-      name: 'Default Vessel',
-      shipType: ShipType.DEFAULT,
-      modelPath: null,
-      physics: {
-        model: 'displacement',
-        schemaVersion: 1,
-      },
-      properties: {
-        mass: 1_000_000,
-        length: 120,
-        beam: 20,
-        draft: 6,
-        blockCoefficient: 0.8,
-        maxSpeed: 20,
-      },
-      hydrodynamics: {},
-      commerce: {},
-      tags: [],
-    }
-  );
+  return byId.get(DEFAULT_TEMPLATE_ID) || entries[0] || FALLBACK_ENTRY;
 };
 
 export const buildHydrodynamics = (template: VesselCatalogEntry) => ({

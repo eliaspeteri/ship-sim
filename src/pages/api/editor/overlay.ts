@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getOverlayChunks } from '../../../server/editorCompilationStore';
 
-const handler = (req: NextApiRequest, res: NextApiResponse) => {
+const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
@@ -22,7 +22,7 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
           .filter(Boolean)
       : [];
 
-  const chunks = getOverlayChunks({
+  const chunks = await getOverlayChunks({
     packId: String(packId),
     tile: {
       z: Number(z),

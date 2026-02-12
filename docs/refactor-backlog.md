@@ -808,7 +808,7 @@ Acceptance:
 
 ### H3. Slice `src/store/index.ts` into domain stores (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/store/index.ts`, new slice modules under `src/store/slices/*`
 
@@ -1132,7 +1132,7 @@ Acceptance:
 
 ### L2. Remove synchronous disk writes/reads from hot server paths (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/server/editorCompilationStore.ts`, `src/server/editorPacksStore.ts`, `src/server/vesselCatalog.ts`
 

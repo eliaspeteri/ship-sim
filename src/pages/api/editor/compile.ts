@@ -94,7 +94,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     return;
   }
 
-  const pack = getPack(body.packId);
+  const pack = await getPack(body.packId);
   if (!pack) {
     res.status(404).json({ error: 'Pack not found' });
     return;
@@ -116,7 +116,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     })),
   );
 
-  const storedAt = storeArtifacts(body.packId, artifacts);
+  const storedAt = await storeArtifacts(body.packId, artifacts);
 
   res.status(200).json({
     artifactCount: artifacts.length,

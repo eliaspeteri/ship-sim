@@ -1,9 +1,8 @@
-import fs from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 import { EditorWorkArea } from '../features/editor/types';
 
 type PackStatus = 'draft' | 'submitted' | 'published';
-
 type PackRole = 'owner' | 'editor' | 'viewer';
 
 type PackMember = {
@@ -30,6 +29,7 @@ type StoredPack = {
 const packs = new Map<string, StoredPack>();
 const dataDir = path.join(process.cwd(), 'data');
 const packsFile = path.join(dataDir, 'editor-packs.json');
+const packsTempFile = `${packsFile}.tmp`;
 
 const slugify = (value: string) =>
   value
@@ -38,25 +38,50 @@ const slugify = (value: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)+/g, '');
 
-const loadFromDisk = () => {
+let loadPromise: Promise<void> | null = null;
+let writeQueue = Promise.resolve();
+
+const runQueuedWrite = async (task: () => Promise<void>) => {
+  writeQueue = writeQueue.then(task, task);
+  await writeQueue;
+};
+
+const loadFromDisk = async () => {
   if (packs.size > 0) return;
-  if (!fs.existsSync(packsFile)) return;
-  try {
-    const raw = fs.readFileSync(packsFile, 'utf8');
-    const data = JSON.parse(raw) as StoredPack[];
-    data.forEach(pack => packs.set(pack.id, pack));
-  } catch (error) {
-    console.warn('Failed to load editor packs', error);
+  if (loadPromise) {
+    await loadPromise;
+    return;
   }
+
+  loadPromise = (async () => {
+    try {
+      const raw = await fs.readFile(packsFile, 'utf8');
+      const data = JSON.parse(raw) as StoredPack[];
+      data.forEach(pack => packs.set(pack.id, pack));
+    } catch (error) {
+      const isMissingFile =
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'ENOENT';
+      if (!isMissingFile) {
+        console.warn('Failed to load editor packs', error);
+      }
+    }
+  })();
+
+  await loadPromise;
 };
 
-const saveToDisk = () => {
-  fs.mkdirSync(dataDir, { recursive: true });
+const saveToDisk = async () => {
+  await fs.mkdir(dataDir, { recursive: true });
   const data = Array.from(packs.values());
-  fs.writeFileSync(packsFile, JSON.stringify(data, null, 2));
+  const payload = JSON.stringify(data, null, 2);
+  await fs.writeFile(packsTempFile, payload, 'utf8');
+  await fs.rename(packsTempFile, packsFile);
 };
 
-const seed = () => {
+const seed = async () => {
   if (packs.size > 0) return;
   const now = new Date().toISOString();
   const basePack = (id: string, name: string, regionSummary: string) => {
@@ -88,37 +113,37 @@ const seed = () => {
     'pack-sf-bay',
     basePack('pack-sf-bay', 'San Francisco Bay', 'California, USA'),
   );
-  saveToDisk();
+  await runQueuedWrite(saveToDisk);
 };
 
-const ensureSeed = () => {
-  loadFromDisk();
-  seed();
+const ensureSeed = async () => {
+  await loadFromDisk();
+  await seed();
   return packs;
 };
 
-export const listPacks = (userId?: string) => {
-  const all = Array.from(ensureSeed().values());
+export const listPacks = async (userId?: string) => {
+  const all = Array.from((await ensureSeed()).values());
   if (!userId) return all;
   return all.filter(pack =>
     pack.members.some(member => member.userId === userId),
   );
 };
 
-export const getPack = (id: string) => {
-  return ensureSeed().get(id) ?? null;
+export const getPack = async (id: string) => {
+  return (await ensureSeed()).get(id) ?? null;
 };
 
-export const getPackBySlug = (ownerId: string, slug: string) => {
+export const getPackBySlug = async (ownerId: string, slug: string) => {
   return (
-    Array.from(ensureSeed().values()).find(
+    Array.from((await ensureSeed()).values()).find(
       pack => pack.ownerId === ownerId && pack.slug === slug,
     ) ?? null
   );
 };
 
-const ensureUniqueSlug = (ownerId: string, slug: string) => {
-  const existing = Array.from(ensureSeed().values()).filter(
+const ensureUniqueSlug = async (ownerId: string, slug: string) => {
+  const existing = Array.from((await ensureSeed()).values()).filter(
     pack => pack.ownerId === ownerId,
   );
   let next = slug;
@@ -130,9 +155,13 @@ const ensureUniqueSlug = (ownerId: string, slug: string) => {
   return next;
 };
 
-const isDuplicateName = (ownerId: string, name: string, excludeId?: string) => {
+const isDuplicateName = async (
+  ownerId: string,
+  name: string,
+  excludeId?: string,
+) => {
   const normalized = name.trim().toLowerCase();
-  return Array.from(ensureSeed().values()).some(
+  return Array.from((await ensureSeed()).values()).some(
     pack =>
       pack.ownerId === ownerId &&
       pack.name.trim().toLowerCase() === normalized &&
@@ -140,13 +169,13 @@ const isDuplicateName = (ownerId: string, name: string, excludeId?: string) => {
   );
 };
 
-export const hasDuplicateName = (
+export const hasDuplicateName = async (
   ownerId: string,
   name: string,
   excludeId?: string,
 ) => isDuplicateName(ownerId, name, excludeId);
 
-export const createPack = (input: {
+export const createPack = async (input: {
   name: string;
   description: string;
   regionSummary?: string;
@@ -154,11 +183,11 @@ export const createPack = (input: {
   visibility?: StoredPack['visibility'];
   submitForReview?: boolean;
 }) => {
-  if (isDuplicateName(input.ownerId, input.name)) {
+  if (await isDuplicateName(input.ownerId, input.name)) {
     return { error: 'Duplicate pack title' } as const;
   }
   const slugBase = slugify(input.name) || `pack-${Date.now()}`;
-  const slug = ensureUniqueSlug(input.ownerId, slugBase);
+  const slug = await ensureUniqueSlug(input.ownerId, slugBase);
   const id = `pack-${Date.now()}`;
   const now = new Date().toISOString();
   const pack: StoredPack = {
@@ -177,12 +206,12 @@ export const createPack = (input: {
     workAreas: [],
   };
   packs.set(id, pack);
-  saveToDisk();
+  await runQueuedWrite(saveToDisk);
   return { pack } as const;
 };
 
-export const updatePack = (id: string, patch: Partial<StoredPack>) => {
-  const pack = getPack(id);
+export const updatePack = async (id: string, patch: Partial<StoredPack>) => {
+  const pack = await getPack(id);
   if (!pack) return null;
   const updated: StoredPack = {
     ...pack,
@@ -190,20 +219,20 @@ export const updatePack = (id: string, patch: Partial<StoredPack>) => {
     updatedAt: new Date().toISOString(),
   };
   packs.set(id, updated);
-  saveToDisk();
+  await runQueuedWrite(saveToDisk);
   return updated;
 };
 
-export const deletePack = (id: string) => {
-  const pack = getPack(id);
+export const deletePack = async (id: string) => {
+  const pack = await getPack(id);
   if (!pack) return false;
   packs.delete(id);
-  saveToDisk();
+  await runQueuedWrite(saveToDisk);
   return true;
 };
 
-export const transitionPackStatus = (id: string, next: PackStatus) => {
-  const pack = getPack(id);
+export const transitionPackStatus = async (id: string, next: PackStatus) => {
+  const pack = await getPack(id);
   if (!pack) return null;
   const allowed: Record<PackStatus, PackStatus[]> = {
     draft: ['submitted'],

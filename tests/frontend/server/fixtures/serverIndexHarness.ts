@@ -152,6 +152,7 @@ jest.mock('../../../../src/lib/failureControls', () => ({
 }));
 jest.mock('../../../../src/server/vesselCatalog', () => ({
   buildHydrodynamics: jest.fn(),
+  warmVesselCatalog: jest.fn(async () => undefined),
   resolveVesselTemplate: jest.fn(() => ({
     id: 'template-1',
     properties: { mass: 1, length: 1, beam: 1, draft: 1 },

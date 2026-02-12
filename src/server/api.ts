@@ -49,7 +49,11 @@ import {
   ensureUserCareers,
   issueLicense,
 } from './careers';
-import { getVesselCatalog, resolveVesselTemplate } from './vesselCatalog';
+import {
+  getVesselCatalog,
+  resolveVesselTemplate,
+  warmVesselCatalog,
+} from './vesselCatalog';
 
 // First, define proper types for the database models
 interface DBVesselState {
@@ -939,6 +943,7 @@ router.get(
 
 router.get('/economy/vessels/catalog', requireAuth, async (_req, res) => {
   try {
+    await warmVesselCatalog();
     const { entries } = getVesselCatalog();
     const vessels = entries.map(entry => ({
       ...entry,
@@ -968,6 +973,7 @@ router.post('/economy/vessels/purchase', requireAuth, async (req, res) => {
       res.status(400).json({ error: 'Missing vessel template' });
       return;
     }
+    await warmVesselCatalog();
     const catalog = getVesselCatalog();
     const template = catalog.byId.get(templateId);
     if (!template) {
@@ -1043,6 +1049,7 @@ router.post('/economy/vessels/lease', requireAuth, async (req, res) => {
       res.status(400).json({ error: 'Missing vessel template' });
       return;
     }
+    await warmVesselCatalog();
     const catalog = getVesselCatalog();
     const template = catalog.byId.get(templateId);
     if (!template) {

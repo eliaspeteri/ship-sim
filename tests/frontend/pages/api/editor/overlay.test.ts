@@ -17,19 +17,19 @@ describe('pages/api/editor/overlay', () => {
     mockGetOverlayChunks.mockReset();
   });
 
-  it('rejects non-GET requests', () => {
+  it('rejects non-GET requests', async () => {
     const res = makeRes();
 
-    handler({ method: 'POST' } as any, res as any);
+    await handler({ method: 'POST' } as any, res as any);
 
     expect(res.status).toHaveBeenCalledWith(405);
     expect(res.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
   });
 
-  it('validates required query parameters', () => {
+  it('validates required query parameters', async () => {
     const res = makeRes();
 
-    handler({ method: 'GET', query: { packId: 'p' } } as any, res as any);
+    await handler({ method: 'GET', query: { packId: 'p' } } as any, res as any);
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
@@ -37,14 +37,14 @@ describe('pages/api/editor/overlay', () => {
     });
   });
 
-  it('loads chunks using comma-separated layer list', () => {
+  it('loads chunks using comma-separated layer list', async () => {
     const res = makeRes();
-    mockGetOverlayChunks.mockReturnValue([
+    mockGetOverlayChunks.mockResolvedValue([
       { layerId: 'l1', lod: 8, bytesBase64: 'abc' },
       { layerId: 'l2', lod: 8, bytesBase64: 'def' },
     ]);
 
-    handler(
+    await handler(
       {
         method: 'GET',
         query: {
@@ -74,11 +74,11 @@ describe('pages/api/editor/overlay', () => {
     });
   });
 
-  it('accepts array query layers', () => {
+  it('accepts array query layers', async () => {
     const res = makeRes();
-    mockGetOverlayChunks.mockReturnValue([]);
+    mockGetOverlayChunks.mockResolvedValue([]);
 
-    handler(
+    await handler(
       {
         method: 'GET',
         query: {

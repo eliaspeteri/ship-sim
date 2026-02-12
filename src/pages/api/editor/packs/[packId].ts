@@ -21,8 +21,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     const resolvedOwnerId =
       typeof ownerId === 'string' && ownerId.trim().length > 0 ? ownerId : null;
     const pack = resolvedOwnerId
-      ? getPackBySlug(resolvedOwnerId, packId)
-      : getPack(packId);
+      ? await getPackBySlug(resolvedOwnerId, packId)
+      : await getPack(packId);
     if (!pack) {
       res.status(404).json({ error: 'Pack not found' });
       return;
@@ -35,7 +35,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     const actor = await requireEditorActor(req, res);
     if (!actor) return;
 
-    const existing = getPack(packId);
+    const existing = await getPack(packId);
     if (!existing) {
       res.status(404).json({ error: 'Pack not found' });
       return;
@@ -53,7 +53,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       submitForReview?: boolean;
     };
     if (status) {
-      const updated = transitionPackStatus(packId, status);
+      const updated = await transitionPackStatus(packId, status);
       if (!updated) {
         res.status(400).json({ error: 'Invalid status transition' });
         return;
@@ -64,7 +64,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (
       typeof patch.name === 'string' &&
       patch.name.trim().length > 0 &&
-      hasDuplicateName(existing.ownerId, patch.name, existing.id)
+      (await hasDuplicateName(existing.ownerId, patch.name, existing.id))
     ) {
       res.status(409).json({ error: 'Duplicate pack title' });
       return;
@@ -73,7 +73,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       res.status(400).json({ error: 'Published packs cannot be revoked' });
       return;
     }
-    const updated = updatePack(packId, patch);
+    const updated = await updatePack(packId, patch);
     if (!updated) {
       res.status(404).json({ error: 'Pack not found' });
       return;
@@ -86,7 +86,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     const actor = await requireEditorActor(req, res);
     if (!actor) return;
 
-    const existing = getPack(packId);
+    const existing = await getPack(packId);
     if (!existing) {
       res.status(404).json({ error: 'Pack not found' });
       return;
@@ -96,7 +96,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       return;
     }
 
-    const ok = deletePack(packId);
+    const ok = await deletePack(packId);
     if (!ok) {
       res.status(404).json({ error: 'Pack not found' });
       return;

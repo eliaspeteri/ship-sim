@@ -1,30 +1,30 @@
 import fs from 'fs';
 
 jest.mock('fs', () => {
-  const mocked = {
-    existsSync: jest.fn(),
-    readFileSync: jest.fn(),
-    mkdirSync: jest.fn(),
-    writeFileSync: jest.fn(),
+  const promises = {
+    readFile: jest.fn(),
+    mkdir: jest.fn(),
+    writeFile: jest.fn(),
+    rename: jest.fn(),
   };
   return {
     __esModule: true,
-    default: mocked,
-    ...mocked,
+    default: { promises },
+    promises,
   };
 });
 
 type MockedFs = {
-  existsSync: jest.Mock;
-  readFileSync: jest.Mock;
-  mkdirSync: jest.Mock;
-  writeFileSync: jest.Mock;
+  promises: {
+    readFile: jest.Mock;
+    mkdir: jest.Mock;
+    writeFile: jest.Mock;
+    rename: jest.Mock;
+  };
 };
 let mockedFs = fs as unknown as MockedFs;
 
-const loadStore = async () => {
-  return import('../../../src/server/editorCompilationStore');
-};
+const loadStore = async () => import('../../../src/server/editorCompilationStore');
 
 const sampleArtifact = {
   tile: { z: 10, x: 20, y: 30 },
@@ -37,11 +37,16 @@ describe('editorCompilationStore', () => {
   beforeEach(() => {
     jest.resetModules();
     mockedFs = jest.requireMock('fs') as MockedFs;
-    mockedFs.existsSync.mockReset();
-    mockedFs.readFileSync.mockReset();
-    mockedFs.mkdirSync.mockReset();
-    mockedFs.writeFileSync.mockReset();
-    mockedFs.existsSync.mockReturnValue(false);
+    mockedFs.promises.readFile.mockReset();
+    mockedFs.promises.mkdir.mockReset();
+    mockedFs.promises.writeFile.mockReset();
+    mockedFs.promises.rename.mockReset();
+    mockedFs.promises.readFile.mockRejectedValue(
+      Object.assign(new Error('missing'), { code: 'ENOENT' }),
+    );
+    mockedFs.promises.mkdir.mockResolvedValue(undefined);
+    mockedFs.promises.writeFile.mockResolvedValue(undefined);
+    mockedFs.promises.rename.mockResolvedValue(undefined);
   });
 
   it('stores artifacts and returns timestamp', async () => {
@@ -50,14 +55,14 @@ describe('editorCompilationStore', () => {
       .mockReturnValue('2026-02-08T00:00:00.000Z');
     const { storeArtifacts } = await loadStore();
 
-    const storedAt = storeArtifacts('pack-a', [sampleArtifact]);
+    const storedAt = await storeArtifacts('pack-a', [sampleArtifact]);
 
     expect(storedAt).toBe('2026-02-08T00:00:00.000Z');
-    expect(mockedFs.mkdirSync).toHaveBeenCalledWith(expect.any(String), {
+    expect(mockedFs.promises.mkdir).toHaveBeenCalledWith(expect.any(String), {
       recursive: true,
     });
-    expect(mockedFs.writeFileSync).toHaveBeenCalledTimes(1);
-    const serialized = mockedFs.writeFileSync.mock.calls[0]?.[1] as string;
+    expect(mockedFs.promises.writeFile).toHaveBeenCalledTimes(1);
+    const serialized = mockedFs.promises.writeFile.mock.calls[0]?.[1] as string;
     const payload = JSON.parse(serialized);
     expect(payload).toEqual([
       expect.objectContaining({
@@ -71,8 +76,7 @@ describe('editorCompilationStore', () => {
   });
 
   it('loads artifacts once and filters overlay chunks by layers', async () => {
-    mockedFs.existsSync.mockReturnValue(true);
-    mockedFs.readFileSync.mockReturnValue(
+    mockedFs.promises.readFile.mockResolvedValue(
       JSON.stringify([
         {
           packId: 'pack-a',
@@ -86,13 +90,13 @@ describe('editorCompilationStore', () => {
     );
     const { getOverlayChunks } = await loadStore();
 
-    const chunks = getOverlayChunks({
+    const chunks = await getOverlayChunks({
       packId: 'pack-a',
       tile: { z: 8, x: 1, y: 2 },
       layerIds: ['depth', 'land'],
       lod: 8,
     });
-    const second = getOverlayChunks({
+    const second = await getOverlayChunks({
       packId: 'pack-a',
       tile: { z: 8, x: 1, y: 2 },
       layerIds: ['depth'],
@@ -102,24 +106,23 @@ describe('editorCompilationStore', () => {
     expect(chunks).toHaveLength(1);
     expect(chunks[0]).toEqual(expect.objectContaining({ layerId: 'depth' }));
     expect(second).toHaveLength(1);
-    expect(mockedFs.readFileSync).toHaveBeenCalledTimes(1);
+    expect(mockedFs.promises.readFile).toHaveBeenCalledTimes(1);
   });
 
   it('handles malformed disk payload and still stores data', async () => {
-    mockedFs.existsSync.mockReturnValue(true);
-    mockedFs.readFileSync.mockReturnValue('{not-json');
+    mockedFs.promises.readFile.mockResolvedValue('{not-json');
     const { getOverlayChunks, storeArtifacts } = await loadStore();
 
-    const missing = getOverlayChunks({
+    const missing = await getOverlayChunks({
       packId: 'pack-b',
       tile: { z: 1, x: 1, y: 1 },
       layerIds: ['depth'],
       lod: 1,
     });
-    storeArtifacts('pack-b', [sampleArtifact]);
+    await storeArtifacts('pack-b', [sampleArtifact]);
 
     expect(missing).toEqual([]);
-    expect(mockedFs.writeFileSync).toHaveBeenCalledTimes(1);
+    expect(mockedFs.promises.writeFile).toHaveBeenCalledTimes(1);
   });
 
   it('trims artifacts when limits are exceeded', async () => {
@@ -131,22 +134,22 @@ describe('editorCompilationStore', () => {
     ARTIFACT_LIMITS.maxPerPack = 2;
     ARTIFACT_LIMITS.maxTotal = 3;
 
-    storeArtifacts('pack-a', [
+    await storeArtifacts('pack-a', [
       sampleArtifact,
       { ...sampleArtifact, tile: { z: 10, x: 20, y: 31 }, layerId: 'l2' },
       { ...sampleArtifact, tile: { z: 10, x: 20, y: 32 }, layerId: 'l3' },
     ]);
 
-    let serialized = mockedFs.writeFileSync.mock.calls[0]?.[1] as string;
+    let serialized = mockedFs.promises.writeFile.mock.calls[0]?.[1] as string;
     let payload = JSON.parse(serialized);
     expect(payload).toHaveLength(2);
 
-    storeArtifacts('pack-b', [
+    await storeArtifacts('pack-b', [
       { ...sampleArtifact, tile: { z: 9, x: 10, y: 11 }, layerId: 'b1' },
       { ...sampleArtifact, tile: { z: 9, x: 10, y: 12 }, layerId: 'b2' },
     ]);
 
-    serialized = mockedFs.writeFileSync.mock.calls.at(-1)?.[1] as string;
+    serialized = mockedFs.promises.writeFile.mock.calls.at(-1)?.[1] as string;
     payload = JSON.parse(serialized);
     expect(payload).toHaveLength(3);
 

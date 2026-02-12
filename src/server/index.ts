@@ -71,7 +71,11 @@ import {
   mergeDamageState,
 } from './damageModel';
 import { applyFailureControlLimits } from '../lib/failureControls';
-import { buildHydrodynamics, resolveVesselTemplate } from './vesselCatalog';
+import {
+  buildHydrodynamics,
+  resolveVesselTemplate,
+  warmVesselCatalog,
+} from './vesselCatalog';
 import { registerVesselUpdateHandler } from './socketHandlers/vesselUpdate';
 import { registerUserModeHandler } from './socketHandlers/userMode';
 import { registerVesselControlHandler } from './socketHandlers/vesselControl';
@@ -2330,6 +2334,7 @@ async function startServer() {
     await ensureDefaultSpaceExists();
     await loadBathymetry();
     await loadSeamarks();
+    await warmVesselCatalog();
     await loadVesselsFromDb();
     await loadEnvironmentFromDb(DEFAULT_SPACE_ID);
     const spaces = await prisma.space.findMany({ select: { id: true } });

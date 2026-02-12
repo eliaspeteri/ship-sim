@@ -156,6 +156,7 @@ jest.mock('../../../src/server/vesselCatalog', () => ({
       byId: new Map([[entry.id, entry]]),
     };
   }),
+  warmVesselCatalog: jest.fn(async () => undefined),
   resolveVesselTemplate: jest.fn(() => ({
     id: 'starter-container',
     name: 'Starter',
