@@ -143,49 +143,19 @@ export default [
         },
       ],
 
-      // Allow Three.js props in React components
-      'react/no-unknown-property': [
-        'error',
-        {
-          ignore: [
-            'position',
-            'rotation',
-            'args',
-            'object',
-            'intensity',
-            'castShadow',
-            'receiveShadow',
-            'attach',
-            'map',
-            'roughness',
-            'metalness',
-            'emissive',
-            'emissiveIntensity',
-            'roughnessMap',
-            'geometry',
-            'transparent',
-            'alphaTest',
-            'depthWrite',
-            'visible',
-            'shadow-mapSize',
-            'attach',
-            'args',
-            'jsx',
-            'material',
-            'frustumCulled',
-            'renderOrder',
-            'distance',
-            'decay',
-            'depthTest',
-          ],
-        },
-      ],
+      // Default off to avoid noise in R3F/Three-heavy JSX.
+      'react/no-unknown-property': 'off',
 
       // React 17+ doesn't require React to be in scope
       'react/react-in-jsx-scope': 'off',
 
       // Temporarily disable prop-types validation since you're using TypeScript
       'react/prop-types': 'off',
+
+      // These class-component-focused rules are expensive and low value for this TS codebase.
+      'react/no-direct-mutation-state': 'off',
+      'react/display-name': 'off',
+      'react/require-render-return': 'off',
 
       // Allow aliasing this to self/that in specific cases
       '@typescript-eslint/no-this-alias': [
@@ -201,6 +171,23 @@ export default [
 
       // Allow usage of common globals
       'no-undef': 'error',
+    },
+  },
+
+  // Enable DOM property checks only in convention-based, DOM-focused areas.
+  {
+    files: [
+      'src/features/{auth,economy,profile,sim,vessels}/**/*.{js,jsx,ts,tsx}',
+      'src/pages/**/*.{js,jsx,ts,tsx}',
+      'src/components/{alarms,bridge,common,communication,dials,hud,navigation,radar,radio,schematic,switches}/**/*.{js,jsx,ts,tsx}',
+    ],
+    ignores: [
+      'src/features/editor/**/*.{js,jsx,ts,tsx}',
+      'src/pages/globe.tsx',
+      'src/pages/physics-debug.tsx',
+    ],
+    rules: {
+      'react/no-unknown-property': 'error',
     },
   },
 
