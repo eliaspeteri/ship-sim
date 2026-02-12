@@ -2,6 +2,7 @@ import {
   STORAGE_SPACE_KEY,
   STORAGE_SPACE_SELECTED_KEY,
 } from '../../src/features/sim/constants';
+import { createSocketManager } from '../../src/networking/socket';
 
 type StoreState = Record<string, any>;
 type SocketHandler = (payload?: any) => void;
@@ -97,13 +98,8 @@ const createStoreState = (overrides: Partial<StoreState> = {}): StoreState => {
 };
 
 const setupSocketManager = (overrides: Partial<StoreState> = {}) => {
-  jest.resetModules();
   const storeState = createStoreState(overrides);
   const handlers: Record<string, SocketHandler> = {};
-  const simulationLoop = {
-    syncVesselFromStore: jest.fn(),
-    teleportVessel: jest.fn(),
-  };
   const socket: SocketMock = {
     connected: true,
     auth: {},
@@ -121,30 +117,11 @@ const setupSocketManager = (overrides: Partial<StoreState> = {}) => {
     [string, { auth: Record<string, unknown> }?]
   >(() => socket);
 
-  jest.doMock('socket.io-client', () => ({
-    __esModule: true,
-    default: ioMock,
-  }));
-
-  jest.doMock('../../src/simulation', () => ({
-    __esModule: true,
-    getSimulationLoop: () => simulationLoop,
-  }));
-
-  jest.doMock('../../src/store', () => {
-    const useStore = (selector?: (state: StoreState) => unknown) =>
-      selector ? selector(storeState) : storeState;
-    (useStore as typeof useStore & { getState?: () => StoreState }).getState =
-      () => storeState;
-    return {
-      __esModule: true,
-      default: useStore,
-    };
-  });
-
-  let socketManager: any;
-  jest.isolateModules(() => {
-    socketManager = require('../../src/networking/socket').default;
+  const socketManager = createSocketManager({
+    ioClient: ioMock as any,
+    storeAdapter: {
+      getState: () => storeState as any,
+    },
   });
 
   return {
@@ -153,9 +130,19 @@ const setupSocketManager = (overrides: Partial<StoreState> = {}) => {
     handlers,
     storeState,
     ioMock,
-    simulationLoop,
+    simulationLoop: mockSimulationLoop,
   };
 };
+
+const mockSimulationLoop = {
+  syncVesselFromStore: jest.fn(),
+  teleportVessel: jest.fn(),
+};
+
+jest.mock('../../src/simulation', () => ({
+  __esModule: true,
+  getSimulationLoop: () => mockSimulationLoop,
+}));
 
 beforeEach(() => {
   window.localStorage.clear();

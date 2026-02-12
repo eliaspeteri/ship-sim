@@ -1,6 +1,6 @@
 import { positionToLatLon } from '../../lib/position';
 import { VesselControlData, VesselUpdateData } from '../../types/socket.types';
-import useStore from '../../store';
+import { SocketStoreState } from '../adapters/socketStoreAdapter';
 import { ClientSocket } from './types';
 
 export const buildSpaceChannel = (
@@ -129,8 +129,9 @@ export const buildPositionPayload = (position?: {
 export const emitRepairRequest = (
   socket: ClientSocket,
   vesselId: string | undefined,
+  getStoreState: () => SocketStoreState,
 ): void => {
-  const store = useStore.getState();
+  const store = getStoreState();
   socket.emit(
     'vessel:repair',
     { vesselId },
@@ -147,7 +148,9 @@ export const emitRepairRequest = (
   );
 };
 
-export const canSendWeatherControl = (): boolean => {
-  const store = useStore.getState();
+export const canSendWeatherControl = (
+  getStoreState: () => SocketStoreState,
+): boolean => {
+  const store = getStoreState();
   return store.roles.includes('admin');
 };

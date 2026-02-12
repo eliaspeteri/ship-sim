@@ -1,15 +1,9 @@
 import io from 'socket.io-client';
-import useStore from '../store';
+import { createDefaultSocketStoreAdapter, SocketStoreAdapter } from './adapters/socketStoreAdapter';
 import { SimpleVesselState } from '../types/vessel.types';
 import { EnvironmentState } from '../types/environment.types';
-import {
-  SimulationUpdateData,
-  VesselTeleportData,
-} from '../types/socket.types';
-import {
-  ClientConnectOpts,
-  ClientSocket,
-} from './socket/types';
+import { SimulationUpdateData, VesselTeleportData } from '../types/socket.types';
+import { ClientConnectOpts, ClientSocket } from './socket/types';
 import {
   attemptReconnect,
   clearReconnectTimer,
@@ -45,7 +39,19 @@ type ConnectionState = {
   maxReconnectAttempts: number;
 };
 
+type SocketManagerDeps = {
+  storeAdapter: SocketStoreAdapter;
+  ioClient: typeof io;
+};
+
+const createDefaultDeps = (): SocketManagerDeps => ({
+  storeAdapter: createDefaultSocketStoreAdapter(),
+  ioClient: io,
+});
+
 class SocketManager {
+  private readonly deps: SocketManagerDeps;
+
   private connection: ConnectionState = {
     socket: null,
     reconnectTimer: null,
@@ -81,9 +87,14 @@ class SocketManager {
     timestamp: number;
   } = { timestamp: 0 };
 
-  constructor() {
+  constructor(deps: SocketManagerDeps) {
+    this.deps = deps;
     this.userId = this.generateUserId();
     this.simulationState.userId = this.userId;
+  }
+
+  private getStoreState() {
+    return this.deps.storeAdapter.getState();
   }
 
   private get socket(): ClientSocket | null {
@@ -95,9 +106,7 @@ class SocketManager {
   }
 
   connect(url = 'http://localhost:3001'): void {
-    if (this.socket?.connected) {
-      return;
-    }
+    if (this.socket?.connected) return;
 
     this.lastUrl = url;
     if (this.socket) {
@@ -117,7 +126,7 @@ class SocketManager {
       lastSimulationUpdateAt: Date.now(),
     };
 
-    useStore.getState().setCurrentVesselId(null);
+    this.getStoreState().setCurrentVesselId(null);
 
     const options: ClientConnectOpts = {
       reconnectionAttempts: this.connection.maxReconnectAttempts,
@@ -135,7 +144,7 @@ class SocketManager {
       },
     };
 
-    this.socket = io(url, options) as ClientSocket;
+    this.socket = this.deps.ioClient(url, options) as ClientSocket;
     this.setupEventListeners();
   }
 
@@ -171,12 +180,12 @@ class SocketManager {
       handleSimulationUpdate: this.handleSimulationUpdate.bind(this),
       handleVesselTeleport: this.handleVesselTeleport.bind(this),
       handleEnvironmentUpdate: this.handleEnvironmentUpdate.bind(this),
-      setJoinPreference: (mode, autoJoin) =>
-        this.setJoinPreference(mode, autoJoin),
+      setJoinPreference: (mode, autoJoin) => this.setJoinPreference(mode, autoJoin),
       switchSpace: spaceId => this.switchSpace(spaceId),
-      clearChatHistoryLoading: (channel: string) => {
+      clearChatHistoryLoading: channel => {
         this.chatHistoryLoading.delete(channel);
       },
+      getStoreState: this.getStoreState.bind(this),
     });
   }
 
@@ -189,8 +198,7 @@ class SocketManager {
   }
 
   private startResyncWatcher(): void {
-    this.connection.lastSimulationUpdateAt =
-      this.simulationState.lastSimulationUpdateAt;
+    this.connection.lastSimulationUpdateAt = this.simulationState.lastSimulationUpdateAt;
     startResyncWatcher(this.connection, this.socket);
   }
 
@@ -202,6 +210,7 @@ class SocketManager {
     handleSimulationUpdate(
       this.simulationState,
       {
+        getStoreState: this.getStoreState.bind(this),
         setSpaceId: this.setSpaceId.bind(this),
         setJoinPreference: this.setJoinPreference.bind(this),
         updateState: updater => {
@@ -210,16 +219,15 @@ class SocketManager {
       },
       data,
     );
-    this.connection.lastSimulationUpdateAt =
-      this.simulationState.lastSimulationUpdateAt;
+    this.connection.lastSimulationUpdateAt = this.simulationState.lastSimulationUpdateAt;
   }
 
   private handleVesselTeleport(data: VesselTeleportData): void {
-    handleVesselTeleport(data);
+    handleVesselTeleport(this.getStoreState.bind(this), data);
   }
 
   private handleEnvironmentUpdate(data: EnvironmentState): void {
-    handleEnvironmentUpdate(data);
+    handleEnvironmentUpdate(this.getStoreState.bind(this), data);
   }
 
   waitForSelfSnapshot(): Promise<SimpleVesselState> {
@@ -233,7 +241,7 @@ class SocketManager {
 
   sendVesselUpdate(): void {
     if (!this.socket?.connected) return;
-    sendVesselUpdate(this.socket, this.userId, useStore.getState().vessel);
+    sendVesselUpdate(this.socket, this.userId, this.getStoreState().vessel);
   }
 
   sendControlUpdate(throttle?: number, rudderAngle?: number, ballast?: number): void {
@@ -303,14 +311,14 @@ class SocketManager {
 
   requestRepair(vesselId?: string): void {
     if (!this.socket?.connected) return;
-    emitRepairRequest(this.socket, vesselId);
+    emitRepairRequest(this.socket, vesselId, this.getStoreState.bind(this));
   }
 
   sendChatMessage(message: string, channel = 'global'): void {
     if (!this.socket?.connected) return;
     const targetChannel = buildSpaceChannel(
       channel,
-      useStore.getState().spaceId,
+      this.getStoreState().spaceId,
       this.spaceId,
     );
     this.socket.emit('chat:message', { message, channel: targetChannel });
@@ -320,17 +328,16 @@ class SocketManager {
     if (!this.socket?.connected) return;
     const normalizedChannel = buildSpaceChannel(
       channel,
-      useStore.getState().spaceId,
+      this.getStoreState().spaceId,
       this.spaceId,
     );
     if (!before) {
-      const store = useStore.getState();
+      const store = this.getStoreState();
       const meta = store.chatHistoryMeta[normalizedChannel || channel];
       const hasMessages =
         store.chatMessages.filter(
           msg =>
-            (msg.channel || 'global') === normalizedChannel ||
-            msg.channel === channel,
+            (msg.channel || 'global') === normalizedChannel || msg.channel === channel,
         ).length > 0;
       if (meta?.loaded || hasMessages) {
         store.setChatHistoryMeta(normalizedChannel || channel, {
@@ -440,7 +447,7 @@ class SocketManager {
     this.userId = userId || this.userId;
     this.simulationState.userId = this.userId;
     this.username = username || this.username;
-    this.spaceId = useStore.getState().spaceId || this.spaceId;
+    this.spaceId = this.getStoreState().spaceId || this.spaceId;
     if (this.socket) {
       this.socket.auth = {
         token: this.authToken,
@@ -462,7 +469,7 @@ class SocketManager {
     if (username !== undefined) {
       this.username = username || this.username;
     }
-    this.spaceId = useStore.getState().spaceId || this.spaceId;
+    this.spaceId = this.getStoreState().spaceId || this.spaceId;
     if (this.socket) {
       this.socket.auth = {
         ...(this.socket.auth || {}),
@@ -543,7 +550,7 @@ class SocketManager {
       return;
     }
 
-    if (!canSendWeatherControl()) {
+    if (!canSendWeatherControl(this.getStoreState.bind(this))) {
       console.warn('Cannot send weather control: not admin');
       return;
     }
@@ -570,6 +577,13 @@ class SocketManager {
   }
 }
 
-export const socketManager = new SocketManager();
+export const createSocketManager = (
+  overrides: Partial<SocketManagerDeps> = {},
+): SocketManager => {
+  const defaults = createDefaultDeps();
+  return new SocketManager({ ...defaults, ...overrides });
+};
+
+export const socketManager = createSocketManager();
 
 export default socketManager;

@@ -1,5 +1,6 @@
 import * as GeoJSON from 'geojson';
-import useStore, { AccountState } from '../../store';
+import { AccountState } from '../../store';
+import { SocketStoreState } from '../adapters/socketStoreAdapter';
 import { EnvironmentState } from '../../types/environment.types';
 import { MissionAssignmentData } from '../../types/mission.types';
 import {
@@ -35,6 +36,7 @@ type RegisterHandlersParams = {
   handleSimulationUpdate: (data: SimulationUpdateData) => void;
   handleVesselTeleport: (data: VesselTeleportData) => void;
   handleEnvironmentUpdate: (data: EnvironmentState) => void;
+  getStoreState: () => SocketStoreState;
   setJoinPreference: (mode: 'player' | 'spectator', autoJoin?: boolean) => void;
   switchSpace: (spaceId: string) => void;
   clearChatHistoryLoading: (channel: string) => void;
@@ -55,6 +57,7 @@ export const registerSocketHandlers = ({
   handleSimulationUpdate,
   handleVesselTeleport,
   handleEnvironmentUpdate,
+  getStoreState,
   setJoinPreference,
   switchSpace,
   clearChatHistoryLoading,
@@ -100,26 +103,26 @@ export const registerSocketHandlers = ({
   socket.on('latency:pong', (data: { sentAt: number }) => {
     if (!data || typeof data.sentAt !== 'number') return;
     const rtt = Date.now() - data.sentAt;
-    useStore.getState().setSocketLatencyMs(rtt);
+    getStoreState().setSocketLatencyMs(rtt);
   });
 
   socket.on('mission:update', (data: MissionAssignmentData) => {
     if (data) {
-      useStore.getState().upsertMissionAssignment(data);
+      getStoreState().upsertMissionAssignment(data);
     }
   });
 
   socket.on('economy:update', (data: AccountState) => {
     if (data) {
-      useStore.getState().setAccount(data);
+      getStoreState().setAccount(data);
     }
   });
 
   socket.on('chat:message', (data: ChatMessageData) => {
     const normalized = normalizeChatMessage(data, data.channel || 'global');
-    useStore.getState().addChatMessage(normalized);
+    getStoreState().addChatMessage(normalized);
     if (data.userId === 'system') {
-      useStore.getState().addEvent({
+      getStoreState().addEvent({
         category: 'system',
         type: 'notification',
         message: `${data.username}: ${data.message}`,
@@ -129,7 +132,7 @@ export const registerSocketHandlers = ({
   });
 
   socket.on('chat:history', (data: ChatHistoryResponse) => {
-    const store = useStore.getState();
+    const store = getStoreState();
     const normalized = normalizeChatHistoryPayload(data);
     if (normalized.reset) {
       if (normalized.messages.length > 0) {
@@ -155,7 +158,7 @@ export const registerSocketHandlers = ({
 
   socket.on('error', (error: unknown) => {
     console.error('Socket.IO error:', error);
-    const store = useStore.getState();
+    const store = getStoreState();
     const message =
       typeof error === 'string'
         ? error
@@ -208,12 +211,12 @@ export const registerSocketHandlers = ({
       const bboxKey = meta.bbox
         ? `${q(meta.bbox.south)}:${q(meta.bbox.west)}:${q(meta.bbox.north)}:${q(meta.bbox.east)}`
         : null;
-      useStore.getState().setSeamarks({
+      const store = getStoreState();
+      store.setSeamarks({
         features: fc,
         bboxKey,
         center: { lat: meta.lat, lon: meta.lon },
-        radiusMeters:
-          meta.radiusMeters ?? useStore.getState().seamarks.radiusMeters,
+        radiusMeters: meta.radiusMeters ?? store.seamarks.radiusMeters,
         updatedAt: Date.now(),
       });
     },

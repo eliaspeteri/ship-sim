@@ -790,7 +790,7 @@ Acceptance:
 
 ### H2. Remove hidden global dependencies from socket manager (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/networking/socket.ts`, new adapters under `src/networking/adapters/*`
 

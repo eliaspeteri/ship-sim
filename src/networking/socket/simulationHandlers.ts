@@ -1,5 +1,5 @@
 import { ensurePosition } from '../../lib/position';
-import useStore from '../../store';
+import { SocketStoreState } from '../adapters/socketStoreAdapter';
 import { EnvironmentState } from '../../types/environment.types';
 import {
   SimulationUpdateData,
@@ -24,6 +24,7 @@ export type SimulationHandlerState = {
 };
 
 type SimulationHandlerCallbacks = {
+  getStoreState: () => SocketStoreState;
   setSpaceId: (spaceId: string) => void;
   setJoinPreference: (mode: 'player' | 'spectator', autoJoin?: boolean) => void;
   updateState: (updater: (state: SimulationHandlerState) => void) => void;
@@ -34,7 +35,7 @@ export const handleSimulationUpdate = (
   callbacks: SimulationHandlerCallbacks,
   data: SimulationUpdateData,
 ): void => {
-  const store = useStore.getState();
+  const store = callbacks.getStoreState();
   if (typeof data.timestamp === 'number') {
     if (data.timestamp < state.lastSimulationTimestamp) {
       return;
@@ -380,9 +381,12 @@ export const handleSimulationUpdate = (
   });
 };
 
-export const handleVesselTeleport = (data: VesselTeleportData): void => {
+export const handleVesselTeleport = (
+  getStoreState: () => SocketStoreState,
+  data: VesselTeleportData,
+): void => {
   if (!data?.vesselId || !data.position) return;
-  const store = useStore.getState();
+  const store = getStoreState();
   const currentId = store.currentVesselId;
   if (!currentId) return;
   const normalized = data.vesselId.split('_')[0];
@@ -402,6 +406,9 @@ export const handleVesselTeleport = (data: VesselTeleportData): void => {
     });
 };
 
-export const handleEnvironmentUpdate = (data: EnvironmentState): void => {
-  useStore.getState().updateEnvironment(data);
+export const handleEnvironmentUpdate = (
+  getStoreState: () => SocketStoreState,
+  data: EnvironmentState,
+): void => {
+  getStoreState().updateEnvironment(data);
 };
