@@ -1,3 +1,4 @@
+/** @type {import('jest').Config} */
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
@@ -20,6 +21,7 @@ module.exports = {
       },
     ],
   },
+  coverageProvider: 'v8',
   collectCoverage: true,
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts'],
   coverageDirectory: 'coverage',

@@ -87,7 +87,8 @@ Use the example env files as baseline:
 ```sh
 npm run test                # unit + frontend + assemblyscript
 npm run test:unit           # node test runner tests/unit/*.mjs
-npm run test:frontend       # jest frontend/tests
+npm run test:frontend       # jest frontend suite (from jest.config.js)
+npm run test:frontend:smoke # focused auth/api frontend suite
 npm run test:assemblyscript # as-test
 npm run test:e2e            # smoke e2e (requires SMOKE_E2E=true)
 
