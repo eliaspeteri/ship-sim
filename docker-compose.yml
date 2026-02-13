@@ -43,7 +43,7 @@ services:
     command: >
       sh -c "
         npx prisma migrate deploy &&
-        npx tsx scripts/create-admin.ts &&
+        node scripts/seed-admin.js &&
         npx tsx src/server/index.ts
       "
     networks:

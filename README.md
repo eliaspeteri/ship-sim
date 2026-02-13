@@ -64,6 +64,7 @@ npm run docker:infra:down
 ## Auth Bootstrap
 
 - Register/login at `http://localhost:3000/login`.
+- Docker startup runs `node scripts/seed-admin.js` in the server container (idempotent).
 - If you want a seeded admin account, run:
 
 ```sh
@@ -95,6 +96,7 @@ npm run test:assemblyscript # as-test
 npm run test:e2e            # smoke e2e (requires SMOKE_E2E=true)
 
 npm run typecheck           # tsc --noEmit
+npm run check:bootstrap     # verify referenced bootstrap scripts exist
 npm run wasm:check-exports  # wasm export contract check
 npm run lint                # eslint
 npm run lint:errors         # eslint --max-warnings 0

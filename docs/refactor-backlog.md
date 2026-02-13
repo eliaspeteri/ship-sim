@@ -1302,7 +1302,7 @@ Acceptance:
 
 ### M6. Remove command/bootstrap drift across Docker/scripts/docs (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `docker-compose.yml`, `scripts/*`, `README.md`
 
@@ -1376,7 +1376,7 @@ Acceptance:
 - [x] `M3` add baseline CI quality gates. `P0` `S`
 - [x] `M4` strengthen push-time git hooks. `P1` `S`
 - [x] `M5` improve local test iteration speed. `P1` `S`
-- [ ] `M6` remove Docker/scripts/docs command drift. `P1` `S`
+- [x] `M6` remove Docker/scripts/docs command drift. `P1` `S`
 
 ## Definition of Done
 
