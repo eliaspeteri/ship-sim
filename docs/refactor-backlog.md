@@ -1154,7 +1154,7 @@ Acceptance:
 
 ### L3. Harden tile proxy routes against upstream failures (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/pages/api/tiles/terrain/[z]/[x]/[y].ts`, `src/pages/api/tiles/land/[z]/[x]/[y].ts`
 
@@ -1367,7 +1367,7 @@ Acceptance:
 - [ ] `A6`/`A7` and `B5` cleanup. `P2` `M`
 - [x] `L1` replace sync auth crypto in request paths. `P0` `S`
 - [x] `L2` remove sync editor disk writes on request-triggered paths. `P0` `M`
-- [ ] `L3` harden tile proxy upstream failure handling. `P1` `S`
+- [x] `L3` harden tile proxy upstream failure handling. `P1` `S`
 - [ ] `L4` replace polling-heavy UI loops with observer/event-driven patterns. `P1` `M`
 - [x] `L5` unify API/runtime state authority contracts. `P0` `M`
 - [ ] `K9` make credential lockout state user-visible with countdown. `P1` `M`
