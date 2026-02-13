@@ -471,6 +471,7 @@ describe('server/api router', () => {
 
   it('handles vessel, environment, mission, and scenario routes', async () => {
     const vesselModel = prismaMock.vessel as Record<string, MockedAsync>;
+    const weatherModel = prismaMock.weatherState as Record<string, MockedAsync>;
     const environmentEventModel = prismaMock.environmentEvent as Record<
       string,
       MockedAsync
@@ -518,6 +519,25 @@ describe('server/api router', () => {
     });
     expect(missingState.res.statusCode).toBe(404);
 
+    vesselModel.findFirst.mockResolvedValueOnce(null as never);
+    vesselModel.create.mockResolvedValueOnce(
+      createVesselRecord({
+        ownerId: 'local-user',
+        lat: 60.17,
+        lon: 24.94,
+        z: 1,
+        heading: 1.2,
+        roll: 0.1,
+        pitch: -0.1,
+        surge: 3,
+        sway: 0.5,
+        heave: -0.1,
+        mass: 20000,
+        length: 80,
+        beam: 14,
+        draft: 4,
+      }) as never,
+    );
     const savedState = await invokeRoute('post', '/vessels/:userId', {
       params: { userId: 'local-user' },
       body: {
@@ -529,6 +549,12 @@ describe('server/api router', () => {
     });
     expect(savedState.res.statusCode).toBe(200);
 
+    vesselModel.findFirst.mockResolvedValueOnce(
+      createVesselRecord({
+        ownerId: 'local-user',
+        mass: 20000,
+      }) as never,
+    );
     const fetchedState = await invokeRoute('get', '/vessels/:userId', {
       params: { userId: 'local-user' },
     });
@@ -539,13 +565,18 @@ describe('server/api router', () => {
       }),
     );
 
+    vesselModel.findFirst.mockResolvedValueOnce({ id: 'vessel-1' } as never);
+    vesselModel.delete.mockResolvedValueOnce({ id: 'vessel-1' } as never);
     const deletedState = await invokeRoute('delete', '/vessels/:userId', {
       params: { userId: 'local-user' },
     });
     expect(deletedState.res.statusCode).toBe(200);
 
+    weatherModel.findUnique.mockResolvedValueOnce(null as never);
     const environmentGet = await invokeRoute('get', '/environment');
     expect(environmentGet.res.statusCode).toBe(200);
+    weatherModel.findUnique.mockResolvedValueOnce(null as never);
+    weatherModel.upsert.mockResolvedValueOnce({ id: 'global' } as never);
     const environmentPost = await invokeRoute('post', '/environment', {
       body: {
         wind: { speed: 8, direction: 1.5 },
@@ -1333,10 +1364,15 @@ describe('server/api router', () => {
   });
 
   it('enforces owner-or-admin policy for vessel mutation routes', async () => {
+    const vesselModel = prismaMock.vessel as Record<string, MockedAsync>;
     const ownerUser = { userId: 'vessel-owner', roles: ['player'] };
     const otherUserId = 'vessel-other';
     const adminUser = { userId: 'vessel-admin', roles: ['admin'] };
 
+    vesselModel.findFirst.mockResolvedValueOnce(null as never);
+    vesselModel.create.mockResolvedValueOnce(
+      createVesselRecord({ ownerId: ownerUser.userId }) as never,
+    );
     const ownerUpdate = await invokeRoute('post', '/vessels/:userId', {
       params: { userId: ownerUser.userId },
       user: ownerUser,
@@ -1358,6 +1394,10 @@ describe('server/api router', () => {
     });
     expect(crossUserUpdate.res.statusCode).toBe(403);
 
+    vesselModel.findFirst.mockResolvedValueOnce(null as never);
+    vesselModel.create.mockResolvedValueOnce(
+      createVesselRecord({ ownerId: otherUserId }) as never,
+    );
     const adminUpdate = await invokeRoute('post', '/vessels/:userId', {
       params: { userId: otherUserId },
       user: adminUser,
@@ -1373,6 +1413,8 @@ describe('server/api router', () => {
     });
     expect(crossUserDelete.res.statusCode).toBe(403);
 
+    vesselModel.findFirst.mockResolvedValueOnce({ id: 'vessel-1' } as never);
+    vesselModel.delete.mockResolvedValueOnce({ id: 'vessel-1' } as never);
     const adminDelete = await invokeRoute('delete', '/vessels/:userId', {
       params: { userId: otherUserId },
       user: adminUser,
