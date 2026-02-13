@@ -292,10 +292,52 @@ describe('store', () => {
     act(() => {
       useStore.getState().setDayNightCycle(true);
       jest.advanceTimersByTime(10000);
+      useStore.getState().setDayNightCycle(false);
     });
 
     expect(useStore.getState().environment.timeOfDay).not.toBe(before);
     jest.useRealTimers();
+  });
+
+  it('setDayNightCycle disables cleanly and does not leak duplicate intervals', () => {
+    jest.useFakeTimers();
+    const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+    useStore.getState().setDayNightCycle(false);
+    const before = useStore.getState().environment.timeOfDay;
+
+    act(() => {
+      useStore.getState().setDayNightCycle(true);
+      useStore.getState().setDayNightCycle(true);
+      jest.advanceTimersByTime(10000);
+    });
+
+    const afterFirstTick = useStore.getState().environment.timeOfDay;
+    expect(afterFirstTick).not.toBe(before);
+
+    act(() => {
+      useStore.getState().setDayNightCycle(false);
+      jest.advanceTimersByTime(20000);
+    });
+
+    expect(useStore.getState().environment.timeOfDay).toBe(afterFirstTick);
+    expect(clearIntervalSpy).toHaveBeenCalledTimes(1);
+
+    clearIntervalSpy.mockRestore();
+    jest.useRealTimers();
+  });
+
+  it('updateWaterStatus updates environment water fields', () => {
+    act(() => {
+      useStore.getState().updateWaterStatus({
+        waterDepth: 42,
+        seaState: 4,
+        visibility: 8,
+      });
+    });
+
+    expect(useStore.getState().environment.waterDepth).toBe(42);
+    expect(useStore.getState().environment.seaState).toBe(4);
+    expect(useStore.getState().environment.visibility).toBe(8);
   });
 
   it('clearEventLog resets event log', () => {

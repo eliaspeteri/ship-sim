@@ -403,13 +403,6 @@ class SocketManager {
     this.socket.emit('client:log', entry);
   }
 
-  updateVesselPosition(
-    _position: { x: number; y: number; z: number },
-    _vesselData: SimpleVesselState,
-  ): void {
-    // no-op placeholder; preserved for API compatibility
-  }
-
   notifyModeChange(mode: 'player' | 'spectator'): void {
     if (!this.socket?.connected) return;
     this.socket.emit('user:mode', { mode });

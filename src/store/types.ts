@@ -172,10 +172,7 @@ export interface SimulationState {
     ballast?: number;
     bowThruster?: number;
   }) => void;
-  updateWaterStatus: (
-    set: (state: SimulationState) => void,
-    get: () => SimulationState,
-  ) => (state: SimulationState) => void;
+  updateWaterStatus: (waterStatus: Partial<EnvironmentState>) => void;
   updateVesselProperties: (
     set: (
       updater: (state: SimulationState) => Partial<SimulationState>,
