@@ -8,6 +8,10 @@ const makeRes = () => {
 };
 
 describe('terrain tile api', () => {
+  beforeEach(() => {
+    process.env.TERRAIN_TILES_BASE_URL = 'https://tiles.example.com';
+  });
+
   it('validates z/x/y', async () => {
     const res = makeRes();
 
@@ -17,7 +21,17 @@ describe('terrain tile api', () => {
     expect(res.send).toHaveBeenCalledWith('Missing z/x/y');
   });
 
-  it('proxies non-ok response', async () => {
+  it('fails predictably when base url is missing', async () => {
+    const res = makeRes();
+    delete process.env.TERRAIN_TILES_BASE_URL;
+
+    await handler({ query: { z: '3', x: '4', y: '5' } } as any, res as any);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.send).toHaveBeenCalledWith('Tile proxy is not configured');
+  });
+
+  it('maps non-ok upstream responses to 502', async () => {
     const res = makeRes();
     (globalThis as any).fetch = jest.fn().mockResolvedValue({
       ok: false,
@@ -27,8 +41,34 @@ describe('terrain tile api', () => {
 
     await handler({ query: { z: '3', x: '4', y: '5' } } as any, res as any);
 
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.send).toHaveBeenCalledWith('upstream fail');
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(res.send).toHaveBeenCalledWith('Terrain tile upstream error');
+  });
+
+  it('maps upstream timeout to 504', async () => {
+    const res = makeRes();
+    (globalThis as any).fetch = jest
+      .fn()
+      .mockRejectedValue(
+        Object.assign(new Error('timed out'), { name: 'AbortError' }),
+      );
+
+    await handler({ query: { z: '3', x: '4', y: '5' } } as any, res as any);
+
+    expect(res.status).toHaveBeenCalledWith(504);
+    expect(res.send).toHaveBeenCalledWith('Terrain tile upstream timeout');
+  });
+
+  it('maps upstream network failure to 502', async () => {
+    const res = makeRes();
+    (globalThis as any).fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('network down'));
+
+    await handler({ query: { z: '3', x: '4', y: '5' } } as any, res as any);
+
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(res.send).toHaveBeenCalledWith('Terrain tile upstream unavailable');
   });
 
   it('returns png tile bytes', async () => {
@@ -38,8 +78,6 @@ describe('terrain tile api', () => {
       ok: true,
       arrayBuffer: async () => new Uint8Array([4, 5, 6]).buffer,
     });
-
-    process.env.TERRAIN_TILES_BASE_URL = 'https://tiles.example.com';
 
     await handler({ query: { z: '3', x: '4', y: '5' } } as any, res as any);
 

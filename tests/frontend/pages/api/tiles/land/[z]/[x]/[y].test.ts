@@ -8,6 +8,10 @@ const makeRes = () => {
 };
 
 describe('land tile api', () => {
+  beforeEach(() => {
+    process.env.TILES_BASE_URL = 'http://localhost:7800';
+  });
+
   it('validates z/x/y', async () => {
     const res = makeRes();
 
@@ -17,7 +21,17 @@ describe('land tile api', () => {
     expect(res.send).toHaveBeenCalledWith('Missing z/x/y');
   });
 
-  it('proxies error response', async () => {
+  it('fails predictably when base url is missing', async () => {
+    const res = makeRes();
+    delete process.env.TILES_BASE_URL;
+
+    await handler({ query: { z: '1', x: '2', y: '3' } } as any, res as any);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.send).toHaveBeenCalledWith('Tile proxy is not configured');
+  });
+
+  it('maps non-ok upstream responses to 502', async () => {
     const res = makeRes();
     (globalThis as any).fetch = jest.fn().mockResolvedValue({
       ok: false,
@@ -27,8 +41,34 @@ describe('land tile api', () => {
 
     await handler({ query: { z: '1', x: '2', y: '3' } } as any, res as any);
 
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.send).toHaveBeenCalledWith('missing');
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(res.send).toHaveBeenCalledWith('Land tile upstream error');
+  });
+
+  it('maps upstream timeout to 504', async () => {
+    const res = makeRes();
+    (globalThis as any).fetch = jest
+      .fn()
+      .mockRejectedValue(
+        Object.assign(new Error('timed out'), { name: 'AbortError' }),
+      );
+
+    await handler({ query: { z: '1', x: '2', y: '3' } } as any, res as any);
+
+    expect(res.status).toHaveBeenCalledWith(504);
+    expect(res.send).toHaveBeenCalledWith('Land tile upstream timeout');
+  });
+
+  it('maps upstream network failure to 502', async () => {
+    const res = makeRes();
+    (globalThis as any).fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('network down'));
+
+    await handler({ query: { z: '1', x: '2', y: '3' } } as any, res as any);
+
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(res.send).toHaveBeenCalledWith('Land tile upstream unavailable');
   });
 
   it('returns protobuf tile bytes', async () => {
