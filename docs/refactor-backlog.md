@@ -1188,7 +1188,7 @@ Acceptance:
 
 ### L5. Unify runtime/API state authority contracts (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/server/api.ts`, `src/server/index.ts`, shared server services
 

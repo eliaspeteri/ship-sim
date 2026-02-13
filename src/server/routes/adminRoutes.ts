@@ -4,23 +4,12 @@ import type { prisma as prismaClient } from '../../lib/prisma';
 import type { Role } from '../roles';
 import type { AuthenticatedUser } from '../middleware/authentication';
 import { withErrorResponse } from './routeUtils';
+import type {
+  UserSettings,
+  UserSettingsStore,
+} from '../services/userSettingsStore';
 
 type PrismaClient = typeof prismaClient;
-
-type UserSettings = {
-  id: number;
-  userId: string;
-  soundEnabled: boolean;
-  units: 'metric' | 'imperial' | 'nautical';
-  speedUnit: 'knots' | 'kmh' | 'mph';
-  distanceUnit: 'nm' | 'km' | 'mi';
-  timeZoneMode: 'auto' | 'manual';
-  timeZone: string;
-  notificationLevel: 'all' | 'mentions' | 'none';
-  interfaceDensity: 'comfortable' | 'compact';
-  createdAt: Date;
-  updatedAt: Date;
-};
 
 type RequireRole = (roles: string[]) => RequestHandler;
 type RequireSelfOrRole = (paramKey: string, roles?: string[]) => RequestHandler;
@@ -37,7 +26,7 @@ type AdminRouteDeps = {
   serverMetrics: unknown;
   getLogs: (options: { since: number; limit: number }) => unknown[];
   clearLogs: () => void;
-  userSettingsStore: Record<string, UserSettings>;
+  userSettingsStore: UserSettingsStore;
 };
 
 export const registerAdminRoutes = ({
@@ -74,7 +63,7 @@ export const registerAdminRoutes = ({
     requireSelfOrRole('userId'),
     (req, res) => {
       const { userId } = req.params;
-      const settings = userSettingsStore[userId];
+      const settings = userSettingsStore.get(userId);
       if (!settings) {
         res.status(404).json({ error: 'Settings not found' });
         return;
@@ -99,7 +88,7 @@ export const registerAdminRoutes = ({
         notificationLevel,
         interfaceDensity,
       } = req.body;
-      const existing = userSettingsStore[userId];
+      const existing = userSettingsStore.get(userId);
 
       const settings: UserSettings = {
         id: existing?.id ?? Date.now(),
@@ -140,7 +129,7 @@ export const registerAdminRoutes = ({
         createdAt: existing?.createdAt ?? new Date(),
         updatedAt: new Date(),
       };
-      userSettingsStore[userId] = settings;
+      userSettingsStore.set(userId, settings);
       res.json(settings);
     },
   );

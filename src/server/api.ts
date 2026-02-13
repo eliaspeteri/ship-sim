@@ -26,21 +26,7 @@ import { registerCareersSpacesRoutes } from './routes/careersSpacesRoutes';
 import { registerMissionRoutes } from './routes/missionRoutes';
 import { registerEconomyRoutes } from './routes/economyRoutes';
 import { registerVesselEnvironmentRoutes } from './routes/vesselEnvironmentRoutes';
-
-interface UserSettings {
-  id: number;
-  userId: string;
-  soundEnabled: boolean;
-  units: 'metric' | 'imperial' | 'nautical';
-  speedUnit: 'knots' | 'kmh' | 'mph';
-  distanceUnit: 'nm' | 'km' | 'mi';
-  timeZoneMode: 'auto' | 'manual';
-  timeZone: string;
-  notificationLevel: 'all' | 'mentions' | 'none';
-  interfaceDensity: 'comfortable' | 'compact';
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { createInMemoryUserSettingsStore } from './services/userSettingsStore';
 
 const router = express.Router();
 const DEFAULT_SPACE_ID = process.env.DEFAULT_SPACE_ID || 'global';
@@ -100,7 +86,7 @@ const serializeSpace = (space: {
   createdBy: space.createdBy || undefined,
 });
 
-const userSettingsStore: Record<string, UserSettings> = {};
+const userSettingsStore = createInMemoryUserSettingsStore();
 
 registerVesselEnvironmentRoutes({
   router,
