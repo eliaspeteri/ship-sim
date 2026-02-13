@@ -1284,7 +1284,7 @@ Acceptance:
 
 ### M5. Improve local test iteration speed (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `jest.config.js`, `package.json`
 
@@ -1375,7 +1375,7 @@ Acceptance:
 - [x] `M2` enforce full typecheck workflow (`ts` + `tsx` coverage + script). `P0` `S`
 - [x] `M3` add baseline CI quality gates. `P0` `S`
 - [x] `M4` strengthen push-time git hooks. `P1` `S`
-- [ ] `M5` improve local test iteration speed. `P1` `S`
+- [x] `M5` improve local test iteration speed. `P1` `S`
 - [ ] `M6` remove Docker/scripts/docs command drift. `P1` `S`
 
 ## Definition of Done
