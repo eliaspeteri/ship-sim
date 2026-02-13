@@ -1055,11 +1055,28 @@ describe('server/api router', () => {
     spaceModel.findMany.mockResolvedValueOnce([
       createSpaceRecord({ id: 'public-1', visibility: 'public' }),
     ] as never);
-    spaceAccessModel.findMany.mockResolvedValueOnce([
-      { spaceId: 'known-1' },
-    ] as never);
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({
+        id: 'private-1',
+        visibility: 'private',
+        inviteToken: 'tok-1',
+        passwordHash: privateHash,
+      }) as never,
+    );
+    const spacesPasswordRequired = await invokeRoute('get', '/spaces', {
+      query: {
+        inviteToken: 'tok-1',
+        password: 'secret',
+      },
+    });
+    expect(spacesPasswordRequired.res.statusCode).toBe(403);
+    expect(spacesPasswordRequired.res.body).toMatchObject({
+      error: 'Password required',
+      requiresPassword: true,
+    });
+
     spaceModel.findMany.mockResolvedValueOnce([
-      createSpaceRecord({ id: 'known-1', visibility: 'private' }),
+      createSpaceRecord({ id: 'public-1', visibility: 'public' }),
     ] as never);
     spaceModel.findUnique.mockResolvedValueOnce(
       createSpaceRecord({
@@ -1069,9 +1086,31 @@ describe('server/api router', () => {
         passwordHash: privateHash,
       }) as never,
     );
-    const spacesList = await invokeRoute('get', '/spaces', {
-      query: {
-        includeKnown: 'true',
+    const spacesInvalidPassword = await invokeRoute('post', '/spaces/access', {
+      body: {
+        inviteToken: 'tok-1',
+        password: 'wrong-password',
+      },
+    });
+    expect(spacesInvalidPassword.res.statusCode).toBe(403);
+    expect(spacesInvalidPassword.res.body).toMatchObject({
+      error: 'Invalid password',
+      requiresPassword: true,
+    });
+
+    spaceModel.findMany.mockResolvedValueOnce([
+      createSpaceRecord({ id: 'public-1', visibility: 'public' }),
+    ] as never);
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({
+        id: 'private-1',
+        visibility: 'private',
+        inviteToken: 'tok-1',
+        passwordHash: privateHash,
+      }) as never,
+    );
+    const spacesList = await invokeRoute('post', '/spaces/access', {
+      body: {
         inviteToken: 'tok-1',
         password: 'secret',
       },

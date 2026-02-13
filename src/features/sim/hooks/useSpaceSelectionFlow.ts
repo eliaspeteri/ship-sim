@@ -176,19 +176,21 @@ export function useSpaceSelectionFlow({
       setSpaceError(null);
       try {
         const apiBase = getApiBase();
-        const params = new URLSearchParams();
-        if (options?.inviteToken) {
-          params.set('inviteToken', options.inviteToken.trim());
-        }
-        if (options?.password) {
-          params.set('password', options.password);
-        }
-        params.set('includeKnown', 'true');
-        const qs = params.toString();
-        const response = await fetch(
-          `${apiBase}/api/spaces${qs ? `?${qs}` : ''}`,
-          { credentials: 'include' },
-        );
+        const hasSecretInput = Boolean(options?.inviteToken || options?.password);
+        const response = hasSecretInput
+          ? await fetch(`${apiBase}/api/spaces/access`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                inviteToken: options?.inviteToken?.trim() || undefined,
+                password: options?.password || undefined,
+                includeKnown: true,
+              }),
+            })
+          : await fetch(`${apiBase}/api/spaces?includeKnown=true`, {
+              credentials: 'include',
+            });
         if (!response.ok) {
           throw new Error(`Request failed with status ${response.status}`);
         }

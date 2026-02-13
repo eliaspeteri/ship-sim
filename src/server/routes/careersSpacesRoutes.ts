@@ -78,6 +78,43 @@ const mergeSpaces = (
   return Array.from(map.values());
 };
 
+const collectSpaces = async ({
+  prisma,
+  userId,
+  includeKnown,
+}: {
+  prisma: PrismaClient;
+  userId?: string;
+  includeKnown: boolean;
+}) => {
+  const publicSpaces = await prisma.space.findMany({
+    where: { visibility: 'public' },
+    orderBy: { createdAt: 'asc' },
+  });
+  const collected: ReturnType<typeof serializeSpace>[] =
+    publicSpaces.map(serializeSpace);
+
+  if (includeKnown && userId) {
+    const known = await prisma.spaceAccess.findMany({
+      where: { userId },
+      select: { spaceId: true },
+    });
+    const ids = known
+      .map((k: { spaceId?: string | null }) => k.spaceId)
+      .filter((id): id is string => typeof id === 'string');
+    if (ids.length > 0) {
+      const knownSpaces = await prisma.space.findMany({
+        where: { id: { in: ids } },
+      });
+      knownSpaces
+        .map(serializeSpace)
+        .forEach((s: ReturnType<typeof serializeSpace>) => collected.push(s));
+    }
+  }
+
+  return collected;
+};
+
 export const registerCareersSpacesRoutes = ({
   router,
   prisma,
@@ -243,39 +280,56 @@ export const registerCareersSpacesRoutes = ({
       typeof req.query.inviteToken === 'string'
         ? req.query.inviteToken.trim()
         : undefined;
-    const password =
-      typeof req.query.password === 'string' ? req.query.password : undefined;
     const includeKnown =
       typeof req.query.includeKnown === 'string' &&
       ['1', 'true', 'yes'].includes(req.query.includeKnown.toLowerCase());
 
     try {
-      const publicSpaces = await prisma.space.findMany({
-        where: { visibility: 'public' },
-        orderBy: { createdAt: 'asc' },
+      const collected = await collectSpaces({
+        prisma,
+        userId: req.user?.userId,
+        includeKnown,
       });
-      const collected: ReturnType<typeof serializeSpace>[] =
-        publicSpaces.map(serializeSpace);
-      const userId = req.user?.userId;
-      if (includeKnown && userId) {
-        const known = await prisma.spaceAccess.findMany({
-          where: { userId },
-          select: { spaceId: true },
+
+      if (inviteToken) {
+        const space = await prisma.space.findUnique({
+          where: { inviteToken },
         });
-        const ids = known
-          .map((k: { spaceId?: string | null }) => k.spaceId)
-          .filter((id): id is string => typeof id === 'string');
-        if (ids.length > 0) {
-          const knownSpaces = await prisma.space.findMany({
-            where: { id: { in: ids } },
-          });
-          knownSpaces
-            .map(serializeSpace)
-            .forEach((s: ReturnType<typeof serializeSpace>) =>
-              collected.push(s),
-            );
+        if (!space) {
+          res.status(404).json({ error: 'Space not found' });
+          return;
         }
+        if (space.visibility === 'private' && space.passwordHash) {
+          res
+            .status(403)
+            .json({ error: 'Password required', requiresPassword: true });
+          return;
+        }
+        collected.push(serializeSpace(space));
       }
+
+      res.json({ spaces: mergeSpaces([], collected) });
+    } catch (err) {
+      console.error('Failed to fetch spaces', err);
+      res.status(500).json({ error: 'Failed to fetch spaces' });
+    }
+  });
+
+  router.post('/spaces/access', async (req, res) => {
+    const inviteToken =
+      typeof req.body?.inviteToken === 'string'
+        ? req.body.inviteToken.trim()
+        : undefined;
+    const password =
+      typeof req.body?.password === 'string' ? req.body.password : undefined;
+    const includeKnown = Boolean(req.body?.includeKnown);
+
+    try {
+      const collected = await collectSpaces({
+        prisma,
+        userId: req.user?.userId,
+        includeKnown,
+      });
 
       if (inviteToken) {
         const space = await prisma.space.findUnique({

@@ -456,6 +456,50 @@ describe('Sim page', () => {
     });
   });
 
+  it('sends private space password in POST body instead of URL query', async () => {
+    mockUseSession.mockReturnValue({
+      status: 'authenticated',
+      data: {
+        user: { id: 'user-1', role: 'player', name: 'Captain' },
+      },
+    });
+    mockFetch((url: string) => {
+      const target = String(url);
+      if (target.includes('/api/spaces/access')) {
+        return { ok: true, json: async () => ({ spaces: [] }) };
+      }
+      if (target.includes('/api/spaces/known')) {
+        return { ok: true, json: async () => ({}) };
+      }
+      if (target.includes('/api/spaces')) {
+        return { ok: true, json: async () => ({ spaces: [] }) };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    await renderSimPage();
+
+    await act(async () => {
+      await latestSpaceModalProps.onFetchSpaces({
+        inviteToken: 'invite-123',
+        password: 'secret-password',
+      });
+    });
+
+    const calls = (global.fetch as jest.Mock).mock.calls as Array<
+      [string, RequestInit | undefined]
+    >;
+    const accessCall = calls.find(([url]) => url.includes('/api/spaces/access'));
+    expect(accessCall).toBeDefined();
+    expect(accessCall?.[0]).not.toContain('password=');
+    expect(accessCall?.[1]?.method).toBe('POST');
+    expect(JSON.parse(String(accessCall?.[1]?.body))).toMatchObject({
+      inviteToken: 'invite-123',
+      password: 'secret-password',
+      includeKnown: true,
+    });
+  });
+
   it('updates controls from keyboard input', async () => {
     mockUseSession.mockReturnValue({
       status: 'authenticated',
