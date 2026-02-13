@@ -171,6 +171,18 @@ export default [
 
       // Allow usage of common globals
       'no-undef': 'error',
+
+      // Keep control flow and signatures readable by default.
+      'max-depth': ['warn', 3],
+      'max-params': ['warn', 3],
+    },
+  },
+
+  // Interop boundaries may require wider signatures (ABI/event contracts).
+  {
+    files: ['src/lib/wasmBridge.ts', 'src/lib/customWasmLoader.ts'],
+    rules: {
+      'max-params': 'off',
     },
   },
 
@@ -199,6 +211,8 @@ export default [
       'no-undef': 'off', // Disable no-undef for test globals
       '@typescript-eslint/no-require-imports': 'off', // Allow require in tests
       '@typescript-eslint/no-explicit-any': 'off', // Allow any in tests
+      'max-depth': 'off',
+      'max-params': 'off',
     },
     languageOptions: {
       globals: {

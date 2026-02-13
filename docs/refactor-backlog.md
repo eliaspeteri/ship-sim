@@ -908,7 +908,7 @@ Acceptance:
 
 ### J3. Replace high-risk runtime casts with typed adapters (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/pages/sim.tsx`, `src/lib/wasmLoader.ts`, `src/server/middleware/authentication.ts`, `src/components/HudDrawer.tsx`
 
@@ -926,7 +926,7 @@ Acceptance:
 
 ### J4. Add lint guardrails for nesting and parameter count (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: ESLint config and contributor docs
 
@@ -1092,7 +1092,7 @@ Acceptance:
 
 ### K9. Make credential lockout state user-visible with countdown (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: credential auth API/error surface, login UI (`src/pages/login.tsx` and related auth components)
 
@@ -1344,7 +1344,7 @@ Acceptance:
 - [x] `C1` consolidate vessel derivation selectors across HUD/Scene/Sim. `P0` `M`
 - [ ] `A5` RadarDisplay split. `P1` `L`
 - [ ] `C4` reduce high-frequency UI state churn. `P1` `M`
-- [ ] `J3` replace high-risk runtime casts with typed adapters. `P1` `M`
+- [x] `J3` replace high-risk runtime casts with typed adapters. `P1` `M`
 - [x] `K5` harden production origin controls. `P1` `S`
 - [x] `K6` remove password-in-query space flow. `P1` `S`
 - [x] `K7` make socket cookie parsing resilient. `P1` `S`
@@ -1362,7 +1362,7 @@ Acceptance:
 - [ ] `G3` migrate layout/dashboard/chat/environment control modules. `P1` `L`
 - [ ] `G4` migrate remaining page-level CSS modules. `P1` `L`
 - [ ] `G5` enforce styling guardrails (no new module CSS drift). `P2` `S`
-- [ ] `J4` enforce nesting/parameter lint guardrails. `P1` `M`
+- [x] `J4` enforce nesting/parameter lint guardrails. `P1` `M`
 - [ ] `K8` add security baseline controls/documentation. `P2` `M`
 - [ ] `A6`/`A7` and `B5` cleanup. `P2` `M`
 - [x] `L1` replace sync auth crypto in request paths. `P0` `S`
@@ -1370,7 +1370,7 @@ Acceptance:
 - [x] `L3` harden tile proxy upstream failure handling. `P1` `S`
 - [ ] `L4` replace polling-heavy UI loops with observer/event-driven patterns. `P1` `M`
 - [x] `L5` unify API/runtime state authority contracts. `P0` `M`
-- [ ] `K9` make credential lockout state user-visible with countdown. `P1` `M`
+- [x] `K9` make credential lockout state user-visible with countdown. `P1` `M`
 - [x] `M1` stabilize frontend test harness and docs parity. `P0` `S`
 - [x] `M2` enforce full typecheck workflow (`ts` + `tsx` coverage + script). `P0` `S`
 - [x] `M3` add baseline CI quality gates. `P0` `S`

@@ -17,6 +17,12 @@ const TOKEN_ROTATION_AUDIT_MS = 6 * 60 * 60 * 1000; // 6 hours
 const getAttemptKey = (username?: string) =>
   (username || 'unknown').trim().toLowerCase() || 'unknown';
 
+const getLockoutRetrySeconds = (key: string, now = Date.now()): number => {
+  const entry = loginAttempts.get(key);
+  if (!entry || entry.lockedUntil <= now) return 0;
+  return Math.max(1, Math.ceil((entry.lockedUntil - now) / 1000));
+};
+
 const isLockedOut = (key: string) => {
   const entry = loginAttempts.get(key);
   if (!entry) return false;
@@ -51,7 +57,8 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials, _req) {
         const key = getAttemptKey(credentials?.username);
         if (isLockedOut(key)) {
-          throw new Error('Too many failed attempts. Try again later.');
+          const retryAfterSeconds = getLockoutRetrySeconds(key);
+          throw new Error(`LOCKED_OUT:${retryAfterSeconds}`);
         }
         if (!credentials?.username || !credentials?.password) {
           recordFailure(key);
@@ -175,6 +182,11 @@ export const authOptions: NextAuthOptions = {
 };
 
 export default NextAuth(authOptions);
+
+export const __test__ = {
+  getAttemptKey,
+  getLockoutRetrySeconds,
+};
 
 interface ShipSimUser {
   id: string;

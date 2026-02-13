@@ -32,7 +32,7 @@ export async function loadWasm(): Promise<WasmBridge> {
     const exports = await loadWasmModule();
 
     // Add compatibility layer for functions that expect the full WasmModule interface
-    const enhancedExports = {
+    const enhancedExports: WasmModule = {
       ...exports,
 
       // Add stub implementations for any missing AssemblyScript runtime functions
@@ -53,7 +53,7 @@ export async function loadWasm(): Promise<WasmBridge> {
         );
         return new Uint8Array(0);
       },
-    } as unknown as WasmModule;
+    };
 
     // Cache the module for future use
     wasmModule = enhancedExports;

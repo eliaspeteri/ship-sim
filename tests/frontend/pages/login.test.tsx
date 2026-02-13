@@ -1,5 +1,11 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 
 import LoginPage from '../../../src/pages/login';
 
@@ -60,6 +66,45 @@ describe('pages/login', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
     expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
+  });
+
+  it('shows lockout countdown and disables submit until expiry', async () => {
+    jest.useFakeTimers();
+    signInMock.mockResolvedValueOnce({ error: 'LOCKED_OUT:2' });
+    signInMock.mockResolvedValueOnce({ url: '/sim' });
+    render(<LoginPage />);
+
+    fireEvent.change(screen.getByLabelText('Username'), {
+      target: { value: 'captain' },
+    });
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'secret' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Login' }));
+
+    expect(
+      await screen.findByText('Too many failed attempts. Try again in 2s.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Locked (2s)' })).toBeDisabled();
+
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+    });
+    expect(screen.getByRole('button', { name: 'Locked (1s)' })).toBeDisabled();
+
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Login' })).not.toBeDisabled(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Login' }));
+    await waitFor(() => {
+      expect(signInMock).toHaveBeenCalledTimes(2);
+      expect(replaceMock).toHaveBeenCalledWith('/sim');
+    });
+    jest.useRealTimers();
   });
 
   it('redirects when session already exists', async () => {

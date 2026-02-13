@@ -19,6 +19,29 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [lockoutRemainingSeconds, setLockoutRemainingSeconds] = useState(0);
+
+  const formatLockout = React.useCallback((seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins <= 0) return `${secs}s`;
+    return `${mins}m ${secs}s`;
+  }, []);
+
+  const parseSignInError = React.useCallback(
+    (raw: string) => {
+      if (raw.startsWith('LOCKED_OUT:')) {
+        const parsed = Number(raw.slice('LOCKED_OUT:'.length));
+        const seconds = Number.isFinite(parsed)
+          ? Math.max(1, Math.floor(parsed))
+          : 1;
+        setLockoutRemainingSeconds(seconds);
+        return `Too many failed attempts. Try again in ${formatLockout(seconds)}.`;
+      }
+      return raw;
+    },
+    [formatLockout],
+  );
 
   // Redirect authenticated users to sim
   React.useEffect(() => {
@@ -27,12 +50,30 @@ const LoginPage: React.FC = () => {
     }
   }, [session, router]);
 
+  React.useEffect(() => {
+    if (lockoutRemainingSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setLockoutRemainingSeconds(previous => Math.max(0, previous - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutRemainingSeconds]);
+
+  React.useEffect(() => {
+    if (lockoutRemainingSeconds <= 0) return;
+    setError(
+      `Too many failed attempts. Try again in ${formatLockout(lockoutRemainingSeconds)}.`,
+    );
+  }, [formatLockout, lockoutRemainingSeconds]);
+
   /**
    * Handles form submission for login.
    * Uses NextAuth.js signIn with credentials provider.
    */
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (lockoutRemainingSeconds > 0) {
+      return;
+    }
     setLoading(true);
     setError(null);
     const res = await signIn('credentials', {
@@ -42,7 +83,7 @@ const LoginPage: React.FC = () => {
       callbackUrl: '/sim',
     });
     if (res?.error) {
-      setError(res.error);
+      setError(parseSignInError(res.error));
       setLoading(false);
       return;
     }
@@ -85,9 +126,13 @@ const LoginPage: React.FC = () => {
             <button
               type="submit"
               className="inline-flex items-center justify-center rounded-[12px] bg-[linear-gradient(135deg,#1b9aaa,#0f6d75)] px-3.5 py-2.5 text-[14px] font-semibold text-white cursor-pointer"
-              disabled={loading}
+              disabled={loading || lockoutRemainingSeconds > 0}
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {loading
+                ? 'Logging in...'
+                : lockoutRemainingSeconds > 0
+                  ? `Locked (${formatLockout(lockoutRemainingSeconds)})`
+                  : 'Login'}
             </button>
           </form>
           <div className="mt-[18px] text-center text-[12px] text-[rgba(170,192,202,0.7)]">

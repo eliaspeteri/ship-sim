@@ -633,7 +633,26 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
   ]);
 
   const alarmItems = useMemo(() => {
-    const base = [
+    type CoreAlarmKey =
+      | 'engineOverheat'
+      | 'lowOilPressure'
+      | 'lowFuel'
+      | 'fireDetected'
+      | 'collisionAlert'
+      | 'stabilityWarning'
+      | 'generatorFault'
+      | 'blackout';
+    type AlarmItem = {
+      key: string;
+      label: string;
+      severity: 'warning' | 'critical';
+      active: boolean;
+    };
+    const base: Array<{
+      key: CoreAlarmKey;
+      label: string;
+      severity: 'warning' | 'critical';
+    }> = [
       { key: 'engineOverheat', label: 'Engine Overheat', severity: 'critical' },
       {
         key: 'lowOilPressure',
@@ -652,15 +671,11 @@ export function HudDrawer({ onOpenSpaces }: HudDrawerProps) {
       { key: 'blackout', label: 'Blackout', severity: 'critical' },
     ];
 
-    const items = base.map(item => ({
+    const items: AlarmItem[] = base.map(item => ({
       key: item.key,
       label: item.label,
-      severity: item.severity as 'warning' | 'critical',
-      active: Boolean(
-        (vessel.alarms as unknown as Record<string, boolean | undefined>)?.[
-          item.key
-        ],
-      ),
+      severity: item.severity,
+      active: Boolean(vessel.alarms?.[item.key as CoreAlarmKey]),
     }));
 
     const otherAlarms = vessel.alarms?.otherAlarms || {};

@@ -138,9 +138,14 @@ describe('pages/api/auth/[...nextauth]', () => {
         authorize({ username: 'bob', password: 'bad' }, {}),
       ).resolves.toBeNull();
     }
+    mockCompare.mockResolvedValue(true);
+    await expect(
+      authorize({ username: 'bob', password: 'good' }, {}),
+    ).rejects.toThrow(/^LOCKED_OUT:\d+$/);
+    mockCompare.mockResolvedValue(false);
     await expect(
       authorize({ username: 'bob', password: 'bad' }, {}),
-    ).rejects.toThrow('Too many failed attempts. Try again later.');
+    ).rejects.toThrow(/^LOCKED_OUT:\d+$/);
 
     nowSpy.mockReturnValue(1_000 + 10 * 60 * 1000 + 1);
     mockCompare.mockResolvedValue(true);

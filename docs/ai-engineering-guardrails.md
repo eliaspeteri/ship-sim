@@ -27,6 +27,12 @@ Use this as a default policy for new code, refactors, and tests.
 9. Do not add user-scoped routes without subject binding (self vs admin policy).
 10. No secret-bearing query params.
 
+## Lint Guardrails
+
+1. ESLint enforces `max-depth` target `3` and `max-params` target `3` for app code.
+2. If a function needs more than three inputs, prefer a typed parameter object.
+3. Allowed exceptions are explicit interop boundaries (for example WASM ABI bridge functions), not general app logic.
+
 ## Concurrency And State Integrity
 
 1. Treat every mutable state transition as race-prone by default.

@@ -69,10 +69,14 @@ const decodeNextAuthToken = async (
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) return null;
 
+  type NextAuthRequest = Parameters<typeof getToken>[0]['req'];
+  const toNextAuthRequest = (request: Request): NextAuthRequest =>
+    request as NextAuthRequest;
+
   // First try the official NextAuth decoder (handles encrypted/JWE cookies)
   try {
     const token = await getToken({
-      req: req as unknown as Parameters<typeof getToken>[0]['req'],
+      req: toNextAuthRequest(req),
       secret,
       secureCookie: false,
     });
