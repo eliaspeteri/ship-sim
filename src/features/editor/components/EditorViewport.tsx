@@ -271,11 +271,29 @@ const EditorViewport: React.FC<EditorViewportProps> = ({
         });
     };
 
+    let throttled = false;
+    const requestRun = () => {
+      if (throttled) return;
+      throttled = true;
+      window.setTimeout(() => {
+        throttled = false;
+        run();
+      }, 250);
+    };
+
     run();
-    const interval = window.setInterval(run, 400);
+    window.addEventListener('pointerup', requestRun);
+    window.addEventListener('wheel', requestRun, { passive: true });
+    window.addEventListener('keydown', requestRun);
+    window.addEventListener('keyup', requestRun);
+    window.addEventListener('visibilitychange', requestRun);
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
+      window.removeEventListener('pointerup', requestRun);
+      window.removeEventListener('wheel', requestRun);
+      window.removeEventListener('keydown', requestRun);
+      window.removeEventListener('keyup', requestRun);
+      window.removeEventListener('visibilitychange', requestRun);
     };
   }, [isInsideWorkAreas, layerIds, packId, workAreas]);
 

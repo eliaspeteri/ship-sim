@@ -460,7 +460,7 @@ Acceptance:
 
 ### C4. Reduce high-frequency UI state churn (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/components/radar/RadarDisplay.tsx`, `src/components/Scene.tsx`, `src/components/LandTiles.tsx`
 
@@ -1172,7 +1172,7 @@ Acceptance:
 
 ### L4. Replace fixed polling loops with observer/event-driven triggers where feasible (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/components/Scene.tsx`, `src/features/editor/components/EditorViewport.tsx`, `src/pages/admin.tsx`
 
@@ -1343,7 +1343,7 @@ Acceptance:
 - [x] `B3` simulation loop test seam cleanup. `P1` `S`
 - [x] `C1` consolidate vessel derivation selectors across HUD/Scene/Sim. `P0` `M`
 - [ ] `A5` RadarDisplay split. `P1` `L`
-- [ ] `C4` reduce high-frequency UI state churn. `P1` `M`
+- [x] `C4` reduce high-frequency UI state churn. `P1` `M`
 - [x] `J3` replace high-risk runtime casts with typed adapters. `P1` `M`
 - [x] `K5` harden production origin controls. `P1` `S`
 - [x] `K6` remove password-in-query space flow. `P1` `S`
@@ -1368,7 +1368,7 @@ Acceptance:
 - [x] `L1` replace sync auth crypto in request paths. `P0` `S`
 - [x] `L2` remove sync editor disk writes on request-triggered paths. `P0` `M`
 - [x] `L3` harden tile proxy upstream failure handling. `P1` `S`
-- [ ] `L4` replace polling-heavy UI loops with observer/event-driven patterns. `P1` `M`
+- [x] `L4` replace polling-heavy UI loops with observer/event-driven patterns. `P1` `M`
 - [x] `L5` unify API/runtime state authority contracts. `P0` `M`
 - [x] `K9` make credential lockout state user-visible with countdown. `P1` `M`
 - [x] `M1` stabilize frontend test harness and docs parity. `P0` `S`

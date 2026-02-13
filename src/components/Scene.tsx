@@ -214,11 +214,16 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
     };
 
     updateOffset();
-    const intervalId = window.setInterval(updateOffset, 500);
     window.addEventListener('resize', updateOffset);
+    const observerCtor = globalThis.ResizeObserver;
+    const observer =
+      typeof observerCtor === 'function'
+        ? new observerCtor(() => updateOffset())
+        : null;
+    observer?.observe(hudFooter);
 
     return () => {
-      window.clearInterval(intervalId);
+      observer?.disconnect();
       window.removeEventListener('resize', updateOffset);
     };
   }, [isSpectator]);

@@ -77,6 +77,7 @@ class SocketManager {
   private autoJoin = true;
   private chatHistoryLoading = new Set<string>();
   private connectResolvers: Array<() => void> = [];
+  private connectionStatusListeners = new Set<(connected: boolean) => void>();
   private simulationState: SimulationHandlerState = {
     userId: '',
     hasHydratedSelf: false,
@@ -193,7 +194,14 @@ class SocketManager {
         this.chatHistoryLoading.delete(channel);
       },
       getStoreState: this.getStoreState.bind(this),
+      setConnectionStatus: connected => {
+        this.notifyConnectionStatus(connected);
+      },
     });
+  }
+
+  private notifyConnectionStatus(connected: boolean): void {
+    this.connectionStatusListeners.forEach(listener => listener(connected));
   }
 
   private startLatencySampling(): void {
@@ -529,6 +537,14 @@ class SocketManager {
 
   isConnected(): boolean {
     return this.socket?.connected || false;
+  }
+
+  subscribeConnectionStatus(listener: (connected: boolean) => void): () => void {
+    this.connectionStatusListeners.add(listener);
+    listener(this.isConnected());
+    return () => {
+      this.connectionStatusListeners.delete(listener);
+    };
   }
 
   waitForConnection(): Promise<void> {

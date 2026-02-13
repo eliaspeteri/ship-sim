@@ -339,16 +339,17 @@ const AdminPage: React.FC = () => {
       socketManager.connect(apiBase);
     }
     let active = true;
+    const unsubscribeConnection = socketManager.subscribeConnectionStatus(
+      connected => {
+        if (active) setSocketConnected(connected);
+      },
+    );
     socketManager.waitForConnection().then(() => {
       if (active) setSocketConnected(true);
     });
-    const timer = setInterval(
-      () => setSocketConnected(socketManager.isConnected()),
-      4000,
-    );
     return () => {
       active = false;
-      clearInterval(timer);
+      unsubscribeConnection();
     };
   }, [apiBase, isAdmin, session]);
 
@@ -357,10 +358,25 @@ const AdminPage: React.FC = () => {
     void fetchMetrics();
     void fetchLogs(true);
     void fetchModeration();
-    const interval = setInterval(() => {
-      void fetchMetrics();
-    }, 8000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    const run = () => {
+      if (cancelled) return;
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        void fetchMetrics();
+      }
+    };
+    const interval = setInterval(run, 8000);
+    const onVisibilityChange = () => run();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibilityChange);
+    }
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+      }
+    };
   }, [fetchLogs, fetchMetrics, fetchModeration, isAdmin]);
 
   if (status === 'loading') {

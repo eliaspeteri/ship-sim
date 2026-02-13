@@ -40,6 +40,7 @@ type RegisterHandlersParams = {
   setJoinPreference: (mode: 'player' | 'spectator', autoJoin?: boolean) => void;
   switchSpace: (spaceId: string) => void;
   clearChatHistoryLoading: (channel: string) => void;
+  setConnectionStatus: (connected: boolean) => void;
 };
 
 export const registerSocketHandlers = ({
@@ -61,6 +62,7 @@ export const registerSocketHandlers = ({
   setJoinPreference,
   switchSpace,
   clearChatHistoryLoading,
+  setConnectionStatus,
 }: RegisterHandlersParams): void => {
   socket.on('connect', () => {
     console.info('Socket.IO connection established');
@@ -70,6 +72,7 @@ export const registerSocketHandlers = ({
     if (getInitialMode() === 'player' && shouldAutoJoin()) {
       notifyModeChange('player');
     }
+    setConnectionStatus(true);
     resolveConnectionWaiters();
   });
 
@@ -77,6 +80,7 @@ export const registerSocketHandlers = ({
     console.info(`Socket.IO disconnected: ${reason}`);
     stopLatencySampling();
     stopResyncWatcher();
+    setConnectionStatus(false);
     if (reason === 'io server disconnect') {
       attemptReconnect();
     }
@@ -84,6 +88,7 @@ export const registerSocketHandlers = ({
 
   socket.on('connect_error', (error: Error) => {
     console.error('Socket.IO connection error:', error);
+    setConnectionStatus(false);
     attemptReconnect();
   });
 

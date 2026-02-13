@@ -26,6 +26,10 @@ jest.mock('../../../src/networking/socket', () => ({
   __esModule: true,
   socketManager: {
     isConnected: jest.fn(() => true),
+    subscribeConnectionStatus: jest.fn((listener: (connected: boolean) => void) => {
+      listener(true);
+      return () => undefined;
+    }),
     connect: jest.fn(),
     waitForConnection: jest.fn(() => Promise.resolve()),
     setAuthToken: jest.fn(),
@@ -41,6 +45,7 @@ jest.mock('../../../src/lib/api', () => ({
 describe('pages/admin', () => {
   const mockSocket = socketManager as unknown as {
     isConnected: jest.Mock;
+    subscribeConnectionStatus: jest.Mock;
     connect: jest.Mock;
     waitForConnection: jest.Mock;
     setAuthToken: jest.Mock;
@@ -57,6 +62,12 @@ describe('pages/admin', () => {
       if (typeof value === 'function') value.mockReset?.();
     });
     mockSocket.isConnected.mockReturnValue(true);
+    mockSocket.subscribeConnectionStatus.mockImplementation(
+      (listener: (connected: boolean) => void) => {
+        listener(true);
+        return () => undefined;
+      },
+    );
     mockSocket.waitForConnection.mockResolvedValue(undefined);
     (globalThis as any).fetch = jest.fn((url: string, init?: RequestInit) => {
       const method = init?.method || 'GET';
