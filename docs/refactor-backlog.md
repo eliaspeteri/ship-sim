@@ -1266,7 +1266,7 @@ Acceptance:
 
 ### M4. Strengthen git hook guardrails for push-time feedback (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `.husky/pre-commit`, `.husky/pre-push`, `package.json`
 
@@ -1374,7 +1374,7 @@ Acceptance:
 - [x] `M1` stabilize frontend test harness and docs parity. `P0` `S`
 - [x] `M2` enforce full typecheck workflow (`ts` + `tsx` coverage + script). `P0` `S`
 - [x] `M3` add baseline CI quality gates. `P0` `S`
-- [ ] `M4` strengthen push-time git hooks. `P1` `S`
+- [x] `M4` strengthen push-time git hooks. `P1` `S`
 - [ ] `M5` improve local test iteration speed. `P1` `S`
 - [ ] `M6` remove Docker/scripts/docs command drift. `P1` `S`
 

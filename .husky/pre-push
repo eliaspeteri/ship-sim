@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+
+set -e
+
+echo "Running pre-push checks..."
+echo "1/2: npm run typecheck"
+if ! npm run typecheck; then
+  echo "Pre-push blocked: typecheck failed. Run 'npm run typecheck' to fix."
+  exit 1
+fi
+
+echo "2/2: npm run test:frontend:smoke"
+if ! npm run test:frontend:smoke; then
+  echo "Pre-push blocked: smoke tests failed. Run 'npm run test:frontend:smoke' to fix."
+  exit 1
+fi
+
+echo "Pre-push checks passed."

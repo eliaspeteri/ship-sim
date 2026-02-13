@@ -16,6 +16,7 @@
     "test:frontend": "jest",
     "test:frontend:coverage": "jest --coverage --coverageProvider=babel",
     "test:frontend:smoke": "jest --coverage=false --runInBand tests/frontend/server/authentication.test.ts tests/frontend/server/api.test.ts",
+    "verify:push": "npm run typecheck && npm run test:frontend:smoke",
     "test:e2e": "SMOKE_E2E=true node --test tests/e2e",
     "test:assemblyscript": "as-test",
     "lint": "eslint . --cache --cache-location .cache/eslint --cache-strategy content",
