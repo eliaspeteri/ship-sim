@@ -946,10 +946,12 @@ describe('server/index', () => {
   it('invokes broadcast interval callback', async () => {
     const mod = await loadModule();
     const { updateSpaceMetrics } = await import('../../../src/server/metrics');
+    mod.__test__.startRuntimeLoops();
     expect(intervalCallbacks.length).toBeGreaterThan(1);
     const broadcastCb = intervalCallbacks[intervalCallbacks.length - 1];
     await broadcastCb();
     expect(updateSpaceMetrics).toHaveBeenCalled();
+    mod.__test__.stopRuntimeLoops();
     void mod;
   });
 

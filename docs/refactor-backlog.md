@@ -563,7 +563,7 @@ Acceptance:
 
 ### E3. Decompose `src/server/index.ts` runtime orchestration (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/server/index.ts`, new modules under `src/server/runtime/*` and `src/server/bootstrap/*`
 
