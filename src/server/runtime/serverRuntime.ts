@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import http from 'http';
+import { URL } from 'url';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -119,6 +120,46 @@ const AI_GRACE_MS = parseInt(process.env.AI_GRACE_MS || '30000', 10) || 30000; /
 const CHAT_HISTORY_PAGE_SIZE = 20;
 const GLOBAL_SPACE_ID = 'global';
 const DEFAULT_SPACE_ID = process.env.DEFAULT_SPACE_ID || GLOBAL_SPACE_ID;
+
+const parseAllowedOrigins = ({
+  production,
+  rawOrigins = process.env.FRONTEND_ORIGINS || process.env.FRONTEND_URL || '',
+}: {
+  production: boolean;
+  rawOrigins?: string;
+}): string[] => {
+  const raw = rawOrigins;
+  const configuredOrigins = raw
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
+  if (!configuredOrigins.length) {
+    if (production) {
+      throw new Error(
+        'Missing FRONTEND_ORIGINS/FRONTEND_URL in production. Refusing permissive CORS fallback.',
+      );
+    }
+    return ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  }
+
+  const validOrigins = configuredOrigins.filter(origin => {
+    try {
+      const parsed = new URL(origin);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  });
+
+  if (production && validOrigins.length === 0) {
+    throw new Error(
+      'Invalid FRONTEND_ORIGINS/FRONTEND_URL in production. Expected absolute http(s) origins.',
+    );
+  }
+
+  return validOrigins;
+};
 const COLLISION_DISTANCE_M = 50;
 const NEAR_MISS_DISTANCE_M = 200;
 const COLLISION_COOLDOWN_MS = 30_000;
@@ -1524,11 +1565,12 @@ const findVesselInSpace = (
 // Create Express app
 const app = express();
 const PORT = process.env.PORT || 3001;
+const allowedOrigins = parseAllowedOrigins({ production: PRODUCTION });
 
 // Middleware
 app.use(
   cors({
-    origin: PRODUCTION ? process.env.FRONTEND_URL || true : true, // Allow specific origin in prod
+    origin: allowedOrigins,
     credentials: true, // Crucial for cookies
   }),
 );
@@ -1563,14 +1605,31 @@ if (PERF_LOGGING_ENABLED) {
 
 function parseCookies(cookieHeader?: string): Record<string, string> {
   if (!cookieHeader) return {};
-  return cookieHeader.split(';').reduce(
-    (acc, part) => {
-      const [key, ...rest] = part.trim().split('=');
-      acc[key] = decodeURIComponent(rest.join('='));
+  return cookieHeader.split(';').reduce((acc, part) => {
+    const token = part.trim();
+    if (!token) {
       return acc;
-    },
-    {} as Record<string, string>,
-  );
+    }
+
+    const splitAt = token.indexOf('=');
+    if (splitAt <= 0) {
+      return acc;
+    }
+
+    const key = token.slice(0, splitAt).trim();
+    if (!key) {
+      return acc;
+    }
+
+    const rawValue = token.slice(splitAt + 1);
+    try {
+      acc[key] = decodeURIComponent(rawValue);
+    } catch {
+      // Malformed cookie fragments should not abort auth handshake processing.
+      acc[key] = rawValue;
+    }
+    return acc;
+  }, {} as Record<string, string>);
 }
 
 // --- Authentication Routes --- (legacy custom auth removed; use NextAuth)
@@ -1604,7 +1663,7 @@ const io = new Server<
   SocketData // SocketData might need adjustment if not storing auth info
 >(server, {
   cors: {
-    origin: PRODUCTION ? process.env.FRONTEND_URL || true : true,
+    origin: allowedOrigins,
     credentials: true, // Allow cookies for socket connection if needed (less common now)
   },
   // Consider cookie parsing for sockets if needed, requires extra setup
@@ -2694,6 +2753,7 @@ const broadcastTick = async () => {
 // Export the app and io for potential testing or extension
 export const __test__ = {
   parseCookies,
+  parseAllowedOrigins,
   getSpaceMeta,
   refreshSpaceMeta,
   getSpaceRole,

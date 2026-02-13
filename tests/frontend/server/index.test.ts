@@ -73,6 +73,22 @@ describe('server/index', () => {
     expect(
       mod.__test__.parseCookies('a=1; b=hello%20world; token=xyz'),
     ).toEqual({ a: '1', b: 'hello world', token: 'xyz' });
+    expect(
+      mod.__test__.parseCookies(
+        'good=1; bad=%E0%A4%A; noeq; =missing-key; enc=%7Bok%7D',
+      ),
+    ).toEqual({
+      good: '1',
+      bad: '%E0%A4%A',
+      enc: '{ok}',
+    });
+  });
+
+  it('fails fast in production when CORS origins are not configured', async () => {
+    const mod = await loadModule();
+    expect(() =>
+      mod.__test__.parseAllowedOrigins({ production: true, rawOrigins: '' }),
+    ).toThrow('Missing FRONTEND_ORIGINS/FRONTEND_URL in production');
   });
 
   it('applies environment overrides and updates tide state', async () => {
