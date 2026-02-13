@@ -527,7 +527,7 @@ Completed: [ ]
 
 ### E1. Split `src/server/api.ts` into domain routers + shared error wrapper (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/server/api.ts`, new modules under `src/server/routes/*`
 
@@ -545,7 +545,7 @@ Acceptance:
 
 ### E2. Remove mixed in-memory vs DB vessel/environment authority in API (`P0`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/server/api.ts`, supporting services under `src/server/*`
 
