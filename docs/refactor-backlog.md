@@ -136,6 +136,8 @@ The goal is incremental, low-risk refactors in PR-sized steps, with each item ma
 - `P0`: Highest risk reduction, unblock future work, immediate maintainability benefit.
 - `P1`: Important follow-up; improves velocity after P0.
 - `P2`: Nice-to-have cleanup and hardening.
+- Secondary sort key: `Complexity` (`S` < `M` < `L`).
+- Ordering rule: always prioritize by `P0` > `P1` > `P2`; within the same priority, do the lowest complexity first.
 
 ## Global Quality Gate (Applies to Every Backlog Item)
 
@@ -826,7 +828,7 @@ Acceptance:
 
 ### H4. Remove placeholder/dead paths and fix interval lifecycle (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/networking/socket.ts`, `src/store/index.ts`
 
@@ -1018,7 +1020,7 @@ Acceptance:
 
 ### K5. Harden production origin controls (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/server/index.ts`
 
@@ -1036,7 +1038,7 @@ Acceptance:
 
 ### K6. Remove secret-bearing query parameters from space access flow (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/server/api.ts`, frontend callers for space join/list flows
 
@@ -1054,7 +1056,7 @@ Acceptance:
 
 ### K7. Make cookie parsing resilient in socket handshake (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/server/index.ts`
 
@@ -1318,63 +1320,63 @@ Acceptance:
 
 ## Suggested Execution Order (Small PR Sequence)
 
-1. `A1` HudDrawer decomposition (phase 1: hooks extraction only).
-2. `A2` HudPanels split.
-3. `J1` enforce full-app typecheck in CI (`ts` + `tsx`).
-4. `K1` close IDOR on settings endpoints.
-5. `K2` tighten vessel state mutation authorization.
-6. `K3` require auth/authorization for editor write APIs.
-7. `K4` add request-size/rate guardrails for compile/register flows.
-8. `H1` split socket manager by responsibility.
-9. `H2` remove hidden global dependencies in socket manager.
-10. `H3` split store into domain slices.
-11. `I1` replace repeated `createVessel` positional call chains.
-12. `J2` remove unsafe auth non-null assertions in server routes.
-13. `H4` remove placeholder paths and fix interval lifecycle.
-14. `B6` split and type `socketManager` tests.
-15. `B1` `api.test.ts` route-internals removal.
-16. `C2` remove render-path `getState` in HUD chat props.
-17. `C3` unify control update pipeline (HUD + keyboard).
-18. `A3` SimPage split (space/session/keyboard hooks).
-19. `B2` server/index test fixture modularization.
-20. `A4` Scene split.
-21. `B3` simulation loop test seam cleanup.
-22. `C1` consolidate vessel derivation selectors across HUD/Scene/Sim.
-23. `A5` RadarDisplay split.
-24. `C4` reduce high-frequency UI state churn.
-25. `J3` replace high-risk runtime casts with typed adapters.
-26. `K5` harden production origin controls.
-27. `K6` remove password-in-query space flow.
-28. `K7` make socket cookie parsing resilient.
-29. `D1` inline-style component extraction.
-30. `D2` typed-test hardening.
-31. `E1` split server API router by domain.
-32. `E2` unify API state/auth boundaries (DB vs in-memory cleanup).
-33. `E3` decompose server runtime (`index.ts`).
-34. `E4` harden server mega-tests at boundary level.
-35. `F1` split assembly physics core modules.
-36. `F2` make assembly state reset semantics explicit.
-37. `F3` refactor assembly core tests with builders.
-38. `G1` define CSS->Tailwind guardrails/tokens.
-39. `G2` migrate HUD + sim modal CSS modules.
-40. `G3` migrate layout/dashboard/chat/environment control modules.
-41. `G4` migrate remaining page-level CSS modules.
-42. `G5` enforce styling guardrails (no new module CSS drift).
-43. `J4` enforce nesting/parameter lint guardrails.
-44. `K8` add security baseline controls/documentation.
-45. `A6`/`A7` and `B5` cleanup.
-46. `L1` replace sync auth crypto in request paths.
-47. `L2` remove sync editor disk writes on request-triggered paths.
-48. `L3` harden tile proxy upstream failure handling.
-49. `L4` replace polling-heavy UI loops with observer/event-driven patterns.
-50. `L5` unify API/runtime state authority contracts.
-51. `K9` make credential lockout state user-visible with countdown.
-52. `M1` stabilize frontend test harness and docs parity.
-53. `M2` enforce full typecheck workflow (`ts` + `tsx` coverage + script).
-54. `M3` add baseline CI quality gates.
-55. `M4` strengthen push-time git hooks.
-56. `M5` improve local test iteration speed.
-57. `M6` remove Docker/scripts/docs command drift.
+- [x] `A1` HudDrawer decomposition (phase 1: hooks extraction only). `P0` `M`
+- [x] `A2` HudPanels split. `P0` `S`
+- [x] `J1` enforce full-app typecheck in CI (`ts` + `tsx`). `P0` `S`
+- [x] `K1` close IDOR on settings endpoints. `P0` `S`
+- [x] `K2` tighten vessel state mutation authorization. `P0` `M`
+- [x] `K3` require auth/authorization for editor write APIs. `P0` `S`
+- [x] `K4` add request-size/rate guardrails for compile/register flows. `P0` `M`
+- [x] `H1` split socket manager by responsibility. `P0` `L`
+- [x] `H2` remove hidden global dependencies in socket manager. `P0` `M`
+- [x] `H3` split store into domain slices. `P0` `L`
+- [x] `I1` replace repeated `createVessel` positional call chains. `P0` `M`
+- [x] `J2` remove unsafe auth non-null assertions in server routes. `P0` `M`
+- [x] `H4` remove placeholder paths and fix interval lifecycle. `P1` `S`
+- [ ] `B6` split and type `socketManager` tests. `P1` `M`
+- [x] `B1` `api.test.ts` route-internals removal. `P0` `M`
+- [x] `C2` remove render-path `getState` in HUD chat props. `P0` `S`
+- [x] `C3` unify control update pipeline (HUD + keyboard). `P0` `M`
+- [x] `A3` SimPage split (space/session/keyboard hooks). `P0` `M`
+- [x] `B2` server/index test fixture modularization. `P0` `M`
+- [x] `A4` Scene split. `P1` `M`
+- [x] `B3` simulation loop test seam cleanup. `P1` `S`
+- [x] `C1` consolidate vessel derivation selectors across HUD/Scene/Sim. `P0` `M`
+- [ ] `A5` RadarDisplay split. `P1` `L`
+- [ ] `C4` reduce high-frequency UI state churn. `P1` `M`
+- [ ] `J3` replace high-risk runtime casts with typed adapters. `P1` `M`
+- [x] `K5` harden production origin controls. `P1` `S`
+- [x] `K6` remove password-in-query space flow. `P1` `S`
+- [x] `K7` make socket cookie parsing resilient. `P1` `S`
+- [ ] `D1` inline-style component extraction. `P1` `M`
+- [ ] `D2` typed-test hardening. `P1` `M`
+- [x] `E1` split server API router by domain. `P0` `L`
+- [x] `E2` unify API state/auth boundaries (DB vs in-memory cleanup). `P0` `L`
+- [x] `E3` decompose server runtime (`index.ts`). `P0` `L`
+- [ ] `E4` harden server mega-tests at boundary level. `P1` `M`
+- [ ] `F1` split assembly physics core modules. `P1` `L`
+- [ ] `F2` make assembly state reset semantics explicit. `P1` `M`
+- [ ] `F3` refactor assembly core tests with builders. `P1` `M`
+- [x] `G1` define CSS->Tailwind guardrails/tokens. `P0` `S`
+- [x] `G2` migrate HUD + sim modal CSS modules. `P0` `L`
+- [ ] `G3` migrate layout/dashboard/chat/environment control modules. `P1` `L`
+- [ ] `G4` migrate remaining page-level CSS modules. `P1` `L`
+- [ ] `G5` enforce styling guardrails (no new module CSS drift). `P2` `S`
+- [ ] `J4` enforce nesting/parameter lint guardrails. `P1` `M`
+- [ ] `K8` add security baseline controls/documentation. `P2` `M`
+- [ ] `A6`/`A7` and `B5` cleanup. `P2` `M`
+- [x] `L1` replace sync auth crypto in request paths. `P0` `S`
+- [x] `L2` remove sync editor disk writes on request-triggered paths. `P0` `M`
+- [ ] `L3` harden tile proxy upstream failure handling. `P1` `S`
+- [ ] `L4` replace polling-heavy UI loops with observer/event-driven patterns. `P1` `M`
+- [x] `L5` unify API/runtime state authority contracts. `P0` `M`
+- [ ] `K9` make credential lockout state user-visible with countdown. `P1` `M`
+- [x] `M1` stabilize frontend test harness and docs parity. `P0` `S`
+- [x] `M2` enforce full typecheck workflow (`ts` + `tsx` coverage + script). `P0` `S`
+- [x] `M3` add baseline CI quality gates. `P0` `S`
+- [ ] `M4` strengthen push-time git hooks. `P1` `S`
+- [ ] `M5` improve local test iteration speed. `P1` `S`
+- [ ] `M6` remove Docker/scripts/docs command drift. `P1` `S`
 
 ## Definition of Done
 
