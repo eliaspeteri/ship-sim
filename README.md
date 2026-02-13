@@ -94,6 +94,9 @@ npm run test:frontend:smoke # focused auth/api frontend suite
 npm run test:frontend:sim-core # focused HUD/sim frontend suite
 npm run test:assemblyscript # as-test
 npm run test:e2e            # smoke e2e (requires SMOKE_E2E=true)
+npm run test:e2e:playwright # Playwright browser smoke suite
+npm run test:e2e:playwright:headed # Playwright in headed Chromium
+npm run test:e2e:playwright:ui # Playwright UI mode
 
 npm run typecheck           # tsc --noEmit
 npm run check:bootstrap     # verify referenced bootstrap scripts exist
@@ -102,6 +105,11 @@ npm run lint                # eslint
 npm run lint:errors         # eslint --max-warnings 0
 npm run format              # prettier
 ```
+
+Playwright setup notes:
+
+- Install browser binaries once: `npx playwright install chromium`
+- Override port/base URL if needed: `PLAYWRIGHT_PORT=3100` / `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3100`
 
 Recommended test loop:
 
