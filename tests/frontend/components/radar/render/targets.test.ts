@@ -7,7 +7,10 @@ import {
 
 jest.mock('../../../../../src/components/radar/utils', () => ({
   calculateTargetVisibility: jest.fn(() => 1),
-  polarToCartesian: jest.fn((distance: number) => ({ x: distance, y: distance })),
+  polarToCartesian: jest.fn((distance: number) => ({
+    x: distance,
+    y: distance,
+  })),
 }));
 
 jest.mock('../../../../../src/components/radar/arpa', () => ({
@@ -65,7 +68,10 @@ describe('radar render target helpers', () => {
       isTargetInGuardZone(guardZone, { bearing: 350, distance: 4.2 }),
     ).toBe(false);
     expect(
-      isTargetInGuardZone({ ...guardZone, active: false }, { bearing: 0, distance: 1 }),
+      isTargetInGuardZone(
+        { ...guardZone, active: false },
+        { bearing: 0, distance: 1 },
+      ),
     ).toBe(false);
   });
 
@@ -78,83 +84,80 @@ describe('radar render target helpers', () => {
 
   it('draws radar targets, tracked overlays, land returns, and AIS symbols', () => {
     const ctx = createCtx();
-    drawRadarTargets(
-      { ctx, rotationAngle: 0, radarRadius: 100 },
-      {
-        settings: {
-          range: 12,
-          band: 'X',
-          gain: 70,
-          seaClutter: 30,
-          rainClutter: 10,
-          nightMode: false,
+    drawRadarTargets({ ctx, rotationAngle: 0, radarRadius: 100, radius: 100 }, {
+      settings: {
+        range: 12,
+        band: 'X',
+        gain: 70,
+        seaClutter: 30,
+        rainClutter: 10,
+        nightMode: false,
+      },
+      environment: { seaState: 2, rainIntensity: 0, visibility: 8 },
+      guardZone: {
+        active: true,
+        startAngle: 300,
+        endAngle: 60,
+        innerRange: 0.5,
+        outerRange: 5,
+      },
+      targets: [
+        {
+          id: 'tracked-1',
+          distance: 1.5,
+          bearing: 10,
+          size: 0.6,
+          type: 'vessel',
+          isTracked: true,
         },
-        environment: { seaState: 2, rainIntensity: 0, visibility: 8 },
-        guardZone: {
-          active: true,
-          startAngle: 300,
-          endAngle: 60,
-          innerRange: 0.5,
-          outerRange: 5,
+        {
+          id: 'land-1',
+          distance: 2,
+          bearing: 30,
+          size: 0.4,
+          type: 'land',
+          isTracked: false,
         },
-        targets: [
-          {
-            id: 'tracked-1',
-            distance: 1.5,
-            bearing: 10,
-            size: 0.6,
-            type: 'vessel',
-            isTracked: true,
-          },
-          {
-            id: 'land-1',
-            distance: 2,
-            bearing: 30,
-            size: 0.4,
-            type: 'land',
-            isTracked: false,
-          },
-          {
-            id: 'far',
-            distance: 20,
-            bearing: 0,
-            size: 0.2,
-            type: 'vessel',
-            isTracked: false,
-          },
-        ],
-        aisTargets: [
-          {
-            id: 'ais-1',
-            distance: 1,
-            bearing: 20,
-            heading: 10,
-            course: 10,
-          },
-        ],
-        arpaEnabled: true,
-        arpaTargets: [
-          {
-            id: 'tracked-1',
-            historicalPositions: [
-              { distance: 1.2, bearing: 8 },
-              { distance: 1.3, bearing: 9 },
-              { distance: 1.4, bearing: 10 },
-            ],
-          },
-        ],
-        arpaSettings: {
-          historyPointsCount: 5,
-          vectorTimeMinutes: 6,
+        {
+          id: 'far',
+          distance: 20,
+          bearing: 0,
+          size: 0.2,
+          type: 'vessel',
+          isTracked: false,
         },
-        ownShip: {
-          position: { lat: 0, lon: 0 },
-          speed: 0,
-          course: 0,
-          heading: 0,
+      ],
+      aisTargets: [
+        {
+          id: 'ais-1',
+          distance: 1,
+          bearing: 20,
+          heading: 10,
+          course: 10,
         },
-      } as any,
-    );
+      ],
+      arpaEnabled: true,
+      arpaTargets: [
+        {
+          id: 'tracked-1',
+          historicalPositions: [
+            { distance: 1.2, bearing: 8 },
+            { distance: 1.3, bearing: 9 },
+            { distance: 1.4, bearing: 10 },
+          ],
+        },
+      ],
+      arpaSettings: {
+        historyPointsCount: 5,
+        vectorTimeMinutes: 6,
+      },
+      ownShip: {
+        position: { lat: 0, lon: 0 },
+        speed: 0,
+        course: 0,
+        heading: 0,
+      },
+    } as any);
 
     expect(ctx.beginPath).toHaveBeenCalled();
     expect(ctx.fill).toHaveBeenCalled();

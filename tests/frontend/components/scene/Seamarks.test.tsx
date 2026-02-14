@@ -6,7 +6,7 @@ import {
 } from '../../../../src/components/scene/Seamarks';
 
 const useStoreMock = jest.fn();
-const useGLTFMock = jest.fn(() => ({
+const useGLTFMock = jest.fn((..._args: unknown[]) => ({
   scene: { clone: () => ({}) },
 }));
 const useFrameMock = jest.fn();
@@ -17,11 +17,11 @@ jest.mock('../../../../src/store', () => ({
 }));
 
 jest.mock('@react-three/drei', () => ({
-  useGLTF: (...args: unknown[]) => useGLTFMock(...args),
+  useGLTF: (path: unknown) => useGLTFMock(path),
 }));
 
 jest.mock('@react-three/fiber', () => ({
-  useFrame: (...args: unknown[]) => useFrameMock(...args),
+  useFrame: (callback: unknown) => useFrameMock(callback),
   useThree: () => ({
     camera: {
       position: {
