@@ -23,8 +23,9 @@ const startReplayPlaybackMock = jest.fn();
 const stopReplayPlaybackMock = jest.fn();
 const clearReplayMock = jest.fn();
 const chatPanelPropsMock = jest.fn();
+type CallbackProps = Record<string, (...args: unknown[]) => void>;
 
-const storeState: any = {
+const storeState: Record<string, unknown> = {
   mode: 'player',
   roles: ['admin', 'player'],
   sessionUserId: 'user-1',
@@ -133,7 +134,7 @@ const storeState: any = {
   },
 };
 
-const useStoreMock: any = (selector: (state: any) => unknown) =>
+const useStoreMock = (selector: (state: Record<string, unknown>) => unknown) =>
   selector(storeState);
 useStoreMock.getState = () => storeState;
 
@@ -186,7 +187,8 @@ const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
 
 jest.mock('../../../src/store', () => ({
   __esModule: true,
-  default: (selector: (state: any) => unknown) => useStoreMock(selector),
+  default: (selector: (state: Record<string, unknown>) => unknown) =>
+    useStoreMock(selector),
 }));
 
 jest.mock('../../../src/simulation', () => ({
@@ -206,7 +208,7 @@ jest.mock('../../../src/lib/api', () => ({
 }));
 
 jest.mock('../../../src/components/hud/panels/HudAdminPanel', () => ({
-  HudAdminPanel: ({ onMove, onMoveToSelf }: any) => (
+  HudAdminPanel: ({ onMove, onMoveToSelf }: CallbackProps) => (
     <div>
       <button onClick={onMove} type="button">
         Admin move
@@ -223,7 +225,7 @@ jest.mock('../../../src/components/hud/panels/HudAlarmsPanel', () => ({
 }));
 
 jest.mock('../../../src/components/hud/panels/HudChatPanel', () => ({
-  HudChatPanel: (props: any) => {
+  HudChatPanel: (props: unknown) => {
     chatPanelPropsMock(props);
     return <div>Chat panel</div>;
   },
@@ -253,7 +255,7 @@ jest.mock('../../../src/components/hud/panels/HudNavControls', () => ({
 }));
 
 jest.mock('../../../src/components/hud/panels/HudCrewPanel', () => ({
-  HudCrewPanel: ({ onRequestStation }: any) => (
+  HudCrewPanel: ({ onRequestStation }: CallbackProps) => (
     <button onClick={() => onRequestStation('helm', 'claim')} type="button">
       Request station
     </button>
@@ -269,7 +271,7 @@ jest.mock('../../../src/components/hud/panels/HudEventsPanel', () => ({
 }));
 
 jest.mock('../../../src/components/hud/panels/HudMissionsPanel', () => ({
-  HudMissionsPanel: ({ onAssignMission }: any) => (
+  HudMissionsPanel: ({ onAssignMission }: CallbackProps) => (
     <button onClick={() => onAssignMission('m1')} type="button">
       Assign mission
     </button>
@@ -297,7 +299,7 @@ jest.mock('../../../src/components/hud/panels/HudSounderPanel', () => ({
 }));
 
 jest.mock('../../../src/components/hud/panels/HudSystemsPanel', () => ({
-  HudSystemsPanel: ({ onRequestRepair }: any) => (
+  HudSystemsPanel: ({ onRequestRepair }: CallbackProps) => (
     <button onClick={onRequestRepair} type="button">
       Request repair
     </button>
@@ -305,7 +307,7 @@ jest.mock('../../../src/components/hud/panels/HudSystemsPanel', () => ({
 }));
 
 jest.mock('../../../src/components/hud/panels/HudVesselsPanel', () => ({
-  HudVesselsPanel: ({ onJoinVessel }: any) => (
+  HudVesselsPanel: ({ onJoinVessel }: CallbackProps) => (
     <button onClick={() => onJoinVessel('other-vessel')} type="button">
       Join vessel
     </button>
@@ -317,7 +319,7 @@ jest.mock('../../../src/components/hud/panels/HudWeatherPanel', () => ({
 }));
 
 jest.mock('../../../src/components/hud/PhysicsInspectorPanel', () => ({
-  HudPhysicsInspectorPanel: ({ onApplyParams }: any) => (
+  HudPhysicsInspectorPanel: ({ onApplyParams }: CallbackProps) => (
     <button
       onClick={() => onApplyParams({ dragCoefficient: 0.33 })}
       type="button"
@@ -335,7 +337,7 @@ describe('HudDrawer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     chatPanelPropsMock.mockClear();
-    global.fetch = fetchMock as any;
+    global.fetch = fetchMock as typeof fetch;
     Object.assign(storeState, JSON.parse(JSON.stringify(snapshot)));
     storeState.setNotice = setNoticeMock;
     storeState.setAccount = setAccountMock;

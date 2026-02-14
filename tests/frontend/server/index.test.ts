@@ -8,28 +8,49 @@ import {
 } from './fixtures/serverIndexHarness';
 
 const loadModule = loadServerIndexModule;
+type SocketHandler = (...args: unknown[]) => void;
+type TestSocketAuth = {
+  data: TestSocketData & {
+    vesselId?: string;
+    mode?: string;
+    autoJoin?: boolean;
+  };
+  join: jest.Mock;
+  leave?: jest.Mock;
+  emit?: jest.Mock;
+  disconnect?: jest.Mock;
+};
 
 describe('server/index', () => {
   const intervalCallbacks: Array<() => void> = [];
   const setIntervalSpy = jest
     .spyOn(global, 'setInterval')
-    .mockImplementation((cb: any) => {
-      intervalCallbacks.push(cb as () => void);
-      return 0 as any;
+    .mockImplementation((cb: TimerHandler) => {
+      if (typeof cb === 'function') {
+        intervalCallbacks.push(cb as () => void);
+      }
+      return 0 as unknown as NodeJS.Timeout;
     });
   const exitSpy = jest
     .spyOn(process, 'exit')
-    .mockImplementation((() => undefined) as any);
-  let connectionHandler: ((socket: any) => void) | null = null;
-  let authMiddleware: ((socket: any, next: any) => void) | null = null;
+    .mockImplementation((() => undefined) as never);
+  let connectionHandler: ((socket: TestSocketAuth) => void) | null = null;
+  let authMiddleware:
+    | ((socket: TestSocketAuth, next: (err?: Error) => void) => void)
+    | null = null;
 
   beforeEach(() => {
     intervalCallbacks.length = 0;
-    mockIo.on.mockImplementation((event: string, cb: any) => {
-      if (event === 'connection') connectionHandler = cb;
+    mockIo.on.mockImplementation((event: string, cb: SocketHandler) => {
+      if (event === 'connection') {
+        connectionHandler = cb as (socket: TestSocketAuth) => void;
+      }
     });
-    mockIo.use.mockImplementation((cb: any) => {
-      authMiddleware = cb;
+    mockIo.use.mockImplementation((cb: SocketHandler) => {
+      authMiddleware = cb as (
+        socket: TestSocketAuth,
+        next: (err?: Error) => void,
+      ) => void;
     });
     mockIo.to.mockImplementation(() => ({ emit: jest.fn() }));
     mockIo.in.mockImplementation(() => ({
@@ -202,19 +223,31 @@ describe('server/index', () => {
 
   it('updates socket vessel rooms', async () => {
     const mod = await loadModule();
-    const socket: any = {
+    const socket: TestSocketAuth = {
       data: { vesselId: 'old_vessel' },
       leave: jest.fn(),
       join: jest.fn(),
     };
-    mod.__test__.updateSocketVesselRoom(socket, 'space-1', 'new_vessel');
+    mod.__test__.updateSocketVesselRoom(
+      socket as unknown as Parameters<
+        typeof mod.__test__.updateSocketVesselRoom
+      >[0],
+      'space-1',
+      'new_vessel',
+    );
     expect(socket.leave).toHaveBeenCalledWith(
       'space:space-1:vessel:old_vessel',
     );
     expect(socket.join).toHaveBeenCalledWith('space:space-1:vessel:new');
     expect(socket.data.vesselId).toBe('new');
 
-    mod.__test__.updateSocketVesselRoom(socket, 'space-1', null);
+    mod.__test__.updateSocketVesselRoom(
+      socket as unknown as Parameters<
+        typeof mod.__test__.updateSocketVesselRoom
+      >[0],
+      'space-1',
+      null,
+    );
     expect(socket.data.vesselId).toBeUndefined();
   });
 
@@ -556,8 +589,8 @@ describe('server/index', () => {
     const next = jest.fn();
     await authMiddleware!(socket, next);
     expect(socket.data.roles).toContain('guest');
-    expect(socket.data.mode).toBe('spectator');
-    expect(socket.data.autoJoin).toBe(false);
+    expect((socket.data as TestSocketAuth['data']).mode).toBe('spectator');
+    expect((socket.data as TestSocketAuth['data']).autoJoin).toBe(false);
     expect(next).toHaveBeenCalled();
     void mod;
   });
@@ -588,8 +621,14 @@ describe('server/index', () => {
     const req = { method: 'GET', path: '/vessels' };
     const candidates = app.use.mock.calls
       .map((call: [unknown]) => call[0])
-      .filter((fn: any) => typeof fn === 'function');
-    let middleware: ((req: any, res: any, next: any) => void) | null = null;
+      .filter((fn: unknown) => typeof fn === 'function');
+    let middleware:
+      | ((
+          req: { method: string; path: string },
+          res: unknown,
+          next: () => void,
+        ) => void)
+      | null = null;
     for (const candidate of candidates) {
       let finishCb: (() => void) | null = null;
       const resProbe = {
@@ -616,7 +655,7 @@ describe('server/index', () => {
     };
     const next = jest.fn();
     const originalHrtime = process.hrtime.bigint;
-    (process.hrtime as any).bigint = jest
+    (process.hrtime as unknown as { bigint: jest.Mock }).bigint = jest
       .fn()
       .mockReturnValueOnce(BigInt(0))
       .mockReturnValueOnce(BigInt(300_000_000));
@@ -629,7 +668,8 @@ describe('server/index', () => {
     expect(recordLog).toHaveBeenCalledWith(
       expect.objectContaining({ source: 'api' }),
     );
-    (process.hrtime as any).bigint = originalHrtime;
+    (process.hrtime as unknown as { bigint: typeof originalHrtime }).bigint =
+      originalHrtime;
     void mod;
   });
 
@@ -849,11 +889,12 @@ describe('server/index', () => {
     await connectionHandler!(socket);
     await new Promise(resolve => setTimeout(resolve, 0));
     const simulationCalls = socket.emit.mock.calls.filter(
-      (call: any[]) => call[0] === 'simulation:update',
+      (call: unknown[]) => call[0] === 'simulation:update',
     );
-    const hasMessage = simulationCalls.some((call: any[]) =>
-      (call[1]?.chatHistory || []).some((msg: any) => msg.id === 'm-1'),
-    );
+    const hasMessage = simulationCalls.some((call: unknown[]) => {
+      const payload = call[1] as { chatHistory?: Array<{ id: string }> };
+      return (payload?.chatHistory || []).some(msg => msg.id === 'm-1');
+    });
     expect(hasMessage).toBe(true);
     void mod;
   });
@@ -888,19 +929,19 @@ describe('server/index', () => {
     process.env.NEXTAUTH_SECRET = 'test-secret';
     const mod = await loadModule();
     expect(connectionHandler).toBeTruthy();
-    const handlers: Record<string, any> = {};
-    const socket: any = createConnectionSocket({
+    const handlers: Record<string, SocketHandler> = {};
+    const socket = createConnectionSocket({
       id: 's-auth',
       data: { userId: 'prev-user', username: 'Prev', roles: ['player'] },
-      on: jest.fn((event: string, cb: any) => {
+      on: jest.fn((event: string, cb: SocketHandler) => {
         handlers[event] = cb;
       }),
     });
     await connectionHandler!(socket);
 
     await handlers['user:auth']({});
-    expect(socket.data.mode).toBe('spectator');
-    expect(socket.data.autoJoin).toBe(false);
+    expect((socket.data as TestSocketAuth['data']).mode).toBe('spectator');
+    expect((socket.data as TestSocketAuth['data']).autoJoin).toBe(false);
     expect(socket.leave).toHaveBeenCalledWith('user:prev-user');
     expect(socket.emit).toHaveBeenCalledWith(
       'simulation:update',
@@ -940,11 +981,11 @@ describe('server/index', () => {
     process.env.NEXTAUTH_SECRET = 'test-secret';
     const mod = await loadModule();
     expect(connectionHandler).toBeTruthy();
-    const handlers: Record<string, any> = {};
-    const socket: any = createConnectionSocket({
+    const handlers: Record<string, SocketHandler> = {};
+    const socket = createConnectionSocket({
       id: 's-auth-fail',
       data: { userId: 'prev-user', username: 'Prev', roles: ['player'] },
-      on: jest.fn((event: string, cb: any) => {
+      on: jest.fn((event: string, cb: SocketHandler) => {
         handlers[event] = cb;
       }),
     });
@@ -955,7 +996,7 @@ describe('server/index', () => {
     });
     await handlers['user:auth']({ token: 'bad' });
     expect(socket.data.roles).toContain('guest');
-    expect(socket.data.mode).toBe('spectator');
+    expect((socket.data as TestSocketAuth['data']).mode).toBe('spectator');
     void mod;
   });
 
@@ -972,8 +1013,8 @@ describe('server/index', () => {
   });
 
   it('syncUserSocketsEconomy updates socket data', async () => {
-    const socketA = { data: {} as any };
-    const socketB = { data: {} as any };
+    const socketA = { data: {} as Partial<TestSocketData> };
+    const socketB = { data: {} as Partial<TestSocketData> };
     const fetchSockets = jest.fn(async () => [socketA, socketB]);
     mockIo.in.mockReturnValue({ fetchSockets });
 

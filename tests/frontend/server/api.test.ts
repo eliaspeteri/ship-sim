@@ -3,6 +3,15 @@ import { EventEmitter } from 'events';
 const { prismaMock } = require('../lib/prismaMock');
 
 type MockedAsync = jest.Mock<Promise<unknown>, [unknown?]>;
+type MockUser = { userId: string; roles: string[] };
+type MiddlewareReq = {
+  user?: MockUser;
+  params?: Record<string, string>;
+};
+type MiddlewareRes = {
+  status: (code: number) => { json: (payload: unknown) => void };
+};
+type MiddlewareNext = () => void;
 
 const getLogsMock = jest.fn<{ level: string; message: string }[], [unknown?]>(
   () => [],
@@ -10,12 +19,20 @@ const getLogsMock = jest.fn<{ level: string; message: string }[], [unknown?]>(
 const clearLogsMock = jest.fn();
 
 jest.mock('../../../src/server/middleware/authentication', () => ({
-  authenticateRequest: (req: any, _res: any, next: any) => {
+  authenticateRequest: (
+    req: MiddlewareReq,
+    _res: MiddlewareRes,
+    next: MiddlewareNext,
+  ) => {
     req.user = req.user || { userId: 'user-1', roles: ['admin'] };
     next();
   },
-  requireAuth: (_req: any, _res: any, next: any) => next(),
-  requireUser: (req: any, res: any) => {
+  requireAuth: (
+    _req: MiddlewareReq,
+    _res: MiddlewareRes,
+    next: MiddlewareNext,
+  ) => next(),
+  requireUser: (req: MiddlewareReq, res: MiddlewareRes) => {
     if (!req.user) {
       res.status(401).json({ error: 'Authentication required' });
       return null;
@@ -25,11 +42,15 @@ jest.mock('../../../src/server/middleware/authentication', () => ({
 }));
 
 jest.mock('../../../src/server/middleware/authorization', () => ({
-  requirePermission: () => (_req: any, _res: any, next: any) => next(),
-  requireRole: () => (_req: any, _res: any, next: any) => next(),
+  requirePermission:
+    () => (_req: MiddlewareReq, _res: MiddlewareRes, next: MiddlewareNext) =>
+      next(),
+  requireRole:
+    () => (_req: MiddlewareReq, _res: MiddlewareRes, next: MiddlewareNext) =>
+      next(),
   requireSelfOrRole:
     (paramKey: string, roles: string[] = ['admin']) =>
-    (req: any, res: any, next: any) => {
+    (req: MiddlewareReq, res: MiddlewareRes, next: MiddlewareNext) => {
       const subjectId = req?.params?.[paramKey];
       const userId = req?.user?.userId;
       const userRoles = Array.isArray(req?.user?.roles) ? req.user.roles : [];
@@ -190,7 +211,8 @@ const resetPrismaMocks = () => {
   if ('$transaction' in prismaMock) {
     (prismaMock.$transaction as jest.Mock).mockReset();
     (prismaMock.$transaction as jest.Mock).mockImplementation(
-      async (arg: any) => (typeof arg === 'function' ? arg(prismaMock) : arg),
+      async (arg: unknown) =>
+        typeof arg === 'function' ? arg(prismaMock) : arg,
     );
   }
 };
@@ -320,7 +342,14 @@ const invokeRoute = async (
       else resolve();
     };
     res.once('finish', () => done());
-    (router as any).handle(req as any, res as any, (err: unknown) => done(err));
+    const routeHandler = router as unknown as {
+      handle: (
+        req: unknown,
+        res: unknown,
+        next: (err?: unknown) => void,
+      ) => void;
+    };
+    routeHandler.handle(req, res, (err: unknown) => done(err));
   });
 
   return { req, res };

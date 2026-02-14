@@ -20,8 +20,25 @@ const mockReplace = jest.fn();
 const mockUseSession = jest.fn();
 let routerQuery: Record<string, string> = {};
 let routerIsReady = true;
-let latestSpaceModalProps: any;
-let latestJoinChoiceProps: any;
+type SpaceModalProps = {
+  setNewSpaceName: (name: string) => void;
+  setNewSpaceVisibility: (visibility: string) => void;
+  setNewSpaceRulesetType: (rulesetType: string) => void;
+  onCreateSpace: () => Promise<void>;
+  onFetchSpaces: (input: {
+    inviteToken?: string;
+    password?: string;
+  }) => Promise<void>;
+};
+type JoinChoiceModalProps = {
+  onStartScenario: (scenario: {
+    id: string;
+    name: string;
+    spawn?: { lat: number; lon: number };
+  }) => Promise<void>;
+};
+let latestSpaceModalProps: SpaceModalProps | null = null;
+let latestJoinChoiceProps: JoinChoiceModalProps | null = null;
 const applyControls = jest.fn();
 const flushPromises = async (ticks = 3) => {
   for (let i = 0; i < ticks; i += 1) {
@@ -138,12 +155,12 @@ const createStoreState = (overrides: Partial<StoreState> = {}): StoreState => ({
 
 let storeState: StoreState = createStoreState();
 
-const mockUseStore = jest.fn((selector: (state: StoreState) => any) =>
+const mockUseStore = jest.fn((selector: (state: StoreState) => unknown) =>
   selector(storeState),
 );
 
 jest.mock('../../src/store', () => {
-  const useStore = (selector: (state: StoreState) => any) =>
+  const useStore = (selector: (state: StoreState) => unknown) =>
     mockUseStore(selector);
   (useStore as typeof mockUseStore & { getState?: () => StoreState }).getState =
     () => storeState;
@@ -167,13 +184,13 @@ jest.mock('../../src/components/HudDrawer', () => ({
   HudDrawer: () => <div>HudDrawer</div>,
 }));
 jest.mock('../../src/features/sim/SpaceModal', () => ({
-  SpaceModal: (props: unknown) => {
+  SpaceModal: (props: SpaceModalProps) => {
     latestSpaceModalProps = props;
     return null;
   },
 }));
 jest.mock('../../src/features/sim/JoinChoiceModal', () => ({
-  JoinChoiceModal: (props: unknown) => {
+  JoinChoiceModal: (props: JoinChoiceModalProps) => {
     latestJoinChoiceProps = props;
     return null;
   },
@@ -395,13 +412,13 @@ describe('Sim page', () => {
     await renderSimPage();
 
     await act(async () => {
-      latestSpaceModalProps.setNewSpaceName('Harbor Alpha');
-      latestSpaceModalProps.setNewSpaceVisibility('public');
-      latestSpaceModalProps.setNewSpaceRulesetType('CASUAL');
+      latestSpaceModalProps!.setNewSpaceName('Harbor Alpha');
+      latestSpaceModalProps!.setNewSpaceVisibility('public');
+      latestSpaceModalProps!.setNewSpaceRulesetType('CASUAL');
     });
 
     await act(async () => {
-      await latestSpaceModalProps.onCreateSpace();
+      await latestSpaceModalProps!.onCreateSpace();
     });
 
     expect(storeState.setSpaceId).toHaveBeenCalledWith('harbor-1');
@@ -438,7 +455,7 @@ describe('Sim page', () => {
     await renderSimPage();
 
     await act(async () => {
-      await latestJoinChoiceProps.onStartScenario({
+      await latestJoinChoiceProps!.onStartScenario({
         id: 'scn-1',
         name: 'Starter Scenario',
         spawn: { lat: 1, lon: 2 },
@@ -480,7 +497,7 @@ describe('Sim page', () => {
     await renderSimPage();
 
     await act(async () => {
-      await latestSpaceModalProps.onFetchSpaces({
+      await latestSpaceModalProps!.onFetchSpaces({
         inviteToken: 'invite-123',
         password: 'secret-password',
       });

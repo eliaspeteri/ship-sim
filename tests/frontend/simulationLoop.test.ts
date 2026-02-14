@@ -148,18 +148,20 @@ const setupSimulation = (overrides: Partial<StoreState> = {}) => {
     socketManager: socketManager,
   }));
 
-  let SimulationLoop: any;
-  let getSimulationLoop: any;
+  let simulationModule!: typeof import('../../src/simulation/simulationLoop');
   jest.isolateModules(() => {
-    ({
-      SimulationLoop,
-      getSimulationLoop,
-    } = require('../../src/simulation/simulationLoop'));
+    simulationModule = require('../../src/simulation/simulationLoop');
   });
 
-  const loop = getSimulationLoop();
+  const loop = simulationModule.getSimulationLoop();
   loop.setWasmBridgeForTest(wasmBridge as unknown as WasmBridge);
-  return { loop, SimulationLoop, storeState, wasmBridge, socketManager };
+  return {
+    loop,
+    SimulationLoop: simulationModule.SimulationLoop,
+    storeState,
+    wasmBridge,
+    socketManager,
+  };
 };
 
 afterEach(() => {
@@ -410,13 +412,13 @@ describe('simulation loop', () => {
   it('start/stop schedules and cancels animation frames', () => {
     let rafCallback: ((time: number) => void) | undefined;
     const rafSpy = jest
-      .spyOn(global, 'requestAnimationFrame' as any)
+      .spyOn(global, 'requestAnimationFrame')
       .mockImplementation((cb: unknown) => {
         rafCallback = cb as (time: number) => void;
         return 1 as unknown as number;
       });
     const cancelSpy = jest
-      .spyOn(global, 'cancelAnimationFrame' as any)
+      .spyOn(global, 'cancelAnimationFrame')
       .mockImplementation(() => {});
     const { loop } = setupSimulation();
 
@@ -432,7 +434,7 @@ describe('simulation loop', () => {
 
   it('start does nothing when already running', () => {
     const rafSpy = jest
-      .spyOn(global, 'requestAnimationFrame' as any)
+      .spyOn(global, 'requestAnimationFrame')
       .mockImplementation(() => 1 as unknown as number);
     const { loop } = setupSimulation();
     loop.setAnimationFrameIdForTest(123);

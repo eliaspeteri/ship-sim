@@ -84,55 +84,73 @@ jest.mock('../../../../src/components/SystemMeter', () => ({
 describe('HudPanels exports', () => {
   it('renders vessel sections and handles join actions', () => {
     const onJoinVessel = jest.fn();
+    const fleetInSpace: React.ComponentProps<
+      typeof HudVesselsPanel
+    >['fleetInSpace'] = [
+      {
+        id: 'v-active',
+        lat: 60.123,
+        lon: 24.987,
+        z: 0,
+        lastUpdate: new Date(),
+        status: 'active',
+        spaceId: 'sim-a',
+      },
+      {
+        id: 'v-stored',
+        lat: 60.5,
+        lon: 25.2,
+        z: 0,
+        lastUpdate: new Date(),
+        status: 'stored',
+      },
+    ];
+    const fleetOtherSpace: React.ComponentProps<
+      typeof HudVesselsPanel
+    >['fleetOtherSpace'] = [
+      {
+        id: 'v-other',
+        lat: 61,
+        lon: 26,
+        z: 0,
+        lastUpdate: new Date(),
+        status: 'active',
+        spaceId: 'other-space',
+      },
+    ];
+    const otherVessels: React.ComponentProps<
+      typeof HudVesselsPanel
+    >['otherVessels'] = {
+      ov1: {
+        id: 'ov1',
+        crewCount: 2,
+        position: { lat: 60.17, lon: 24.94, z: 0 },
+        orientation: { heading: 34, roll: 0, pitch: 0 },
+        velocity: { surge: 0, sway: 0, heave: 0 },
+        properties: { name: 'Scout' },
+      },
+    };
+    const resolveNearestPort: React.ComponentProps<
+      typeof HudVesselsPanel
+    >['resolveNearestPort'] = () => ({
+      port: {
+        id: 'harbor-1',
+        name: 'Harbor One',
+        position: { lat: 0, lon: 0 },
+      },
+      distance: 1234,
+    });
 
     render(
       <HudVesselsPanel
         fleetLoading
         fleetError="Fleet degraded"
-        fleetInSpace={
-          [
-            {
-              id: 'v-active',
-              lat: 60.123,
-              lon: 24.987,
-              status: 'active',
-              spaceId: 'sim-a',
-            },
-            {
-              id: 'v-stored',
-              lat: 60.5,
-              lon: 25.2,
-              status: 'stored',
-            },
-          ] as any
-        }
-        fleetOtherSpace={
-          [
-            {
-              id: 'v-other',
-              status: 'active',
-              spaceId: 'other-space',
-            },
-          ] as any
-        }
-        resolveNearestPort={() =>
-          ({
-            port: { name: 'Harbor One' },
-            distance: 1234,
-          }) as any
-        }
+        fleetInSpace={fleetInSpace}
+        fleetOtherSpace={fleetOtherSpace}
+        resolveNearestPort={resolveNearestPort}
         shortId={(id: string) => `short-${id}`}
         normalizedSpaceId="default-space"
-        otherVessels={
-          {
-            ov1: {
-              id: 'ov1',
-              crewCount: 2,
-              orientation: { heading: 34 },
-              properties: { name: 'Scout' },
-            },
-          } as any
-        }
+        otherVessels={otherVessels}
         onJoinVessel={onJoinVessel}
       />,
     );
@@ -157,8 +175,8 @@ describe('HudPanels exports', () => {
       <HudVesselsPanel
         fleetLoading={false}
         fleetError={null}
-        fleetInSpace={[] as any}
-        fleetOtherSpace={[] as any}
+        fleetInSpace={[]}
+        fleetOtherSpace={[]}
         resolveNearestPort={() => ({ port: null, distance: null })}
         shortId={(id: string) => id}
         normalizedSpaceId="default-space"
