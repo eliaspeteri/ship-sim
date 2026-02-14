@@ -236,7 +236,7 @@ Acceptance:
 
 ### A5. Split `RadarDisplay` rendering pipeline (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/components/radar/RadarDisplay.tsx`, new modules under `src/components/radar/render/*`
 

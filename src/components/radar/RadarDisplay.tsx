@@ -2,34 +2,23 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   EBL,
   GuardZone,
-  RadarBand,
   RadarEnvironment,
   RadarSettings,
   RadarTarget,
   VRM,
-  AISTarget, // Import AISTarget from types
+  AISTarget,
 } from './types';
-import {
-  calculateTargetVisibility,
-  generateNoisePattern,
-  generateRadarNoise,
-  getRainClutterStrength,
-  getSeaClutterStrength,
-  polarToCartesian,
-} from './utils';
-import RadarControls from './RadarControls';
-import ARPAPanel from './ARPAPanel';
 import {
   ARPASettings,
   ARPATarget,
-  ARPATargetStatus,
   DEFAULT_ARPA_SETTINGS,
   OwnShipData,
-  convertToARPATarget,
-  getTargetStatus,
-  getVectorEndpoint,
   processRadarTargets,
 } from './arpa';
+import { renderRadarFrame } from './render';
+import { RadarView } from './RadarView';
+import { RadarControlsPanel } from './RadarControlsPanel';
+import { createRadarControlHandlers } from './controlHandlers';
 
 interface RadarDisplayProps {
   size?: number;
@@ -84,8 +73,6 @@ const DEFAULT_OWN_SHIP: OwnShipData = {
   speed: 0,
   heading: 0,
 };
-
-const RANGE_OPTIONS = [0.5, 1.5, 3, 6, 12, 24, 48];
 
 const DEFAULT_EBL: EBL = { active: false, angle: 0 };
 const DEFAULT_VRM: VRM = { active: false, distance: 0 };
@@ -154,8 +141,7 @@ export default function RadarDisplay({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const radarSweepRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const [sweepAngle, setSweepAngle] = useState(0);
-  const [isAnimating] = useState(true);
+  const sweepAngleRef = useRef(0);
 
   const settingsRef = useRef(settings);
   const environmentRef = useRef(environment);
@@ -236,12 +222,13 @@ export default function RadarDisplay({
     canvas.height = size;
 
     const animateRadar = () => {
-      setSweepAngle(prev => (prev + 1) % 360);
-      drawRadar();
-
-      if (isAnimating) {
-        animationFrameRef.current = requestAnimationFrame(animateRadar);
+      const nextSweepAngle = (sweepAngleRef.current + 1) % 360;
+      sweepAngleRef.current = nextSweepAngle;
+      if (radarSweepRef.current) {
+        radarSweepRef.current.style.transform = `translateY(-50%) rotate(${nextSweepAngle}deg)`;
       }
+      drawRadar(nextSweepAngle);
+      animationFrameRef.current = requestAnimationFrame(animateRadar);
     };
 
     animationFrameRef.current = requestAnimationFrame(animateRadar);
@@ -251,13 +238,7 @@ export default function RadarDisplay({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [size, isAnimating]);
-
-  useEffect(() => {
-    if (radarSweepRef.current) {
-      radarSweepRef.current.style.transform = `translateY(-50%) rotate(${sweepAngle}deg)`;
-    }
-  }, [sweepAngle]);
+  }, [size]);
 
   useEffect(() => {
     if (!arpaEnabledState) return;
@@ -285,7 +266,7 @@ export default function RadarDisplay({
     return () => clearInterval(intervalId);
   }, [arpaEnabledState, selectedTargetId]);
 
-  const drawRadar = () => {
+  const drawRadar = (sweepAngle: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -303,650 +284,89 @@ export default function RadarDisplay({
     const currArpaEnabled = arpaEnabledRef.current;
     const currAisTargets = aisTargetsRef.current;
 
-    const {
-      band,
-      range,
-      gain,
-      seaClutter,
-      rainClutter,
-      orientation,
-      nightMode,
-    } = currSettings;
-    const radius = size / 2;
-    const radarRadius = radius - 2;
-
-    ctx.fillStyle = nightMode
-      ? 'rgba(0, 10, 20, 0.15)'
-      : 'rgba(0, 20, 10, 0.15)';
-    ctx.fillRect(0, 0, size, size);
-
-    ctx.beginPath();
-    ctx.arc(radius, radius, radarRadius, 0, Math.PI * 2);
-    ctx.fillStyle = nightMode ? '#000B14' : '#001A14';
-    ctx.fill();
-
-    ctx.strokeStyle = nightMode ? '#113344' : '#114433';
-    ctx.lineWidth = 1;
-
-    let rotationAngle = 0;
-    if (orientation === 'head-up') {
-      rotationAngle = ownShipRef.current.heading ?? 0;
-    } else if (orientation === 'course-up') {
-      rotationAngle = ownShipRef.current.course ?? 0;
-    }
-
-    const noiseLevel = generateRadarNoise(band, currEnvironment, gain);
-    const noisePattern = generateNoisePattern(size, size, noiseLevel);
-
-    ctx.globalAlpha = 0.2;
-    ctx.putImageData(noisePattern, 0, 0);
-    ctx.globalAlpha = 1.0;
-
-    const isTargetInGuardZone = (target: RadarTarget): boolean => {
-      if (!currGuardZone.active) return false;
-      let start = currGuardZone.startAngle % 360;
-      let end = currGuardZone.endAngle % 360;
-      let bearing = target.bearing % 360;
-      if (start < 0) start += 360;
-      if (end < 0) end += 360;
-      if (bearing < 0) bearing += 360;
-      const inAngle =
-        start < end
-          ? bearing >= start && bearing <= end
-          : bearing >= start || bearing <= end;
-      const inRange =
-        target.distance >= currGuardZone.innerRange &&
-        target.distance <= currGuardZone.outerRange;
-      return inAngle && inRange;
-    };
-
-    currTargets.forEach(target => {
-      if (target.distance > range) return;
-
-      const visibility = calculateTargetVisibility(
-        target,
-        band,
-        gain,
-        seaClutter,
-        rainClutter,
-        currEnvironment,
-      );
-
-      if (visibility <= 0) return;
-
-      const { x, y } = polarToCartesian(
-        target.distance,
-        (target.bearing - rotationAngle + 360) % 360,
-        range,
-        radarRadius,
-      );
-
-      const targetSize = 3 + target.size * 4;
-
-      ctx.globalAlpha = visibility;
-
-      if (isTargetInGuardZone(target)) {
-        ctx.beginPath();
-        ctx.arc(x, y, targetSize * 2, 0, Math.PI * 2);
-        ctx.strokeStyle = '#FF0000';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 2]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      if (target.type === 'land') {
-        ctx.fillStyle = nightMode ? '#AAF7' : '#AFA7';
-        ctx.beginPath();
-        ctx.arc(x, y, targetSize * 2, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        ctx.fillStyle = nightMode ? '#5F5' : '#5F5';
-        ctx.beginPath();
-        ctx.arc(x, y, targetSize, 0, Math.PI * 2);
-        ctx.fill();
-
-        if (target.isTracked && currArpaEnabled) {
-          const arpaTarget = currArpaTargets.find(at => at.id === target.id);
-
-          if (arpaTarget) {
-            const targetStatus = getTargetStatus(arpaTarget, currArpaSettings);
-
-            let color;
-            switch (targetStatus) {
-              case ARPATargetStatus.DANGEROUS:
-                color = '#FF3333';
-                break;
-              case ARPATargetStatus.LOST:
-                color = '#888888';
-                break;
-              case ARPATargetStatus.ACQUIRING:
-                color = '#FFAA33';
-                break;
-              default:
-                color = '#55FF55';
-            }
-
-            if (targetStatus !== ARPATargetStatus.ACQUIRING) {
-              const vectorEndpoint = getVectorEndpoint(
-                arpaTarget,
-                currArpaSettings,
-                ownShipRef.current,
-              );
-
-              const { x: endX, y: endY } = polarToCartesian(
-                vectorEndpoint.distance,
-                (vectorEndpoint.bearing - rotationAngle + 360) % 360,
-                range,
-                radarRadius,
-              );
-
-              ctx.beginPath();
-              ctx.moveTo(x, y);
-              ctx.lineTo(endX, endY);
-              ctx.strokeStyle = color;
-              ctx.lineWidth = 1;
-              ctx.stroke();
-            }
-
-            ctx.beginPath();
-            ctx.rect(
-              x - targetSize * 1.5,
-              y - targetSize * 1.5,
-              targetSize * 3,
-              targetSize * 3,
-            );
-            ctx.strokeStyle = color;
-            ctx.lineWidth = targetStatus === ARPATargetStatus.DANGEROUS ? 2 : 1;
-            ctx.stroke();
-
-            if (targetStatus === ARPATargetStatus.DANGEROUS) {
-              ctx.beginPath();
-              ctx.arc(x, y, targetSize * 4, 0, Math.PI * 2);
-              ctx.strokeStyle = '#FF3333';
-              ctx.lineWidth = 1;
-              ctx.setLineDash([5, 3]);
-              ctx.stroke();
-              ctx.setLineDash([]);
-            }
-
-            if (
-              arpaTarget.historicalPositions.length > 1 &&
-              targetStatus !== ARPATargetStatus.ACQUIRING
-            ) {
-              ctx.beginPath();
-
-              const numPositions = Math.min(
-                currArpaSettings.historyPointsCount,
-                arpaTarget.historicalPositions.length,
-              );
-
-              for (let i = 1; i < numPositions; i++) {
-                const historyIndex =
-                  arpaTarget.historicalPositions.length - 1 - i;
-                if (historyIndex < 0) break;
-
-                const historyPos = arpaTarget.historicalPositions[historyIndex];
-                const { x: histX, y: histY } = polarToCartesian(
-                  historyPos.distance,
-                  (historyPos.bearing - rotationAngle + 360) % 360,
-                  range,
-                  radarRadius,
-                );
-
-                ctx.beginPath();
-                ctx.arc(histX, histY, targetSize * 0.7, 0, Math.PI * 2);
-                ctx.fillStyle = color;
-                ctx.globalAlpha = Math.max(0.2, 1 - i * 0.2);
-                ctx.fill();
-              }
-
-              ctx.globalAlpha = visibility;
-            }
-          }
-        }
-      }
-
-      ctx.globalAlpha = 1.0;
-    });
-
-    // Draw AIS targets
-    currAisTargets.forEach(ais => {
-      if (ais.distance > range) return;
-      const { x, y } = polarToCartesian(
-        ais.distance,
-        (ais.bearing - rotationAngle + 360) % 360,
-        range,
-        radarRadius,
-      );
-      // Draw AIS as a blue diamond
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(
-        (((ais.heading ?? ais.course) - rotationAngle) * Math.PI) / 180,
-      );
-      ctx.beginPath();
-      ctx.moveTo(0, -8); // Top
-      ctx.lineTo(7, 0); // Right
-      ctx.lineTo(0, 8); // Bottom
-      ctx.lineTo(-7, 0); // Left
-      ctx.closePath();
-      ctx.fillStyle = nightMode ? '#3AB7FF' : '#2563EB';
-      ctx.globalAlpha = 0.95;
-      ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1;
-      ctx.globalAlpha = 1.0;
-      ctx.stroke();
-      ctx.restore();
-    });
-
-    ctx.beginPath();
-    ctx.moveTo(radius, radius);
-    const sweepRad = sweepAngle * (Math.PI / 180);
-    ctx.lineTo(
-      radius + Math.sin(sweepRad) * radarRadius,
-      radius - Math.cos(sweepRad) * radarRadius,
-    );
-    ctx.strokeStyle = nightMode
-      ? 'rgba(85, 255, 85, 0.7)'
-      : 'rgba(85, 255, 85, 0.7)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    const seaState = currEnvironment.seaState;
-    if (seaState > 0) {
-      const seaClutterGradient = ctx.createRadialGradient(
-        radius,
-        radius,
-        0,
-        radius,
-        radius,
-        radarRadius * 0.6,
-      );
-
-      const clutterColor = nightMode ? '0, 255, 85' : '0, 255, 85';
-      seaClutterGradient.addColorStop(
-        0,
-        `rgba(${clutterColor}, ${getSeaClutterStrength(0, range, seaState, seaClutter)})`,
-      );
-      seaClutterGradient.addColorStop(
-        0.3,
-        `rgba(${clutterColor}, ${getSeaClutterStrength(range * 0.3, range, seaState, seaClutter)})`,
-      );
-      seaClutterGradient.addColorStop(1, `rgba(${clutterColor}, 0)`);
-
-      ctx.fillStyle = seaClutterGradient;
-      ctx.globalAlpha = 0.4;
-      ctx.beginPath();
-      ctx.arc(radius, radius, radarRadius * 0.6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1.0;
-    }
-
-    const rainIntensity = currEnvironment.rainIntensity;
-    if (rainIntensity > 0) {
-      const rainClutterStrength = getRainClutterStrength(
-        band,
-        rainIntensity,
-        rainClutter,
-      );
-      if (rainClutterStrength > 0) {
-        ctx.fillStyle = nightMode
-          ? 'rgba(85, 255, 85, 0.5)'
-          : 'rgba(85, 255, 85, 0.5)';
-        ctx.globalAlpha = rainClutterStrength * 0.3;
-
-        const numSpeckles = Math.floor(rainClutterStrength * 500);
-
-        for (let i = 0; i < numSpeckles; i++) {
-          const angle = Math.random() * Math.PI * 2;
-          const distance = Math.random() * radarRadius;
-          const x = radius + Math.cos(angle) * distance;
-          const y = radius + Math.sin(angle) * distance;
-
-          ctx.beginPath();
-          ctx.arc(x, y, 1, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        ctx.globalAlpha = 1.0;
-      }
-    }
-
-    const numRings = 5;
-    ctx.save();
-    ctx.strokeStyle = nightMode
-      ? 'rgba(85, 255, 85, 0.35)'
-      : 'rgba(85, 255, 85, 0.25)';
-    ctx.lineWidth = 1;
-    for (let i = 1; i <= numRings; i++) {
-      const ringRadius = radarRadius * (i / numRings);
-      ctx.beginPath();
-      ctx.arc(radius, radius, ringRadius, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    ctx.restore();
-
-    if (currGuardZone.active) {
-      const innerRadius = (currGuardZone.innerRange / range) * radarRadius;
-      const outerRadius = (currGuardZone.outerRange / range) * radarRadius;
-      const startAngle =
-        ((currGuardZone.startAngle - rotationAngle + 360) % 360) *
-        (Math.PI / 180);
-      const endAngle =
-        ((currGuardZone.endAngle - rotationAngle + 360) % 360) *
-        (Math.PI / 180);
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(radius, radius, outerRadius, startAngle, endAngle);
-      ctx.lineTo(
-        radius + Math.cos(endAngle) * innerRadius,
-        radius + Math.sin(endAngle) * innerRadius,
-      );
-      ctx.arc(radius, radius, innerRadius, endAngle, startAngle, true);
-      ctx.closePath();
-
-      ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
-      ctx.fill();
-
-      ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    if (currEbl.active) {
-      const angleRad =
-        ((currEbl.angle - rotationAngle + 360) % 360) * (Math.PI / 180);
-
-      const endX = radius + Math.sin(angleRad) * radarRadius;
-      const endY = radius - Math.cos(angleRad) * radarRadius;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(radius, radius);
-      ctx.lineTo(endX, endY);
-      ctx.strokeStyle = nightMode ? '#55FF55' : '#55FF55';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(endX, endY, 4, 0, Math.PI * 2);
-      ctx.fillStyle = nightMode ? '#55FF55' : '#55FF55';
-      ctx.fill();
-      ctx.restore();
-    }
-
-    if (currVrm.active) {
-      const vrmRadius = (currVrm.distance / range) * radarRadius;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(radius, radius, vrmRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = nightMode ? '#55FF55' : '#55FF55';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 4]);
-      ctx.stroke();
-      ctx.restore();
-    }
-  };
-
-  const handleRangeChange = (direction: 'increase' | 'decrease') => {
-    setSettings(prev => {
-      const currentIndex = RANGE_OPTIONS.indexOf(prev.range);
-      let newIndex = currentIndex;
-
-      if (direction === 'increase' && currentIndex < RANGE_OPTIONS.length - 1) {
-        newIndex = currentIndex + 1;
-      } else if (direction === 'decrease' && currentIndex > 0) {
-        newIndex = currentIndex - 1;
-      }
-
-      return { ...prev, range: RANGE_OPTIONS[newIndex] };
+    renderRadarFrame(ctx, {
+      size,
+      sweepAngle,
+      settings: currSettings,
+      environment: currEnvironment,
+      targets: currTargets,
+      aisTargets: currAisTargets,
+      arpaSettings: currArpaSettings,
+      arpaTargets: currArpaTargets,
+      arpaEnabled: currArpaEnabled,
+      ownShip: ownShipRef.current,
+      ebl: currEbl,
+      vrm: currVrm,
+      guardZone: currGuardZone,
     });
   };
 
-  const handleSettingChange = (
-    setting: keyof RadarSettings,
-    value: number | boolean | string | RadarBand,
-  ) => {
-    setSettings(prev => ({ ...prev, [setting]: value }));
+  const {
+    handleRangeChange,
+    handleSettingChange,
+    handleEblToggle,
+    handleEblAngleChange,
+    handleVrmToggle,
+    handleVrmDistanceChange,
+    handleGuardZoneChange,
+    handleArpaSettingChange,
+    handleAcquireTarget,
+    handleCancelTarget,
+    toggleArpaPanel,
+  } = createRadarControlHandlers({
+    settings,
+    ebl: eblState,
+    vrm: vrmState,
+    guardZone: guardZoneState,
+    arpaSettings: arpaSettingsState,
+    arpaEnabled: arpaEnabledState,
+    arpaTargets: arpaTargetsState,
+    selectedTargetId,
+    ownShipData,
+    targetsRef,
+    onEblChange,
+    onVrmChange,
+    onGuardZoneChange,
+    onArpaSettingsChange,
+    onArpaEnabledChange,
+    setSettings,
+    setInternalEbl,
+    setInternalVrm,
+    setInternalGuardZone,
+    setInternalArpaSettings,
+    setInternalArpaEnabled,
+    updateArpaTargets,
+    setSelectedTargetId,
+  });
+  const controlsPanelProps = {
+    settings,
+    onSettingChange: handleSettingChange,
+    onRangeChange: handleRangeChange,
+    ebl: eblState,
+    vrm: vrmState,
+    onEblToggle: handleEblToggle,
+    onEblAngleChange: handleEblAngleChange,
+    onVrmToggle: handleVrmToggle,
+    onVrmDistanceChange: handleVrmDistanceChange,
+    onToggleArpa: toggleArpaPanel,
+    arpaEnabled: arpaEnabledState,
+    guardZone: guardZoneState,
+    onGuardZoneChange: handleGuardZoneChange,
+    arpaTargets: arpaTargetsState,
+    selectedTargetId,
+    onSelectTarget: setSelectedTargetId,
+    arpaSettings: arpaSettingsState,
+    onArpaSettingChange: handleArpaSettingChange,
+    onAcquireTarget: handleAcquireTarget,
+    onCancelTarget: handleCancelTarget,
   };
-
-  const handleEblToggle = () => {
-    const next = { ...eblState, active: !eblState.active };
-    if (onEblChange) {
-      onEblChange(next);
-    } else {
-      setInternalEbl(next);
-    }
-  };
-
-  const handleEblAngleChange = (angle: number) => {
-    const next = { ...eblState, angle };
-    if (onEblChange) {
-      onEblChange(next);
-    } else {
-      setInternalEbl(next);
-    }
-  };
-
-  const handleVrmToggle = () => {
-    const nextActive = !vrmState.active;
-    const nextDistance =
-      nextActive && vrmState.distance === 0
-        ? Math.max(0.1, settings.range * 0.25)
-        : vrmState.distance;
-    const next = { ...vrmState, active: nextActive, distance: nextDistance };
-    if (onVrmChange) {
-      onVrmChange(next);
-    } else {
-      setInternalVrm(next);
-    }
-  };
-
-  const handleVrmDistanceChange = (distance: number) => {
-    const next = {
-      ...vrmState,
-      distance: Math.min(distance, settings.range),
-    };
-    if (onVrmChange) {
-      onVrmChange(next);
-    } else {
-      setInternalVrm(next);
-    }
-  };
-
-  const handleGuardZoneChange = (
-    field: keyof GuardZone,
-    value: number | boolean,
-  ) => {
-    const next = { ...guardZoneState, [field]: value };
-    if (onGuardZoneChange) {
-      onGuardZoneChange(next);
-    } else {
-      setInternalGuardZone(next);
-    }
-  };
-
-  const handleArpaSettingChange = (
-    setting: keyof ARPASettings,
-    value: boolean | number,
-  ) => {
-    const next = { ...arpaSettingsState, [setting]: value };
-    if (onArpaSettingsChange) {
-      onArpaSettingsChange(next);
-    } else {
-      setInternalArpaSettings(next);
-    }
-  };
-
-  const handleAcquireTarget = () => {
-    const untracked = targetsRef.current.filter(
-      t =>
-        !arpaTargetsState.some(at => at.id === t.id) &&
-        t.type !== 'land' &&
-        t.distance <= arpaSettingsState.autoAcquisitionRange,
-    );
-
-    if (untracked.length > 0) {
-      const closest = [...untracked].sort((a, b) => a.distance - b.distance)[0];
-      const newArpaTarget = convertToARPATarget(closest, ownShipData);
-      updateArpaTargets(prev => [...prev, newArpaTarget]);
-      setSelectedTargetId(closest.id);
-    }
-  };
-
-  const handleCancelTarget = (targetId: string) => {
-    updateArpaTargets(prev => prev.filter(t => t.id !== targetId));
-
-    if (selectedTargetId === targetId) {
-      setSelectedTargetId(null);
-    }
-  };
-
-  const toggleArpaPanel = () => {
-    const next = !arpaEnabledState;
-    if (onArpaEnabledChange) {
-      onArpaEnabledChange(next);
-    } else {
-      setInternalArpaEnabled(next);
-    }
-  };
-
-  const ringPadding = 10;
-  const labelPadding = 12;
-  const outerOffset = ringPadding + labelPadding;
-  const outerSize = size + outerOffset * 2;
-  const tickColor = settings.nightMode ? '#55FF55' : '#55FF55';
-  const tickOuter = size / 2 + ringPadding - 2;
-  const majorTickLen = 10;
-  const minorTickLen = 5;
-  const labelRadius = tickOuter + 8;
-  const labelFontSize = 9;
-  const outerCenter = outerSize / 2;
-  const polarToPoint = (angle: number, r: number) => {
-    const rad = ((angle - 90) * Math.PI) / 180;
-    return {
-      x: outerCenter + Math.cos(rad) * r,
-      y: outerCenter + Math.sin(rad) * r,
-    };
-  };
-
   const radarView = (
-    <div
-      className="relative mx-auto"
-      style={{
-        width: outerSize,
-        height: outerSize,
-      }}
-    >
-      <div
-        className="absolute"
-        style={{
-          left: outerOffset,
-          top: outerOffset,
-          width: size,
-          height: size,
-          borderRadius: '50%',
-          overflow: 'hidden',
-          backgroundColor: settings.nightMode ? '#000B14' : '#001A14',
-          boxShadow: '0 0 10px rgba(0, 0, 0, 0.5)',
-        }}
-      >
-        <canvas
-          ref={canvasRef}
-          width={size}
-          height={size}
-          className="absolute top-0 left-0"
-        />
-        <div
-          ref={radarSweepRef}
-          className="absolute left-1/2 top-1/2 h-0.5 w-1/2 bg-green-400 opacity-70"
-          style={{
-            transformOrigin: '0% 50%',
-          }}
-        />
-      </div>
-      <svg
-        className="absolute inset-0 pointer-events-none"
-        width={outerSize}
-        height={outerSize}
-        viewBox={`0 0 ${outerSize} ${outerSize}`}
-      >
-        {Array.from({ length: 180 }).map((_, index) => {
-          const angle = index * 2;
-          const isMajor = angle % 10 === 0;
-          const len = isMajor ? majorTickLen : minorTickLen;
-          const start = polarToPoint(angle, tickOuter);
-          const end = polarToPoint(angle, tickOuter - len);
-          return (
-            <line
-              key={`tick-${angle}`}
-              x1={start.x}
-              y1={start.y}
-              x2={end.x}
-              y2={end.y}
-              stroke={tickColor}
-              strokeWidth={isMajor ? 1.2 : 0.8}
-              opacity={isMajor ? 0.95 : 0.7}
-            />
-          );
-        })}
-        {Array.from({ length: 36 }).map((_, index) => {
-          const angle = index * 10;
-          const pos = polarToPoint(angle, labelRadius);
-          return (
-            <text
-              key={`label-${angle}`}
-              x={pos.x}
-              y={pos.y}
-              fill={tickColor}
-              fontSize={labelFontSize}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              opacity={0.95}
-            >
-              {angle}
-            </text>
-          );
-        })}
-      </svg>
-    </div>
-  );
-
-  const radarControls = (
-    <div className="flex flex-col gap-4">
-      <RadarControls
-        settings={settings}
-        onSettingChange={handleSettingChange}
-        onRangeChange={handleRangeChange}
-        ebl={eblState}
-        vrm={vrmState}
-        onEblToggle={handleEblToggle}
-        onEblAngleChange={handleEblAngleChange}
-        onVrmToggle={handleVrmToggle}
-        onVrmDistanceChange={handleVrmDistanceChange}
-        onToggleArpa={toggleArpaPanel}
-        arpaEnabled={arpaEnabledState}
-        guardZone={guardZoneState}
-        onGuardZoneChange={handleGuardZoneChange}
-      />
-      {arpaEnabledState && (
-        <div className="w-full lg:w-72">
-          <ARPAPanel
-            arpaTargets={arpaTargetsState}
-            selectedTargetId={selectedTargetId}
-            onSelectTarget={setSelectedTargetId}
-            arpaSettings={arpaSettingsState}
-            onSettingChange={handleArpaSettingChange}
-            onAcquireTarget={handleAcquireTarget}
-            onCancelTarget={handleCancelTarget}
-          />
-        </div>
-      )}
-    </div>
+    <RadarView
+      size={size}
+      nightMode={settings.nightMode}
+      canvasRef={canvasRef}
+      radarSweepRef={radarSweepRef}
+    />
   );
 
   if (layout === 'side') {
@@ -955,7 +375,7 @@ export default function RadarDisplay({
         className={`grid gap-4 lg:grid-cols-[auto_minmax(0,1fr)] ${className}`}
       >
         <div className="flex justify-center lg:justify-start">{radarView}</div>
-        {radarControls}
+        <RadarControlsPanel {...controlsPanelProps} />
       </div>
     );
   }
@@ -965,35 +385,11 @@ export default function RadarDisplay({
       {radarView}
       <div className="flex flex-col lg:flex-row gap-4 mt-4 w-full">
         <div className="flex-1">
-          <RadarControls
-            settings={settings}
-            onSettingChange={handleSettingChange}
-            onRangeChange={handleRangeChange}
-            ebl={eblState}
-            vrm={vrmState}
-            onEblToggle={handleEblToggle}
-            onEblAngleChange={handleEblAngleChange}
-            onVrmToggle={handleVrmToggle}
-            onVrmDistanceChange={handleVrmDistanceChange}
-            onToggleArpa={toggleArpaPanel}
-            arpaEnabled={arpaEnabledState}
-            guardZone={guardZoneState}
-            onGuardZoneChange={handleGuardZoneChange}
+          <RadarControlsPanel
+            {...controlsPanelProps}
+            arpaPanelClassName="w-full lg:w-72 lg:ml-4"
           />
         </div>
-        {arpaEnabledState && (
-          <div className="w-full lg:w-72 lg:ml-4">
-            <ARPAPanel
-              arpaTargets={arpaTargetsState}
-              selectedTargetId={selectedTargetId}
-              onSelectTarget={setSelectedTargetId}
-              arpaSettings={arpaSettingsState}
-              onSettingChange={handleArpaSettingChange}
-              onAcquireTarget={handleAcquireTarget}
-              onCancelTarget={handleCancelTarget}
-            />
-          </div>
-        )}
       </div>
     </div>
   );
