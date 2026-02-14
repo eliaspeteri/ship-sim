@@ -354,6 +354,49 @@ const canTriggerCooldown = (key: string, now: number, cooldown: number) => {
   return true;
 };
 
+const applyColregsPenalty = async (params: {
+  chargeUserId?: string;
+  vesselId: string;
+  penalty: number;
+  safetyDelta: number;
+  reason: 'collision' | 'near_miss';
+  otherVesselId: string;
+  distance: number;
+}) => {
+  if (!params.chargeUserId) return;
+  const profile = await applyEconomyAdjustment({
+    userId: params.chargeUserId,
+    vesselId: params.vesselId,
+    deltaCredits: -params.penalty,
+    deltaSafetyScore: -params.safetyDelta,
+    reason: params.reason,
+    meta: { otherVessel: params.otherVesselId, distance: params.distance },
+  });
+  io.to(`user:${params.chargeUserId}`).emit('economy:update', profile);
+  void syncUserSocketsEconomy(params.chargeUserId, profile);
+};
+
+const applyCollisionDamageIfEnabled = (
+  damageEnabled: boolean,
+  a: VesselRecord,
+  b: VesselRecord,
+) => {
+  if (!damageEnabled) return;
+  const relSpeed = Math.hypot(
+    (a.velocity.surge ?? 0) - (b.velocity.surge ?? 0),
+    (a.velocity.sway ?? 0) - (b.velocity.sway ?? 0),
+  );
+  const severity = Math.min(1, relSpeed / 6);
+  a.damageState = applyCollisionDamage(
+    mergeDamageState(a.damageState),
+    severity,
+  );
+  b.damageState = applyCollisionDamage(
+    mergeDamageState(b.damageState),
+    severity,
+  );
+};
+
 const applyColregsRules = async (spaceId: string, now: number) => {
   const meta = spaceMetaCache.get(spaceId);
   const rules = meta?.rules as
@@ -408,108 +451,71 @@ const applyColregsRules = async (spaceId: string, now: number) => {
       const b = vessels[j];
       const dist = distanceMeters(a.position, b.position);
       const pairKey = [a.id, b.id].sort().join(':');
+      const collisionKey = `collision:${spaceId}:${pairKey}`;
+      if (
+        dist <= COLLISION_DISTANCE_M &&
+        !canTriggerCooldown(collisionKey, now, COLLISION_COOLDOWN_MS)
+      ) {
+        continue;
+      }
       if (dist <= COLLISION_DISTANCE_M) {
-        if (
-          !canTriggerCooldown(
-            `collision:${spaceId}:${pairKey}`,
-            now,
-            COLLISION_COOLDOWN_MS,
-          )
-        ) {
-          continue;
-        }
         const penalty = rules.collisionPenalty || 500;
-        const chargeA = resolveChargeUserId(a);
-        const chargeB = resolveChargeUserId(b);
-        if (chargeA) {
-          const profile = await applyEconomyAdjustment({
-            userId: chargeA,
-            vesselId: a.id,
-            deltaCredits: -penalty,
-            deltaSafetyScore: -0.15,
-            reason: 'collision',
-            meta: { otherVessel: b.id, distance: dist },
-          });
-          io.to(`user:${chargeA}`).emit('economy:update', profile);
-          void syncUserSocketsEconomy(chargeA, profile);
-        }
-        if (chargeB) {
-          const profile = await applyEconomyAdjustment({
-            userId: chargeB,
-            vesselId: b.id,
-            deltaCredits: -penalty,
-            deltaSafetyScore: -0.15,
-            reason: 'collision',
-            meta: { otherVessel: a.id, distance: dist },
-          });
-          io.to(`user:${chargeB}`).emit('economy:update', profile);
-          void syncUserSocketsEconomy(chargeB, profile);
-        }
+        await applyColregsPenalty({
+          chargeUserId: resolveChargeUserId(a),
+          vesselId: a.id,
+          penalty,
+          safetyDelta: 0.15,
+          reason: 'collision',
+          otherVesselId: b.id,
+          distance: dist,
+        });
+        await applyColregsPenalty({
+          chargeUserId: resolveChargeUserId(b),
+          vesselId: b.id,
+          penalty,
+          safetyDelta: 0.15,
+          reason: 'collision',
+          otherVesselId: a.id,
+          distance: dist,
+        });
         recordLog({
           level: 'warn',
           source: 'colregs',
           message: 'Collision detected',
           meta: { vessels: [a.id, b.id], distance: dist },
         });
-        if (damageEnabled) {
-          const relSpeed = Math.hypot(
-            (a.velocity.surge ?? 0) - (b.velocity.surge ?? 0),
-            (a.velocity.sway ?? 0) - (b.velocity.sway ?? 0),
-          );
-          const severity = Math.min(1, relSpeed / 6);
-          a.damageState = applyCollisionDamage(
-            mergeDamageState(a.damageState),
-            severity,
-          );
-          b.damageState = applyCollisionDamage(
-            mergeDamageState(b.damageState),
-            severity,
-          );
-        }
-      } else if (dist <= NEAR_MISS_DISTANCE_M) {
-        if (
-          !canTriggerCooldown(
-            `nearmiss:${spaceId}:${pairKey}`,
-            now,
-            NEAR_MISS_COOLDOWN_MS,
-          )
-        ) {
-          continue;
-        }
-        const penalty = rules.nearMissPenalty || 150;
-        const chargeA = resolveChargeUserId(a);
-        const chargeB = resolveChargeUserId(b);
-        if (chargeA) {
-          const profile = await applyEconomyAdjustment({
-            userId: chargeA,
-            vesselId: a.id,
-            deltaCredits: -penalty,
-            deltaSafetyScore: -0.05,
-            reason: 'near_miss',
-            meta: { otherVessel: b.id, distance: dist },
-          });
-          io.to(`user:${chargeA}`).emit('economy:update', profile);
-          void syncUserSocketsEconomy(chargeA, profile);
-        }
-        if (chargeB) {
-          const profile = await applyEconomyAdjustment({
-            userId: chargeB,
-            vesselId: b.id,
-            deltaCredits: -penalty,
-            deltaSafetyScore: -0.05,
-            reason: 'near_miss',
-            meta: { otherVessel: a.id, distance: dist },
-          });
-          io.to(`user:${chargeB}`).emit('economy:update', profile);
-          void syncUserSocketsEconomy(chargeB, profile);
-        }
-        recordLog({
-          level: 'info',
-          source: 'colregs',
-          message: 'Near miss detected',
-          meta: { vessels: [a.id, b.id], distance: dist },
-        });
+        applyCollisionDamageIfEnabled(damageEnabled, a, b);
+        continue;
       }
+      if (dist > NEAR_MISS_DISTANCE_M) continue;
+      const cooldownKey = `nearmiss:${spaceId}:${pairKey}`;
+      if (!canTriggerCooldown(cooldownKey, now, NEAR_MISS_COOLDOWN_MS))
+        continue;
+      const penalty = rules.nearMissPenalty || 150;
+      await applyColregsPenalty({
+        chargeUserId: resolveChargeUserId(a),
+        vesselId: a.id,
+        penalty,
+        safetyDelta: 0.05,
+        reason: 'near_miss',
+        otherVesselId: b.id,
+        distance: dist,
+      });
+      await applyColregsPenalty({
+        chargeUserId: resolveChargeUserId(b),
+        vesselId: b.id,
+        penalty,
+        safetyDelta: 0.05,
+        reason: 'near_miss',
+        otherVesselId: a.id,
+        distance: dist,
+      });
+      recordLog({
+        level: 'info',
+        source: 'colregs',
+        message: 'Near miss detected',
+        meta: { vessels: [a.id, b.id], distance: dist },
+      });
     }
   }
 };
@@ -873,14 +879,17 @@ async function persistEnvironmentToDb(
 }
 
 function createNewVesselForUser(
-  userId: string,
-  username: string,
-  payload: Partial<VesselPose['position']> & {
-    position?: Partial<VesselPose['position']>;
-    templateId?: string;
-  } = {},
-  spaceId: string = DEFAULT_SPACE_ID,
+  ...args: [
+    userId: string,
+    username: string,
+    payload?: Partial<VesselPose['position']> & {
+      position?: Partial<VesselPose['position']>;
+      templateId?: string;
+    },
+    spaceId?: string,
+  ]
 ): VesselRecord {
+  const [userId, username, payload = {}, spaceId = DEFAULT_SPACE_ID] = args;
   const template = resolveVesselTemplate(payload.templateId);
   const nextPosition = ensurePosition(payload.position || payload);
   const vessel: VesselRecord = {
@@ -991,13 +1000,17 @@ const STATION_KEYS = {
 } as const;
 
 function updateStationAssignment(
-  vessel: VesselRecord,
-  station: keyof typeof STATION_KEYS,
-  action: 'claim' | 'release',
-  userId: string,
-  username: string,
-  isAdminOverride = false,
+  ...args: [
+    vessel: VesselRecord,
+    station: keyof typeof STATION_KEYS,
+    action: 'claim' | 'release',
+    userId: string,
+    username: string,
+    isAdminOverride?: boolean,
+  ]
 ): { ok: boolean; message?: string } {
+  const [vessel, station, action, userId, username, isAdminOverride = false] =
+    args;
   const keys = STATION_KEYS[station];
   const currentId = vessel[keys.id];
   const currentName = vessel[keys.name];
@@ -1891,26 +1904,33 @@ io.on('connection', async socket => {
     );
 
   const createNewVesselForUserAdapter = (
-    userId: string,
-    username: string,
-    payload: unknown,
-    spaceId: string,
-  ): VesselRecord =>
-    createNewVesselForUser(
+    ...args: [
+      userId: string,
+      username: string,
+      payload: unknown,
+      spaceId: string,
+    ]
+  ): VesselRecord => {
+    const [userId, username, payload, spaceId] = args;
+    return createNewVesselForUser(
       userId,
       username,
       payload as Parameters<typeof createNewVesselForUser>[2],
       spaceId,
     );
+  };
 
   const updateStationAssignmentAdapter = (
-    vessel: VesselRecord,
-    station: 'helm' | 'engine' | 'radio',
-    action: string,
-    userId: string,
-    username: string,
-    isAdmin: boolean,
+    ...args: [
+      vessel: VesselRecord,
+      station: 'helm' | 'engine' | 'radio',
+      action: string,
+      userId: string,
+      username: string,
+      isAdmin: boolean,
+    ]
   ): { ok: true } | { ok: false; message?: string } => {
+    const [vessel, station, action, userId, username, isAdmin] = args;
     const result = updateStationAssignment(
       vessel,
       station,
@@ -2566,14 +2586,19 @@ const broadcastTick = async () => {
           failureUpdate.triggered.engineFailure,
           failureUpdate.triggered.steeringFailure,
         );
-        if (
-          Number.isFinite(waterDepth) &&
-          Number.isFinite(v.properties.draft) &&
-          waterDepth <= v.properties.draft + 0.1
-        ) {
-          const severity = Math.min(1, Math.max(0.2, speed / 5));
-          v.damageState = applyGroundingDamage(v.damageState, dt, severity);
-        }
+      }
+      const isGrounded =
+        rules.realism.damage &&
+        Number.isFinite(waterDepth) &&
+        Number.isFinite(v.properties.draft) &&
+        waterDepth <= v.properties.draft + 0.1;
+      if (isGrounded) {
+        const severity = Math.min(1, Math.max(0.2, speed / 5));
+        v.damageState = applyGroundingDamage(
+          mergeDamageState(v.damageState),
+          dt,
+          severity,
+        );
       }
       if (failureUpdate.triggered.engineFailure) {
         recordLog({

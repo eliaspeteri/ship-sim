@@ -9,6 +9,45 @@ import {
 import { syncUserSocketsEconomy } from '../index';
 import type { SocketHandlerContext } from './context';
 
+const applyInsuranceRepairPayout = async (params: {
+  vesselId: string;
+  ownerId: string;
+  repairCost: number;
+  io: SocketHandlerContext['io'];
+}) => {
+  const policy = await prisma.insurancePolicy.findFirst({
+    where: {
+      vesselId: params.vesselId,
+      ownerId: params.ownerId,
+      status: 'active',
+      type: 'damage',
+    },
+  });
+  if (!policy) {
+    return 0;
+  }
+  const payout = Math.max(
+    0,
+    Math.min(
+      params.repairCost - (policy.deductible ?? 0),
+      policy.coverage ?? 0,
+    ),
+  );
+  if (payout <= 0) {
+    return 0;
+  }
+  const payoutProfile = await applyEconomyAdjustment({
+    userId: params.ownerId,
+    vesselId: params.vesselId,
+    deltaCredits: payout,
+    reason: 'insurance_payout',
+    meta: { policyId: policy.id, repairCost: params.repairCost },
+  });
+  params.io.to(`user:${params.ownerId}`).emit('economy:update', payoutProfile);
+  void syncUserSocketsEconomy(params.ownerId, payoutProfile);
+  return payout;
+};
+
 export function registerVesselRepairHandler({
   io,
   socket,
@@ -69,35 +108,13 @@ export function registerVesselRepairHandler({
     try {
       let costToCharge = cost;
       if (target.ownerId) {
-        const policy = await prisma.insurancePolicy.findFirst({
-          where: {
-            vesselId: target.id,
-            ownerId: target.ownerId,
-            status: 'active',
-            type: 'damage',
-          },
+        const payout = await applyInsuranceRepairPayout({
+          vesselId: target.id,
+          ownerId: target.ownerId,
+          repairCost: cost,
+          io,
         });
-        if (policy) {
-          const payout = Math.max(
-            0,
-            Math.min(cost - (policy.deductible ?? 0), policy.coverage ?? 0),
-          );
-          if (payout > 0) {
-            costToCharge = Math.max(0, cost - payout);
-            const payoutProfile = await applyEconomyAdjustment({
-              userId: target.ownerId,
-              vesselId: target.id,
-              deltaCredits: payout,
-              reason: 'insurance_payout',
-              meta: { policyId: policy.id, repairCost: cost },
-            });
-            io.to(`user:${target.ownerId}`).emit(
-              'economy:update',
-              payoutProfile,
-            );
-            void syncUserSocketsEconomy(target.ownerId, payoutProfile);
-          }
-        }
+        costToCharge = Math.max(0, cost - payout);
       }
       const profile = await applyEconomyAdjustment({
         userId: chargeUserId,

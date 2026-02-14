@@ -58,18 +58,22 @@ export type SocketHandlerContext = {
   userSpaceKey: (userId: string, spaceId: string) => string;
   maxCrew: number;
   createNewVesselForUser: (
-    userId: string,
-    username: string,
-    payload: unknown,
-    spaceId: string,
+    ...args: [
+      userId: string,
+      username: string,
+      payload: unknown,
+      spaceId: string,
+    ]
   ) => VesselRecord;
   updateStationAssignment: (
-    vessel: VesselRecord,
-    station: 'helm' | 'engine' | 'radio',
-    action: string,
-    userId: string,
-    username: string,
-    isAdmin: boolean,
+    ...args: [
+      vessel: VesselRecord,
+      station: 'helm' | 'engine' | 'radio',
+      action: string,
+      userId: string,
+      username: string,
+      isAdmin: boolean,
+    ]
   ) => { ok: true } | { ok: false; message?: string | undefined };
   resolveChatChannel: (
     requestedChannel: string | undefined,

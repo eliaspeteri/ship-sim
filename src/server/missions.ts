@@ -93,6 +93,39 @@ const toMissionAssignmentData = (assignment: {
 const MISSION_PICKUP_RADIUS_M = 220;
 const MISSION_DELIVERY_RADIUS_M = 260;
 
+const maybeAwardNearbyPortReputation = async (
+  userId: string,
+  vesselPosition: { lat: number; lon: number },
+) => {
+  const nearestPort = ECONOMY_PORTS.reduce(
+    (closest, port) => {
+      const dist = distanceMeters(vesselPosition, port.position);
+      return dist < closest.distance
+        ? { id: port.id, distance: dist }
+        : closest;
+    },
+    {
+      id: ECONOMY_PORTS[0]?.id || 'unknown',
+      distance: Number.POSITIVE_INFINITY,
+    },
+  );
+  if (!nearestPort.id || nearestPort.distance >= 1500) {
+    return;
+  }
+  await bumpReputation({
+    userId,
+    scopeType: 'port',
+    scopeId: nearestPort.id,
+    delta: 1,
+  });
+  await bumpReputation({
+    userId,
+    scopeType: 'region',
+    scopeId: 'global',
+    delta: 0.5,
+  });
+};
+
 const getSeedPayload = (seed: MissionSeed) => {
   const origin = positionFromXY(seed.originXY);
   const destination = positionFromXY(seed.destinationXY);
@@ -271,32 +304,10 @@ export async function updateMissionAssignments(params: {
           careerId: careerKey as CareerKey,
           experience: Math.round(mission.rewardCredits),
         });
-        const nearestPort = ECONOMY_PORTS.reduce(
-          (closest, port) => {
-            const dist = distanceMeters(vessel.position, port.position);
-            return dist < closest.distance
-              ? { id: port.id, distance: dist }
-              : closest;
-          },
-          {
-            id: ECONOMY_PORTS[0]?.id || 'unknown',
-            distance: Number.POSITIVE_INFINITY,
-          },
+        await maybeAwardNearbyPortReputation(
+          assignment.userId,
+          vessel.position,
         );
-        if (nearestPort.id && nearestPort.distance < 1500) {
-          await bumpReputation({
-            userId: assignment.userId,
-            scopeType: 'port',
-            scopeId: nearestPort.id,
-            delta: 1,
-          });
-          await bumpReputation({
-            userId: assignment.userId,
-            scopeType: 'region',
-            scopeId: 'global',
-            delta: 0.5,
-          });
-        }
         const normalizedUpdated = toMissionAssignmentData(updated);
         params.emitUpdate?.(assignment.userId, {
           ...normalizedUpdated,

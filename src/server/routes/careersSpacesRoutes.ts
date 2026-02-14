@@ -115,6 +115,32 @@ const collectSpaces = async ({
   return collected;
 };
 
+const validateSpacePassword = async ({
+  space,
+  password,
+  res,
+}: {
+  space: SpaceShape;
+  password: string | undefined;
+  res: Response;
+}) => {
+  if (space.visibility !== 'private' || !space.passwordHash) {
+    return true;
+  }
+  if (!password) {
+    res
+      .status(403)
+      .json({ error: 'Password required', requiresPassword: true });
+    return false;
+  }
+  const ok = await bcrypt.compare(password, space.passwordHash);
+  if (!ok) {
+    res.status(403).json({ error: 'Invalid password', requiresPassword: true });
+    return false;
+  }
+  return true;
+};
+
 export const registerCareersSpacesRoutes = ({
   router,
   prisma,
@@ -339,20 +365,9 @@ export const registerCareersSpacesRoutes = ({
           res.status(404).json({ error: 'Space not found' });
           return;
         }
-        if (space.visibility === 'private' && space.passwordHash) {
-          if (!password) {
-            res
-              .status(403)
-              .json({ error: 'Password required', requiresPassword: true });
-            return;
-          }
-          const ok = await bcrypt.compare(password, space.passwordHash);
-          if (!ok) {
-            res
-              .status(403)
-              .json({ error: 'Invalid password', requiresPassword: true });
-            return;
-          }
+        const hasAccess = await validateSpacePassword({ space, password, res });
+        if (!hasAccess) {
+          return;
         }
         collected.push(serializeSpace(space));
       }

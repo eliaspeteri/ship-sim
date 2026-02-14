@@ -247,40 +247,41 @@ export const handleSimulationUpdate = (
           (prevFailure?.floodingLevel ?? 0) !==
             normalized.failureState.floodingLevel;
 
-        if (failureChanged) {
-          if (
-            normalized.failureState.engineFailure &&
-            !(prevFailure?.engineFailure ?? false)
-          ) {
-            store.addEvent({
-              category: 'alarm',
-              type: 'engine_failure',
-              message: 'Engine failure detected',
-              severity: 'critical',
-            });
-          }
-          if (
-            normalized.failureState.steeringFailure &&
-            !(prevFailure?.steeringFailure ?? false)
-          ) {
-            store.addEvent({
-              category: 'alarm',
-              type: 'steering_failure',
-              message: 'Steering failure detected',
-              severity: 'critical',
-            });
-          }
-          if (
-            normalized.failureState.floodingLevel > 0.2 &&
-            (prevFailure?.floodingLevel ?? 0) <= 0.2
-          ) {
-            store.addEvent({
-              category: 'alarm',
-              type: 'flooding',
-              message: 'Flooding detected',
-              severity: 'critical',
-            });
-          }
+        if (
+          failureChanged &&
+          normalized.failureState.engineFailure &&
+          !(prevFailure?.engineFailure ?? false)
+        ) {
+          store.addEvent({
+            category: 'alarm',
+            type: 'engine_failure',
+            message: 'Engine failure detected',
+            severity: 'critical',
+          });
+        }
+        if (
+          failureChanged &&
+          normalized.failureState.steeringFailure &&
+          !(prevFailure?.steeringFailure ?? false)
+        ) {
+          store.addEvent({
+            category: 'alarm',
+            type: 'steering_failure',
+            message: 'Steering failure detected',
+            severity: 'critical',
+          });
+        }
+        if (
+          failureChanged &&
+          normalized.failureState.floodingLevel > 0.2 &&
+          (prevFailure?.floodingLevel ?? 0) <= 0.2
+        ) {
+          store.addEvent({
+            category: 'alarm',
+            type: 'flooding',
+            message: 'Flooding detected',
+            severity: 'critical',
+          });
         }
       }
 

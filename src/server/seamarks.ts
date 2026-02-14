@@ -32,11 +32,9 @@ const rad2deg = (r: number) => (r * 180) / Math.PI;
 const R = 6371000;
 
 function destination(
-  lat: number,
-  lon: number,
-  bearingDeg: number,
-  distanceM: number,
+  ...args: [lat: number, lon: number, bearingDeg: number, distanceM: number]
 ) {
+  const [lat, lon, bearingDeg, distanceM] = args;
   const brng = deg2rad(bearingDeg);
   const φ1 = deg2rad(lat);
   const λ1 = deg2rad(lon);
@@ -100,6 +98,70 @@ const addToIndex = (idx: number, lat: number, lon: number) => {
   const list = cellIndex.get(key) || [];
   list.push(idx);
   cellIndex.set(key, list);
+};
+
+const appendCandidates = (params: {
+  candidates: number[];
+  bounds: { south: number; north: number; west: number; east: number };
+  results: SeamarkFeature[];
+  seen: Set<string>;
+  limit: number;
+}) => {
+  for (const idx of params.candidates) {
+    const p = points[idx];
+    if (!p) continue;
+    if (p.lat < params.bounds.south || p.lat > params.bounds.north) continue;
+    if (p.lon < params.bounds.west || p.lon > params.bounds.east) continue;
+
+    const osmId = p.properties?.['osm_id'];
+    const dedupeKey = osmId ? `n:${String(osmId)}` : `${p.lat}:${p.lon}`;
+    if (params.seen.has(dedupeKey)) continue;
+    params.seen.add(dedupeKey);
+
+    params.results.push({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
+      properties: p.properties,
+    });
+
+    if (params.results.length >= params.limit) return true;
+  }
+  return false;
+};
+
+const appendRangeCells = (params: {
+  range: { w: number; e: number };
+  latMinIdx: number;
+  latMaxIdx: number;
+  south: number;
+  north: number;
+  results: SeamarkFeature[];
+  seen: Set<string>;
+  limit: number;
+}) => {
+  const lonMinIdx = Math.floor((params.range.w + 180) / CELL_SIZE_DEG);
+  const lonMaxIdx = Math.floor((params.range.e + 180) / CELL_SIZE_DEG);
+
+  for (let latIdx = params.latMinIdx; latIdx <= params.latMaxIdx; latIdx++) {
+    for (let lonIdx = lonMinIdx; lonIdx <= lonMaxIdx; lonIdx++) {
+      const key = `${latIdx}:${lonIdx}`;
+      const candidates = cellIndex.get(key) ?? [];
+      const limitReached = appendCandidates({
+        candidates,
+        bounds: {
+          south: params.south,
+          north: params.north,
+          west: params.range.w,
+          east: params.range.e,
+        },
+        results: params.results,
+        seen: params.seen,
+        limit: params.limit,
+      });
+      if (limitReached) return true;
+    }
+  }
+  return false;
 };
 
 export async function loadSeamarks() {
@@ -180,36 +242,17 @@ export function querySeamarksBBox(opts: {
   const latMaxIdx = Math.floor((north + 90) / CELL_SIZE_DEG);
 
   for (const r of ranges) {
-    const lonMinIdx = Math.floor((r.w + 180) / CELL_SIZE_DEG);
-    const lonMaxIdx = Math.floor((r.e + 180) / CELL_SIZE_DEG);
-
-    for (let latIdx = latMinIdx; latIdx <= latMaxIdx; latIdx++) {
-      for (let lonIdx = lonMinIdx; lonIdx <= lonMaxIdx; lonIdx++) {
-        const key = `${latIdx}:${lonIdx}`;
-        const candidates = cellIndex.get(key);
-        if (!candidates) continue;
-
-        for (const idx of candidates) {
-          const p = points[idx];
-          if (!p) continue;
-          if (p.lat < south || p.lat > north) continue;
-          if (p.lon < r.w || p.lon > r.e) continue;
-
-          const osmId = p.properties?.['osm_id'];
-          const dedupeKey = osmId ? `n:${String(osmId)}` : `${p.lat}:${p.lon}`;
-          if (seen.has(dedupeKey)) continue;
-          seen.add(dedupeKey);
-
-          results.push({
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
-            properties: p.properties,
-          });
-
-          if (results.length >= limit) return results;
-        }
-      }
-    }
+    const limitReached = appendRangeCells({
+      range: r,
+      latMinIdx,
+      latMaxIdx,
+      south,
+      north,
+      results,
+      seen,
+      limit,
+    });
+    if (limitReached) return results;
   }
 
   return results;
