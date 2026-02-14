@@ -153,7 +153,7 @@ Unless a task explicitly states a stricter requirement, each PR implementing any
 
 ## Workstream A: Break Up God Components / Modules
 
-Completed: [ ]
+Completed: [x]
 
 ### A1. Decompose `HudDrawer` into container + hooks + per-tab adapters (`P0`)
 

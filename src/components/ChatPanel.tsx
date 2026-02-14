@@ -1,12 +1,33 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import useStore from '../store';
 import { socketManager } from '../networking/socket';
-import styles from './ChatPanel.module.css';
 
 interface ChatPanelProps {
   spaceId: string;
   vesselChannel?: string | null;
 }
+
+const ui = {
+  panel:
+    'rounded-[18px] border border-[rgba(27,154,170,0.35)] bg-[rgba(10,20,34,0.85)] p-[14px] shadow-[0_18px_40px_rgba(2,8,18,0.45)]',
+  title:
+    'text-[11px] uppercase tracking-[0.2em] text-[rgba(160,179,192,0.7)]',
+  list: 'mt-2.5 max-h-[220px] overflow-y-auto rounded-xl border border-[rgba(23,44,68,0.6)] bg-[rgba(6,12,18,0.6)] p-2.5',
+  messageRow:
+    'flex items-start gap-2.5 text-[13px] text-[rgba(226,236,240,0.9)] [&+&]:mt-2',
+  channelBadge:
+    'rounded-full bg-[rgba(50,70,90,0.6)] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-[rgba(230,238,240,0.85)]',
+  sender: 'font-semibold text-[rgba(238,246,248,0.96)]',
+  emptyState: 'text-xs text-[rgba(170,186,196,0.7)]',
+  inputRow: 'mt-2.5 grid grid-cols-[150px_1fr_auto] gap-2 max-[720px]:grid-cols-1',
+  select:
+    'rounded-[10px] border border-[rgba(40,60,80,0.6)] bg-[rgba(12,24,38,0.9)] px-2 py-1.5 text-xs text-[rgba(230,238,240,0.9)]',
+  input:
+    'rounded-[10px] border border-[rgba(40,60,80,0.6)] bg-[rgba(10,20,34,0.9)] px-2.5 py-1.5 text-[13px] text-[rgba(230,238,240,0.95)] focus:border-[rgba(27,154,170,0.7)] focus:outline-none focus:ring-2 focus:ring-[rgba(27,154,170,0.2)]',
+  sendButton:
+    'rounded-[10px] border-none bg-[linear-gradient(135deg,#1b9aaa,#0c6670)] px-4 py-1.5 text-xs font-semibold text-[#f5fbfc] transition-[transform,box-shadow] duration-200 hover:enabled:-translate-y-px hover:enabled:shadow-[0_8px_20px_rgba(12,80,90,0.35)] disabled:cursor-not-allowed disabled:opacity-50',
+  disabledHint: 'mt-2 text-[11px] text-[rgba(150,170,180,0.6)]',
+} as const;
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   spaceId,
@@ -100,23 +121,23 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     chatHistoryMeta[chatChannel]?.loaded ?? mergedChatMessages.length > 0;
 
   return (
-    <div className={styles.panel}>
-      <div className={styles.title}>Chat</div>
-      <div ref={chatListRef} className={styles.list}>
+    <div className={ui.panel}>
+      <div className={ui.title}>Chat</div>
+      <div ref={chatListRef} className={ui.list}>
         {chatLoaded ? (
           mergedChatMessages.length === 0 ? (
-            <div className={styles.emptyState}>No messages yet</div>
+            <div className={ui.emptyState}>No messages yet</div>
           ) : (
             mergedChatMessages.map((msg, idx) => (
               <div
                 key={`${msg.id || msg.timestamp}-${idx}`}
-                className={styles.messageRow}
+                className={ui.messageRow}
               >
-                <span className={styles.channelBadge}>
+                <span className={ui.channelBadge}>
                   {channelLabel(msg.channel)}
                 </span>
                 <div>
-                  <span className={styles.sender}>
+                  <span className={ui.sender}>
                     {msg.username || msg.userId}:
                   </span>{' '}
                   {msg.message}
@@ -125,12 +146,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             ))
           )
         ) : (
-          <div className={styles.emptyState}>Loading chat...</div>
+          <div className={ui.emptyState}>Loading chat...</div>
         )}
       </div>
-      <div className={styles.inputRow}>
+      <div className={ui.inputRow}>
         <select
-          className={styles.select}
+          className={ui.select}
           value={chatChannel}
           onChange={e => setChatChannel(e.target.value)}
         >
@@ -142,7 +163,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           ) : null}
         </select>
         <input
-          className={styles.input}
+          className={ui.input}
           placeholder="Message..."
           value={chatInput}
           onChange={e => setChatInput(e.target.value)}
@@ -158,13 +179,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           type="button"
           onClick={sendChat}
           disabled={!canChat}
-          className={styles.sendButton}
+          className={ui.sendButton}
         >
           Send
         </button>
       </div>
       {!canChat ? (
-        <div className={styles.disabledHint}>
+        <div className={ui.disabledHint}>
           Spectators cannot send chat in this space.
         </div>
       ) : null}

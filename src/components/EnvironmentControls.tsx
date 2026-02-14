@@ -8,7 +8,6 @@ import {
   formatTimeOfDay as formatClockTime,
 } from '../lib/time';
 import { getApiBase } from '../lib/api';
-import styles from './EnvironmentControls.module.css';
 
 interface EnvironmentControlsProps {
   className?: string;
@@ -34,6 +33,55 @@ type EnvironmentEvent = {
   enabled: boolean;
   createdBy?: string | null;
 };
+
+const ui = {
+  panel:
+    'rounded-[18px] border border-[rgba(27,154,170,0.35)] bg-[rgba(10,20,34,0.86)] p-4 text-[var(--ink)] shadow-[0_18px_45px_rgba(2,8,18,0.45)]',
+  header: 'flex justify-between gap-4',
+  headerMeta: 'flex flex-col items-end gap-2',
+  eyebrow:
+    'text-[11px] uppercase tracking-[0.2em] text-[rgba(160,179,192,0.7)]',
+  title: 'my-1 text-lg font-semibold',
+  summary: 'text-xs text-[rgba(180,198,210,0.8)]',
+  meta: 'text-[11px] text-[rgba(150,168,182,0.7)]',
+  pill: 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]',
+  pillDot: 'h-2 w-2 rounded-full bg-current',
+  pillOk: 'bg-[rgba(32,148,106,0.75)] text-[#e6fff6]',
+  pillWarn: 'bg-[rgba(186,88,64,0.8)] text-[#ffe9e3]',
+  pillTag: 'bg-[rgba(45,88,142,0.7)] text-[#e3f0ff]',
+  collapseButton:
+    'cursor-pointer rounded-[10px] border border-[rgba(60,88,104,0.7)] bg-[rgba(18,34,48,0.85)] px-2.5 py-1.5 text-[11px] text-[rgba(226,236,240,0.9)]',
+  grid: 'mt-4 grid grid-cols-2 gap-3 max-[900px]:grid-cols-1',
+  metricCard:
+    'rounded-xl border border-[rgba(27,154,170,0.2)] bg-[rgba(12,28,44,0.7)] p-2.5',
+  metricLabel:
+    'text-[11px] uppercase tracking-[0.18em] text-[rgba(160,179,192,0.7)]',
+  metricValue: 'text-base font-semibold text-[#f2f7f8]',
+  metricDetail: 'text-[11px] text-[rgba(170,186,198,0.7)]',
+  presetPanel:
+    'mt-[18px] rounded-[14px] border border-[rgba(40,60,80,0.6)] bg-[rgba(12,24,38,0.85)] p-3',
+  presetHeader: 'flex items-center justify-between',
+  presetGrid: 'mt-2.5 grid grid-cols-3 gap-2 max-[900px]:grid-cols-2',
+  presetButton:
+    'cursor-pointer rounded-[10px] border border-[rgba(60,88,104,0.6)] bg-[rgba(18,32,46,0.9)] p-2 text-xs text-[rgba(230,238,240,0.9)] disabled:cursor-not-allowed disabled:opacity-50',
+  inlineNote: 'mt-2 text-[11px] text-[rgba(150,168,182,0.7)]',
+  schedulePanel:
+    'mt-4 rounded-[14px] border border-[rgba(40,60,80,0.6)] bg-[rgba(8,18,30,0.9)] p-3',
+  scheduleHeader: 'flex items-center justify-between',
+  scheduleList: 'mt-2 grid gap-2',
+  scheduleItem:
+    'flex items-center justify-between gap-3 rounded-[10px] border border-[rgba(30,52,74,0.7)] bg-[rgba(8,18,30,0.8)] px-2.5 py-2',
+  scheduleMeta: 'text-xs text-[rgba(210,222,230,0.9)]',
+  scheduleSub: 'text-[11px] text-[rgba(150,168,182,0.7)]',
+  scheduleForm: 'mt-2.5 grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 max-[900px]:grid-cols-1',
+  input:
+    'rounded-[10px] border border-[rgba(50,72,92,0.7)] bg-[rgba(12,24,38,0.9)] px-2 py-1.5 text-xs text-[rgba(230,238,240,0.95)]',
+  actionButton:
+    'cursor-pointer rounded-[10px] border-none bg-[linear-gradient(135deg,#1b9aaa,#0c6670)] px-3 py-1.5 text-xs font-semibold text-[#eef7f8] disabled:cursor-not-allowed disabled:opacity-60',
+  dangerButton:
+    'cursor-pointer rounded-lg border border-[rgba(145,65,50,0.7)] bg-[rgba(92,32,24,0.8)] px-2 py-1 text-[11px] text-[#ffdcd4]',
+  feedback: 'mt-2 text-[11px] text-[rgba(170,186,198,0.8)]',
+} as const;
 
 const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
   className = '',
@@ -254,37 +302,37 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
       : 'Preset';
 
   return (
-    <div className={`${styles.panel} ${className}`}>
-      <div className={styles.header}>
+    <div className={`${ui.panel} ${className}`}>
+      <div className={ui.header}>
         <div>
-          <div className={styles.eyebrow}>Environment</div>
-          <div className={styles.title}>
+          <div className={ui.eyebrow}>Environment</div>
+          <div className={ui.title}>
             {environment.name || 'Live weather feed'}
           </div>
-          <div className={styles.summary}>{summaryLines.join(' • ')}</div>
-          <div className={styles.meta}>
+          <div className={ui.summary}>{summaryLines.join(' • ')}</div>
+          <div className={ui.meta}>
             {lastUpdated
               ? `Updated ${formatRelativeTime(lastUpdated)}`
               : 'Waiting for server...'}
           </div>
         </div>
-        <div className={styles.headerMeta}>
+        <div className={ui.headerMeta}>
           <div
-            className={`${styles.pill} ${
-              isConnected ? styles.pillOk : styles.pillWarn
+            className={`${ui.pill} ${
+              isConnected ? ui.pillOk : ui.pillWarn
             }`}
           >
-            <span className={styles.pillDot} />
+            <span className={ui.pillDot} />
             {isConnected ? 'Connected' : 'Offline'}
           </div>
-          <div className={`${styles.pill} ${styles.pillTag}`}>{modeBadge}</div>
-          <div className={`${styles.pill} ${styles.pillTag}`}>
+          <div className={`${ui.pill} ${ui.pillTag}`}>{modeBadge}</div>
+          <div className={`${ui.pill} ${ui.pillTag}`}>
             {spaceInfo?.name || spaceId}
           </div>
           <button
             type="button"
             onClick={() => setCollapsed(prev => !prev)}
-            className={styles.collapseButton}
+            className={ui.collapseButton}
           >
             {collapsed ? 'Expand' : 'Collapse'}
           </button>
@@ -293,7 +341,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
 
       {!collapsed ? (
         <>
-          <div className={styles.grid}>
+          <div className={ui.grid}>
             <Metric
               label="Wind"
               value={`${(metrics.windSpeedMs * 1.94384).toFixed(1)} kt`}
@@ -333,35 +381,35 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
             />
           </div>
 
-          <div className={styles.presetPanel}>
-            <div className={styles.presetHeader}>
+          <div className={ui.presetPanel}>
+            <div className={ui.presetHeader}>
               <div>
-                <div className={styles.eyebrow}>Weather presets</div>
-                <div className={styles.summary}>
+                <div className={ui.eyebrow}>Weather presets</div>
+                <div className={ui.summary}>
                   Push a pattern to the server for this space
                 </div>
               </div>
-              <div className={`${styles.pill} ${styles.pillTag}`}>
+              <div className={`${ui.pill} ${ui.pillTag}`}>
                 {isAdmin ? 'Admin' : isHost ? 'Host' : 'View only'}
               </div>
             </div>
-            <div className={styles.presetGrid}>
+            <div className={ui.presetGrid}>
               {PRESETS.map(preset => (
                 <button
                   key={preset.key}
                   type="button"
                   onClick={() => handlePreset(preset.key)}
                   disabled={!canManageWeather}
-                  className={styles.presetButton}
+                  className={ui.presetButton}
                 >
                   {preset.label}
                 </button>
               ))}
             </div>
-            <div className={styles.inlineNote}>
+            <div className={ui.inlineNote}>
               Presets lock weather/time until you switch back to auto.
             </div>
-            <div className={styles.inlineNote}>
+            <div className={ui.inlineNote}>
               {canManageWeather
                 ? 'Controls unlocked for space hosts and admins.'
                 : 'Ask a space host or admin to adjust conditions.'}
@@ -382,44 +430,44 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
                 );
               }}
               disabled={!canManageWeather}
-              className={styles.actionButton}
+              className={ui.actionButton}
             >
               Return to auto
             </button>
             {feedback ? (
-              <div className={styles.feedback}>{feedback}</div>
+              <div className={ui.feedback}>{feedback}</div>
             ) : null}
           </div>
 
-          <div className={styles.schedulePanel}>
-            <div className={styles.scheduleHeader}>
+          <div className={ui.schedulePanel}>
+            <div className={ui.scheduleHeader}>
               <div>
-                <div className={styles.eyebrow}>Timed events</div>
-                <div className={styles.summary}>
+                <div className={ui.eyebrow}>Timed events</div>
+                <div className={ui.summary}>
                   Schedule environment presets by local time
                 </div>
               </div>
-              <div className={`${styles.pill} ${styles.pillTag}`}>
+              <div className={`${ui.pill} ${ui.pillTag}`}>
                 {timeZoneLabel}
               </div>
             </div>
             {eventsLoading ? (
-              <div className={styles.feedback}>Loading schedule…</div>
+              <div className={ui.feedback}>Loading schedule…</div>
             ) : null}
             {eventsError ? (
-              <div className={styles.feedback}>{eventsError}</div>
+              <div className={ui.feedback}>{eventsError}</div>
             ) : null}
-            <div className={styles.scheduleList}>
+            <div className={ui.scheduleList}>
               {events.length === 0 ? (
-                <div className={styles.feedback}>No scheduled events yet.</div>
+                <div className={ui.feedback}>No scheduled events yet.</div>
               ) : (
                 events.map(event => (
-                  <div key={event.id} className={styles.scheduleItem}>
+                  <div key={event.id} className={ui.scheduleItem}>
                     <div>
-                      <div className={styles.scheduleMeta}>
+                      <div className={ui.scheduleMeta}>
                         {event.name || event.pattern || 'Scheduled preset'}
                       </div>
-                      <div className={styles.scheduleSub}>
+                      <div className={ui.scheduleSub}>
                         {formatEventTime(event.runAt, timeZone?.offsetHours)}
                         {event.endAt
                           ? ` → ${formatEventTime(
@@ -430,7 +478,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
                       </div>
                     </div>
                     <div>
-                      <span className={`${styles.pill} ${styles.pillTag}`}>
+                      <span className={`${ui.pill} ${ui.pillTag}`}>
                         {event.endedAt
                           ? 'Ended'
                           : event.executedAt
@@ -441,7 +489,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
                         <button
                           type="button"
                           onClick={() => void deleteEvent(event.id)}
-                          className={styles.dangerButton}
+                          className={ui.dangerButton}
                         >
                           Remove
                         </button>
@@ -451,16 +499,16 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
                 ))
               )}
             </div>
-            <div className={styles.scheduleForm}>
+            <div className={ui.scheduleForm}>
               <input
-                className={styles.input}
+                className={ui.input}
                 value={scheduleName}
                 onChange={e => setScheduleName(e.target.value)}
                 placeholder="Event label (optional)"
                 disabled={!canManageWeather}
               />
               <select
-                className={styles.input}
+                className={ui.input}
                 value={schedulePattern}
                 onChange={e => setSchedulePattern(e.target.value)}
                 disabled={!canManageWeather}
@@ -472,14 +520,14 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
                 ))}
               </select>
               <input
-                className={styles.input}
+                className={ui.input}
                 type="datetime-local"
                 value={scheduleTime}
                 onChange={e => setScheduleTime(e.target.value)}
                 disabled={!canManageWeather}
               />
               <input
-                className={styles.input}
+                className={ui.input}
                 type="datetime-local"
                 value={scheduleEndTime}
                 onChange={e => setScheduleEndTime(e.target.value)}
@@ -488,14 +536,14 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
               />
               <button
                 type="button"
-                className={styles.actionButton}
+                className={ui.actionButton}
                 onClick={() => void createEvent()}
                 disabled={!canManageWeather}
               >
                 Schedule
               </button>
             </div>
-            <div className={styles.inlineNote}>
+            <div className={ui.inlineNote}>
               Times are scheduled in your browser locale; display adapts to the
               vessel&apos;s inferred time zone. End times restore the prior
               weather snapshot or fall back to auto if missing.
@@ -518,10 +566,10 @@ const Metric = ({
   value: string;
   detail?: string;
 }) => (
-  <div className={styles.metricCard}>
-    <div className={styles.metricLabel}>{label}</div>
-    <div className={styles.metricValue}>{value}</div>
-    {detail ? <div className={styles.metricDetail}>{detail}</div> : null}
+  <div className={ui.metricCard}>
+    <div className={ui.metricLabel}>{label}</div>
+    <div className={ui.metricValue}>{value}</div>
+    {detail ? <div className={ui.metricDetail}>{detail}</div> : null}
   </div>
 );
 
