@@ -29,7 +29,6 @@ import {
 } from '../features/sim/constants';
 import { ShipType } from '../types/vessel.types';
 import type { VesselPhysicsConfig } from '../types/physics.types';
-import styles from './PhysicsDebug.module.css';
 import { xyToLatLon, latLonToXY } from '../lib/geo';
 
 type DebugTemplate = {
@@ -77,6 +76,40 @@ const DEFAULT_DEBUG_ENVIRONMENT = {
   tideRange: 0,
   tidePhase: 0,
   tideTrend: 'rising' as const,
+};
+
+const ui = {
+  page: 'fixed inset-0 bg-[#070f18]',
+  canvasWrap: 'absolute inset-0',
+  panel:
+    'absolute bottom-4 left-4 z-10 max-h-[calc(100vh-32px)] w-[min(420px,calc(100vw-32px))] overflow-auto rounded-[10px] border border-[rgba(138,168,203,0.3)] bg-[rgba(9,18,30,0.84)] p-3 text-[#d4e6fb] backdrop-blur-md',
+  title:
+    'mb-2 text-sm uppercase tracking-[0.06em] text-[#8fc5ff]',
+  hint: 'mb-2.5 text-xs leading-[1.4] text-[#a7bfd8]',
+  status: 'mb-2.5 text-xs',
+  statusReady: 'text-[#8ae0b6]',
+  statusBusy: 'text-[#ffd58a]',
+  label: 'mb-1.5 block text-xs text-[#a7bfd8]',
+  select:
+    'w-full rounded-lg border border-[rgba(138,168,203,0.45)] bg-[rgba(6,11,19,0.9)] p-2 text-sm text-[#e7f1ff] outline-none focus:border-[#6db4ff]',
+  meta: 'mt-2.5 text-xs text-[#bed4ec]',
+  controls: 'mt-3 grid gap-2.5',
+  controlRow: 'grid gap-1.5',
+  controlLabel: 'flex justify-between text-xs text-[#bed4ec]',
+  range: 'w-full',
+  button:
+    'mt-2.5 w-full cursor-pointer rounded-lg border border-[rgba(138,168,203,0.45)] bg-[rgba(12,34,56,0.95)] px-2.5 py-2 text-[13px] text-[#e7f1ff] hover:border-[#6db4ff]',
+  monitorSection: 'mt-3',
+  sectionTitle:
+    'mb-2 text-xs uppercase tracking-[0.04em] text-[#8fc5ff]',
+  monitorGrid: 'grid grid-cols-2 gap-2',
+  monitorCard:
+    'rounded-lg border border-[rgba(138,168,203,0.24)] bg-[rgba(6,11,19,0.55)] p-2',
+  monitorLabel: 'text-[11px] text-[#9db7d1]',
+  monitorValue: 'mt-1 text-[13px] font-semibold text-[#e7f1ff]',
+  bridgeSection: 'mt-3.5 border-t border-[rgba(138,168,203,0.2)] pt-2.5',
+  widgetWrap:
+    'mb-2 rounded-lg border border-[rgba(138,168,203,0.16)] bg-[rgba(6,11,19,0.5)]',
 };
 
 function getSunLighting(timeOfDay: number) {
@@ -487,26 +520,26 @@ const PhysicsDebugPage: NextPage<PhysicsDebugPageProps> & {
   );
 
   return (
-    <div className={styles.page}>
-      <div className={styles.canvasWrap}>
+    <div className={ui.page}>
+      <div className={ui.canvasWrap}>
         <PhysicsDebugScene />
       </div>
-      <aside className={styles.panel}>
-        <h1 className={styles.title}>Physics Debug</h1>
-        <p className={styles.hint}>
+      <aside className={ui.panel}>
+        <h1 className={ui.title}>Physics Debug</h1>
+        <p className={ui.hint}>
           Local-only physics harness. Ocean + one vessel, no server sync.
         </p>
         <p
-          className={`${styles.status} ${initialized ? styles.statusReady : styles.statusBusy}`}
+          className={`${ui.status} ${initialized ? ui.statusReady : ui.statusBusy}`}
         >
           {initialized ? 'WASM Running' : 'Initializing WASM...'}
         </p>
-        <label htmlFor="template-select" className={styles.label}>
+        <label htmlFor="template-select" className={ui.label}>
           Vessel template
         </label>
         <select
           id="template-select"
-          className={styles.select}
+          className={ui.select}
           value={selectedTemplateId}
           onChange={event => {
             const nextTemplateId = event.target.value;
@@ -519,20 +552,20 @@ const PhysicsDebugPage: NextPage<PhysicsDebugPageProps> & {
             </option>
           ))}
         </select>
-        <p className={styles.meta}>
+        <p className={ui.meta}>
           {selectedTemplate?.shipType || 'DEFAULT'}
           {selectedTemplate?.description
             ? ` - ${selectedTemplate.description}`
             : ''}
         </p>
-        <div className={styles.controls}>
-          <div className={styles.controlRow}>
-            <div className={styles.controlLabel}>
+        <div className={ui.controls}>
+          <div className={ui.controlRow}>
+            <div className={ui.controlLabel}>
               <span>Wind Speed</span>
               <span>{(environment.wind?.speed ?? 0).toFixed(1)} m/s</span>
             </div>
             <input
-              className={styles.range}
+              className={ui.range}
               type="range"
               min={0}
               max={40}
@@ -549,13 +582,13 @@ const PhysicsDebugPage: NextPage<PhysicsDebugPageProps> & {
               }}
             />
           </div>
-          <div className={styles.controlRow}>
-            <div className={styles.controlLabel}>
+          <div className={ui.controlRow}>
+            <div className={ui.controlLabel}>
               <span>Wind Direction</span>
               <span>{windDirectionDeg.toFixed(0)} deg</span>
             </div>
             <input
-              className={styles.range}
+              className={ui.range}
               type="range"
               min={0}
               max={359}
@@ -572,13 +605,13 @@ const PhysicsDebugPage: NextPage<PhysicsDebugPageProps> & {
               }}
             />
           </div>
-          <div className={styles.controlRow}>
-            <div className={styles.controlLabel}>
+          <div className={ui.controlRow}>
+            <div className={ui.controlLabel}>
               <span>Time of Day</span>
               <span>{(environment.timeOfDay ?? 12).toFixed(1)} h</span>
             </div>
             <input
-              className={styles.range}
+              className={ui.range}
               type="range"
               min={0}
               max={24}
@@ -593,7 +626,7 @@ const PhysicsDebugPage: NextPage<PhysicsDebugPageProps> & {
         </div>
         <button
           type="button"
-          className={styles.button}
+          className={ui.button}
           onClick={() => {
             setInitialized(false);
             initializeTemplateSimulation(true);
@@ -601,58 +634,58 @@ const PhysicsDebugPage: NextPage<PhysicsDebugPageProps> & {
         >
           Reset Sim State
         </button>
-        <div className={styles.monitorSection}>
-          <div className={styles.sectionTitle}>Monitors</div>
-          <div className={styles.monitorGrid}>
-            <div className={styles.monitorCard}>
-              <div className={styles.monitorLabel}>Speed</div>
-              <div className={styles.monitorValue}>
+        <div className={ui.monitorSection}>
+          <div className={ui.sectionTitle}>Monitors</div>
+          <div className={ui.monitorGrid}>
+            <div className={ui.monitorCard}>
+              <div className={ui.monitorLabel}>Speed</div>
+              <div className={ui.monitorValue}>
                 {speedKts.toFixed(2)} kts
               </div>
             </div>
-            <div className={styles.monitorCard}>
-              <div className={styles.monitorLabel}>Heading</div>
-              <div className={styles.monitorValue}>
+            <div className={ui.monitorCard}>
+              <div className={ui.monitorLabel}>Heading</div>
+              <div className={ui.monitorValue}>
                 {headingDeg.toFixed(1)} deg
               </div>
             </div>
-            <div className={styles.monitorCard}>
-              <div className={styles.monitorLabel}>Rudder</div>
-              <div className={styles.monitorValue}>
+            <div className={ui.monitorCard}>
+              <div className={ui.monitorLabel}>Rudder</div>
+              <div className={ui.monitorValue}>
                 {rudderDeg.toFixed(1)} deg
               </div>
             </div>
-            <div className={styles.monitorCard}>
-              <div className={styles.monitorLabel}>Ballast</div>
-              <div className={styles.monitorValue}>
+            <div className={ui.monitorCard}>
+              <div className={ui.monitorLabel}>Ballast</div>
+              <div className={ui.monitorValue}>
                 {((vessel.controls.ballast ?? 0.5) * 100).toFixed(0)}%
               </div>
             </div>
-            <div className={styles.monitorCard}>
-              <div className={styles.monitorLabel}>Roll</div>
-              <div className={styles.monitorValue}>
+            <div className={ui.monitorCard}>
+              <div className={ui.monitorLabel}>Roll</div>
+              <div className={ui.monitorValue}>
                 {(((vessel.orientation.roll ?? 0) * 180) / Math.PI).toFixed(1)}{' '}
                 deg
               </div>
             </div>
-            <div className={styles.monitorCard}>
-              <div className={styles.monitorLabel}>Pitch</div>
-              <div className={styles.monitorValue}>
+            <div className={ui.monitorCard}>
+              <div className={ui.monitorLabel}>Pitch</div>
+              <div className={ui.monitorValue}>
                 {(((vessel.orientation.pitch ?? 0) * 180) / Math.PI).toFixed(1)}{' '}
                 deg
               </div>
             </div>
-            <div className={styles.monitorCard}>
-              <div className={styles.monitorLabel}>Yaw Rate</div>
-              <div className={styles.monitorValue}>
+            <div className={ui.monitorCard}>
+              <div className={ui.monitorLabel}>Yaw Rate</div>
+              <div className={ui.monitorValue}>
                 {yawRateDeg.toFixed(2)} deg/s
               </div>
             </div>
           </div>
         </div>
-        <div className={styles.bridgeSection}>
-          <div className={styles.sectionTitle}>Controls</div>
-          <div className={styles.widgetWrap}>
+        <div className={ui.bridgeSection}>
+          <div className={ui.sectionTitle}>Controls</div>
+          <div className={ui.widgetWrap}>
             <TelegraphLever
               label="Engine Telegraph"
               value={vessel.controls.throttle ?? 0}
@@ -669,7 +702,7 @@ const PhysicsDebugPage: NextPage<PhysicsDebugPageProps> & {
               }}
             />
           </div>
-          <div className={styles.widgetWrap}>
+          <div className={ui.widgetWrap}>
             <HelmControl
               label="Helm"
               value={rudderDeg}
@@ -686,7 +719,7 @@ const PhysicsDebugPage: NextPage<PhysicsDebugPageProps> & {
               }}
             />
           </div>
-          <div className={styles.widgetWrap}>
+          <div className={ui.widgetWrap}>
             <ControlLever
               label="Ballast"
               vertical

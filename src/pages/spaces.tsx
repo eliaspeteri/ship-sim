@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { getApiBase } from '../lib/api';
 import { getDefaultRules, mapToRulesetType, Rules } from '../types/rules.types';
-import styles from './Spaces.module.css';
 
 type SpaceVisibility = 'public' | 'private';
 
@@ -47,6 +46,47 @@ const parseListInput = (value: string) =>
     .split(',')
     .map(item => item.trim())
     .filter(Boolean);
+
+const ui = {
+  page: 'mx-auto max-w-[1080px] px-4 pb-[60px] pt-8 text-[var(--ink)]',
+  header:
+    'mb-5 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center',
+  title: 'text-2xl font-bold',
+  subtitle: 'text-[13px] text-[rgba(170,192,202,0.7)]',
+  status: 'text-xs text-[rgba(170,192,202,0.7)]',
+  notice: 'mb-3 rounded-[10px] px-2.5 py-2 text-xs',
+  noticeInfo: 'bg-[rgba(28,88,130,0.7)] text-[#e6f2ff]',
+  noticeError: 'bg-[rgba(120,36,32,0.8)] text-[#ffe7e1]',
+  spaceGrid: 'grid gap-4',
+  spaceCard:
+    'grid gap-3 rounded-2xl border border-[rgba(27,154,170,0.35)] bg-[rgba(10,20,34,0.9)] p-4',
+  cardHeader: 'flex items-baseline justify-between gap-3',
+  cardMeta: 'text-[11px] text-[rgba(170,192,202,0.7)]',
+  formRow: 'flex flex-wrap items-center gap-2.5',
+  formGrid: 'grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3',
+  input:
+    'rounded-[10px] border border-[rgba(60,88,104,0.6)] bg-[rgba(8,18,30,0.75)] px-2.5 py-1.5 text-xs text-[#f1f7f8]',
+  select:
+    'rounded-[10px] border border-[rgba(60,88,104,0.6)] bg-[rgba(8,18,30,0.75)] px-2.5 py-1.5 text-xs text-[#f1f7f8]',
+  button:
+    'cursor-pointer rounded-[10px] border-0 px-3 py-1.5 text-xs font-semibold text-[#f1f7f8]',
+  buttonPrimary: 'bg-gradient-to-br from-[#1b9aaa] to-[#0f6d75]',
+  buttonSecondary: 'bg-[rgba(52,72,98,0.9)]',
+  buttonDanger: 'bg-[rgba(120,36,32,0.85)]',
+  tag:
+    'rounded-full border border-[rgba(60,88,104,0.6)] bg-[rgba(12,28,44,0.7)] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#e6f2f6]',
+  tagPrivate:
+    'border-[rgba(162,66,120,0.7)] bg-[rgba(92,28,60,0.7)]',
+  mono: 'font-mono',
+  actionsRow: 'flex flex-wrap gap-2',
+  toggleGroup: 'flex gap-1.5',
+  rulesSection:
+    'grid gap-2.5 rounded-xl border border-[rgba(60,88,104,0.4)] bg-[rgba(8,16,28,0.6)] p-2.5',
+  rulesGrid: 'grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3',
+  rulesGroup: 'grid gap-1.5',
+  checkboxRow: 'flex items-center gap-1.5 text-xs text-[#e6f2f6]',
+  rulesInputs: 'grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-2.5',
+};
 
 const SpacesPage: React.FC = () => {
   const { status, data: session } = useSession();
@@ -297,14 +337,14 @@ const SpacesPage: React.FC = () => {
   );
 
   if (status === 'loading') {
-    return <div className={styles.page}>Loading your spaces…</div>;
+    return <div className={ui.page}>Loading your spaces…</div>;
   }
 
   if (status !== 'authenticated') {
     return (
-      <div className={styles.page}>
-        <div className={styles.title}>Manage spaces</div>
-        <p className={styles.subtitle}>
+      <div className={ui.page}>
+        <div className={ui.title}>Manage spaces</div>
+        <p className={ui.subtitle}>
           Sign in to view and manage your spaces.
         </p>
       </div>
@@ -312,27 +352,27 @@ const SpacesPage: React.FC = () => {
   }
 
   return (
-    <div className={styles.page}>
-      <div className={styles.header}>
+    <div className={ui.page}>
+      <div className={ui.header}>
         <div>
-          <div className={styles.title}>Manage spaces</div>
-          <p className={styles.subtitle}>
+          <div className={ui.title}>Manage spaces</div>
+          <p className={ui.subtitle}>
             {scope === 'all' && isAdmin
               ? `${spaceCountLabel} spaces across all creators.`
               : `${spaceCountLabel} created by you.`}{' '}
             Update visibility, share invites, or rotate passwords.
           </p>
         </div>
-        <div className={styles.actionsRow}>
+        <div className={ui.actionsRow}>
           {isAdmin ? (
-            <div className={styles.toggleGroup}>
+            <div className={ui.toggleGroup}>
               <button
                 type="button"
                 onClick={() => setScope('mine')}
-                className={`${styles.button} ${
+                className={`${ui.button} ${
                   scope === 'mine'
-                    ? styles.buttonPrimary
-                    : styles.buttonSecondary
+                    ? ui.buttonPrimary
+                    : ui.buttonSecondary
                 }`}
                 disabled={loading}
               >
@@ -341,10 +381,10 @@ const SpacesPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setScope('all')}
-                className={`${styles.button} ${
+                className={`${ui.button} ${
                   scope === 'all'
-                    ? styles.buttonPrimary
-                    : styles.buttonSecondary
+                    ? ui.buttonPrimary
+                    : ui.buttonSecondary
                 }`}
                 disabled={loading}
               >
@@ -355,7 +395,7 @@ const SpacesPage: React.FC = () => {
           <button
             type="button"
             onClick={() => void fetchSpaces()}
-            className={`${styles.button} ${styles.buttonSecondary}`}
+            className={`${ui.button} ${ui.buttonSecondary}`}
             disabled={loading}
           >
             Refresh
@@ -364,23 +404,23 @@ const SpacesPage: React.FC = () => {
       </div>
 
       {notice ? (
-        <div className={`${styles.notice} ${styles.noticeInfo}`}>{notice}</div>
+        <div className={`${ui.notice} ${ui.noticeInfo}`}>{notice}</div>
       ) : null}
 
       {error ? (
-        <div className={`${styles.notice} ${styles.noticeError}`}>{error}</div>
+        <div className={`${ui.notice} ${ui.noticeError}`}>{error}</div>
       ) : null}
 
-      {loading ? <div className={styles.status}>Loading spaces…</div> : null}
+      {loading ? <div className={ui.status}>Loading spaces…</div> : null}
 
       {!loading && spaces.length === 0 ? (
-        <div className={styles.notice}>
+        <div className={ui.notice}>
           You have not created any spaces yet. Create one from the simulator
           modal to manage it here.
         </div>
       ) : null}
 
-      <div className={styles.spaceGrid}>
+      <div className={ui.spaceGrid}>
         {spaces.map(space => {
           const draft = drafts[space.id];
           const inviteToken = space.inviteToken || '—';
@@ -388,45 +428,49 @@ const SpacesPage: React.FC = () => {
           const activeVessels = space.activeVessels ?? 0;
           const hasTraffic = activeVessels > 0;
           return (
-            <div key={space.id} className={styles.spaceCard}>
-              <div className={styles.cardHeader}>
+            <div
+              key={space.id}
+              className={ui.spaceCard}
+              data-testid={`space-card-${space.id}`}
+            >
+              <div className={ui.cardHeader}>
                 <div>
-                  <div className={styles.cardMeta}>Space ID</div>
-                  <div className={`${styles.cardMeta} ${styles.mono}`}>
+                  <div className={ui.cardMeta}>Space ID</div>
+                  <div className={`${ui.cardMeta} ${ui.mono}`}>
                     {space.id}
                   </div>
                 </div>
-                <div className={styles.actionsRow}>
+                <div className={ui.actionsRow}>
                   <span
-                    className={`${styles.tag} ${
-                      space.visibility === 'private' ? styles.tagPrivate : ''
+                    className={`${ui.tag} ${
+                      space.visibility === 'private' ? ui.tagPrivate : ''
                     }`}
                   >
                     {space.visibility}
                   </span>
-                  <span className={styles.tag}>
+                  <span className={ui.tag}>
                     {space.rulesetType || 'CASUAL'}
                   </span>
                   {space.passwordProtected ? (
-                    <span className={styles.tag}>Password</span>
+                    <span className={ui.tag}>Password</span>
                   ) : null}
-                  <span className={styles.tag}>Vessels {totalVessels}</span>
+                  <span className={ui.tag}>Vessels {totalVessels}</span>
                   {hasTraffic ? (
-                    <span className={styles.tag}>Active {activeVessels}</span>
+                    <span className={ui.tag}>Active {activeVessels}</span>
                   ) : null}
                 </div>
               </div>
               {scope === 'all' && isAdmin ? (
-                <div className={styles.cardMeta}>
+                <div className={ui.cardMeta}>
                   Owner: {space.createdBy || 'Unknown'}
                 </div>
               ) : null}
 
-              <div className={styles.formGrid}>
-                <label className={styles.cardMeta}>
+              <div className={ui.formGrid}>
+                <label className={ui.cardMeta}>
                   Name
                   <input
-                    className={styles.input}
+                    className={ui.input}
                     value={draft?.name || space.name}
                     onChange={e =>
                       updateDraft(space.id, { name: e.target.value })
@@ -434,10 +478,10 @@ const SpacesPage: React.FC = () => {
                   />
                 </label>
 
-                <label className={styles.cardMeta}>
+                <label className={ui.cardMeta}>
                   Visibility
                   <select
-                    className={styles.select}
+                    className={ui.select}
                     value={draft?.visibility || space.visibility}
                     onChange={e =>
                       updateDraft(space.id, {
@@ -450,10 +494,10 @@ const SpacesPage: React.FC = () => {
                   </select>
                 </label>
 
-                <label className={styles.cardMeta}>
+                <label className={ui.cardMeta}>
                   Ruleset
                   <select
-                    className={styles.select}
+                    className={ui.select}
                     value={
                       draft?.rulesetType || space.rulesetType || 'CASUAL_PUBLIC'
                     }
@@ -470,10 +514,10 @@ const SpacesPage: React.FC = () => {
                   </select>
                 </label>
 
-                <label className={styles.cardMeta}>
+                <label className={ui.cardMeta}>
                   New password
                   <input
-                    className={styles.input}
+                    className={ui.input}
                     value={draft?.password || ''}
                     onChange={e =>
                       updateDraft(space.id, { password: e.target.value })
@@ -485,14 +529,14 @@ const SpacesPage: React.FC = () => {
               </div>
 
               {isAdmin ? (
-                <div className={styles.rulesSection}>
-                  <div className={styles.cardMeta}>Rules overrides</div>
+                <div className={ui.rulesSection}>
+                  <div className={ui.cardMeta}>Rules overrides</div>
                   {draft?.rules ? (
                     <>
-                      <div className={styles.rulesGrid}>
-                        <div className={styles.rulesGroup}>
-                          <div className={styles.cardMeta}>Assists</div>
-                          <label className={styles.checkboxRow}>
+                      <div className={ui.rulesGrid}>
+                        <div className={ui.rulesGroup}>
+                          <div className={ui.cardMeta}>Assists</div>
+                          <label className={ui.checkboxRow}>
                             <input
                               type="checkbox"
                               checked={draft.rules.assists.stability}
@@ -508,7 +552,7 @@ const SpacesPage: React.FC = () => {
                             />
                             <span>Stability</span>
                           </label>
-                          <label className={styles.checkboxRow}>
+                          <label className={ui.checkboxRow}>
                             <input
                               type="checkbox"
                               checked={draft.rules.assists.autopilot}
@@ -524,7 +568,7 @@ const SpacesPage: React.FC = () => {
                             />
                             <span>Autopilot</span>
                           </label>
-                          <label className={styles.checkboxRow}>
+                          <label className={ui.checkboxRow}>
                             <input
                               type="checkbox"
                               checked={draft.rules.assists.docking}
@@ -542,9 +586,9 @@ const SpacesPage: React.FC = () => {
                           </label>
                         </div>
 
-                        <div className={styles.rulesGroup}>
-                          <div className={styles.cardMeta}>Realism</div>
-                          <label className={styles.checkboxRow}>
+                        <div className={ui.rulesGroup}>
+                          <div className={ui.cardMeta}>Realism</div>
+                          <label className={ui.checkboxRow}>
                             <input
                               type="checkbox"
                               checked={draft.rules.realism.damage}
@@ -560,7 +604,7 @@ const SpacesPage: React.FC = () => {
                             />
                             <span>Damage</span>
                           </label>
-                          <label className={styles.checkboxRow}>
+                          <label className={ui.checkboxRow}>
                             <input
                               type="checkbox"
                               checked={draft.rules.realism.wear}
@@ -576,7 +620,7 @@ const SpacesPage: React.FC = () => {
                             />
                             <span>Wear</span>
                           </label>
-                          <label className={styles.checkboxRow}>
+                          <label className={ui.checkboxRow}>
                             <input
                               type="checkbox"
                               checked={draft.rules.realism.failures}
@@ -594,9 +638,9 @@ const SpacesPage: React.FC = () => {
                           </label>
                         </div>
 
-                        <div className={styles.rulesGroup}>
-                          <div className={styles.cardMeta}>Enforcement</div>
-                          <label className={styles.checkboxRow}>
+                        <div className={ui.rulesGroup}>
+                          <div className={ui.cardMeta}>Enforcement</div>
+                          <label className={ui.checkboxRow}>
                             <input
                               type="checkbox"
                               checked={draft.rules.enforcement.colregs}
@@ -612,7 +656,7 @@ const SpacesPage: React.FC = () => {
                             />
                             <span>COLREGS</span>
                           </label>
-                          <label className={styles.checkboxRow}>
+                          <label className={ui.checkboxRow}>
                             <input
                               type="checkbox"
                               checked={draft.rules.enforcement.penalties}
@@ -628,7 +672,7 @@ const SpacesPage: React.FC = () => {
                             />
                             <span>Penalties</span>
                           </label>
-                          <label className={styles.checkboxRow}>
+                          <label className={ui.checkboxRow}>
                             <input
                               type="checkbox"
                               checked={draft.rules.enforcement.investigations}
@@ -646,9 +690,9 @@ const SpacesPage: React.FC = () => {
                           </label>
                         </div>
 
-                        <div className={styles.rulesGroup}>
-                          <div className={styles.cardMeta}>Progression</div>
-                          <label className={styles.checkboxRow}>
+                        <div className={ui.rulesGroup}>
+                          <div className={ui.cardMeta}>Progression</div>
+                          <label className={ui.checkboxRow}>
                             <input
                               type="checkbox"
                               checked={draft.rules.progression.scoring}
@@ -666,11 +710,11 @@ const SpacesPage: React.FC = () => {
                           </label>
                         </div>
                       </div>
-                      <div className={styles.rulesInputs}>
-                        <label className={styles.cardMeta}>
+                      <div className={ui.rulesInputs}>
+                        <label className={ui.cardMeta}>
                           Allowed vessels
                           <input
-                            className={styles.input}
+                            className={ui.input}
                             value={draft.rules.allowedVessels.join(', ')}
                             onChange={e =>
                               updateRules(space.id, rules => ({
@@ -681,10 +725,10 @@ const SpacesPage: React.FC = () => {
                             placeholder="cargo, tug, ferry"
                           />
                         </label>
-                        <label className={styles.cardMeta}>
+                        <label className={ui.cardMeta}>
                           Allowed mods
                           <input
-                            className={styles.input}
+                            className={ui.input}
                             value={draft.rules.allowedMods.join(', ')}
                             onChange={e =>
                               updateRules(space.id, rules => ({
@@ -696,10 +740,10 @@ const SpacesPage: React.FC = () => {
                           />
                         </label>
                       </div>
-                      <div className={styles.formRow}>
+                      <div className={ui.formRow}>
                         <button
                           type="button"
-                          className={`${styles.button} ${styles.buttonSecondary}`}
+                          className={`${ui.button} ${ui.buttonSecondary}`}
                           onClick={() =>
                             updateDraft(space.id, {
                               rules: null,
@@ -712,15 +756,15 @@ const SpacesPage: React.FC = () => {
                       </div>
                     </>
                   ) : (
-                    <div className={styles.formRow}>
-                      <div className={styles.cardMeta}>
+                    <div className={ui.formRow}>
+                      <div className={ui.cardMeta}>
                         Using{' '}
                         {draft?.rulesetType || space.rulesetType || 'CASUAL'}{' '}
                         defaults.
                       </div>
                       <button
                         type="button"
-                        className={`${styles.button} ${styles.buttonSecondary}`}
+                        className={`${ui.button} ${ui.buttonSecondary}`}
                         onClick={() =>
                           ensureCustomRules(
                             space.id,
@@ -735,17 +779,17 @@ const SpacesPage: React.FC = () => {
                 </div>
               ) : null}
 
-              <div className={styles.formRow}>
-                <div className={styles.cardMeta}>
+              <div className={ui.formRow}>
+                <div className={ui.cardMeta}>
                   Invite token:{' '}
-                  <span className={`${styles.mono} ${styles.cardMeta}`}>
+                  <span className={`${ui.mono} ${ui.cardMeta}`}>
                     {inviteToken}
                   </span>
                 </div>
-                <div className={styles.actionsRow}>
+                <div className={ui.actionsRow}>
                   <button
                     type="button"
-                    className={`${styles.button} ${styles.buttonSecondary}`}
+                    className={`${ui.button} ${ui.buttonSecondary}`}
                     onClick={() => {
                       if (typeof navigator !== 'undefined') {
                         void navigator.clipboard.writeText(inviteToken);
@@ -757,7 +801,7 @@ const SpacesPage: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    className={`${styles.button} ${styles.buttonSecondary}`}
+                    className={`${ui.button} ${ui.buttonSecondary}`}
                     onClick={() => void handleRegenerateInvite(space.id)}
                     disabled={draft?.saving}
                   >
@@ -765,7 +809,7 @@ const SpacesPage: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    className={`${styles.button} ${styles.buttonSecondary}`}
+                    className={`${ui.button} ${ui.buttonSecondary}`}
                     onClick={() => void handleClearPassword(space.id)}
                     disabled={draft?.saving}
                   >
@@ -773,7 +817,7 @@ const SpacesPage: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    className={`${styles.button} ${styles.buttonPrimary}`}
+                    className={`${ui.button} ${ui.buttonPrimary}`}
                     onClick={() => void handleSave(space.id)}
                     disabled={draft?.saving}
                   >
@@ -781,7 +825,7 @@ const SpacesPage: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    className={`${styles.button} ${styles.buttonDanger}`}
+                    className={`${ui.button} ${ui.buttonDanger}`}
                     onClick={() =>
                       void handleDelete(space.id, totalVessels, activeVessels)
                     }
@@ -793,12 +837,12 @@ const SpacesPage: React.FC = () => {
               </div>
 
               {draft?.error ? (
-                <div className={`${styles.notice} ${styles.noticeError}`}>
+                <div className={`${ui.notice} ${ui.noticeError}`}>
                   {draft.error}
                 </div>
               ) : null}
               {totalVessels > 0 ? (
-                <div className={styles.cardMeta}>
+                <div className={ui.cardMeta}>
                   Delete is disabled while vessels exist in this space.
                 </div>
               ) : null}

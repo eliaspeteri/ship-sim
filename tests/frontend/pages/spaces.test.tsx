@@ -116,7 +116,7 @@ describe('pages/spaces', () => {
     await screen.findByDisplayValue('Harbor Ops');
     expect(screen.getByDisplayValue('Busy Space')).toBeInTheDocument();
     const getSpaceOneCard = () => {
-      const card = screen.getByText('space-1').closest('.spaceCard');
+      const card = screen.queryByTestId('space-card-space-1');
       if (!card) {
         throw new Error('space-1 card not found');
       }

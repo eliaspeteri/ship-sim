@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import Link from 'next/link';
 import { Html } from '@react-three/drei';
-import styles from './VesselCallout.module.css';
 
 type CalloutAction = {
   label: string;
@@ -23,6 +22,30 @@ type VesselCalloutProps = {
   onOffsetChange: (next: { x: number; y: number }) => void;
   onClose: () => void;
   actions?: CalloutAction[];
+};
+
+const ui = {
+  offset: 'pointer-events-auto',
+  callout:
+    'relative min-w-[220px] max-w-[280px] rounded-[14px] border border-[rgba(38,70,90,0.7)] bg-[rgba(8,18,30,0.92)] px-[14px] py-3 text-[#eef7f8] shadow-[0_12px_30px_rgba(4,10,18,0.6)] after:absolute after:bottom-[-10px] after:left-[34px] after:border-x-[10px] after:border-b-0 after:border-t-[10px] after:border-solid after:border-x-transparent after:border-t-[rgba(8,18,30,0.92)] after:content-[""]',
+  header: 'mb-2.5 flex cursor-grab items-center justify-between',
+  title: 'text-[13px] font-semibold text-[#f1f7f8]',
+  close:
+    'cursor-pointer border-0 bg-transparent text-sm leading-none text-[rgba(210,224,230,0.8)]',
+  grid: 'grid gap-1.5',
+  row: 'flex justify-between gap-3',
+  label:
+    'text-[10px] uppercase tracking-[0.12em] text-[rgba(150,168,182,0.7)]',
+  value: 'text-xs font-semibold text-[#eef7f8]',
+  footer: 'mt-2.5 grid gap-2',
+  link: 'text-xs text-[#7fd5e2] no-underline',
+  actions: 'flex flex-wrap gap-1.5',
+  actionButton:
+    'cursor-pointer rounded-lg border-0 px-2.5 py-1.5 text-[11px] font-semibold text-[#f1f7f8]',
+  actionPrimary: 'bg-gradient-to-br from-[#1b9aaa] to-[#0f6d75]',
+  actionDanger: 'bg-[rgba(120,36,32,0.85)]',
+  actionGhost:
+    'border border-[rgba(60,88,104,0.7)] bg-[rgba(30,50,68,0.7)]',
 };
 
 const VesselCallout: React.FC<VesselCalloutProps> = ({
@@ -82,51 +105,51 @@ const VesselCallout: React.FC<VesselCalloutProps> = ({
   return (
     <Html position={[position.x, position.y, position.z]} center>
       <div
-        className={styles.offset}
+        className={ui.offset}
         style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
       >
-        <div className={styles.callout}>
-          <div className={styles.header} onPointerDown={handlePointerDown}>
-            <div className={styles.title}>{title}</div>
+        <div className={ui.callout}>
+          <div className={ui.header} onPointerDown={handlePointerDown}>
+            <div className={ui.title}>{title}</div>
             <button
               type="button"
-              className={styles.close}
+              className={ui.close}
               onPointerDown={event => event.stopPropagation()}
               onClick={onClose}
             >
               x
             </button>
           </div>
-          <div className={styles.grid}>
+          <div className={ui.grid}>
             {rows.map(row => (
-              <div key={row.label} className={styles.row}>
-                <div className={styles.label}>{row.label}</div>
-                <div className={styles.value}>{row.value}</div>
+              <div key={row.label} className={ui.row}>
+                <div className={ui.label}>{row.label}</div>
+                <div className={ui.value}>{row.value}</div>
               </div>
             ))}
           </div>
-          <div className={styles.footer}>
+          <div className={ui.footer}>
             <Link
               href={`/vessels/${vesselId}`}
-              className={styles.link}
+              className={ui.link}
               target="_blank"
             >
               Go to vessel page -&gt;
             </Link>
             {actions.length > 0 ? (
-              <div className={styles.actions}>
+              <div className={ui.actions}>
                 {actions.map(action => (
                   <button
                     key={action.label}
                     type="button"
                     onPointerDown={event => event.stopPropagation()}
                     onClick={action.onClick}
-                    className={`${styles.actionButton} ${
+                    className={`${ui.actionButton} ${
                       action.variant === 'danger'
-                        ? styles.actionDanger
+                        ? ui.actionDanger
                         : action.variant === 'ghost'
-                          ? styles.actionGhost
-                          : styles.actionPrimary
+                          ? ui.actionGhost
+                          : ui.actionPrimary
                     }`}
                   >
                     {action.label}

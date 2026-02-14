@@ -153,7 +153,7 @@ Unless a task explicitly states a stricter requirement, each PR implementing any
 
 ## Workstream A: Break Up God Components / Modules
 
-Completed: [x]
+Completed: [ ]
 
 ### A1. Decompose `HudDrawer` into container + hooks + per-tab adapters (`P0`)
 
@@ -716,7 +716,7 @@ Acceptance:
 
 ### G3. Migrate navigation, dashboard, and control panels (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/components/Layout.module.css`, `src/components/EnvironmentControls.module.css`, `src/components/ChatPanel.module.css`, `src/components/Dashboard.module.css`, `src/components/Layout.tsx`, `src/components/EnvironmentControls.tsx`, `src/components/ChatPanel.tsx`, `src/components/Dashboard.tsx`
 
@@ -734,7 +734,7 @@ Acceptance:
 
 ### G4. Migrate page-level modules and finalize cleanup (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/pages/Home.module.css`, `src/pages/Spaces.module.css`, `src/pages/Admin.module.css`, `src/pages/PhysicsDebug.module.css`, `src/pages/Globe.module.css`, `src/components/VesselCallout.module.css`, plus their consuming `tsx` files
 
