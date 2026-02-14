@@ -1,497 +1,496 @@
 generator client {
-  provider = "prisma-client-js"
+    provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+    provider = "postgresql"
 }
 
 // NextAuth core models with a role + passwordHash for credentials auth
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  role          String    @default("player")
-  rank          Int       @default(1)
-  experience    Int       @default(0)
-  credits       Float     @default(0)
-  safetyScore   Float     @default(1.0)
-  passwordHash  String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+    id            String    @id @default(cuid())
+    name          String?
+    email         String?   @unique
+    emailVerified DateTime?
+    image         String?
+    role          String    @default("player")
+    rank          Int       @default(1)
+    experience    Int       @default(0)
+    credits       Float     @default(0)
+    safetyScore   Float     @default(1.0)
+    passwordHash  String?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
 
-  accounts    Account[]
-  sessions    Session[]
-  careers     UserCareer[]
-  licenses    License[]
-  reputations Reputation[]
+    accounts    Account[]
+    sessions    Session[]
+    careers     UserCareer[]
+    licenses    License[]
+    reputations Reputation[]
 }
 
 model Account {
-  id                       String  @id @default(cuid())
-  userId                   String
-  type                     String
-  provider                 String
-  providerAccountId        String
-  refresh_token            String?
-  access_token             String?
-  expires_at               Int?
-  token_type               String?
-  scope                    String?
-  id_token                 String?
-  session_state            String?
-  refresh_token_expires_in Int?
+    id                       String  @id @default(cuid())
+    userId                   String
+    type                     String
+    provider                 String
+    providerAccountId        String
+    refresh_token            String?
+    access_token             String?
+    expires_at               Int?
+    token_type               String?
+    scope                    String?
+    id_token                 String?
+    session_state            String?
+    refresh_token_expires_in Int?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([provider, providerAccountId])
+    @@unique([provider, providerAccountId])
 }
 
 model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
+    id           String   @id @default(cuid())
+    sessionToken String   @unique
+    userId       String
+    expires      DateTime
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
+    identifier String
+    token      String   @unique
+    expires    DateTime
 
-  @@unique([identifier, token])
+    @@unique([identifier, token])
 }
 
 // Persisted vessel state (minimal fields; AI flag included)
 model Vessel {
-  id               String    @id
-  spaceId          String    @default("global")
-  ownerId          String?
-  status           String    @default("active") // active | stored | auction | leased | chartered | repossession
-  storagePortId    String?
-  storedAt         DateTime?
-  chartererId      String?
-  leaseeId         String?
-  templateId       String?
-  mode             String // 'ai' | 'player'
-  desiredMode      String    @default("player") // intended mode when unattended
-  lastCrewAt       DateTime  @default(now()) // last time a crew member was attached
-  lat              Float
-  lon              Float
-  z                Float
-  heading          Float
-  roll             Float
-  pitch            Float
-  surge            Float
-  sway             Float
-  heave            Float
-  throttle         Float
-  rudderAngle      Float
-  ballast          Float     @default(0.5)
-  bowThruster      Float     @default(0.0)
-  yawRate          Float     @default(0.0)
-  mass             Float
-  length           Float
-  beam             Float
-  draft            Float
-  hullIntegrity    Float     @default(1.0)
-  engineHealth     Float     @default(1.0)
-  steeringHealth   Float     @default(1.0)
-  electricalHealth Float     @default(1.0)
-  floodingDamage   Float     @default(0.0)
-  lastUpdate       DateTime  @default(now())
-  isAi             Boolean   @default(false)
+    id               String    @id
+    spaceId          String    @default("global")
+    ownerId          String?
+    status           String    @default("active") // active | stored | auction | leased | chartered | repossession
+    storagePortId    String?
+    storedAt         DateTime?
+    chartererId      String?
+    leaseeId         String?
+    templateId       String?
+    mode             String // 'ai' | 'player'
+    desiredMode      String    @default("player") // intended mode when unattended
+    lastCrewAt       DateTime  @default(now()) // last time a crew member was attached
+    lat              Float
+    lon              Float
+    z                Float
+    heading          Float
+    roll             Float
+    pitch            Float
+    surge            Float
+    sway             Float
+    heave            Float
+    throttle         Float
+    rudderAngle      Float
+    ballast          Float     @default(0.5)
+    bowThruster      Float     @default(0.0)
+    yawRate          Float     @default(0.0)
+    mass             Float
+    length           Float
+    beam             Float
+    draft            Float
+    hullIntegrity    Float     @default(1.0)
+    engineHealth     Float     @default(1.0)
+    steeringHealth   Float     @default(1.0)
+    electricalHealth Float     @default(1.0)
+    floodingDamage   Float     @default(0.0)
+    lastUpdate       DateTime  @default(now())
+    isAi             Boolean   @default(false)
 
-  @@index([spaceId])
+    @@index([spaceId])
 }
 
 model ChatMessage {
-  id        String   @id @default(cuid())
-  userId    String
-  username  String
-  message   String
-  spaceId   String   @default("global")
-  channel   String   @default("global") // global or vessel:<id>
-  createdAt DateTime @default(now())
+    id        String   @id @default(cuid())
+    userId    String
+    username  String
+    message   String
+    spaceId   String   @default("global")
+    channel   String   @default("global") // global or vessel:<id>
+    createdAt DateTime @default(now())
 
-  @@index([spaceId, channel])
+    @@index([spaceId, channel])
 }
 
 model WeatherState {
-  id                     String   @id
-  spaceId                String   @unique @default("global")
-  name                   String?
-  windSpeed              Float
-  windDirection          Float
-  windGusting            Boolean
-  windGustFactor         Float
-  currentSpeed           Float
-  currentDirection       Float
-  currentVariability     Float
-  seaState               Int
-  waterDepth             Float?
-  visibility             Float?
-  timeOfDay              Float
-  precipitation          String?
-  precipitationIntensity Float?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+    id                     String   @id
+    spaceId                String   @unique @default("global")
+    name                   String?
+    windSpeed              Float
+    windDirection          Float
+    windGusting            Boolean
+    windGustFactor         Float
+    currentSpeed           Float
+    currentDirection       Float
+    currentVariability     Float
+    seaState               Int
+    waterDepth             Float?
+    visibility             Float?
+    timeOfDay              Float
+    precipitation          String?
+    precipitationIntensity Float?
+    createdAt              DateTime @default(now())
+    updatedAt              DateTime @updatedAt
 }
 
 model Space {
-  id           String   @id @default(cuid())
-  name         String
-  visibility   String   @default("public") // 'public' | 'private'
-  inviteToken  String?  @unique
-  passwordHash String?
-  kind         String   @default("free") // 'free' | 'tutorial' | 'scenario'
-  rankRequired Int      @default(1)
-  rulesetType  String?  @default("CASUAL")
-  rules        Json?
-  createdBy    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+    id           String   @id @default(cuid())
+    name         String
+    visibility   String   @default("public") // 'public' | 'private'
+    inviteToken  String?  @unique
+    passwordHash String?
+    kind         String   @default("free") // 'free' | 'tutorial' | 'scenario'
+    rankRequired Int      @default(1)
+    rulesetType  String?  @default("CASUAL")
+    rules        Json?
+    createdBy    String?
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
 
-  @@index([visibility])
+    @@index([visibility])
 }
 
 model SpaceAccess {
-  id          String   @id @default(cuid())
-  userId      String
-  spaceId     String
-  inviteToken String?
-  role        String   @default("member") // 'member' | 'host'
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+    id          String   @id @default(cuid())
+    userId      String
+    spaceId     String
+    inviteToken String?
+    role        String   @default("member") // 'member' | 'host'
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
 
-  @@unique([userId, spaceId])
-  @@index([userId])
+    @@unique([userId, spaceId])
+    @@index([userId])
 }
 
 model Ban {
-  id        String    @id @default(cuid())
-  userId    String?
-  username  String?
-  spaceId   String    @default("global")
-  reason    String?
-  createdBy String?
-  expiresAt DateTime?
-  createdAt DateTime  @default(now())
+    id        String    @id @default(cuid())
+    userId    String?
+    username  String?
+    spaceId   String    @default("global")
+    reason    String?
+    createdBy String?
+    expiresAt DateTime?
+    createdAt DateTime  @default(now())
 
-  @@index([spaceId])
-  @@index([userId])
-  @@index([username])
+    @@index([spaceId])
+    @@index([userId])
+    @@index([username])
 }
 
 model Mute {
-  id        String    @id @default(cuid())
-  userId    String?
-  username  String?
-  spaceId   String    @default("global")
-  reason    String?
-  createdBy String?
-  expiresAt DateTime?
-  createdAt DateTime  @default(now())
+    id        String    @id @default(cuid())
+    userId    String?
+    username  String?
+    spaceId   String    @default("global")
+    reason    String?
+    createdBy String?
+    expiresAt DateTime?
+    createdAt DateTime  @default(now())
 
-  @@index([spaceId])
-  @@index([userId])
-  @@index([username])
+    @@index([spaceId])
+    @@index([userId])
+    @@index([username])
 }
 
 model EnvironmentEvent {
-  id         String    @id @default(cuid())
-  spaceId    String    @default("global")
-  name       String?
-  pattern    String?
-  payload    Json?
-  runAt      DateTime
-  endAt      DateTime?
-  endPayload Json?
-  executedAt DateTime?
-  endedAt    DateTime?
-  enabled    Boolean   @default(true)
-  createdBy  String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+    id         String    @id @default(cuid())
+    spaceId    String    @default("global")
+    name       String?
+    pattern    String?
+    payload    Json?
+    runAt      DateTime
+    endAt      DateTime?
+    endPayload Json?
+    executedAt DateTime?
+    endedAt    DateTime?
+    enabled    Boolean   @default(true)
+    createdBy  String?
+    createdAt  DateTime  @default(now())
+    updatedAt  DateTime  @updatedAt
 
-  @@index([spaceId, runAt])
+    @@index([spaceId, runAt])
 }
 
 model Mission {
-  id             String   @id @default(cuid())
-  spaceId        String   @default("global")
-  name           String
-  description    String?
-  type           String
-  originLat      Float
-  originLon      Float
-  destinationLat Float
-  destinationLon Float
-  rewardCredits  Float
-  requiredRank   Int      @default(1)
-  payload        Json?
-  active         Boolean  @default(true)
-  createdBy      String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+    id             String   @id @default(cuid())
+    spaceId        String   @default("global")
+    name           String
+    description    String?
+    type           String
+    originLat      Float
+    originLon      Float
+    destinationLat Float
+    destinationLon Float
+    rewardCredits  Float
+    requiredRank   Int      @default(1)
+    payload        Json?
+    active         Boolean  @default(true)
+    createdBy      String?
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @updatedAt
 
-  assignments MissionAssignment[]
+    assignments MissionAssignment[]
 
-  @@index([spaceId, active])
+    @@index([spaceId, active])
 }
 
 model MissionAssignment {
-  id          String    @id @default(cuid())
-  missionId   String
-  userId      String
-  vesselId    String?
-  status      String    @default("assigned") // assigned | in_progress | completed | failed | canceled
-  progress    Json?
-  startedAt   DateTime  @default(now())
-  completedAt DateTime?
-  updatedAt   DateTime  @updatedAt
+    id          String    @id @default(cuid())
+    missionId   String
+    userId      String
+    vesselId    String?
+    status      String    @default("assigned") // assigned | in_progress | completed | failed | canceled
+    progress    Json?
+    startedAt   DateTime  @default(now())
+    completedAt DateTime?
+    updatedAt   DateTime  @updatedAt
 
-  mission Mission @relation(fields: [missionId], references: [id])
+    mission Mission @relation(fields: [missionId], references: [id])
 
-  @@index([userId, status])
-  @@index([missionId])
+    @@index([userId, status])
+    @@index([missionId])
 }
 
 model EconomyTransaction {
-  id        String   @id @default(cuid())
-  userId    String
-  vesselId  String?
-  amount    Float
-  reason    String
-  meta      Json?
-  createdAt DateTime @default(now())
+    id        String   @id @default(cuid())
+    userId    String
+    vesselId  String?
+    amount    Float
+    reason    String
+    meta      Json?
+    createdAt DateTime @default(now())
 
-  @@index([userId])
+    @@index([userId])
 }
 
 model CrewContract {
-  id           String    @id @default(cuid())
-  vesselId     String
-  userId       String
-  wageRate     Float     @default(0)
-  revenueShare Float     @default(0)
-  status       String    @default("draft") // draft | active | completed | canceled
-  lockedAt     DateTime?
-  releasedAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+    id           String    @id @default(cuid())
+    vesselId     String
+    userId       String
+    wageRate     Float     @default(0)
+    revenueShare Float     @default(0)
+    status       String    @default("draft") // draft | active | completed | canceled
+    lockedAt     DateTime?
+    releasedAt   DateTime?
+    createdAt    DateTime  @default(now())
+    updatedAt    DateTime  @updatedAt
 
-  @@index([vesselId, status])
-  @@index([userId, status])
+    @@index([vesselId, status])
+    @@index([userId, status])
 }
 
 model Loan {
-  id            String    @id @default(cuid())
-  userId        String
-  principal     Float
-  balance       Float
-  interestRate  Float     @default(0.08) // annual rate
-  status        String    @default("active") // active | paid | defaulted
-  issuedAt      DateTime  @default(now())
-  dueAt         DateTime?
-  lastAccruedAt DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+    id            String    @id @default(cuid())
+    userId        String
+    principal     Float
+    balance       Float
+    interestRate  Float     @default(0.08) // annual rate
+    status        String    @default("active") // active | paid | defaulted
+    issuedAt      DateTime  @default(now())
+    dueAt         DateTime?
+    lastAccruedAt DateTime?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
 
-  @@index([userId, status])
+    @@index([userId, status])
 }
 
 model InsurancePolicy {
-  id            String    @id @default(cuid())
-  vesselId      String
-  ownerId       String
-  type          String
-  coverage      Float
-  deductible    Float
-  premiumRate   Float
-  status        String    @default("active") // active | lapsed | canceled
-  activeFrom    DateTime  @default(now())
-  activeUntil   DateTime?
-  lastChargedAt DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+    id            String    @id @default(cuid())
+    vesselId      String
+    ownerId       String
+    type          String
+    coverage      Float
+    deductible    Float
+    premiumRate   Float
+    status        String    @default("active") // active | lapsed | canceled
+    activeFrom    DateTime  @default(now())
+    activeUntil   DateTime?
+    lastChargedAt DateTime?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
 
-  @@index([vesselId, status])
-  @@index([ownerId, status])
+    @@index([vesselId, status])
+    @@index([ownerId, status])
 }
 
 model VesselSale {
-  id           String    @id @default(cuid())
-  vesselId     String
-  sellerId     String
-  buyerId      String?
-  type         String    @default("sale") // sale | auction | repossession
-  price        Float
-  reservePrice Float?
-  status       String    @default("open") // open | sold | canceled | expired
-  createdAt    DateTime  @default(now())
-  endsAt       DateTime?
+    id           String    @id @default(cuid())
+    vesselId     String
+    sellerId     String
+    buyerId      String?
+    type         String    @default("sale") // sale | auction | repossession
+    price        Float
+    reservePrice Float?
+    status       String    @default("open") // open | sold | canceled | expired
+    createdAt    DateTime  @default(now())
+    endsAt       DateTime?
 
-  @@index([status, type])
+    @@index([status, type])
 }
 
 model VesselLease {
-  id            String    @id @default(cuid())
-  vesselId      String
-  ownerId       String
-  lesseeId      String?
-  type          String    @default("charter") // charter | lease
-  ratePerHour   Float
-  revenueShare  Float     @default(0)
-  status        String    @default("open") // open | active | completed | canceled
-  startedAt     DateTime?
-  endsAt        DateTime?
-  lastChargedAt DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+    id            String    @id @default(cuid())
+    vesselId      String
+    ownerId       String
+    lesseeId      String?
+    type          String    @default("charter") // charter | lease
+    ratePerHour   Float
+    revenueShare  Float     @default(0)
+    status        String    @default("open") // open | active | completed | canceled
+    startedAt     DateTime?
+    endsAt        DateTime?
+    lastChargedAt DateTime?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
 
-  @@index([status, type])
+    @@index([status, type])
 }
 
 model CargoLot {
-  id                String    @id @default(cuid())
-  vesselId          String?
-  portId            String?
-  originPortId      String?
-  destinationPortId String?
-  ownerId           String?
-  carrierId         String?
-  description       String?
-  cargoType         String    @default("bulk") // bulk | refrigerated | hazardous | parcels | fish | supplies
-  value             Float
-  rewardCredits     Float     @default(0)
-  weightTons        Float     @default(0)
-  liabilityRate     Float     @default(0)
-  expiresAt         DateTime?
-  readyAt           DateTime?
-  status            String    @default("listed") // listed | loading | loaded | delivered | lost | expired | rerouted
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+    id                String    @id @default(cuid())
+    vesselId          String?
+    portId            String?
+    originPortId      String?
+    destinationPortId String?
+    ownerId           String?
+    carrierId         String?
+    description       String?
+    cargoType         String    @default("bulk") // bulk | refrigerated | hazardous | parcels | fish | supplies
+    value             Float
+    rewardCredits     Float     @default(0)
+    weightTons        Float     @default(0)
+    liabilityRate     Float     @default(0)
+    expiresAt         DateTime?
+    readyAt           DateTime?
+    status            String    @default("listed") // listed | loading | loaded | delivered | lost | expired | rerouted
+    createdAt         DateTime  @default(now())
+    updatedAt         DateTime  @updatedAt
 
-  @@index([ownerId, status])
-  @@index([vesselId])
-  @@index([portId, status])
-  @@index([originPortId, destinationPortId])
+    @@index([ownerId, status])
+    @@index([vesselId])
+    @@index([portId, status])
+    @@index([originPortId, destinationPortId])
 }
 
 model PassengerContract {
-  id                String    @id @default(cuid())
-  vesselId          String?
-  originPortId      String
-  destinationPortId String
-  operatorId        String?
-  passengerType     String    @default("ferry") // ferry | water_bus | water_taxi
-  paxCount          Int
-  rewardCredits     Float
-  readyAt           DateTime?
-  status            String    @default("listed") // listed | boarding | in_progress | completed | expired
-  expiresAt         DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+    id                String    @id @default(cuid())
+    vesselId          String?
+    originPortId      String
+    destinationPortId String
+    operatorId        String?
+    passengerType     String    @default("ferry") // ferry | water_bus | water_taxi
+    paxCount          Int
+    rewardCredits     Float
+    readyAt           DateTime?
+    status            String    @default("listed") // listed | boarding | in_progress | completed | expired
+    expiresAt         DateTime?
+    createdAt         DateTime  @default(now())
+    updatedAt         DateTime  @updatedAt
 
-  @@index([originPortId, status])
-  @@index([destinationPortId, status])
-  @@index([operatorId, status])
+    @@index([originPortId, status])
+    @@index([destinationPortId, status])
+    @@index([operatorId, status])
 }
 
 model CareerPath {
-  id          String       @id
-  name        String
-  description String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  userCareers UserCareer[]
+    id          String       @id
+    name        String
+    description String?
+    createdAt   DateTime     @default(now())
+    updatedAt   DateTime     @updatedAt
+    userCareers UserCareer[]
 }
 
 model UserCareer {
-  id         String   @id @default(cuid())
-  userId     String
-  careerId   String
-  level      Int      @default(1)
-  experience Int      @default(0)
-  active     Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+    id         String   @id @default(cuid())
+    userId     String
+    careerId   String
+    level      Int      @default(1)
+    experience Int      @default(0)
+    active     Boolean  @default(false)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
 
-  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  career CareerPath @relation(fields: [careerId], references: [id])
+    user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    career CareerPath @relation(fields: [careerId], references: [id])
 
-  @@unique([userId, careerId])
-  @@index([userId, active])
+    @@unique([userId, careerId])
+    @@index([userId, active])
 }
 
 model License {
-  id         String    @id @default(cuid())
-  userId     String
-  licenseKey String
-  status     String    @default("active") // active | expired | revoked
-  issuedAt   DateTime  @default(now())
-  expiresAt  DateTime?
-  renewedAt  DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+    id         String    @id @default(cuid())
+    userId     String
+    licenseKey String
+    status     String    @default("active") // active | expired | revoked
+    issuedAt   DateTime  @default(now())
+    expiresAt  DateTime?
+    renewedAt  DateTime?
+    createdAt  DateTime  @default(now())
+    updatedAt  DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, status])
-  @@index([licenseKey, status])
+    @@index([userId, status])
+    @@index([licenseKey, status])
 }
 
 model Exam {
-  id          String   @id
-  name        String
-  description String?
-  scenarioId  String?
-  careerId    String?
-  licenseKey  String?
-  minScore    Int      @default(70)
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+    id          String   @id
+    name        String
+    description String?
+    scenarioId  String?
+    careerId    String?
+    licenseKey  String?
+    minScore    Int      @default(70)
+    active      Boolean  @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
 
-  @@index([careerId])
+    @@index([careerId])
 }
 
 model ExamAttempt {
-  id        String   @id @default(cuid())
-  examId    String
-  userId    String
-  score     Int
-  passed    Boolean
-  createdAt DateTime @default(now())
+    id        String   @id @default(cuid())
+    examId    String
+    userId    String
+    score     Int
+    passed    Boolean
+    createdAt DateTime @default(now())
 
-  @@index([userId, examId])
+    @@index([userId, examId])
 }
 
 model Reputation {
-  id        String   @id @default(cuid())
-  userId    String
-  scopeType String // port | company | region
-  scopeId   String
-  value     Float    @default(0)
-  updatedAt DateTime @updatedAt
+    id        String   @id @default(cuid())
+    userId    String
+    scopeType String // port | company | region
+    scopeId   String
+    value     Float    @default(0)
+    updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, scopeType, scopeId])
+    @@unique([userId, scopeType, scopeId])
 }
 
 model AuthEvent {
-  id        String   @id @default(cuid())
-  userId    String?
-  event     String
-  detail    Json?
-  createdAt DateTime @default(now())
+    id        String   @id @default(cuid())
+    userId    String?
+    event     String
+    detail    Json?
+    createdAt DateTime @default(now())
 
-  @@index([userId])
+    @@index([userId])
 }
