@@ -109,12 +109,15 @@ jest.mock('../../../src/features/economy/sections/PortMarketSection', () => ({
   default: ({
     onAssignCargo,
     onAcceptPassengers,
+    actionNotice,
   }: {
     onAssignCargo: (cargoId: string) => void;
     onAcceptPassengers: (contractId: string) => void;
+    actionNotice?: string | null;
   }) => (
     <div>
       <div>PortMarketSection</div>
+      {actionNotice ? <div>{actionNotice}</div> : null}
       <button type="button" onClick={() => onAssignCargo('cargo-1')}>
         Assign cargo
       </button>
@@ -304,5 +307,169 @@ describe('pages/economy', () => {
         expect.objectContaining({ method: 'POST' }),
       );
     });
+  });
+
+  it('shows guard notices when vessel or port selection is missing', async () => {
+    const fetchMock = (globalThis as any).fetch as jest.Mock;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      const method = init?.method || 'GET';
+      if (url === 'http://api.test/api/economy/dashboard') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            fleet: [],
+            ports: [],
+            currentPort: null,
+          }),
+        });
+      }
+      if (
+        [
+          'http://api.test/api/careers/status',
+          'http://api.test/api/licenses',
+          'http://api.test/api/exams',
+          'http://api.test/api/reputation',
+          'http://api.test/api/economy/vessels/catalog',
+          'http://api.test/api/spaces',
+        ].includes(url)
+      ) {
+        const key = url.split('/').pop();
+        return Promise.resolve({
+          ok: true,
+          json: async () =>
+            key === 'catalog'
+              ? { vessels: [] }
+              : key === 'spaces'
+                ? { spaces: [] }
+                : { careers: [], licenses: [], exams: [], reputation: [] },
+        });
+      }
+      if (url.startsWith('http://api.test/api/economy/cargo?')) {
+        return Promise.resolve({ ok: true, json: async () => ({ cargo: [] }) });
+      }
+      if (url.startsWith('http://api.test/api/economy/passengers?')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ contracts: [] }),
+        });
+      }
+      return Promise.resolve({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: `Unhandled ${method} ${url}` }),
+      });
+    });
+
+    render(<EconomyPage />);
+    await screen.findByText('ShipyardSection');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Purchase vessel' }));
+    expect(
+      await screen.findByText('Select a port for delivery first.'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Port Market' }));
+    await screen.findByText('PortMarketSection');
+    fireEvent.click(screen.getByRole('button', { name: 'Assign cargo' }));
+    expect(
+      await screen.findByText('Select a vessel to load cargo.'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Accept passengers' }));
+    expect(
+      await screen.findByText('Select a vessel to board passengers.'),
+    ).toBeInTheDocument();
+  });
+
+  it('surfaces server-side action errors to the UI notices', async () => {
+    const fetchMock = (globalThis as any).fetch as jest.Mock;
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      const method = init?.method || 'GET';
+      if (url === 'http://api.test/api/economy/dashboard') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            fleet: [{ id: 'v1' }],
+            ports: [{ id: 'port-1', name: 'Port One' }],
+            currentPort: { id: 'port-1', name: 'Port One' },
+          }),
+        });
+      }
+      if (
+        [
+          'http://api.test/api/careers/status',
+          'http://api.test/api/licenses',
+          'http://api.test/api/exams',
+          'http://api.test/api/reputation',
+          'http://api.test/api/economy/vessels/catalog',
+          'http://api.test/api/spaces',
+        ].includes(url)
+      ) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ careers: [], licenses: [], exams: [], reputation: [], vessels: [], spaces: [] }),
+        });
+      }
+      if (url.startsWith('http://api.test/api/economy/cargo?')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ cargo: [], capacityTons: 5, loadedTons: 0 }),
+        });
+      }
+      if (url.startsWith('http://api.test/api/economy/passengers?')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ contracts: [], capacity: 2, onboard: 0 }),
+        });
+      }
+      if (
+        url === 'http://api.test/api/economy/vessels/purchase' &&
+        method === 'POST'
+      ) {
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: async () => ({ error: 'Purchase denied' }),
+        });
+      }
+      if (
+        url === 'http://api.test/api/economy/cargo/assign' &&
+        method === 'POST'
+      ) {
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: async () => ({ error: 'Cargo denied' }),
+        });
+      }
+      if (
+        url === 'http://api.test/api/economy/passengers/accept' &&
+        method === 'POST'
+      ) {
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: async () => ({ error: 'Passenger denied' }),
+        });
+      }
+      return Promise.resolve({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: `Unhandled ${method} ${url}` }),
+      });
+    });
+
+    render(<EconomyPage />);
+    await screen.findByText('ShipyardSection');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Purchase vessel' }));
+    expect(await screen.findByText('Purchase denied')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Port Market' }));
+    await screen.findByText('PortMarketSection');
+    fireEvent.click(screen.getByRole('button', { name: 'Assign cargo' }));
+    expect(await screen.findByText('Cargo denied')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Accept passengers' }));
+    expect(await screen.findByText('Passenger denied')).toBeInTheDocument();
   });
 });

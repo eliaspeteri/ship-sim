@@ -7,7 +7,7 @@ import useStore from '../../store';
 import { deriveWaveState, getGerstnerSample, WaveState } from '../../lib/waves';
 import { latLonToXY } from '../../lib/geo';
 
-function getSeamarkModelPath(
+export function getSeamarkModelPath(
   props: GeoJSON.Feature['properties'],
 ): { path: string; dir: string; system?: 'iala-a' | 'iala-b' } | null {
   const type = props?.['seamark:type'];
