@@ -32,7 +32,8 @@ import {
   setEnvironment,
   calculateSeaState,
   getWaveHeightForSeaState,
-  resetGlobalVessel,
+  resetGlobalEnvironment,
+  resetSimulationRuntime,
   setBallast,
 } from './index';
 import {
@@ -213,43 +214,74 @@ const NON_DISPLACEMENT_MODEL = 1;
 const LARGE_NEGATIVE = -10.0;
 const POSITIVE_HEADING = 0.25;
 
-describe('Physics core (lean)', () => {
+class VesselSetup {
+  x: f64 = ORIGIN_X;
+  y: f64 = ORIGIN_Y;
+  z: f64 = ORIGIN_Z;
+  heading: f64 = NO_HEADING;
+  roll: f64 = NO_ROLL;
+  pitch: f64 = NO_PITCH;
+  surge: f64 = STILL_SURGE;
+  sway: f64 = STILL_SWAY;
+  heave: f64 = STILL_HEAVE;
+  yawRate: f64 = ZERO_YAW_RATE;
+  throttle: f64 = NO_THROTTLE;
+  rudder: f64 = NO_RUDDER;
+  mass: f64 = DEFAULT_MASS;
+  length: f64 = DEFAULT_LENGTH;
+  beam: f64 = DEFAULT_BEAM;
+  draft: f64 = DEFAULT_DRAFT;
+}
+
+function createTestVessel(setup: VesselSetup = new VesselSetup()): usize {
+  return createVessel(
+    setup.x,
+    setup.y,
+    setup.z,
+    setup.heading,
+    setup.roll,
+    setup.pitch,
+    setup.surge,
+    setup.sway,
+    setup.heave,
+    setup.yawRate,
+    ZERO_ROLL_RATE,
+    ZERO_PITCH_RATE,
+    setup.throttle,
+    setup.rudder,
+    setup.mass,
+    setup.length,
+    setup.beam,
+    setup.draft,
+  );
+}
+
+function updateCalmWater(ptr: usize, dt: f64): void {
+  updateVesselState(
+    ptr,
+    dt,
+    NO_WIND_SPEED,
+    NO_WIND_DIRECTION,
+    NO_CURRENT_SPEED,
+    NO_CURRENT_DIRECTION,
+    NO_WAVE_HEIGHT,
+    NO_WAVE_LENGTH,
+    NO_WAVE_DIRECTION,
+    NO_WAVE_STEEPNESS,
+  );
+}
+
+function resetRuntime(): void {
+  resetSimulationRuntime();
+}
+
+describe('Physics core: actuation and motion', () => {
   test('vessel moves forward with throttle', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const ptr = createTestVessel();
     setThrottle(ptr, THROTTLE_HALF);
     const initialX = getVesselX(ptr);
-    updateVesselState(
-      ptr,
-      DT_SHORT,
-      NO_WIND_SPEED,
-      NO_WIND_DIRECTION,
-      NO_CURRENT_SPEED,
-      NO_CURRENT_DIRECTION,
-      NO_WAVE_HEIGHT,
-      NO_WAVE_LENGTH,
-      NO_WAVE_DIRECTION,
-      NO_WAVE_STEEPNESS,
-    );
+    updateCalmWater(ptr, DT_SHORT);
     const finalX = getVesselX(ptr);
     expect(finalX).greaterThan(initialX);
     expect<f64>(getVesselSurgeVelocity(ptr)).greaterThan(
@@ -258,170 +290,47 @@ describe('Physics core (lean)', () => {
   });
 
   test('rudder creates heading change when moving', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      CURRENT_SPEED,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      THROTTLE_HALF,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const setup = new VesselSetup();
+    setup.surge = CURRENT_SPEED;
+    setup.throttle = THROTTLE_HALF;
+    const ptr = createTestVessel(setup);
     setRudderAngle(ptr, RUDDER_TEST_ANGLE);
     const initialHeading = getVesselHeading(ptr);
-    updateVesselState(
-      ptr,
-      DT_MEDIUM,
-      NO_WIND_SPEED,
-      NO_WIND_DIRECTION,
-      NO_CURRENT_SPEED,
-      NO_CURRENT_DIRECTION,
-      NO_WAVE_HEIGHT,
-      NO_WAVE_LENGTH,
-      NO_WAVE_DIRECTION,
-      NO_WAVE_STEEPNESS,
-    );
+    updateCalmWater(ptr, DT_MEDIUM);
     const finalHeading = getVesselHeading(ptr);
     expect(finalHeading).greaterThan(initialHeading);
   });
 
   test('time step is clamped to avoid instability', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      CURRENT_SPEED,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const setup = new VesselSetup();
+    setup.throttle = CURRENT_SPEED;
+    const ptr = createTestVessel(setup);
     const before = getVesselX(ptr);
-    updateVesselState(
-      ptr,
-      DT_CLAMPED,
-      NO_WIND_SPEED,
-      NO_WIND_DIRECTION,
-      NO_CURRENT_SPEED,
-      NO_CURRENT_DIRECTION,
-      NO_WAVE_HEIGHT,
-      NO_WAVE_LENGTH,
-      NO_WAVE_DIRECTION,
-      NO_WAVE_STEEPNESS,
-    ); // dt will be clamped internally
+    updateCalmWater(ptr, DT_CLAMPED); // dt will be clamped internally
     const after = getVesselX(ptr);
     expect(after).greaterThan(before);
   });
 
   test('throttle is clamped and RPM reflects clamp', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const ptr = createTestVessel();
     setThrottle(ptr, THROTTLE_OVER_MAX); // beyond allowed
-    updateVesselState(
-      ptr,
-      DT_SHORT,
-      NO_WIND_SPEED,
-      NO_WIND_DIRECTION,
-      NO_CURRENT_SPEED,
-      NO_CURRENT_DIRECTION,
-      NO_WAVE_HEIGHT,
-      NO_WAVE_LENGTH,
-      NO_WAVE_DIRECTION,
-      NO_WAVE_STEEPNESS,
-    );
+    updateCalmWater(ptr, DT_SHORT);
     expect<f64>(getVesselEngineRPM(ptr)).lessThanOrEqual(MAX_ENGINE_RPM);
   });
 
   test('rudder angle is clamped', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const ptr = createTestVessel();
     setRudderAngle(ptr, RUDDER_OVER_MAX);
     expect<f64>(getVesselRudderAngle(ptr)).lessThanOrEqual(RUDDER_MAX_ANGLE);
   });
 
   test('current pushes vessel in heading direction', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const ptr = createTestVessel();
     const before = getVesselX(ptr);
     updateVesselState(
       ptr,
@@ -440,27 +349,11 @@ describe('Physics core (lean)', () => {
   });
 
   test('cross-wind induces heading change', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      THROTTLE_HALF,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      SURGE_SAMPLE,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const setup = new VesselSetup();
+    setup.surge = THROTTLE_HALF;
+    setup.throttle = SURGE_SAMPLE;
+    const ptr = createTestVessel(setup);
     const beforeHeading = getVesselHeading(ptr);
     updateVesselState(
       ptr,
@@ -479,77 +372,21 @@ describe('Physics core (lean)', () => {
   });
 
   test('ballast changes acceleration response', () => {
-    resetGlobalVessel();
-    const heavy = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      THROTTLE_HALF,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const heavySetup = new VesselSetup();
+    heavySetup.throttle = THROTTLE_HALF;
+    const heavy = createTestVessel(heavySetup);
     setBallast(heavy, FULL_BALLAST);
     setThrottle(heavy, THROTTLE_HALF);
-    updateVesselState(
-      heavy,
-      DT_LONG,
-      NO_WIND_SPEED,
-      NO_WIND_DIRECTION,
-      NO_CURRENT_SPEED,
-      NO_CURRENT_DIRECTION,
-      NO_WAVE_HEIGHT,
-      NO_WAVE_LENGTH,
-      NO_WAVE_DIRECTION,
-      NO_WAVE_STEEPNESS,
-    );
+    updateCalmWater(heavy, DT_LONG);
 
-    resetGlobalVessel();
-    const light = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      THROTTLE_HALF,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const lightSetup = new VesselSetup();
+    lightSetup.throttle = THROTTLE_HALF;
+    const light = createTestVessel(lightSetup);
     setBallast(light, EMPTY_BALLAST);
     setThrottle(light, THROTTLE_HALF);
-    updateVesselState(
-      light,
-      DT_LONG,
-      NO_WIND_SPEED,
-      NO_WIND_DIRECTION,
-      NO_CURRENT_SPEED,
-      NO_CURRENT_DIRECTION,
-      NO_WAVE_HEIGHT,
-      NO_WAVE_LENGTH,
-      NO_WAVE_DIRECTION,
-      NO_WAVE_STEEPNESS,
-    );
+    updateCalmWater(light, DT_LONG);
 
     expect<f64>(getVesselX(light)).greaterThan(getVesselX(heavy));
     expect<f64>(getVesselBallastLevel(light)).equal(EMPTY_BALLAST);
@@ -557,27 +394,8 @@ describe('Physics core (lean)', () => {
   });
 
   test('buoyancy pulls vessel toward target draft with ballast', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const ptr = createTestVessel();
     setBallast(ptr, FULL_BALLAST);
     // run several steps to settle heave
     for (let i = LOOP_START; i < SETTLE_STEPS; i++) {
@@ -595,27 +413,8 @@ describe('Physics core (lean)', () => {
       );
     }
     const sunk = getVesselZ(ptr);
-    resetGlobalVessel();
-    const ptr2 = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const ptr2 = createTestVessel();
     setBallast(ptr2, EMPTY_BALLAST);
     for (let i = LOOP_START; i < SETTLE_STEPS; i++) {
       updateVesselState(
@@ -637,28 +436,12 @@ describe('Physics core (lean)', () => {
   });
 
   test('roll and pitch persist and respond to waves', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      INITIAL_ROLL,
-      INITIAL_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      THROTTLE_HALF,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const setup = new VesselSetup();
+    setup.roll = INITIAL_ROLL;
+    setup.pitch = INITIAL_PITCH;
+    setup.rudder = THROTTLE_HALF;
+    const ptr = createTestVessel(setup);
     const initialRoll = getVesselRollAngle(ptr);
     const initialPitch = getVesselPitchAngle(ptr);
     updateVesselState(
@@ -682,27 +465,19 @@ describe('Physics core (lean)', () => {
   });
 
   test('getter surfaces return values without throwing', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      POSITION_X,
-      POSITION_Y,
-      POSITION_Z,
-      HEADING_SAMPLE,
-      NO_ROLL,
-      NO_PITCH,
-      SURGE_SAMPLE,
-      SWAY_SAMPLE,
-      HEAVE_SAMPLE,
-      YAW_RATE_SAMPLE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      THROTTLE_THIRTY_PERCENT,
-      RUDDER_ANGLE_SAMPLE,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const setup = new VesselSetup();
+    setup.x = POSITION_X;
+    setup.y = POSITION_Y;
+    setup.z = POSITION_Z;
+    setup.heading = HEADING_SAMPLE;
+    setup.surge = SURGE_SAMPLE;
+    setup.sway = SWAY_SAMPLE;
+    setup.heave = HEAVE_SAMPLE;
+    setup.yawRate = YAW_RATE_SAMPLE;
+    setup.throttle = THROTTLE_THIRTY_PERCENT;
+    setup.rudder = RUDDER_ANGLE_SAMPLE;
+    const ptr = createTestVessel(setup);
     // Positions and heading
     expect<f64>(getVesselX(ptr)).equal(POSITION_X);
     expect<f64>(getVesselY(ptr)).equal(POSITION_Y);
@@ -736,7 +511,9 @@ describe('Physics core (lean)', () => {
       THROTTLE_THIRTY_PERCENT * MAX_ENGINE_RPM,
     );
   });
+});
 
+describe('Physics core: params and runtime boundaries', () => {
   test('buffer helpers expose pointers and capacities', () => {
     expect<i32>(getVesselParamsBufferCapacity()).equal(
       VESSEL_PARAM_BUFFER_CAPACITY,
@@ -749,29 +526,10 @@ describe('Physics core (lean)', () => {
   });
 
   test('setVesselParams updates values and clamps rudder', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      RUDDER_TEST_ANGLE,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-      DEFAULT_BLOCK_COEFFICIENT,
-      DEFAULT_RUDDER_FORCE_COEFFICIENT + 10.0,
-    );
+    resetRuntime();
+    const setup = new VesselSetup();
+    setup.rudder = RUDDER_TEST_ANGLE;
+    const ptr = createTestVessel(setup);
     const params = new StaticArray<f64>(VESSEL_PARAM_BUFFER_CAPACITY);
     unchecked((params[PARAM_MASS] = CUSTOM_MASS));
     unchecked((params[PARAM_LENGTH] = CUSTOM_LENGTH));
@@ -799,44 +557,17 @@ describe('Physics core (lean)', () => {
   });
 
   test('setEnvironment handles shallow water and readParam bounds', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      CURRENT_SPEED,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      THROTTLE_HALF,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const setup = new VesselSetup();
+    setup.surge = CURRENT_SPEED;
+    setup.throttle = THROTTLE_HALF;
+    const ptr = createTestVessel(setup);
     const env = new StaticArray<f64>(ENVIRONMENT_BUFFER_CAPACITY);
     unchecked((env[ENV_WIND_SPEED] = NO_WIND_SPEED));
     unchecked((env[ENV_WATER_DEPTH] = SHALLOW_WATER_DEPTH));
     setEnvironment(changetype<usize>(env), 1);
     setEnvironment(changetype<usize>(env), ENV_WATER_DEPTH + 1);
-    updateVesselState(
-      ptr,
-      DT_MEDIUM,
-      NO_WIND_SPEED,
-      NO_WIND_DIRECTION,
-      NO_CURRENT_SPEED,
-      NO_CURRENT_DIRECTION,
-      NO_WAVE_HEIGHT,
-      NO_WAVE_LENGTH,
-      NO_WAVE_DIRECTION,
-      NO_WAVE_STEEPNESS,
-    );
+    updateCalmWater(ptr, DT_MEDIUM);
     expect<f64>(getVesselSpeed(ptr)).greaterThanOrEqual(NO_THROTTLE);
   });
 
@@ -850,53 +581,19 @@ describe('Physics core (lean)', () => {
   });
 
   test('destroying vessel clears global instance', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const ptr = createTestVessel();
     destroyVessel(ptr);
-    const next = createVessel(
-      POSITION_X,
-      POSITION_Y,
-      POSITION_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    const setup = new VesselSetup();
+    setup.x = POSITION_X;
+    setup.y = POSITION_Y;
+    setup.z = POSITION_Z;
+    const next = createTestVessel(setup);
     expect<f64>(getVesselX(next)).equal(POSITION_X);
   });
 
   test('constructor guards fall back to defaults for non-positive values', () => {
-    resetGlobalVessel();
+    resetRuntime();
     const ptr = createVessel(
       ORIGIN_X,
       ORIGIN_Y,
@@ -935,27 +632,8 @@ describe('Physics core (lean)', () => {
   });
 
   test('setVesselParams applies positive values and ignores negatives', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const ptr = createTestVessel();
     const params = new StaticArray<f64>(VESSEL_PARAM_BUFFER_CAPACITY);
     unchecked((params[PARAM_MASS] = POSITIVE_MASS));
     unchecked((params[PARAM_LENGTH] = POSITIVE_LENGTH));
@@ -1059,27 +737,8 @@ describe('Physics core (lean)', () => {
   });
 
   test('setVesselParams ignores non-displacement model and out-of-range params', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const ptr = createTestVessel();
     const params = new StaticArray<f64>(VESSEL_PARAM_BUFFER_CAPACITY);
     unchecked((params[PARAM_MASS] = POSITIVE_MASS));
     setVesselParams(
@@ -1098,95 +757,29 @@ describe('Physics core (lean)', () => {
   });
 
   test('setRudderAngle ignores non-finite input', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const ptr = createTestVessel();
     setRudderAngle(ptr, NaN);
     expect<f64>(getVesselRudderAngle(ptr)).equal(NO_RUDDER);
   });
 
   test('ballast clamps to [0,1] and heading normalizes', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      LARGE_NEGATIVE,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const setup = new VesselSetup();
+    setup.heading = LARGE_NEGATIVE;
+    const ptr = createTestVessel(setup);
     setBallast(ptr, NEGATIVE_VALUE);
     expect<f64>(getVesselBallastLevel(ptr)).equal(0.0);
     setBallast(ptr, 2.0);
     expect<f64>(getVesselBallastLevel(ptr)).equal(1.0);
 
-    updateVesselState(
-      ptr,
-      DT_SHORT,
-      NO_WIND_SPEED,
-      NO_WIND_DIRECTION,
-      NO_CURRENT_SPEED,
-      NO_CURRENT_DIRECTION,
-      NO_WAVE_HEIGHT,
-      NO_WAVE_LENGTH,
-      NO_WAVE_DIRECTION,
-      NO_WAVE_STEEPNESS,
-    );
+    updateCalmWater(ptr, DT_SHORT);
     expect<f64>(getVesselHeading(ptr)).greaterThanOrEqual(0.0);
   });
 
   test('setVesselParams early returns on invalid pointers and lengths', () => {
-    resetGlobalVessel();
-    const ptr = createVessel(
-      ORIGIN_X,
-      ORIGIN_Y,
-      ORIGIN_Z,
-      NO_HEADING,
-      NO_ROLL,
-      NO_PITCH,
-      STILL_SURGE,
-      STILL_SWAY,
-      STILL_HEAVE,
-      ZERO_YAW_RATE,
-      ZERO_ROLL_RATE,
-      ZERO_PITCH_RATE,
-      NO_THROTTLE,
-      NO_RUDDER,
-      DEFAULT_MASS,
-      DEFAULT_LENGTH,
-      DEFAULT_BEAM,
-      DEFAULT_DRAFT,
-    );
+    resetRuntime();
+    const ptr = createTestVessel();
     setVesselParams(ptr, 0, 0, 0);
     setVesselParams(ptr, 0, 0, -1);
     expect<f64>(getVesselGM(ptr)).equal(
@@ -1201,6 +794,27 @@ describe('Physics core (lean)', () => {
     const env = new StaticArray<f64>(ENVIRONMENT_BUFFER_CAPACITY);
     unchecked((env[ENV_WIND_SPEED] = NO_WIND_SPEED));
     setEnvironment(changetype<usize>(env), 0);
+  });
+
+  test('runtime reset clears environment and creates deterministic vessel state', () => {
+    resetRuntime();
+    const setup = new VesselSetup();
+    setup.surge = CURRENT_SPEED;
+    setup.throttle = THROTTLE_HALF;
+    const ptr = createTestVessel(setup);
+    const env = new StaticArray<f64>(ENVIRONMENT_BUFFER_CAPACITY);
+    unchecked((env[ENV_WIND_SPEED] = CROSS_WIND_SPEED));
+    unchecked((env[ENV_WATER_DEPTH] = SHALLOW_WATER_DEPTH));
+    setEnvironment(changetype<usize>(env), ENV_WATER_DEPTH + 1);
+    updateCalmWater(ptr, DT_SHORT);
+    const movedBeforeReset = getVesselX(ptr);
+    expect<f64>(movedBeforeReset).greaterThanOrEqual(ORIGIN_X);
+
+    resetGlobalEnvironment();
+    resetRuntime();
+    const next = createTestVessel();
+    expect<f64>(getVesselX(next)).equal(ORIGIN_X);
+    expect<f64>(getVesselY(next)).equal(ORIGIN_Y);
   });
 });
 

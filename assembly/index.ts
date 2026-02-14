@@ -1070,6 +1070,30 @@ export function getWaveHeightForSeaState(seaState: f64): f64 {
 
 // === Utilities ===
 
+function resetEnvironmentState(): void {
+  globalEnvironment = new EnvironmentState();
+}
+
+function clearBuffer(buffer: StaticArray<f64>, capacity: i32): void {
+  for (let i = 0; i < capacity; i++) {
+    unchecked((buffer[i] = 0.0));
+  }
+}
+
+// Explicit runtime lifecycle reset for tests and deterministic host orchestration.
+export function resetSimulationRuntime(): void {
+  globalVessel = null;
+  resetEnvironmentState();
+  clearBuffer(vesselParamsBuffer, VESSEL_PARAM_BUFFER_CAPACITY);
+  clearBuffer(environmentBuffer, ENVIRONMENT_BUFFER_CAPACITY);
+}
+
+// Backward-compatible alias kept for existing callers.
 export function resetGlobalVessel(): void {
   globalVessel = null;
+}
+
+// Backward-compatible alias kept for existing callers.
+export function resetGlobalEnvironment(): void {
+  resetEnvironmentState();
 }
