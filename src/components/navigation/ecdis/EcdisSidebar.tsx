@@ -11,273 +11,153 @@ interface EcdisSidebarProps {
   ship: ShipDisplayState;
 }
 
+const labelClass =
+  'whitespace-nowrap font-bold tracking-[0.2px] text-[#6cc9ff]';
+const valueClass =
+  'h-5 min-w-[84px] border border-[#2a4ac5] bg-black px-1.5 text-right leading-[18px] text-[#f3d648]';
+const menuClass =
+  'mb-1 border border-[#2a4ac5] bg-[#0c2ca8] px-2 py-[2px] font-bold leading-4 text-[#b9dbff]';
+const footerButtonClass =
+  'border-r border-[#2047dc] bg-[#0c2ca8] px-2 py-1 text-xs font-bold text-[#b9dbff] last:border-r-0';
+
+const RowSingle = ({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+}) => (
+  <div
+    className={`mb-[3px] grid items-center gap-1.5 ${unit ? 'grid-cols-[1fr_auto_auto]' : 'grid-cols-[1fr_auto]'}`}
+  >
+    <div className={labelClass}>{label}</div>
+    <div className={valueClass}>{value}</div>
+    {unit ? (
+      <div className={`${valueClass} min-w-[52px] text-center`}>{unit}</div>
+    ) : null}
+  </div>
+);
+
+const RowDual = ({
+  label,
+  left,
+  right,
+  leftWide = false,
+}: {
+  label: string;
+  left: string;
+  right: string;
+  leftWide?: boolean;
+}) => (
+  <div className="mb-[3px] grid grid-cols-[1fr_auto_auto] items-center gap-1.5">
+    <div className={labelClass}>{label}</div>
+    <div
+      className={`${valueClass} ${leftWide ? 'min-w-[66px]' : 'min-w-[44px]'} text-center`}
+    >
+      {left}
+    </div>
+    <div className={`${valueClass} min-w-[96px]`}>{right}</div>
+  </div>
+);
+
 export const EcdisSidebar: React.FC<EcdisSidebarProps> = ({ ship }) => {
-  const buttonStyle: React.CSSProperties = {
-    background: '#0c2ca8',
-    border: '1px solid #2047dc',
-    color: '#b9dbff',
-    fontSize: 12,
-    fontWeight: 700,
-    padding: '4px 8px',
-    cursor: 'pointer',
-  };
-
-  const valueBoxStyle: React.CSSProperties = {
-    color: '#f3d648',
-    background: '#000',
-    border: '1px solid #2a4ac5',
-    minWidth: 84,
-    textAlign: 'right',
-    padding: '0 6px',
-    lineHeight: '18px',
-    height: 20,
-  };
-
-  const rowLabelStyle: React.CSSProperties = {
-    color: '#6cc9ff',
-    fontWeight: 700,
-    letterSpacing: 0.2,
-    whiteSpace: 'nowrap',
-  };
-
-  const menuRowStyle: React.CSSProperties = {
-    border: '1px solid #2a4ac5',
-    background: '#0c2ca8',
-    color: '#b9dbff',
-    padding: '2px 8px',
-    fontWeight: 700,
-    marginBottom: 4,
-    lineHeight: '16px',
-  };
-
-  const rowSingle = (label: string, value: string, unit?: string) => (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: unit ? '1fr auto auto' : '1fr auto',
-        gap: 6,
-        marginBottom: 3,
-        alignItems: 'center',
-      }}
-    >
-      <div style={rowLabelStyle}>{label}</div>
-      <div style={valueBoxStyle}>{value}</div>
-      {unit ? (
-        <div style={{ ...valueBoxStyle, minWidth: 52, textAlign: 'center' }}>
-          {unit}
-        </div>
-      ) : null}
-    </div>
-  );
-
-  const rowDual = (
-    label: string,
-    left: string,
-    right: string,
-    leftMinWidth = 66,
-    rightMinWidth = 84,
-  ) => (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr auto auto',
-        gap: 6,
-        marginBottom: 3,
-        alignItems: 'center',
-      }}
-    >
-      <div style={rowLabelStyle}>{label}</div>
-      <div
-        style={{
-          ...valueBoxStyle,
-          minWidth: leftMinWidth,
-          textAlign: 'center',
-        }}
-      >
-        {left}
-      </div>
-      <div style={{ ...valueBoxStyle, minWidth: rightMinWidth }}>{right}</div>
-    </div>
-  );
-
-  const rowTwoHeaders = (
-    leftLabel: string,
-    leftValue: string,
-    rightLabel: string,
-    rightValue: string,
-  ) => (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'auto auto auto auto',
-        gap: 6,
-        marginBottom: 3,
-        alignItems: 'center',
-      }}
-    >
-      <div style={rowLabelStyle}>{leftLabel}</div>
-      <div style={{ ...valueBoxStyle, minWidth: 62, textAlign: 'center' }}>
-        {leftValue}
-      </div>
-      <div style={rowLabelStyle}>{rightLabel}</div>
-      <div style={{ ...valueBoxStyle, minWidth: 84, textAlign: 'center' }}>
-        {rightValue}
-      </div>
-    </div>
-  );
-
-  const rowValueOnly = (value: string) => (
-    <div style={{ marginBottom: 3 }}>
-      <div style={{ ...valueBoxStyle, minWidth: 0, textAlign: 'left' }}>
-        {value}
-      </div>
-    </div>
-  );
-
   return (
-    <aside
-      style={{
-        width: 290,
-        background: '#00156a',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <div
-        style={{
-          borderBottom: '2px solid #1739c9',
-          padding: '5px 8px',
-          fontWeight: 800,
-        }}
-      >
+    <aside className="flex w-[290px] flex-col bg-[#00156a]">
+      <div className="border-b-2 border-[#1739c9] px-2 py-[5px] text-sm font-extrabold">
         KELVIN HUGHES ECDIS
       </div>
-      <div style={{ padding: 8, overflowY: 'auto', flex: 1 }}>
-        <div style={menuRowStyle}>Main Menu</div>
+      <div className="flex-1 overflow-y-auto p-2">
+        <div className={menuClass}>Main Menu</div>
 
-        {rowDual('Heading', 'T', `${ship.heading.toFixed(1)}\u00b0`)}
-        {rowDual('Speed', 'W', '22.0 kts')}
-        {rowDual('COG', 'DR', `${ship.heading.toFixed(1)}\u00b0`)}
-        {rowDual('SOG', '', '22.0 kts')}
-        {rowDual('Time', '+01H', '17:11:29')}
-        {rowDual('Depth', 'Sim1', '22.3 m')}
+        <RowDual
+          label="Heading"
+          left="T"
+          right={`${ship.heading.toFixed(1)}°`}
+          leftWide
+        />
+        <RowDual label="Speed" left="W" right="22.0 kts" leftWide />
+        <RowDual
+          label="COG"
+          left="DR"
+          right={`${ship.heading.toFixed(1)}°`}
+          leftWide
+        />
+        <RowDual label="SOG" left="" right="22.0 kts" leftWide />
+        <RowDual label="Time" left="+01H" right="17:11:29" leftWide />
+        <RowDual label="Depth" left="Sim1" right="22.3 m" leftWide />
 
-        <div style={{ ...rowLabelStyle, marginTop: 4, marginBottom: 2 }}>
-          Sensor
+        <div className="mb-0.5 mt-1 text-[#6cc9ff]">Sensor</div>
+        <div className="mb-[3px]">
+          <div className={`${valueClass} min-w-0 text-left`}>
+            {formatLatLon(ship.latitude, 'N', 'S')}{' '}
+            {formatLatLon(ship.longitude, 'E', 'W')}
+          </div>
         </div>
-        {rowValueOnly(
-          `${formatLatLon(ship.latitude, 'N', 'S')} ${formatLatLon(ship.longitude, 'E', 'W')}`,
-        )}
-        {rowSingle('Datum', 'WGS84')}
+        <RowSingle label="Datum" value="WGS84" />
 
-        <div style={{ ...menuRowStyle, marginTop: 6 }}>Charts</div>
-        <div style={{ ...menuRowStyle, marginBottom: 6 }}>Routes</div>
+        <div className={`${menuClass} mt-1.5`}>Charts</div>
+        <div className={`${menuClass} mb-1.5`}>Routes</div>
 
-        <div
-          style={{
-            ...valueBoxStyle,
-            textAlign: 'center',
-            minWidth: 0,
-            marginBottom: 3,
-          }}
-        >
+        <div className={`${valueClass} mb-[3px] min-w-0 text-center`}>
           TRACK CONTROL
         </div>
-        <div
-          style={{
-            ...valueBoxStyle,
-            textAlign: 'center',
-            minWidth: 0,
-            marginBottom: 3,
-          }}
-        >
+        <div className={`${valueClass} mb-[3px] min-w-0 text-center`}>
           Saltmere to Bonville
         </div>
-        {rowSingle('Alt.', '(No Route Selected)')}
+        <RowSingle label="Alt." value="(No Route Selected)" />
 
-        <div
-          style={{
-            ...valueBoxStyle,
-            minWidth: 0,
-            marginBottom: 3,
-            textAlign: 'center',
-            color: '#90ffe1',
-          }}
-        >
-          | . . . . A . /\ . . . |
+        <div className="mb-[3px] min-w-0 border border-[#2a4ac5] bg-black px-1.5 text-center leading-[18px] text-[#90ffe1]">
+          | . . . . A . / . . . |
         </div>
 
-        {rowTwoHeaders('XTE', '55 m', 'CTS', '064.0\u00b0')}
-        {rowValueOnly('WP7 : Cartwheel Point')}
-        {rowSingle('Dist to WOP', '1.64 nm')}
-        {rowSingle('Time to WOP', '00:04:29')}
-        {rowDual('ETA at final WP', '17:24', '03/01')}
+        <div className="mb-[3px] grid grid-cols-[auto_auto_auto_auto] items-center gap-1.5">
+          <div className={labelClass}>XTE</div>
+          <div className={`${valueClass} min-w-[62px] text-center`}>55 m</div>
+          <div className={labelClass}>CTS</div>
+          <div className={`${valueClass} text-center`}>064.0°</div>
+        </div>
 
-        <div style={{ ...menuRowStyle, marginTop: 6 }}>Tools</div>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '56px 1fr',
-            gap: 6,
-            marginBottom: 6,
-          }}
-        >
-          <div
-            style={{
-              border: '1px solid #2a4ac5',
-              background: '#113d7a',
-              height: 56,
-            }}
-          />
+        <div className="mb-[3px]">
+          <div className={`${valueClass} min-w-0 text-left`}>
+            WP7 : Cartwheel Point
+          </div>
+        </div>
+        <RowSingle label="Dist to WOP" value="1.64 nm" />
+        <RowSingle label="Time to WOP" value="00:04:29" />
+        <RowDual label="ETA at final WP" left="17:24" right="03/01" leftWide />
+
+        <div className={`${menuClass} mt-1.5`}>Tools</div>
+        <div className="mb-1.5 grid grid-cols-[56px_1fr] gap-1.5">
+          <div className="h-14 border border-[#2a4ac5] bg-[#113d7a]" />
           <div>
-            <div
-              style={{
-                ...valueBoxStyle,
-                textAlign: 'left',
-                minWidth: 0,
-                marginBottom: 3,
-              }}
-            >
+            <div className={`${valueClass} mb-[3px] min-w-0 text-left`}>
               {formatLatLon(ship.latitude, 'N', 'S')}
             </div>
-            <div style={{ ...valueBoxStyle, textAlign: 'left', minWidth: 0 }}>
+            <div className={`${valueClass} min-w-0 text-left`}>
               {formatLatLon(ship.longitude, 'E', 'W')}
             </div>
           </div>
         </div>
-        {rowDual('', 'Rng', '1.49 nm', 44, 96)}
-        {rowDual('', 'Brg', '271.6\u00b0', 44, 96)}
+        <RowDual label="" left="Rng" right="1.49 nm" />
+        <RowDual label="" left="Brg" right="271.6°" />
 
-        <div
-          style={{
-            marginTop: 6,
-            marginBottom: 6,
-            minHeight: 52,
-            border: '1px solid #8c0000',
-            background: '#d00000',
-            color: '#ffe7e7',
-            padding: '4px 6px',
-            fontWeight: 700,
-          }}
-        >
+        <div className="my-1.5 min-h-[52px] border border-[#8c0000] bg-[#d00000] px-1.5 py-1 font-bold text-[#ffe7e7]">
           Track Control Stopped
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr 1fr',
-          borderTop: '2px solid #1739c9',
-        }}
-      >
-        <button style={{ ...buttonStyle, borderWidth: 0, borderRightWidth: 1 }}>
+      <div className="grid grid-cols-3 border-t-2 border-[#1739c9]">
+        <button className={footerButtonClass} type="button">
           Select Query Feature
         </button>
-        <button style={{ ...buttonStyle, borderWidth: 0, borderRightWidth: 1 }}>
+        <button className={footerButtonClass} type="button">
           Action 2
         </button>
-        <button style={{ ...buttonStyle, borderWidth: 0 }}>Context Menu</button>
+        <button className={footerButtonClass} type="button">
+          Context Menu
+        </button>
       </div>
     </aside>
   );

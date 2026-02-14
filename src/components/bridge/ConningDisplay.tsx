@@ -1,8 +1,5 @@
 import React from 'react';
 
-/**
- * Data for a single propeller.
- */
 export interface PropellerData {
   azimuth: number;
   pitch: number;
@@ -10,9 +7,6 @@ export interface PropellerData {
   side: 'port' | 'starboard';
 }
 
-/**
- * Data for the conning display.
- */
 export interface ConningDisplayData {
   date: string;
   time: string;
@@ -29,536 +23,163 @@ export interface ConningDisplayData {
   dials: number[];
 }
 
-/**
- * Props for the ConningDisplay component.
- */
 export interface ConningDisplayProps {
   data: ConningDisplayData;
 }
 
-/**
- * ConningDisplay renders a bridge conning display with a grid layout and instrument boxes.
- * @param props - The props for the conning display.
- */
+const panelClass =
+  'flex items-center justify-center rounded-lg border border-[#1f3b5b] bg-[#13263d]';
+const circularGaugeClass =
+  'flex h-20 w-20 items-center justify-center rounded-full border-2';
+const valueMonoClass = 'font-mono';
+
 export const ConningDisplay: React.FC<ConningDisplayProps> = ({ data }) => {
-  const panelBg = '#13263d';
-  const panelBorder = '#1f3b5b';
-  const screenBg = '#0b1627';
-  const brass = '#c3a76b';
-  const teal = '#1b9aaa';
-  const green = '#2fbf71';
-  const cyan = '#7fc5d8';
-  const red = '#e05d5d';
+  const portPitch = data.propellers[0]?.pitch ?? 0;
+  const starboardPitch = data.propellers[1]?.pitch ?? 0;
 
   return (
-    <div
-      style={{
-        minHeight: 600,
-        minWidth: 800,
-        width: '100%',
-        background:
-          'linear-gradient(135deg, #0b1627 0%, #0d2238 55%, #0b1f36 100%)',
-        color: '#e7edf6',
-        borderRadius: 12,
-        padding: 16,
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr 1fr 1fr',
-        gridTemplateRows: '1fr 1fr 1fr 1fr',
-        gap: 8,
-      }}
-    >
-      {/* Propeller Azimuth */}
-      <div
-        style={{
-          gridColumn: '1/2',
-          gridRow: '1/2',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: panelBg,
-          borderRadius: 8,
-          border: `1px solid ${panelBorder}`,
-        }}
-      >
-        <div style={{ fontSize: 12, marginBottom: 4 }}>Azim-th</div>
-        <div
-          style={{
-            width: 96,
-            height: 96,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <div
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: '50%',
-              border: `2px solid ${brass}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <span style={{ fontSize: 32, color: brass }}>
+    <div className="grid min-h-[600px] min-w-[800px] w-full grid-cols-4 grid-rows-4 gap-2 rounded-xl bg-[linear-gradient(135deg,#0b1627_0%,#0d2238_55%,#0b1f36_100%)] p-4 text-[#e7edf6]">
+      <div className={`${panelClass} col-[1/2] row-[1/2] flex-col`}>
+        <div className="mb-1 text-xs">Azim-th</div>
+        <div className="flex h-24 w-24 items-center justify-center">
+          <div className={`${circularGaugeClass} border-[#c3a76b]`}>
+            <span className="text-[32px] text-[#c3a76b]">
               {data.propellers[0]?.azimuth ?? 0}°
             </span>
           </div>
         </div>
       </div>
-      {/* Date/Time/Position */}
-      <div
-        style={{
-          gridColumn: '2/4',
-          gridRow: '1/2',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          background: panelBg,
-          borderRadius: 8,
-          border: `1px solid ${panelBorder}`,
-          padding: '0 24px',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 12,
-            marginBottom: 4,
-          }}
-        >
+
+      <div className={`${panelClass} col-[2/4] row-[1/2] flex-col px-6`}>
+        <div className="mb-1 flex w-full justify-between text-xs">
           <span>Date and Time/UTC</span>
-          <span style={{ color: teal, fontFamily: 'monospace' }}>
+          <span className={`${valueMonoClass} text-[#1b9aaa]`}>
             {data.date}
           </span>
         </div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 12,
-            marginBottom: 4,
-          }}
-        >
+        <div className="mb-1 flex w-full justify-between text-xs">
           <span>Time</span>
-          <span style={{ color: teal, fontFamily: 'monospace' }}>
+          <span className={`${valueMonoClass} text-[#1b9aaa]`}>
             {data.time}
           </span>
         </div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 12,
-            marginBottom: 4,
-          }}
-        >
+        <div className="mb-1 flex w-full justify-between text-xs">
           <span>Position</span>
         </div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 12,
-            marginBottom: 4,
-          }}
-        >
+        <div className="mb-1 flex w-full justify-between text-xs">
           <span>Latitude</span>
-          <span style={{ color: brass, fontFamily: 'monospace' }}>
+          <span className={`${valueMonoClass} text-[#c3a76b]`}>
             {data.latitude.toFixed(5)}
           </span>
         </div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 12,
-          }}
-        >
+        <div className="flex w-full justify-between text-xs">
           <span>Longitude</span>
-          <span style={{ color: brass, fontFamily: 'monospace' }}>
+          <span className={`${valueMonoClass} text-[#c3a76b]`}>
             {data.longitude.toFixed(5)}
           </span>
         </div>
       </div>
-      {/* Wind Direction */}
-      <div
-        style={{
-          gridColumn: '4/5',
-          gridRow: '1/2',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: panelBg,
-          borderRadius: 8,
-          border: `1px solid ${panelBorder}`,
-        }}
-      >
-        <div style={{ fontSize: 12, marginBottom: 4 }}>Wind Direction</div>
-        <div
-          style={{
-            width: 96,
-            height: 96,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <div
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: '50%',
-              border: `2px solid ${brass}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <span style={{ fontSize: 24, color: brass }}>
+
+      <div className={`${panelClass} col-[4/5] row-[1/2] flex-col`}>
+        <div className="mb-1 text-xs">Wind Direction</div>
+        <div className="flex h-24 w-24 items-center justify-center">
+          <div className={`${circularGaugeClass} border-[#c3a76b]`}>
+            <span className="text-2xl text-[#c3a76b]">
               {data.windDirection}°
             </span>
           </div>
         </div>
-        <div style={{ fontSize: 12, marginTop: 4 }}>
-          Speed: {data.windSpeed} kn
-        </div>
+        <div className="mt-1 text-xs">Speed: {data.windSpeed} kn</div>
       </div>
-      {/* Pitch and Roll */}
-      <div
-        style={{
-          gridColumn: '1/2',
-          gridRow: '2/3',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: panelBg,
-          borderRadius: 8,
-          border: `1px solid ${panelBorder}`,
-        }}
-      >
-        <div style={{ fontSize: 12, marginBottom: 4 }}>Pitch And Roll</div>
-        <div style={{ display: 'flex', gap: 16 }}>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}
-          >
-            <span style={{ fontSize: 12 }}>PITCH</span>
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                border: `2px solid ${cyan}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <span style={{ fontSize: 18 }}>{data.pitch}°</span>
+
+      <div className={`${panelClass} col-[1/2] row-[2/3] flex-col`}>
+        <div className="mb-1 text-xs">Pitch And Roll</div>
+        <div className="flex gap-4">
+          <div className="flex flex-col items-center">
+            <span className="text-xs">PITCH</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#7fc5d8]">
+              <span className="text-lg">{data.pitch}°</span>
             </div>
           </div>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}
-          >
-            <span style={{ fontSize: 12 }}>ROLL</span>
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                border: `2px solid ${green}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <span style={{ fontSize: 18 }}>{data.roll}°</span>
+          <div className="flex flex-col items-center">
+            <span className="text-xs">ROLL</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#2fbf71]">
+              <span className="text-lg">{data.roll}°</span>
             </div>
           </div>
         </div>
       </div>
-      {/* Heading (Compass) */}
-      <div
-        style={{
-          gridColumn: '2/4',
-          gridRow: '2/3',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: panelBg,
-          borderRadius: 8,
-          border: `1px solid ${panelBorder}`,
-        }}
-      >
-        <div style={{ fontSize: 12, marginBottom: 4 }}>Heading</div>
-        <div
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <div
-            style={{
-              width: 256,
-              height: 64,
-              background: screenBg,
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <span style={{ fontSize: 24, color: brass }}>
-              🧭 {data.heading}°
-            </span>
+
+      <div className={`${panelClass} col-[2/4] row-[2/3] flex-col`}>
+        <div className="mb-1 text-xs">Heading</div>
+        <div className="flex w-full items-center justify-center">
+          <div className="flex h-16 w-64 items-center justify-center rounded-lg bg-[#0b1627]">
+            <span className="text-2xl text-[#c3a76b]">🧭 {data.heading}°</span>
           </div>
         </div>
       </div>
-      {/* Doppler Log (center ship) */}
-      <div
-        style={{
-          gridColumn: '1/2',
-          gridRow: '3/5',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: panelBg,
-          borderRadius: 8,
-          border: `1px solid ${panelBorder}`,
-        }}
-      >
-        <div style={{ fontSize: 12, marginBottom: 4 }}>Doppler Log</div>
-        <div
-          style={{
-            width: 128,
-            height: 128,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <div
-            style={{
-              width: 112,
-              height: 112,
-              borderRadius: '50%',
-              border: `2px solid ${brass}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                lineHeight: 1,
-                color: brass,
-              }}
-            >
-              <span
-                style={{ fontSize: 30, fontVariantNumeric: 'tabular-nums' }}
-              >
+
+      <div className={`${panelClass} col-[1/2] row-[3/5] flex-col`}>
+        <div className="mb-1 text-xs">Doppler Log</div>
+        <div className="flex h-32 w-32 items-center justify-center">
+          <div className="flex h-28 w-28 items-center justify-center rounded-full border-2 border-[#c3a76b]">
+            <div className="flex flex-col items-center leading-none text-[#c3a76b]">
+              <span className="text-[30px] tabular-nums">
                 {data.dopplerLog.toFixed(1)}
               </span>
-              <span style={{ fontSize: 12, letterSpacing: 1 }}>KN</span>
+              <span className="text-xs tracking-[1px]">KN</span>
             </div>
           </div>
         </div>
       </div>
-      {/* Dual Dials */}
-      <div
-        style={{
-          gridColumn: '2/3',
-          gridRow: '3/4',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: panelBg,
-          borderRadius: 8,
-          border: `1px solid ${panelBorder}`,
-        }}
-      >
-        <div style={{ fontSize: 12, marginBottom: 4 }}>DualDialMeter</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: '50%',
-              border: `2px solid ${red}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <span style={{ fontSize: 16 }}>{data.dials[0]}</span>
+
+      <div className={`${panelClass} col-[2/3] row-[3/4] flex-col`}>
+        <div className="mb-1 text-xs">DualDialMeter</div>
+        <div className="flex gap-2">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#e05d5d]">
+            <span className="text-base">{data.dials[0]}</span>
           </div>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: '50%',
-              border: `2px solid ${green}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <span style={{ fontSize: 16 }}>{data.dials[1]}</span>
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#2fbf71]">
+            <span className="text-base">{data.dials[1]}</span>
           </div>
         </div>
       </div>
-      {/* Propeller Pitch */}
-      <div
-        style={{
-          gridColumn: '3/4',
-          gridRow: '3/5',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: panelBg,
-          borderRadius: 8,
-          border: `1px solid ${panelBorder}`,
-        }}
-      >
-        <div style={{ fontSize: 12, marginBottom: 4 }}>Propeller Pitch</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}
-          >
-            <span style={{ fontSize: 12 }}>Port</span>
-            <div
-              style={{
-                width: 24,
-                height: 96,
-                background: screenBg,
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'flex-end',
-                justifyContent: 'center',
-              }}
-            >
+
+      <div className={`${panelClass} col-[3/4] row-[3/5] flex-col`}>
+        <div className="mb-1 text-xs">Propeller Pitch</div>
+        <div className="flex gap-2">
+          <div className="flex flex-col items-center">
+            <span className="text-xs">Port</span>
+            <div className="flex h-24 w-6 items-end justify-center rounded-lg bg-[#0b1627]">
               <div
-                style={{
-                  width: 24,
-                  background: brass,
-                  height: `${data.propellers[0]?.pitch ?? 0}%`,
-                }}
+                className="w-6 bg-[#c3a76b]"
+                style={{ height: `${portPitch}%` }}
               />
             </div>
-            <span style={{ fontSize: 12 }}>
-              {data.propellers[0]?.pitch ?? 0}%
-            </span>
+            <span className="text-xs">{portPitch}%</span>
           </div>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}
-          >
-            <span style={{ fontSize: 12 }}>Starboard</span>
-            <div
-              style={{
-                width: 24,
-                height: 96,
-                background: screenBg,
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'flex-end',
-                justifyContent: 'center',
-              }}
-            >
+          <div className="flex flex-col items-center">
+            <span className="text-xs">Starboard</span>
+            <div className="flex h-24 w-6 items-end justify-center rounded-lg bg-[#0b1627]">
               <div
-                style={{
-                  width: 24,
-                  background: brass,
-                  height: `${data.propellers[1]?.pitch ?? 0}%`,
-                }}
+                className="w-6 bg-[#c3a76b]"
+                style={{ height: `${starboardPitch}%` }}
               />
             </div>
-            <span style={{ fontSize: 12 }}>
-              {data.propellers[1]?.pitch ?? 0}%
-            </span>
+            <span className="text-xs">{starboardPitch}%</span>
           </div>
         </div>
       </div>
-      {/* Rate of Turn */}
-      <div
-        style={{
-          gridColumn: '2/4',
-          gridRow: '4/5',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: panelBg,
-          borderRadius: 8,
-          border: `1px solid ${panelBorder}`,
-        }}
-      >
-        <div style={{ fontSize: 12, marginBottom: 4 }}>Rate of Turn</div>
-        <div
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <div
-            style={{
-              width: 256,
-              height: 24,
-              background: screenBg,
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
+
+      <div className={`${panelClass} col-[2/4] row-[4/5] flex-col`}>
+        <div className="mb-1 text-xs">Rate of Turn</div>
+        <div className="flex w-full items-center justify-center">
+          <div className="flex h-6 w-64 items-center rounded-lg bg-[#0b1627]">
             <div
-              style={{
-                height: 24,
-                background: green,
-                borderTopLeftRadius: 8,
-                borderBottomLeftRadius: 8,
-                width: `${Math.abs(data.rateOfTurn)}%`,
-              }}
+              className="h-6 rounded-l-lg bg-[#2fbf71]"
+              style={{ width: `${Math.abs(data.rateOfTurn)}%` }}
             />
-            <div
-              style={{
-                height: 24,
-                background: brass,
-                borderTopRightRadius: 8,
-                borderBottomRightRadius: 8,
-                width: '10%',
-              }}
-            />
+            <div className="h-6 w-[10%] rounded-r-lg bg-[#c3a76b]" />
           </div>
         </div>
       </div>

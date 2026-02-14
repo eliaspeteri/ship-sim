@@ -539,36 +539,114 @@ export function MarineRadio({
   // Calculate the normalized value for the channel dial (0-100)
   const channelDialValue =
     (currentChannelIndex / (MARINE_CHANNELS.length - 1)) * 100;
+  const containerStyle: React.CSSProperties = {
+    width: `${width}px`,
+    height: `${height + 20}px`,
+    backgroundColor: '#1a1a1a',
+    borderRadius: '8px',
+    padding: `${padding - 40}px 12px ${padding}px 12px`,
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.4)',
+    opacity: disabled ? 0.7 : 1,
+    position: 'relative',
+    overflow: 'hidden',
+    boxSizing: 'border-box',
+  };
+  const ventStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: '6px',
+    left: '10px',
+    width: '60px',
+    height: '12px',
+    display: 'flex',
+    gap: '3px',
+  };
+  const displayPanelStyle: React.CSSProperties = {
+    height: `${displayHeight}px`,
+    backgroundColor: powerOn ? '#f7941d' : '#442700',
+    borderRadius: '4px',
+    padding: '32px',
+    marginBottom: '10px',
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    transition: 'background-color 0.2s ease',
+    overflow: 'hidden',
+    color: '#000',
+  };
+  const mainDisplayRowStyle: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    height: '40%',
+  };
+  const channelStatusStyle: React.CSSProperties = {
+    fontFamily: 'monospace',
+    fontWeight: 'bold',
+    fontSize: powerOn
+      ? `${displayHeight * 0.36}px`
+      : `${displayHeight * 0.2}px`,
+    letterSpacing: '0.5px',
+    display: 'flex',
+    alignItems: 'center',
+  };
+  const signalStrengthStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'flex-end',
+    gap: '2px',
+    height: '100%',
+    marginLeft: '8px',
+  };
+  const secondaryRowStyle: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginTop: '6px',
+    fontFamily: 'monospace',
+    fontSize: `${displayHeight * 0.2}px`,
+  };
+  const controlsPanelStyle: React.CSSProperties = {
+    display: 'flex',
+    flexGrow: 1,
+    alignItems: 'flex-start',
+    gap: '12px',
+    paddingBottom: '10px',
+  };
+  const leftControlsStyle: React.CSSProperties = {
+    width: '80px',
+    height: '80%',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+  };
+  const pttButtonStyle: React.CSSProperties = {
+    width: '80px',
+    height: `${controlsHeight * 0.9}px`,
+    backgroundColor: '#333',
+    borderRadius: '8px',
+    border: transmitting ? '2px solid #f44' : '2px solid #555',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    padding: '32px',
+    cursor: !powerOn || disabled ? 'not-allowed' : 'pointer',
+    boxShadow: transmitting ? '0 0 8px rgba(255, 68, 68, 0.6)' : 'none',
+    opacity: !powerOn || disabled ? 0.6 : 1,
+  };
+  const volumeWrapperStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  };
 
   return (
-    <div
-      style={{
-        width: `${width}px`,
-        height: `${height + 20}px`, // Added 20px to overall height to prevent clipping
-        backgroundColor: '#1a1a1a',
-        borderRadius: '8px',
-        padding: `${padding - 40}px 12px ${padding}px 12px`,
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.4)',
-        opacity: disabled ? 0.7 : 1,
-        position: 'relative',
-        overflow: 'hidden',
-        boxSizing: 'border-box',
-      }}
-    >
+    <div style={containerStyle}>
       {/* Ventilation grill (top left) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '6px',
-          left: '10px',
-          width: '60px',
-          height: '12px',
-          display: 'flex',
-          gap: '3px',
-        }}
-      >
+      <div style={ventStyle}>
         {[...Array(5)].map((_, i) => (
           <div
             key={`vent-${i}`}
@@ -583,44 +661,11 @@ export function MarineRadio({
       </div>
 
       {/* Display Panel */}
-      <div
-        style={{
-          height: `${displayHeight}px`,
-          backgroundColor: powerOn ? '#f7941d' : '#442700', // Orange when on, dark amber when off
-          borderRadius: '4px',
-          padding: '32px',
-          marginBottom: '10px',
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          transition: 'background-color 0.2s ease',
-          overflow: 'hidden',
-          color: '#000',
-        }}
-      >
+      <div style={displayPanelStyle}>
         {/* Main Display Row - Channel & Status */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            height: '40%',
-          }}
-        >
+        <div style={mainDisplayRowStyle}>
           {/* Channel/Status Display */}
-          <div
-            style={{
-              fontFamily: 'monospace',
-              fontWeight: 'bold',
-              fontSize: powerOn
-                ? `${displayHeight * 0.36}px`
-                : `${displayHeight * 0.2}px`,
-              letterSpacing: '0.5px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
+          <div style={channelStatusStyle}>
             {powerOn ? displayMessage : ''}
 
             {/* Emergency Indicator */}
@@ -670,15 +715,7 @@ export function MarineRadio({
           </div>
 
           {/* Signal Strength Indicator */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'flex-end',
-              gap: '2px',
-              height: '100%',
-              marginLeft: '8px',
-            }}
-          >
+          <div style={signalStrengthStyle}>
             {[1, 2, 3, 4, 5].map(bar => (
               <div
                 key={`bar-${bar}`}
@@ -695,15 +732,7 @@ export function MarineRadio({
         </div>
 
         {/* Secondary Display Row - Always visible with Frequency & Position/Time */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            marginTop: '6px',
-            fontFamily: 'monospace',
-            fontSize: `${displayHeight * 0.2}px`,
-          }}
-        >
+        <div style={secondaryRowStyle}>
           {powerOn && (
             <>
               <div>
@@ -740,27 +769,9 @@ export function MarineRadio({
       </div>
 
       {/* Controls Panel */}
-      <div
-        style={{
-          display: 'flex',
-          flexGrow: 1,
-          alignItems: 'flex-start',
-          gap: '12px',
-          paddingBottom: '10px', // Added padding at the bottom to prevent clipping
-        }}
-      >
+      <div style={controlsPanelStyle}>
         {/* Left Controls - PTT Mic and Volume */}
-        <div
-          style={{
-            width: '80px',
-            height: '80%',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '8px',
-          }}
-        >
+        <div style={leftControlsStyle}>
           {/* PTT Button with Mic appearance */}
           <button
             onMouseDown={handleTransmitPress}
@@ -769,23 +780,7 @@ export function MarineRadio({
             onTouchStart={handleTransmitPress}
             onTouchEnd={handleTransmitRelease}
             disabled={!powerOn || disabled}
-            style={{
-              width: '80px',
-              height: `${controlsHeight * 0.9}px`,
-              backgroundColor: '#333',
-              borderRadius: '8px',
-              border: transmitting ? '2px solid #f44' : '2px solid #555',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              padding: '32px',
-              cursor: !powerOn || disabled ? 'not-allowed' : 'pointer',
-              boxShadow: transmitting
-                ? '0 0 8px rgba(255, 68, 68, 0.6)'
-                : 'none',
-              opacity: !powerOn || disabled ? 0.6 : 1,
-            }}
+            style={pttButtonStyle}
           >
             {/* Speaker holes */}
             {/*             <div
@@ -831,13 +826,7 @@ export function MarineRadio({
           </button>
 
           {/* Volume Control Dial */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}
-          >
+          <div style={volumeWrapperStyle}>
             <div
               style={{
                 fontSize: '9px',

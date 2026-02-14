@@ -383,7 +383,7 @@ Acceptance:
 
 ### B6. Split and type `socketManager` tests (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `tests/frontend/socketManager.test.ts`, `src/networking/socket.ts`
 
@@ -482,7 +482,7 @@ Completed: [ ]
 
 ### D1. Migrate inline-style-heavy bridge/nav components to style modules/tokens (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/components/navigation/ecdis/EcdisSidebar.tsx`, `src/components/radio/MarineRadio.tsx`, `src/components/bridge/ConningDisplay.tsx`
 
@@ -500,7 +500,7 @@ Acceptance:
 
 ### D2. Tighten typing in brittle tests (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files:
 
@@ -583,7 +583,7 @@ Acceptance:
 
 ### E4. Rework brittle server mega-tests into boundary-level suites (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `tests/frontend/server/api.test.ts`, `tests/frontend/server/index.test.ts`
 
@@ -623,7 +623,7 @@ Acceptance:
 
 ### F2. Make assembly runtime state explicit and resettable (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `assembly/index.ts`, `assembly/core.test.ts`
 
@@ -641,7 +641,7 @@ Acceptance:
 
 ### F3. Harden `assembly/core.test.ts` with builders and targeted suites (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `assembly/core.test.ts`
 
@@ -1333,7 +1333,7 @@ Acceptance:
 - [x] `I1` replace repeated `createVessel` positional call chains. `P0` `M`
 - [x] `J2` remove unsafe auth non-null assertions in server routes. `P0` `M`
 - [x] `H4` remove placeholder paths and fix interval lifecycle. `P1` `S`
-- [ ] `B6` split and type `socketManager` tests. `P1` `M`
+- [x] `B6` split and type `socketManager` tests. `P1` `M`
 - [x] `B1` `api.test.ts` route-internals removal. `P0` `M`
 - [x] `C2` remove render-path `getState` in HUD chat props. `P0` `S`
 - [x] `C3` unify control update pipeline (HUD + keyboard). `P0` `M`
@@ -1348,15 +1348,15 @@ Acceptance:
 - [x] `K5` harden production origin controls. `P1` `S`
 - [x] `K6` remove password-in-query space flow. `P1` `S`
 - [x] `K7` make socket cookie parsing resilient. `P1` `S`
-- [ ] `D1` inline-style component extraction. `P1` `M`
-- [ ] `D2` typed-test hardening. `P1` `M`
+- [x] `D1` inline-style component extraction. `P1` `M`
+- [x] `D2` typed-test hardening. `P1` `M`
 - [x] `E1` split server API router by domain. `P0` `L`
 - [x] `E2` unify API state/auth boundaries (DB vs in-memory cleanup). `P0` `L`
 - [x] `E3` decompose server runtime (`index.ts`). `P0` `L`
-- [ ] `E4` harden server mega-tests at boundary level. `P1` `M`
+- [x] `E4` harden server mega-tests at boundary level. `P1` `M`
 - [ ] `F1` split assembly physics core modules. `P1` `L`
-- [ ] `F2` make assembly state reset semantics explicit. `P1` `M`
-- [ ] `F3` refactor assembly core tests with builders. `P1` `M`
+- [x] `F2` make assembly state reset semantics explicit. `P1` `M`
+- [x] `F3` refactor assembly core tests with builders. `P1` `M`
 - [x] `G1` define CSS->Tailwind guardrails/tokens. `P0` `S`
 - [x] `G2` migrate HUD + sim modal CSS modules. `P0` `L`
 - [ ] `G3` migrate layout/dashboard/chat/environment control modules. `P1` `L`
