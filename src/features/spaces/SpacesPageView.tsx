@@ -3,8 +3,11 @@ import { useSession } from 'next-auth/react';
 import { getApiBase } from '../../lib/api';
 import { getDefaultRules, mapToRulesetType } from '../../types/rules.types';
 import { deleteSpace, fetchManagedSpaces, patchSpace } from './spacesService';
-import type { ManagedSpace, SpaceVisibility } from './types';
+import type { ManagedSpace } from './types';
 import { useSpaceDrafts } from './useSpaceDrafts';
+import { spacesUi as ui } from './spacesUi';
+import { SpacesHeader } from './components/SpacesHeader';
+import { SpaceCard } from './components/SpaceCard';
 
 const rulesetLabels: Record<string, string> = {
   CASUAL: 'Casual',
@@ -18,45 +21,6 @@ const parseListInput = (value: string) =>
     .split(',')
     .map(item => item.trim())
     .filter(Boolean);
-
-const ui = {
-  page: 'mx-auto max-w-[1080px] px-4 pb-[60px] pt-8 text-[var(--ink)]',
-  header:
-    'mb-5 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center',
-  title: 'text-2xl font-bold',
-  subtitle: 'text-[13px] text-[rgba(170,192,202,0.7)]',
-  status: 'text-xs text-[rgba(170,192,202,0.7)]',
-  notice: 'mb-3 rounded-[10px] px-2.5 py-2 text-xs',
-  noticeInfo: 'bg-[rgba(28,88,130,0.7)] text-[#e6f2ff]',
-  noticeError: 'bg-[rgba(120,36,32,0.8)] text-[#ffe7e1]',
-  spaceGrid: 'grid gap-4',
-  spaceCard:
-    'grid gap-3 rounded-2xl border border-[rgba(27,154,170,0.35)] bg-[rgba(10,20,34,0.9)] p-4',
-  cardHeader: 'flex items-baseline justify-between gap-3',
-  cardMeta: 'text-[11px] text-[rgba(170,192,202,0.7)]',
-  formRow: 'flex flex-wrap items-center gap-2.5',
-  formGrid: 'grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3',
-  input:
-    'rounded-[10px] border border-[rgba(60,88,104,0.6)] bg-[rgba(8,18,30,0.75)] px-2.5 py-1.5 text-xs text-[#f1f7f8]',
-  select:
-    'rounded-[10px] border border-[rgba(60,88,104,0.6)] bg-[rgba(8,18,30,0.75)] px-2.5 py-1.5 text-xs text-[#f1f7f8]',
-  button:
-    'cursor-pointer rounded-[10px] border-0 px-3 py-1.5 text-xs font-semibold text-[#f1f7f8]',
-  buttonPrimary: 'bg-gradient-to-br from-[#1b9aaa] to-[#0f6d75]',
-  buttonSecondary: 'bg-[rgba(52,72,98,0.9)]',
-  buttonDanger: 'bg-[rgba(120,36,32,0.85)]',
-  tag: 'rounded-full border border-[rgba(60,88,104,0.6)] bg-[rgba(12,28,44,0.7)] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#e6f2f6]',
-  tagPrivate: 'border-[rgba(162,66,120,0.7)] bg-[rgba(92,28,60,0.7)]',
-  mono: 'font-mono',
-  actionsRow: 'flex flex-wrap gap-2',
-  toggleGroup: 'flex gap-1.5',
-  rulesSection:
-    'grid gap-2.5 rounded-xl border border-[rgba(60,88,104,0.4)] bg-[rgba(8,16,28,0.6)] p-2.5',
-  rulesGrid: 'grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3',
-  rulesGroup: 'grid gap-1.5',
-  checkboxRow: 'flex items-center gap-1.5 text-xs text-[#e6f2f6]',
-  rulesInputs: 'grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-2.5',
-};
 
 export const SpacesPageView: React.FC = () => {
   const { status, data: session } = useSession();
@@ -89,26 +53,19 @@ export const SpacesPageView: React.FC = () => {
   }, [apiBase, isAdmin, scope, syncDrafts]);
 
   useEffect(() => {
-    if (!isAdmin && scope !== 'mine') {
-      setScope('mine');
-    }
+    if (!isAdmin && scope !== 'mine') setScope('mine');
   }, [isAdmin, scope]);
 
   useEffect(() => {
-    if (status === 'authenticated') {
-      void fetchSpaces();
-    }
+    if (status === 'authenticated') void fetchSpaces();
   }, [fetchSpaces, status]);
 
   const ensureCustomRules = useCallback(
     (spaceId: string, rulesetType: string) => {
       const base = getDefaultRules(mapToRulesetType(rulesetType));
-      updateDraft(spaceId, {
-        rules: cloneRules(base),
-        rulesTouched: true,
-      });
+      updateDraft(spaceId, { rules: cloneRules(base), rulesTouched: true });
     },
-    [updateDraft],
+    [cloneRules, updateDraft],
   );
 
   const updateSpace = useCallback(
@@ -165,12 +122,8 @@ export const SpacesPageView: React.FC = () => {
         visibility: draft.visibility,
         rulesetType: draft.rulesetType,
       };
-      if (draft.rulesTouched) {
-        payload.rules = draft.rules;
-      }
-      if (draft.password.trim().length > 0) {
-        payload.password = draft.password;
-      }
+      if (draft.rulesTouched) payload.rules = draft.rules;
+      if (draft.password.trim().length > 0) payload.password = draft.password;
       await updateSpace(spaceId, payload, 'Space updated.');
     },
     [drafts, spaces, updateSpace],
@@ -248,60 +201,21 @@ export const SpacesPageView: React.FC = () => {
 
   return (
     <div className={ui.page}>
-      <div className={ui.header}>
-        <div>
-          <div className={ui.title}>Manage spaces</div>
-          <p className={ui.subtitle}>
-            {scope === 'all' && isAdmin
-              ? `${spaceCountLabel} spaces across all creators.`
-              : `${spaceCountLabel} created by you.`}{' '}
-            Update visibility, share invites, or rotate passwords.
-          </p>
-        </div>
-        <div className={ui.actionsRow}>
-          {isAdmin ? (
-            <div className={ui.toggleGroup}>
-              <button
-                type="button"
-                onClick={() => setScope('mine')}
-                className={`${ui.button} ${
-                  scope === 'mine' ? ui.buttonPrimary : ui.buttonSecondary
-                }`}
-                disabled={loading}
-              >
-                My spaces
-              </button>
-              <button
-                type="button"
-                onClick={() => setScope('all')}
-                className={`${ui.button} ${
-                  scope === 'all' ? ui.buttonPrimary : ui.buttonSecondary
-                }`}
-                disabled={loading}
-              >
-                All spaces
-              </button>
-            </div>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => void fetchSpaces()}
-            className={`${ui.button} ${ui.buttonSecondary}`}
-            disabled={loading}
-          >
-            Refresh
-          </button>
-        </div>
-      </div>
+      <SpacesHeader
+        isAdmin={isAdmin}
+        scope={scope}
+        setScope={setScope}
+        loading={loading}
+        fetchSpaces={() => void fetchSpaces()}
+        spaceCountLabel={spaceCountLabel}
+      />
 
       {notice ? (
         <div className={`${ui.notice} ${ui.noticeInfo}`}>{notice}</div>
       ) : null}
-
       {error ? (
         <div className={`${ui.notice} ${ui.noticeError}`}>{error}</div>
       ) : null}
-
       {loading ? <div className={ui.status}>Loading spaces…</div> : null}
 
       {!loading && spaces.length === 0 ? (
@@ -312,432 +226,28 @@ export const SpacesPageView: React.FC = () => {
       ) : null}
 
       <div className={ui.spaceGrid}>
-        {spaces.map(space => {
-          const draft = drafts[space.id];
-          const inviteToken = space.inviteToken || '—';
-          const totalVessels = space.totalVessels ?? 0;
-          const activeVessels = space.activeVessels ?? 0;
-          const hasTraffic = activeVessels > 0;
-          return (
-            <div
-              key={space.id}
-              className={ui.spaceCard}
-              data-testid={`space-card-${space.id}`}
-            >
-              <div className={ui.cardHeader}>
-                <div>
-                  <div className={ui.cardMeta}>Space ID</div>
-                  <div className={`${ui.cardMeta} ${ui.mono}`}>{space.id}</div>
-                </div>
-                <div className={ui.actionsRow}>
-                  <span
-                    className={`${ui.tag} ${
-                      space.visibility === 'private' ? ui.tagPrivate : ''
-                    }`}
-                  >
-                    {space.visibility}
-                  </span>
-                  <span className={ui.tag}>
-                    {space.rulesetType || 'CASUAL'}
-                  </span>
-                  {space.passwordProtected ? (
-                    <span className={ui.tag}>Password</span>
-                  ) : null}
-                  <span className={ui.tag}>Vessels {totalVessels}</span>
-                  {hasTraffic ? (
-                    <span className={ui.tag}>Active {activeVessels}</span>
-                  ) : null}
-                </div>
-              </div>
-              {scope === 'all' && isAdmin ? (
-                <div className={ui.cardMeta}>
-                  Owner: {space.createdBy || 'Unknown'}
-                </div>
-              ) : null}
-
-              <div className={ui.formGrid}>
-                <label className={ui.cardMeta}>
-                  Name
-                  <input
-                    className={ui.input}
-                    value={draft?.name || space.name}
-                    onChange={e =>
-                      updateDraft(space.id, { name: e.target.value })
-                    }
-                  />
-                </label>
-
-                <label className={ui.cardMeta}>
-                  Visibility
-                  <select
-                    className={ui.select}
-                    value={draft?.visibility || space.visibility}
-                    onChange={e =>
-                      updateDraft(space.id, {
-                        visibility: e.target.value as SpaceVisibility,
-                      })
-                    }
-                  >
-                    <option value="public">Public</option>
-                    <option value="private">Private</option>
-                  </select>
-                </label>
-
-                <label className={ui.cardMeta}>
-                  Ruleset
-                  <select
-                    className={ui.select}
-                    value={
-                      draft?.rulesetType || space.rulesetType || 'CASUAL_PUBLIC'
-                    }
-                    onChange={e =>
-                      updateDraft(space.id, {
-                        rulesetType: e.target.value,
-                      })
-                    }
-                  >
-                    <option value="CASUAL">Casual</option>
-                    <option value="REALISM">Realism</option>
-                    <option value="CUSTOM">Custom</option>
-                    <option value="EXAM">Exam</option>
-                  </select>
-                </label>
-
-                <label className={ui.cardMeta}>
-                  New password
-                  <input
-                    className={ui.input}
-                    value={draft?.password || ''}
-                    onChange={e =>
-                      updateDraft(space.id, { password: e.target.value })
-                    }
-                    type="password"
-                    placeholder="Leave blank to keep"
-                  />
-                </label>
-              </div>
-
-              {isAdmin ? (
-                <div className={ui.rulesSection}>
-                  <div className={ui.cardMeta}>Rules overrides</div>
-                  {draft?.rules ? (
-                    <>
-                      <div className={ui.rulesGrid}>
-                        <div className={ui.rulesGroup}>
-                          <div className={ui.cardMeta}>Assists</div>
-                          <label className={ui.checkboxRow}>
-                            <input
-                              type="checkbox"
-                              checked={draft.rules.assists.stability}
-                              onChange={e =>
-                                updateRules(space.id, rules => ({
-                                  ...rules,
-                                  assists: {
-                                    ...rules.assists,
-                                    stability: e.target.checked,
-                                  },
-                                }))
-                              }
-                            />
-                            <span>Stability</span>
-                          </label>
-                          <label className={ui.checkboxRow}>
-                            <input
-                              type="checkbox"
-                              checked={draft.rules.assists.autopilot}
-                              onChange={e =>
-                                updateRules(space.id, rules => ({
-                                  ...rules,
-                                  assists: {
-                                    ...rules.assists,
-                                    autopilot: e.target.checked,
-                                  },
-                                }))
-                              }
-                            />
-                            <span>Autopilot</span>
-                          </label>
-                          <label className={ui.checkboxRow}>
-                            <input
-                              type="checkbox"
-                              checked={draft.rules.assists.docking}
-                              onChange={e =>
-                                updateRules(space.id, rules => ({
-                                  ...rules,
-                                  assists: {
-                                    ...rules.assists,
-                                    docking: e.target.checked,
-                                  },
-                                }))
-                              }
-                            />
-                            <span>Docking</span>
-                          </label>
-                        </div>
-
-                        <div className={ui.rulesGroup}>
-                          <div className={ui.cardMeta}>Realism</div>
-                          <label className={ui.checkboxRow}>
-                            <input
-                              type="checkbox"
-                              checked={draft.rules.realism.damage}
-                              onChange={e =>
-                                updateRules(space.id, rules => ({
-                                  ...rules,
-                                  realism: {
-                                    ...rules.realism,
-                                    damage: e.target.checked,
-                                  },
-                                }))
-                              }
-                            />
-                            <span>Damage</span>
-                          </label>
-                          <label className={ui.checkboxRow}>
-                            <input
-                              type="checkbox"
-                              checked={draft.rules.realism.wear}
-                              onChange={e =>
-                                updateRules(space.id, rules => ({
-                                  ...rules,
-                                  realism: {
-                                    ...rules.realism,
-                                    wear: e.target.checked,
-                                  },
-                                }))
-                              }
-                            />
-                            <span>Wear</span>
-                          </label>
-                          <label className={ui.checkboxRow}>
-                            <input
-                              type="checkbox"
-                              checked={draft.rules.realism.failures}
-                              onChange={e =>
-                                updateRules(space.id, rules => ({
-                                  ...rules,
-                                  realism: {
-                                    ...rules.realism,
-                                    failures: e.target.checked,
-                                  },
-                                }))
-                              }
-                            />
-                            <span>Failures</span>
-                          </label>
-                        </div>
-
-                        <div className={ui.rulesGroup}>
-                          <div className={ui.cardMeta}>Enforcement</div>
-                          <label className={ui.checkboxRow}>
-                            <input
-                              type="checkbox"
-                              checked={draft.rules.enforcement.colregs}
-                              onChange={e =>
-                                updateRules(space.id, rules => ({
-                                  ...rules,
-                                  enforcement: {
-                                    ...rules.enforcement,
-                                    colregs: e.target.checked,
-                                  },
-                                }))
-                              }
-                            />
-                            <span>COLREGS</span>
-                          </label>
-                          <label className={ui.checkboxRow}>
-                            <input
-                              type="checkbox"
-                              checked={draft.rules.enforcement.penalties}
-                              onChange={e =>
-                                updateRules(space.id, rules => ({
-                                  ...rules,
-                                  enforcement: {
-                                    ...rules.enforcement,
-                                    penalties: e.target.checked,
-                                  },
-                                }))
-                              }
-                            />
-                            <span>Penalties</span>
-                          </label>
-                          <label className={ui.checkboxRow}>
-                            <input
-                              type="checkbox"
-                              checked={draft.rules.enforcement.investigations}
-                              onChange={e =>
-                                updateRules(space.id, rules => ({
-                                  ...rules,
-                                  enforcement: {
-                                    ...rules.enforcement,
-                                    investigations: e.target.checked,
-                                  },
-                                }))
-                              }
-                            />
-                            <span>Investigations</span>
-                          </label>
-                        </div>
-
-                        <div className={ui.rulesGroup}>
-                          <div className={ui.cardMeta}>Progression</div>
-                          <label className={ui.checkboxRow}>
-                            <input
-                              type="checkbox"
-                              checked={draft.rules.progression.scoring}
-                              onChange={e =>
-                                updateRules(space.id, rules => ({
-                                  ...rules,
-                                  progression: {
-                                    ...rules.progression,
-                                    scoring: e.target.checked,
-                                  },
-                                }))
-                              }
-                            />
-                            <span>Scoring</span>
-                          </label>
-                        </div>
-                      </div>
-                      <div className={ui.rulesInputs}>
-                        <label className={ui.cardMeta}>
-                          Allowed vessels
-                          <input
-                            className={ui.input}
-                            value={draft.rules.allowedVessels.join(', ')}
-                            onChange={e =>
-                              updateRules(space.id, rules => ({
-                                ...rules,
-                                allowedVessels: parseListInput(e.target.value),
-                              }))
-                            }
-                            placeholder="cargo, tug, ferry"
-                          />
-                        </label>
-                        <label className={ui.cardMeta}>
-                          Allowed mods
-                          <input
-                            className={ui.input}
-                            value={draft.rules.allowedMods.join(', ')}
-                            onChange={e =>
-                              updateRules(space.id, rules => ({
-                                ...rules,
-                                allowedMods: parseListInput(e.target.value),
-                              }))
-                            }
-                            placeholder="mod-id, mod-id-2"
-                          />
-                        </label>
-                      </div>
-                      <div className={ui.formRow}>
-                        <button
-                          type="button"
-                          className={`${ui.button} ${ui.buttonSecondary}`}
-                          onClick={() =>
-                            updateDraft(space.id, {
-                              rules: null,
-                              rulesTouched: true,
-                            })
-                          }
-                        >
-                          Clear overrides
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className={ui.formRow}>
-                      <div className={ui.cardMeta}>
-                        Using{' '}
-                        {draft?.rulesetType || space.rulesetType || 'CASUAL'}{' '}
-                        defaults.
-                      </div>
-                      <button
-                        type="button"
-                        className={`${ui.button} ${ui.buttonSecondary}`}
-                        onClick={() =>
-                          ensureCustomRules(
-                            space.id,
-                            draft?.rulesetType || space.rulesetType || 'CASUAL',
-                          )
-                        }
-                      >
-                        Customize rules
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-
-              <div className={ui.formRow}>
-                <div className={ui.cardMeta}>
-                  Invite token:{' '}
-                  <span className={`${ui.mono} ${ui.cardMeta}`}>
-                    {inviteToken}
-                  </span>
-                </div>
-                <div className={ui.actionsRow}>
-                  <button
-                    type="button"
-                    className={`${ui.button} ${ui.buttonSecondary}`}
-                    onClick={() => {
-                      if (typeof navigator !== 'undefined') {
-                        void navigator.clipboard.writeText(inviteToken);
-                        setNotice('Invite token copied.');
-                      }
-                    }}
-                  >
-                    Copy token
-                  </button>
-                  <button
-                    type="button"
-                    className={`${ui.button} ${ui.buttonSecondary}`}
-                    onClick={() => void handleRegenerateInvite(space.id)}
-                    disabled={draft?.saving}
-                  >
-                    Regenerate invite
-                  </button>
-                  <button
-                    type="button"
-                    className={`${ui.button} ${ui.buttonSecondary}`}
-                    onClick={() => void handleClearPassword(space.id)}
-                    disabled={draft?.saving}
-                  >
-                    Clear password
-                  </button>
-                  <button
-                    type="button"
-                    className={`${ui.button} ${ui.buttonPrimary}`}
-                    onClick={() => void handleSave(space.id)}
-                    disabled={draft?.saving}
-                  >
-                    Save changes
-                  </button>
-                  <button
-                    type="button"
-                    className={`${ui.button} ${ui.buttonDanger}`}
-                    onClick={() =>
-                      void handleDelete(space.id, totalVessels, activeVessels)
-                    }
-                    disabled={draft?.saving || totalVessels > 0}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-
-              {draft?.error ? (
-                <div className={`${ui.notice} ${ui.noticeError}`}>
-                  {draft.error}
-                </div>
-              ) : null}
-              {totalVessels > 0 ? (
-                <div className={ui.cardMeta}>
-                  Delete is disabled while vessels exist in this space.
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
+        {spaces.map(space => (
+          <SpaceCard
+            key={space.id}
+            space={space}
+            draft={drafts[space.id]}
+            isAdmin={isAdmin}
+            scope={scope}
+            updateDraft={updateDraft}
+            updateRules={updateRules}
+            ensureCustomRules={ensureCustomRules}
+            handleRegenerateInvite={spaceId =>
+              void handleRegenerateInvite(spaceId)
+            }
+            handleClearPassword={spaceId => void handleClearPassword(spaceId)}
+            handleSave={spaceId => void handleSave(spaceId)}
+            handleDelete={(spaceId, totalVessels, activeVessels) =>
+              void handleDelete(spaceId, totalVessels, activeVessels)
+            }
+            setNotice={setNotice}
+            parseListInput={parseListInput}
+          />
+        ))}
       </div>
     </div>
   );
