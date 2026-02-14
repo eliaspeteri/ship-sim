@@ -4,11 +4,6 @@ import {
   SocketStoreAdapter,
 } from './adapters/socketStoreAdapter';
 import { SimpleVesselState } from '../types/vessel.types';
-import { EnvironmentState } from '../types/environment.types';
-import {
-  SimulationUpdateData,
-  VesselTeleportData,
-} from '../types/socket.types';
 import { ClientConnectOpts, ClientSocket } from './socket/types';
 import {
   attemptReconnect,
@@ -55,6 +50,9 @@ const createDefaultDeps = (): SocketManagerDeps => ({
   ioClient: io,
 });
 
+const createSocketUserId = (): string =>
+  `user_${Math.random().toString(36).substring(2, 9)}`;
+
 class SocketManager {
   private readonly deps: SocketManagerDeps;
 
@@ -96,7 +94,7 @@ class SocketManager {
 
   constructor(deps: SocketManagerDeps) {
     this.deps = deps;
-    this.userId = this.generateUserId();
+    this.userId = createSocketUserId();
     this.simulationState.userId = this.userId;
   }
 
@@ -170,10 +168,15 @@ class SocketManager {
     registerSocketHandlers({
       socket: this.socket,
       requestChatHistory: this.requestChatHistory.bind(this),
-      startLatencySampling: this.startLatencySampling.bind(this),
-      stopLatencySampling: this.stopLatencySampling.bind(this),
-      startResyncWatcher: this.startResyncWatcher.bind(this),
-      stopResyncWatcher: this.stopResyncWatcher.bind(this),
+      startLatencySampling: () =>
+        startLatencySampling(this.connection, this.socket),
+      stopLatencySampling: () => stopLatencySampling(this.connection),
+      startResyncWatcher: () => {
+        this.connection.lastSimulationUpdateAt =
+          this.simulationState.lastSimulationUpdateAt;
+        startResyncWatcher(this.connection, this.socket);
+      },
+      stopResyncWatcher: () => stopResyncWatcher(this.connection),
       notifyModeChange: this.notifyModeChange.bind(this),
       getInitialMode: () => this.initialMode,
       shouldAutoJoin: () => this.autoJoin,
@@ -183,10 +186,30 @@ class SocketManager {
         const resolvers = this.connectResolvers.splice(0);
         resolvers.forEach(resolve => resolve());
       },
-      attemptReconnect: this.attemptReconnect.bind(this),
-      handleSimulationUpdate: this.handleSimulationUpdate.bind(this),
-      handleVesselTeleport: this.handleVesselTeleport.bind(this),
-      handleEnvironmentUpdate: this.handleEnvironmentUpdate.bind(this),
+      attemptReconnect: () =>
+        attemptReconnect(this.connection, () => {
+          this.socket?.connect();
+        }),
+      handleSimulationUpdate: data => {
+        handleSimulationUpdate(
+          this.simulationState,
+          {
+            getStoreState: this.getStoreState.bind(this),
+            setSpaceId: this.setSpaceId.bind(this),
+            setJoinPreference: this.setJoinPreference.bind(this),
+            updateState: updater => {
+              updater(this.simulationState);
+            },
+          },
+          data,
+        );
+        this.connection.lastSimulationUpdateAt =
+          this.simulationState.lastSimulationUpdateAt;
+      },
+      handleVesselTeleport: data =>
+        handleVesselTeleport(this.getStoreState.bind(this), data),
+      handleEnvironmentUpdate: data =>
+        handleEnvironmentUpdate(this.getStoreState.bind(this), data),
       setJoinPreference: (mode, autoJoin) =>
         this.setJoinPreference(mode, autoJoin),
       switchSpace: spaceId => this.switchSpace(spaceId),
@@ -202,49 +225,6 @@ class SocketManager {
 
   private notifyConnectionStatus(connected: boolean): void {
     this.connectionStatusListeners.forEach(listener => listener(connected));
-  }
-
-  private startLatencySampling(): void {
-    startLatencySampling(this.connection, this.socket);
-  }
-
-  private stopLatencySampling(): void {
-    stopLatencySampling(this.connection);
-  }
-
-  private startResyncWatcher(): void {
-    this.connection.lastSimulationUpdateAt =
-      this.simulationState.lastSimulationUpdateAt;
-    startResyncWatcher(this.connection, this.socket);
-  }
-
-  private stopResyncWatcher(): void {
-    stopResyncWatcher(this.connection);
-  }
-
-  private handleSimulationUpdate(data: SimulationUpdateData): void {
-    handleSimulationUpdate(
-      this.simulationState,
-      {
-        getStoreState: this.getStoreState.bind(this),
-        setSpaceId: this.setSpaceId.bind(this),
-        setJoinPreference: this.setJoinPreference.bind(this),
-        updateState: updater => {
-          updater(this.simulationState);
-        },
-      },
-      data,
-    );
-    this.connection.lastSimulationUpdateAt =
-      this.simulationState.lastSimulationUpdateAt;
-  }
-
-  private handleVesselTeleport(data: VesselTeleportData): void {
-    handleVesselTeleport(this.getStoreState.bind(this), data);
-  }
-
-  private handleEnvironmentUpdate(data: EnvironmentState): void {
-    handleEnvironmentUpdate(this.getStoreState.bind(this), data);
   }
 
   waitForSelfSnapshot(): Promise<SimpleVesselState> {
@@ -447,24 +427,14 @@ class SocketManager {
     this.socket.emit('admin:kick', { userId, reason });
   }
 
-  private attemptReconnect(): void {
-    attemptReconnect(this.connection, () => {
-      this.socket?.connect();
-    });
-  }
-
   disconnect(): void {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
-    this.stopLatencySampling();
-    this.stopResyncWatcher();
+    stopLatencySampling(this.connection);
+    stopResyncWatcher(this.connection);
     clearReconnectTimer(this.connection);
-  }
-
-  private generateUserId(): string {
-    return `user_${Math.random().toString(36).substring(2, 9)}`;
   }
 
   setAuthToken(token: string, userId?: string, username?: string): void {
