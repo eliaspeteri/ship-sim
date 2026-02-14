@@ -2,4 +2,4 @@
 
 # Run eslint with ESM flat config support
 export NODE_OPTIONS=--experimental-vm-modules
-npx lint-staged
+npm exec lint-staged

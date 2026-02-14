@@ -1,18 +1,29 @@
 #!/usr/bin/env sh
 
-set -e
+set -eu
 
 echo "Running pre-push checks..."
-echo "1/2: npm run typecheck"
-if ! npm run typecheck; then
-  echo "Pre-push blocked: typecheck failed. Run 'npm run typecheck' to fix."
+echo "1/4: npm run verify:push"
+if ! npm run verify:push; then
+  echo "Pre-push blocked: verify:push failed. Run 'npm run verify:push' to fix."
   exit 1
 fi
 
-echo "2/2: npm run test:frontend:smoke"
-if ! npm run test:frontend:smoke; then
-  echo "Pre-push blocked: smoke tests failed. Run 'npm run test:frontend:smoke' to fix."
+echo "2/4: conditional WASM export check"
+if [ "$(sh scripts/should-run-wasm-check.sh)" = "yes" ]; then
+  if ! npm run wasm:check-exports; then
+    echo "Pre-push blocked: WASM export check failed. Run 'npm run wasm:check-exports' to fix."
+    exit 1
+  fi
+else
+  echo "Skipping WASM export check (no AssemblyScript-related changes detected)."
+fi
+
+echo "3/4: secret scan"
+if ! sh scripts/run-secret-scan.sh; then
+  echo "Pre-push blocked: secret scan failed."
   exit 1
 fi
 
+echo "4/4: done"
 echo "Pre-push checks passed."

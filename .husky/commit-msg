@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+
+set -eu
+
+commit_msg_file="$1"
+commit_msg="$(head -n 1 "$commit_msg_file")"
+
+case "$commit_msg" in
+  Merge\ *|Revert\ *|fixup!\ *|squash!\ *)
+    exit 0
+    ;;
+esac
+
+conventional_pattern='^(feat|fix|chore|docs|refactor|test|build|ci|perf|style|revert)(\([a-z0-9._/-]+\))?!?: .+'
+
+if ! printf '%s' "$commit_msg" | grep -Eq "$conventional_pattern"; then
+  echo "Invalid commit message."
+  echo "Expected conventional commit format, e.g. 'feat(server): add mission timeout'."
+  exit 1
+fi
+
+subject_len="$(printf '%s' "$commit_msg" | wc -c | tr -d ' ')"
+if [ "$subject_len" -gt 72 ]; then
+  echo "Commit message subject is too long (${subject_len} > 72)."
+  exit 1
+fi

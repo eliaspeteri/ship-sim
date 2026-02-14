@@ -17,7 +17,7 @@
     "test:frontend:coverage": "jest --coverage --coverageProvider=babel",
     "test:frontend:smoke": "jest --coverage=false --runInBand tests/frontend/server/authentication.test.ts tests/frontend/server/api.test.ts",
     "test:frontend:sim-core": "jest --coverage=false --runInBand tests/frontend/SimPage.test.tsx tests/frontend/components/HudDrawer.test.tsx tests/frontend/components/hud/HudPanels.test.tsx tests/frontend/components/Scene.test.tsx tests/frontend/simulationLoop.test.ts",
-    "verify:push": "npm run check:bootstrap && npm run typecheck && npm run test:frontend:smoke",
+    "verify:push": "npm run check:bootstrap && npm run typecheck && npm run lint:errors && npm run test:frontend:smoke",
     "test:e2e": "SMOKE_E2E=true node --test tests/e2e/*.mjs",
     "test:e2e:playwright": "PLAYWRIGHT_PORT=3100 playwright test",
     "test:e2e:playwright:ui": "PLAYWRIGHT_PORT=3100 playwright test --ui",
@@ -35,7 +35,7 @@
     "asbuild:debug": "asc assembly/index.ts --config asconfig.json --target debug --measure --debug",
     "asbuild:release": "asc assembly/index.ts --config asconfig.json --target release --measure",
     "asbuild": "npm run asbuild:debug && npm run asbuild:release",
-    "wasm:check-exports": "npm run asbuild && npx tsx scripts/check-wasm-exports.ts",
+    "wasm:check-exports": "npm run asbuild && node scripts/check-wasm-exports.js",
     "server": "npx tsx watch src/server/index.ts",
     "prepare": "husky",
     "typecheck": "tsc --pretty --noEmit"
