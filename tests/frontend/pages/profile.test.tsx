@@ -182,7 +182,7 @@ describe('pages/profile', () => {
     useSessionMock.mockReturnValue({ status: 'unauthenticated', data: null });
     getApiBaseMock.mockReset();
     getApiBaseMock.mockReturnValue('http://api.test');
-    (globalThis as any).fetch = jest.fn();
+    globalThis.fetch = jest.fn() as unknown as typeof fetch;
     if (typeof window !== 'undefined') {
       window.location.hash = '';
     }
@@ -214,7 +214,7 @@ describe('pages/profile', () => {
         },
       },
     });
-    const fetchMock = (globalThis as any).fetch as jest.Mock;
+    const fetchMock = globalThis.fetch as unknown as jest.Mock;
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {
       const method = init?.method || 'GET';
       if (url === 'http://api.test/api/settings/u1' && method === 'GET') {
@@ -325,7 +325,7 @@ describe('pages/profile', () => {
     if (typeof window !== 'undefined') {
       window.location.hash = '#security';
     }
-    const fetchMock = (globalThis as any).fetch as jest.Mock;
+    const fetchMock = globalThis.fetch as unknown as jest.Mock;
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {
       const method = init?.method || 'GET';
       if (url === 'http://api.test/api/settings/u2' && method === 'GET') {

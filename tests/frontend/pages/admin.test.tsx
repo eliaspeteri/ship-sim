@@ -71,7 +71,7 @@ describe('pages/admin', () => {
       },
     );
     mockSocket.waitForConnection.mockResolvedValue(undefined);
-    (globalThis as any).fetch = jest.fn((url: string, init?: RequestInit) => {
+    globalThis.fetch = jest.fn((url: string, init?: RequestInit) => {
       const method = init?.method || 'GET';
       if (url === 'http://api.test/api/metrics') {
         return Promise.resolve({
@@ -134,7 +134,7 @@ describe('pages/admin', () => {
         status: 500,
         json: async () => ({ error: `Unhandled ${method} ${url}` }),
       });
-    });
+    }) as unknown as typeof fetch;
   });
 
   it('renders loading and access denied states', () => {
@@ -162,7 +162,7 @@ describe('pages/admin', () => {
         socketToken: 'tkn',
       },
     });
-    const fetchMock = (globalThis as any).fetch as jest.Mock;
+    const fetchMock = globalThis.fetch as unknown as jest.Mock;
     render(<AdminPage />);
 
     await screen.findByText('Performance budgets');
@@ -267,7 +267,7 @@ describe('pages/admin', () => {
     mockSocket.waitForConnection.mockResolvedValue(undefined);
 
     let banRemoved = false;
-    const fetchMock = (globalThis as any).fetch as jest.Mock;
+    const fetchMock = globalThis.fetch as unknown as jest.Mock;
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {
       const method = init?.method || 'GET';
       if (url === 'http://api.test/api/metrics') {

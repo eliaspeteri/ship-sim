@@ -1,4 +1,5 @@
 import React from 'react';
+import type { AppProps } from 'next/app';
 import { render, screen } from '@testing-library/react';
 
 import MyApp from '../../../src/pages/_app';
@@ -29,25 +30,34 @@ const layoutMock = jest.fn(
 );
 
 jest.mock('next-auth/react', () => ({
-  SessionProvider: (props: any) => sessionProviderMock(props),
+  SessionProvider: (props: { children: React.ReactNode }) =>
+    sessionProviderMock(props),
 }));
 
 jest.mock('../../../src/components/Layout', () => ({
   __esModule: true,
-  default: (props: any) => layoutMock(props),
+  default: (props: {
+    children: React.ReactNode;
+    fullBleed?: boolean;
+    navBack?: boolean;
+  }) => layoutMock(props),
 }));
 
 describe('pages/_app', () => {
   it('wraps component with session provider and layout', () => {
     const Component = () => <div>Inner page</div>;
-    (Component as any).fullBleedLayout = true;
-    (Component as any).navBack = true;
+    const ComponentWithLayoutFlags = Component as AppProps['Component'] & {
+      fullBleedLayout?: boolean;
+      navBack?: boolean;
+    };
+    ComponentWithLayoutFlags.fullBleedLayout = true;
+    ComponentWithLayoutFlags.navBack = true;
 
     render(
       <MyApp
-        Component={Component as any}
+        Component={ComponentWithLayoutFlags}
         pageProps={{ session: { user: {} } }}
-        router={{} as any}
+        router={{} as AppProps['router']}
       />,
     );
 

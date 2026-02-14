@@ -13,7 +13,7 @@ const useFrameMock = jest.fn();
 
 jest.mock('../../../../src/store', () => ({
   __esModule: true,
-  default: (selector: (state: any) => unknown) => useStoreMock(selector),
+  default: (selector: (state: unknown) => unknown) => useStoreMock(selector),
 }));
 
 jest.mock('@react-three/drei', () => ({
@@ -125,7 +125,7 @@ describe('Seamarks', () => {
       },
       environment: { wind: { speed: 5 }, waves: { height: 1 } },
     };
-    useStoreMock.mockImplementation((selector: (s: any) => unknown) =>
+    useStoreMock.mockImplementation((selector: (s: unknown) => unknown) =>
       selector(state),
     );
 

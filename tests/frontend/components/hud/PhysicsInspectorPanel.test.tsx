@@ -6,7 +6,7 @@ import { HudPhysicsInspectorPanel } from '../../../../src/components/hud/Physics
 const mockBuildDisplacementParams = jest.fn();
 
 jest.mock('../../../../src/lib/physicsParams', () => ({
-  buildDisplacementParams: (...args: any[]) =>
+  buildDisplacementParams: (...args: unknown[]) =>
     mockBuildDisplacementParams(...args),
 }));
 
@@ -41,7 +41,9 @@ describe('HudPhysicsInspectorPanel', () => {
             },
             properties: {},
             hydrodynamics: {},
-          } as any
+          } as unknown as React.ComponentProps<
+            typeof HudPhysicsInspectorPanel
+          >['vessel']
         }
         onApplyParams={onApplyParams}
       />,

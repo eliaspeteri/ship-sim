@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import * as THREE from 'three';
 import SeamarkSprites from '../../../src/components/SeamarkSprites';
 import useStore from '../../../src/store';
+import type { SimulationState } from '../../../src/store/types';
 import { useFrame, useThree } from '@react-three/fiber';
 
 jest.mock('@react-three/fiber', () => ({
@@ -12,20 +13,20 @@ jest.mock('@react-three/fiber', () => ({
 
 jest.mock('../../../src/store');
 
-const useStoreMock = useStore as jest.MockedFunction<any>;
-const useThreeMock = useThree as jest.MockedFunction<any>;
-const useFrameMock = useFrame as jest.MockedFunction<any>;
+const useStoreMock = useStore as jest.MockedFunction<typeof useStore>;
+const useThreeMock = useThree as jest.MockedFunction<typeof useThree>;
+const useFrameMock = useFrame as jest.MockedFunction<typeof useFrame>;
 
 const baseState = {
-  seamarks: { features: [] as any[] },
+  seamarks: { features: [] as unknown[] },
   environment: { timeOfDay: 12 },
 };
 
 const renderWithState = (stateOverride: Partial<typeof baseState>) => {
   const state = { ...baseState, ...stateOverride };
   type StoreState = typeof state;
-  useStoreMock.mockImplementation(
-    (selector: (storeState: StoreState) => unknown) => selector(state),
+  useStoreMock.mockImplementation(selector =>
+    selector(state as StoreState as unknown as SimulationState),
   );
   useThreeMock.mockReturnValue({ camera: new THREE.PerspectiveCamera() });
   return render(<SeamarkSprites />);

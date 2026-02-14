@@ -4,7 +4,15 @@ import MissionsSection from '../../../../../src/features/economy/sections/Missio
 
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: ({ href, children, ...rest }: any) => (
+  default: ({
+    href,
+    children,
+    ...rest
+  }: {
+    href: string;
+    children: React.ReactNode;
+    [key: string]: unknown;
+  }) => (
     <a href={href} {...rest}>
       {children}
     </a>

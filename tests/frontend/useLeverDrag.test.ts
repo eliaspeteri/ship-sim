@@ -164,7 +164,9 @@ describe('useLeverDrag', () => {
     );
 
     act(() => {
-      result.current.handleDoubleClick({ stopPropagation: jest.fn() } as any);
+      result.current.handleDoubleClick({
+        stopPropagation: jest.fn(),
+      } as unknown as ReactMouseEvent<Element, MouseEvent>);
     });
 
     expect(result.current.value).toBe(50); // (0 + 100) / 2 = 50
@@ -184,7 +186,9 @@ describe('useLeverDrag', () => {
     );
 
     act(() => {
-      result.current.handleDoubleClick({ stopPropagation: jest.fn() } as any);
+      result.current.handleDoubleClick({
+        stopPropagation: jest.fn(),
+      } as unknown as ReactMouseEvent<Element, MouseEvent>);
     });
 
     expect(onChange).not.toHaveBeenCalled();

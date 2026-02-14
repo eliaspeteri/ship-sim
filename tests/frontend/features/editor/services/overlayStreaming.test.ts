@@ -6,11 +6,20 @@ import {
   selectOverlayLod,
 } from '../../../../../src/features/editor/services/overlayStreaming';
 
+type WorkAreasArg = Parameters<typeof getWorkAreaTiles>[0];
+type VisibleArg = Parameters<typeof getVisibleOverlayTiles>[0];
+type LoadRequests = Parameters<typeof loadOverlayChunks>[0];
+
+const testGlobals = globalThis as {
+  fetch?: typeof fetch;
+  atob?: (value: string) => string;
+};
+
 describe('overlayStreaming', () => {
   beforeEach(() => {
     clearOverlayCache();
-    (globalThis as any).fetch = undefined;
-    (globalThis as any).atob = undefined;
+    testGlobals.fetch = undefined;
+    testGlobals.atob = undefined;
   });
 
   it('computes work area tile keys for bbox and polygon', () => {
@@ -42,7 +51,7 @@ describe('overlayStreaming', () => {
         allowedZoom: [9, 14],
         sources: [],
       },
-    ] as any);
+    ] as unknown as WorkAreasArg);
 
     expect(keys.length).toBeGreaterThan(0);
     expect(keys.every(k => Number.isInteger(k.z))).toBe(true);
@@ -79,7 +88,7 @@ describe('overlayStreaming', () => {
           allowedZoom: [8, 14],
           sources: [],
         },
-      ] as any,
+      ] as unknown as VisibleArg['workAreas'],
     });
 
     expect(filteredOut).toHaveLength(1);
@@ -92,7 +101,7 @@ describe('overlayStreaming', () => {
   });
 
   it('loads overlay chunks from API and cache', async () => {
-    (globalThis as any).atob = (value: string) =>
+    testGlobals.atob = (value: string) =>
       Buffer.from(value, 'base64').toString('binary');
 
     const fetchMock = jest.fn().mockResolvedValue({
@@ -107,7 +116,7 @@ describe('overlayStreaming', () => {
         ],
       }),
     });
-    (globalThis as any).fetch = fetchMock;
+    testGlobals.fetch = fetchMock as unknown as typeof fetch;
 
     const requests = [
       {
@@ -118,8 +127,8 @@ describe('overlayStreaming', () => {
       },
     ];
 
-    const first = await loadOverlayChunks(requests as any);
-    const second = await loadOverlayChunks(requests as any);
+    const first = await loadOverlayChunks(requests as unknown as LoadRequests);
+    const second = await loadOverlayChunks(requests as unknown as LoadRequests);
 
     expect(first).toHaveLength(1);
     expect(first[0].bytes.byteLength).toBe(3);
@@ -130,9 +139,9 @@ describe('overlayStreaming', () => {
   it('falls back to empty chunks on failed fetch', async () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
-    (globalThis as any).fetch = jest
+    testGlobals.fetch = jest
       .fn()
-      .mockRejectedValue(new Error('network fail'));
+      .mockRejectedValue(new Error('network fail')) as unknown as typeof fetch;
 
     const chunks = await loadOverlayChunks([
       {
@@ -141,7 +150,7 @@ describe('overlayStreaming', () => {
         layers: ['l1', 'l2'],
         lod: 10,
       },
-    ] as any);
+    ] as unknown as LoadRequests);
 
     expect(chunks).toHaveLength(2);
     expect(chunks.every(chunk => chunk.bytes.byteLength === 0)).toBe(true);

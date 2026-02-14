@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, waitFor } from '@testing-library/react';
+import type { MutableRefObject } from 'react';
 
 import { LandTiles } from '../../../src/components/LandTiles';
 
@@ -43,7 +44,10 @@ describe('LandTiles', () => {
     const clearIntervalSpy = jest.spyOn(window, 'clearInterval');
 
     const { container, unmount } = render(
-      <LandTiles focusRef={focusRef as any} radius={0} />,
+      <LandTiles
+        focusRef={focusRef as MutableRefObject<{ x: number; y: number }>}
+        radius={0}
+      />,
     );
 
     await waitFor(() => {

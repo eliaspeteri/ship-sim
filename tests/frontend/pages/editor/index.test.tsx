@@ -26,6 +26,9 @@ describe('pages/editor/index', () => {
       expect(replaceMock).toHaveBeenCalledWith('/editor/packs');
     });
 
-    expect((EditorIndexPage as any).fullBleedLayout).toBe(true);
+    expect(
+      (EditorIndexPage as unknown as { fullBleedLayout?: boolean })
+        .fullBleedLayout,
+    ).toBe(true);
   });
 });

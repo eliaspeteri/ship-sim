@@ -4,6 +4,7 @@ import {
   getGerstnerSample,
   getCompositeWaveSample,
 } from '../../src/lib/waves';
+type EnvArg = Parameters<typeof deriveWaveState>[0];
 
 describe('waves', () => {
   it('derives wave state with fallback direction and clamped wavelength', () => {
@@ -12,7 +13,7 @@ describe('waves', () => {
         wind: { speed: 5 },
         current: { speed: 0, direction: 0 },
         seaState: 4,
-      } as any,
+      } as unknown as EnvArg,
       { fallbackDirection: 1.2 },
     );
 
@@ -28,7 +29,7 @@ describe('waves', () => {
         wind: { speed: 2, direction: 0.5 },
         current: { speed: 0, direction: 0 },
         seaState: 1,
-      } as any,
+      } as unknown as EnvArg,
       {},
     );
     const components = getWaveComponents(wave);
@@ -46,7 +47,7 @@ describe('waves', () => {
         wind: { speed: 3, direction: 0 },
         current: { speed: 0, direction: 0 },
         seaState: 2,
-      } as any,
+      } as unknown as EnvArg,
       {},
     );
 

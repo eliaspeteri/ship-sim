@@ -23,7 +23,7 @@ describe('prisma', () => {
     jest.resetModules();
     jest.clearAllMocks();
     process.env = { ...originalEnv };
-    delete (globalThis as any).prisma;
+    delete (globalThis as { prisma?: unknown }).prisma;
   });
 
   afterAll(() => {
@@ -51,14 +51,14 @@ describe('prisma', () => {
       expect(prismaClientMock).toHaveBeenCalledWith({
         adapter: expect.any(Object),
       });
-      expect((globalThis as any).prisma).toBe(prisma);
+      expect((globalThis as { prisma?: unknown }).prisma).toBe(prisma);
     });
   });
 
   it('reuses global prisma instance when available', () => {
     process.env.DATABASE_URL = 'postgres://example';
     const cached = { cached: true };
-    (globalThis as any).prisma = cached;
+    (globalThis as { prisma?: unknown }).prisma = cached;
 
     jest.isolateModules(() => {
       const { prisma } = require('../../../src/lib/prisma');

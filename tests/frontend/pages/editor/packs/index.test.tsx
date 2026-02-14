@@ -30,7 +30,7 @@ describe('pages/editor/packs/index', () => {
   });
 
   it('loads packs and creates a pack via modal', async () => {
-    (globalThis as any).fetch = jest
+    globalThis.fetch = jest
       .fn()
       .mockResolvedValueOnce({
         ok: true,
@@ -51,7 +51,7 @@ describe('pages/editor/packs/index', () => {
             updatedAt: '2026-01-01T00:00:00Z',
           },
         }),
-      });
+      }) as unknown as typeof fetch;
 
     render(<EditorPacksPage />);
 
@@ -84,7 +84,7 @@ describe('pages/editor/packs/index', () => {
   });
 
   it('edits and deletes a pack', async () => {
-    (globalThis as any).fetch = jest
+    globalThis.fetch = jest
       .fn()
       .mockResolvedValueOnce({
         ok: true,
@@ -103,7 +103,7 @@ describe('pages/editor/packs/index', () => {
           ],
         }),
       })
-      .mockResolvedValueOnce({ ok: true });
+      .mockResolvedValueOnce({ ok: true }) as unknown as typeof fetch;
 
     render(<EditorPacksPage />);
 

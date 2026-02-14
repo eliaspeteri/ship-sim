@@ -27,7 +27,10 @@ describe('pages/editor/[user]/packs/[packId]', () => {
   });
 
   it('shows loading state', () => {
-    useRouterMock.mockReturnValue({ isReady: false, query: {} });
+    useRouterMock.mockReturnValue({
+      isReady: false,
+      query: {},
+    }) as unknown as typeof fetch;
 
     render(<EditorUserPackWorkspace />);
 
@@ -40,7 +43,9 @@ describe('pages/editor/[user]/packs/[packId]', () => {
       query: { user: 'demo', packId: 'missing-pack' },
     });
 
-    (globalThis as any).fetch = jest.fn().mockRejectedValue(new Error('boom'));
+    globalThis.fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('boom')) as unknown as typeof fetch;
 
     render(<EditorUserPackWorkspace />);
 
@@ -53,7 +58,7 @@ describe('pages/editor/[user]/packs/[packId]', () => {
       query: { user: 'demo', packId: 'slug-one' },
     });
 
-    (globalThis as any).fetch = jest.fn().mockResolvedValue({
+    globalThis.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
         pack: {
@@ -66,7 +71,7 @@ describe('pages/editor/[user]/packs/[packId]', () => {
           updatedAt: '2026-01-01T00:00:00Z',
         },
       }),
-    });
+    }) as unknown as typeof fetch;
 
     render(<EditorUserPackWorkspace />);
 

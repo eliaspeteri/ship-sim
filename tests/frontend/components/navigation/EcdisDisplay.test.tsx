@@ -21,12 +21,12 @@ jest.mock('three', () => {
   class MockObject3D {
     position = new MockVector3();
     rotation = new MockVector3();
-    userData: Record<string, any> = {};
+    userData: Record<string, unknown> = {};
   }
 
   class MockScene {
-    children: any[] = [];
-    add(obj: any) {
+    children: unknown[] = [];
+    add(obj: unknown) {
       this.children.push(obj);
       return obj;
     }
@@ -36,8 +36,8 @@ jest.mock('three', () => {
   }
 
   class MockGroup extends MockObject3D {
-    children: any[] = [];
-    add(obj: any) {
+    children: unknown[] = [];
+    add(obj: unknown) {
       this.children.push(obj);
       return obj;
     }
@@ -92,8 +92,8 @@ jest.mock('three', () => {
 
   class MockMesh extends MockObject3D {
     constructor(
-      public geometry: any,
-      public material: any,
+      public geometry: unknown,
+      public material: unknown,
     ) {
       super();
     }
@@ -106,13 +106,13 @@ jest.mock('three', () => {
   class MockLineLoop extends MockLine {}
 
   class MockMeshBasicMaterial {
-    constructor(public params: any) {}
+    constructor(public params: unknown) {}
   }
   class MockLineBasicMaterial {
-    constructor(public params: any) {}
+    constructor(public params: unknown) {}
   }
   class MockLineDashedMaterial {
-    constructor(public params: any) {}
+    constructor(public params: unknown) {}
   }
 
   const MathUtils = {
@@ -174,7 +174,11 @@ describe('EcdisDisplay', () => {
       unobserve = jest.fn();
     }
 
-    (globalThis as any).ResizeObserver = MockResizeObserver;
+    (
+      globalThis as typeof globalThis & {
+        ResizeObserver: typeof ResizeObserver;
+      }
+    ).ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
   });
 
   it('renders ECDIS panel and labels', () => {

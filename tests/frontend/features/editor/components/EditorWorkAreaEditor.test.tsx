@@ -35,7 +35,19 @@ describe('EditorWorkAreaEditor', () => {
         allowedZoom: [8, 14],
         sources: ['terrain', 'bathymetry'],
       },
-    ] as any;
+    ] as Array<{
+      id: string;
+      name: string;
+      bounds: {
+        type: 'bbox';
+        minLat: number;
+        minLon: number;
+        maxLat: number;
+        maxLon: number;
+      };
+      allowedZoom: [number, number];
+      sources: string[];
+    }>;
 
     render(
       <EditorWorkAreaEditor
@@ -64,7 +76,7 @@ describe('EditorWorkAreaEditor', () => {
 
     expect(onChange).toHaveBeenCalled();
     const payloads = onChange.mock.calls.map(call => call[0]);
-    expect(payloads.some((p: any[]) => p.length === 0)).toBe(true);
+    expect(payloads.some((p: unknown[]) => p.length === 0)).toBe(true);
   });
 
   it('renders polygon bounds hint', () => {
@@ -78,14 +90,20 @@ describe('EditorWorkAreaEditor', () => {
               bounds: {
                 type: 'polygon',
                 coordinates: [
-                  [60, 24],
-                  [60.1, 24.1],
+                  [60, 24] as [number, number],
+                  [60.1, 24.1] as [number, number],
                 ],
               },
               allowedZoom: [8, 14],
               sources: ['terrain'],
             },
-          ] as any
+          ] as Array<{
+            id: string;
+            name: string;
+            bounds: { type: 'polygon'; coordinates: [number, number][] };
+            allowedZoom: [number, number];
+            sources: string[];
+          }>
         }
         onChange={jest.fn()}
       />,

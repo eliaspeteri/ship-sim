@@ -25,9 +25,17 @@ jest.mock('../../../src/lib/waves', () => ({
 
 jest.mock('react', () => {
   const actual = jest.requireActual('react');
+  const testGlobals = globalThis as typeof globalThis & {
+    __shipRef?: {
+      current: {
+        position: { set: jest.Mock };
+        rotation: { set: jest.Mock };
+      };
+    };
+  };
   return {
     ...actual,
-    useRef: jest.fn((initial: any) => {
+    useRef: jest.fn((initial: unknown) => {
       if (initial === null) {
         const positionSet = jest.fn();
         const rotationSet = jest.fn();
@@ -37,7 +45,7 @@ jest.mock('react', () => {
             rotation: { set: rotationSet },
           },
         };
-        (globalThis as any).__shipRef = ref;
+        testGlobals.__shipRef = ref;
         return ref;
       }
       return actual.useRef(initial);
@@ -47,6 +55,15 @@ jest.mock('react', () => {
 });
 
 describe('Ship', () => {
+  const testGlobals = globalThis as typeof globalThis & {
+    __shipRef?: {
+      current: {
+        position: { set: jest.Mock };
+        rotation: { set: jest.Mock };
+      };
+    };
+  };
+
   afterEach(() => {
     jest.clearAllMocks();
   });
@@ -112,12 +129,16 @@ describe('Ship', () => {
           k: 0.1,
           omega: 0.2,
         }}
-        waveTimeRef={waveTimeRef as any}
+        waveTimeRef={waveTimeRef as React.MutableRefObject<number>}
         horizonOcclusion={{ enabled: true }}
       />,
     );
 
-    const shipRef = (globalThis as any).__shipRef;
+    const shipRef = testGlobals.__shipRef;
+    expect(shipRef).toBeTruthy();
+    if (!shipRef) {
+      return;
+    }
     shipRef.current = {
       position: { set: jest.fn() },
       rotation: { set: jest.fn() },
@@ -142,7 +163,11 @@ describe('Ship', () => {
   it('defaults roll and pitch to zero when props are unset', () => {
     render(<Ship position={{ x: 0, y: 1, z: 2 }} heading={0} />);
 
-    const shipRef = (globalThis as any).__shipRef;
+    const shipRef = testGlobals.__shipRef;
+    expect(shipRef).toBeTruthy();
+    if (!shipRef) {
+      return;
+    }
     shipRef.current = {
       position: { set: jest.fn() },
       rotation: { set: jest.fn() },

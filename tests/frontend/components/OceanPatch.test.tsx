@@ -2,6 +2,26 @@ import React from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { useFrame } from '@react-three/fiber';
 
+type MeshRefShape = {
+  current: {
+    position: { set: jest.Mock };
+    scale: { set: jest.Mock };
+  };
+};
+
+type GeometryShape = { dispose: jest.Mock };
+type MaterialShape = {
+  uniforms: Record<string, { value: unknown }>;
+  dispose: jest.Mock;
+  params?: { color?: string };
+};
+
+const testGlobals = globalThis as typeof globalThis & {
+  __meshRef?: MeshRefShape;
+  __lastGeometry?: GeometryShape;
+  __lastMaterial?: MaterialShape;
+};
+
 jest.mock('../../../src/lib/waves', () => ({
   getWaveComponents: jest.fn(),
 }));
@@ -14,7 +34,7 @@ jest.mock('react', () => {
   const actual = jest.requireActual('react');
   return {
     ...actual,
-    useRef: jest.fn((initial: any) => {
+    useRef: jest.fn((initial: unknown) => {
       if (initial === null) {
         const positionSet = jest.fn();
         const scaleSet = jest.fn();
@@ -24,7 +44,7 @@ jest.mock('react', () => {
             scale: { set: scaleSet },
           },
         };
-        (globalThis as any).__meshRef = ref;
+        testGlobals.__meshRef = ref;
         return ref;
       }
       return actual.useRef(initial);
@@ -70,7 +90,7 @@ jest.mock('three', () => {
   }
 
   class MockColor {
-    constructor(public value: any) {}
+    constructor(public value: unknown) {}
     clone() {
       return new MockColor(this.value);
     }
@@ -95,23 +115,23 @@ jest.mock('three', () => {
       public widthSegments: number,
       public heightSegments: number,
     ) {
-      (globalThis as any).__lastGeometry = this;
+      testGlobals.__lastGeometry = this;
     }
   }
 
   class MockShaderMaterial {
-    uniforms: any;
+    uniforms: Record<string, { value: unknown }>;
     toneMapped = false;
     dispose = jest.fn();
-    constructor(params: any) {
+    constructor(params: { uniforms: Record<string, { value: unknown }> }) {
       this.uniforms = params.uniforms;
-      (globalThis as any).__lastMaterial = this;
+      testGlobals.__lastMaterial = this;
     }
   }
 
   const UniformsLib = { fog: {} };
   const UniformsUtils = {
-    merge: (items: any[]) =>
+    merge: (items: Array<Record<string, unknown>>) =>
       items.reduce((acc, item) => ({ ...acc, ...item }), {}),
   };
   const MathUtils = {
@@ -167,25 +187,27 @@ describe('OceanPatch', () => {
 
     const { unmount } = render(
       <OceanPatch
-        centerRef={centerRef as any}
+        centerRef={
+          centerRef as React.MutableRefObject<{ x: number; y: number }>
+        }
         wave={wave}
         sunDirection={sunDirection}
       />,
     );
 
     await waitFor(() => {
-      const material = (globalThis as any).__lastMaterial;
+      const material = testGlobals.__lastMaterial;
       expect(material).toBeTruthy();
-      expect(material.uniforms.uAmp.value).toEqual(
+      expect(material?.uniforms.uAmp.value).toEqual(
         components.map(c => c.amplitude),
       );
-      expect(material.uniforms.uK.value).toEqual(components.map(c => c.k));
-      expect(material.uniforms.uOmega.value).toEqual(
+      expect(material?.uniforms.uK.value).toEqual(components.map(c => c.k));
+      expect(material?.uniforms.uOmega.value).toEqual(
         components.map(c => c.omega),
       );
     });
 
-    const meshRef = (globalThis as any).__meshRef;
+    const meshRef = testGlobals.__meshRef as MeshRefShape;
     // React will attach the ref to the DOM node for <mesh/>; override for test.
     meshRef.current = {
       position: { set: jest.fn() },
@@ -195,19 +217,19 @@ describe('OceanPatch', () => {
     const frameCb = (useFrame as jest.Mock).mock.calls[0][0];
     frameCb({ camera: { position: new THREE.Vector3(0, 440, 0) } }, 0.5);
 
-    const material = (globalThis as any).__lastMaterial;
+    const material = testGlobals.__lastMaterial as MaterialShape;
     expect(material.uniforms.uTime.value).toBe(0.5);
     expect(material.uniforms.uFadeStart.value).toBeCloseTo(2800);
     expect(material.uniforms.uFadeEnd.value).toBeCloseTo(4000);
-    expect(material.uniforms.uCenter.value.x).toBe(10);
-    expect(material.uniforms.uCenter.value.y).toBe(20);
-    expect(material.uniforms.uCameraPos.value.y).toBe(440);
+    expect((material.uniforms.uCenter.value as { x: number }).x).toBe(10);
+    expect((material.uniforms.uCenter.value as { y: number }).y).toBe(20);
+    expect((material.uniforms.uCameraPos.value as { y: number }).y).toBe(440);
 
     expect(meshRef.current.position.set).toHaveBeenCalledWith(10, 0, 20);
     expect(meshRef.current.scale.set).toHaveBeenCalled();
 
     unmount();
-    const geometry = (globalThis as any).__lastGeometry;
+    const geometry = testGlobals.__lastGeometry as GeometryShape;
     expect(geometry.dispose).toHaveBeenCalled();
     expect(material.dispose).toHaveBeenCalled();
   });

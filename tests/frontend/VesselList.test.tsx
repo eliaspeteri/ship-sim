@@ -21,7 +21,7 @@ describe('VesselList', () => {
             properties: { name: string };
             position: { lat: number; lon: number };
           };
-        }) => any,
+        }) => unknown,
       ) =>
         selector({
           vessel: {

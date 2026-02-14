@@ -3,10 +3,20 @@ import * as THREE from 'three';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Scene from '../../../src/components/Scene';
 import useStore from '../../../src/store';
+import type { SimulationState } from '../../../src/store/types';
 import { socketManager } from '../../../src/networking/socket';
 
-let lastCalloutProps: any = null;
-let lastCameraHeadingProps: any = null;
+type CalloutAction = { label: string; onClick: () => void };
+type CalloutRow = { label: string; value?: unknown };
+type CalloutPropsShape = {
+  title?: string;
+  rows?: CalloutRow[];
+  actions?: CalloutAction[];
+};
+type CameraHeadingPropsShape = { enabled?: boolean; hudOffset?: number };
+
+let lastCalloutProps: CalloutPropsShape | null = null;
+let lastCameraHeadingProps: CameraHeadingPropsShape | null = null;
 
 jest.mock('@react-three/fiber', () => {
   const THREE = jest.requireActual('three');
@@ -36,22 +46,30 @@ jest.mock('@react-three/fiber', () => {
 });
 
 jest.mock('@react-three/drei', () => {
-  const React = require('react');
+  const ReactLib = require('react') as typeof import('react');
   const THREE = jest.requireActual('three');
   const EnvironmentMock = ({ children }: { children?: React.ReactNode }) => (
     <div data-testid="environment">{children}</div>
   );
   EnvironmentMock.displayName = 'EnvironmentMock';
 
-  const OrbitControlsMock = React.forwardRef((_props: any, ref: any) => {
-    if (ref) {
-      ref.current = {
-        target: { set: jest.fn() },
-        update: jest.fn(),
-      };
-    }
-    return <div data-testid="orbit-controls" />;
-  });
+  const OrbitControlsMock = ReactLib.forwardRef(
+    (
+      _props: Record<string, unknown>,
+      ref: React.ForwardedRef<{
+        target: { set: jest.Mock };
+        update: jest.Mock;
+      }>,
+    ) => {
+      if (ref && typeof ref === 'object') {
+        ref.current = {
+          target: { set: jest.fn() },
+          update: jest.fn(),
+        };
+      }
+      return <div data-testid="orbit-controls" />;
+    },
+  );
   OrbitControlsMock.displayName = 'OrbitControlsMock';
 
   const SkyMock = () => <div data-testid="sky" />;
@@ -77,7 +95,10 @@ jest.mock('../../../src/networking/socket', () => ({
 }));
 
 jest.mock('../../../src/components/Ship', () => {
-  const MockShip = (props: any) => (
+  const MockShip = (props: {
+    vesselId?: string;
+    onSelect?: (id?: string) => void;
+  }) => (
     <button
       data-testid={`ship-${props.vesselId ?? 'self'}`}
       onClick={() => props.onSelect?.(props.vesselId)}
@@ -91,12 +112,12 @@ jest.mock('../../../src/components/Ship', () => {
 });
 
 jest.mock('../../../src/components/VesselCallout', () => {
-  const MockVesselCallout = (props: any) => {
+  const MockVesselCallout = (props: CalloutPropsShape) => {
     lastCalloutProps = props;
     return (
       <div data-testid="callout">
         <div>{props.title}</div>
-        {props.actions?.map((action: any) => (
+        {props.actions?.map(action => (
           <button key={action.label} onClick={action.onClick} type="button">
             {action.label}
           </button>
@@ -133,7 +154,7 @@ jest.mock('../../../src/components/LandTiles', () => {
 });
 
 jest.mock('../../../src/components/CameraHeadingIndicator', () => {
-  const CameraHeadingIndicatorMock = (props: any) => {
+  const CameraHeadingIndicatorMock = (props: CameraHeadingPropsShape) => {
     lastCameraHeadingProps = props;
     return (
       <div
@@ -146,9 +167,13 @@ jest.mock('../../../src/components/CameraHeadingIndicator', () => {
   return CameraHeadingIndicatorMock;
 });
 
-const useStoreMock = useStore as jest.MockedFunction<any>;
+const useStoreMock = useStore as jest.MockedFunction<typeof useStore>;
+const selectFromState = <T,>(
+  selector: (state: SimulationState) => T,
+  state: unknown,
+) => selector(state as SimulationState);
 
-const buildState = (overrides: Record<string, any> = {}) => ({
+const buildState = (overrides: Record<string, unknown> = {}) => ({
   vessel: {
     position: { x: 120, y: 240, z: -2 },
     orientation: { heading: Math.PI / 2, roll: 0.01, pitch: -0.02 },
@@ -207,8 +232,8 @@ describe('Scene', () => {
   it('renders callout and admin actions for selected vessel in spectator mode', async () => {
     const state = buildState();
     type StoreState = typeof state;
-    useStoreMock.mockImplementation(
-      (selector: (storeState: StoreState) => unknown) => selector(state),
+    useStoreMock.mockImplementation(selector =>
+      selectFromState(selector, state as StoreState),
     );
 
     render(
@@ -224,9 +249,9 @@ describe('Scene', () => {
       expect(screen.getByTestId('callout')).toBeInTheDocument();
     });
 
-    expect(lastCalloutProps.title).toBe('Seadragon');
-    expect(lastCalloutProps.rows.length).toBeGreaterThan(5);
-    expect(lastCalloutProps.rows[0].label).toBe('Speed');
+    expect(lastCalloutProps?.title).toBe('Seadragon');
+    expect(lastCalloutProps?.rows?.length).toBeGreaterThan(5);
+    expect(lastCalloutProps?.rows?.[0]?.label).toBe('Speed');
 
     fireEvent.click(screen.getByRole('button', { name: 'Force AI' }));
     expect(socketManager.sendAdminVesselMode).toHaveBeenCalledWith('v-2', 'ai');
@@ -234,14 +259,14 @@ describe('Scene', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
     expect(socketManager.sendAdminVesselRemove).toHaveBeenCalledWith('v-2');
 
-    expect(lastCameraHeadingProps.enabled).toBe(true);
+    expect(lastCameraHeadingProps?.enabled).toBe(true);
   });
 
   it('does not expose admin actions in player mode', async () => {
     const state = buildState({ roles: [], otherVessels: {} });
     type StoreState = typeof state;
-    useStoreMock.mockImplementation(
-      (selector: (storeState: StoreState) => unknown) => selector(state),
+    useStoreMock.mockImplementation(selector =>
+      selectFromState(selector, state as StoreState),
     );
 
     render(
@@ -257,7 +282,7 @@ describe('Scene', () => {
       expect(screen.queryByTestId('callout')).toBeNull();
     });
 
-    expect(lastCameraHeadingProps.enabled).toBe(false);
+    expect(lastCameraHeadingProps?.enabled).toBe(false);
   });
 
   it('updates drag previews and hud offset in spectator admin mode', async () => {
@@ -284,8 +309,8 @@ describe('Scene', () => {
 
     const state = buildState();
     type StoreState = typeof state;
-    useStoreMock.mockImplementation(
-      (selector: (storeState: StoreState) => unknown) => selector(state),
+    useStoreMock.mockImplementation(selector =>
+      selectFromState(selector, state as StoreState),
     );
 
     const { container } = render(

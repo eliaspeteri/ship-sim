@@ -1,4 +1,11 @@
 describe('customWasmLoader', () => {
+  type WasmImports = {
+    env?: {
+      abort?: (...args: unknown[]) => void;
+      memory?: WebAssembly.Memory;
+    };
+  };
+
   const originalEnv = process.env.NODE_ENV;
   const originalFetch = global.fetch;
   const setNodeEnv = (value: string | undefined) => {
@@ -32,7 +39,7 @@ describe('customWasmLoader', () => {
     });
     global.fetch = fetchMock as typeof fetch;
 
-    const exports: any = {
+    const exports = {
       __setArgumentsLength: jest.fn(),
       updateVesselState: jest.fn().mockReturnValue(99),
       createVessel: jest.fn().mockReturnValue(77),
@@ -71,14 +78,14 @@ describe('customWasmLoader', () => {
       destroyVessel: jest.fn(),
     };
 
-    let capturedImports: any = null;
+    let capturedImports: WasmImports | null = null;
     const compileSpy = jest
       .spyOn(WebAssembly, 'compile')
       .mockResolvedValue({} as WebAssembly.Module);
     const instantiateSpy = jest
       .spyOn(WebAssembly, 'instantiate')
       .mockImplementation(async (_module, imports) => {
-        capturedImports = imports;
+        capturedImports = (imports ?? null) as WasmImports | null;
         return { exports } as WebAssembly.Instance;
       });
 
@@ -132,13 +139,18 @@ describe('customWasmLoader', () => {
     expect(exports.__setArgumentsLength).toHaveBeenCalledWith(10);
     expect(exports.__setArgumentsLength).toHaveBeenCalledWith(32);
 
-    const abort = capturedImports?.env?.abort as (
+    const envImports = (capturedImports as WasmImports | null)?.env;
+    if (!envImports?.abort || !envImports.memory) {
+      throw new Error('Expected wasm env imports to be captured');
+    }
+
+    const abort = envImports.abort as (
       messagePtr: number,
       filePtr: number,
       line: number,
       column: number,
     ) => void;
-    const memory = capturedImports?.env?.memory as WebAssembly.Memory;
+    const memory = envImports.memory as WebAssembly.Memory;
     const buffer = new Uint16Array(memory.buffer);
     const writeUtf16 = (ptr: number, value: string) => {
       const lenIndex = (ptr - 2) >>> 1;

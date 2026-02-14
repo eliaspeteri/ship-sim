@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 
 import EditorViewport from '../../../../../src/features/editor/components/EditorViewport';
+import type EditorRenderer from '../../../../../src/features/editor/components/EditorRenderer';
 
 const mockEditorRenderer = jest.fn();
 const mockGetVisibleOverlayTiles = jest.fn();
@@ -10,13 +11,15 @@ const mockLatLonToXY = jest.fn();
 const mockSetGeoOrigin = jest.fn();
 const mockXyToLatLon = jest.fn();
 
+type EditorRendererProps = React.ComponentProps<typeof EditorRenderer>;
+
 jest.mock(
   '../../../../../src/features/editor/components/EditorRenderer',
   () => {
     const ReactLocal = require('react');
     return {
       __esModule: true,
-      default: (props: any) => {
+      default: (props: EditorRendererProps) => {
         mockEditorRenderer(props);
         ReactLocal.useEffect(() => {
           props.onHeadingChange?.(123.4);

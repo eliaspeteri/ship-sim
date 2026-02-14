@@ -53,7 +53,7 @@ describe('pages/editor/packs/[packId]', () => {
       replace: replaceMock,
     });
 
-    (globalThis as any).fetch = jest.fn().mockResolvedValue({
+    globalThis.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
         pack: {
@@ -66,7 +66,7 @@ describe('pages/editor/packs/[packId]', () => {
           updatedAt: '2026-01-01T00:00:00Z',
         },
       }),
-    });
+    }) as unknown as typeof fetch;
 
     render(<EditorPackWorkspace />);
 
@@ -85,7 +85,7 @@ describe('pages/editor/packs/[packId]', () => {
       replace: jest.fn(),
     });
 
-    (globalThis as any).fetch = jest.fn().mockResolvedValue({
+    globalThis.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
         pack: {
@@ -98,7 +98,7 @@ describe('pages/editor/packs/[packId]', () => {
           updatedAt: '2026-01-01T00:00:00Z',
         },
       }),
-    });
+    }) as unknown as typeof fetch;
 
     render(<EditorPackWorkspace />);
 

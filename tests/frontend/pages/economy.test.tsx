@@ -165,6 +165,14 @@ jest.mock('../../../src/features/economy/sections/ReputationSection', () => ({
 }));
 
 describe('pages/economy', () => {
+  type FetchMock = jest.MockedFunction<typeof fetch>;
+  const toUrl = (input: string | URL | Request): string =>
+    typeof input === 'string'
+      ? input
+      : input instanceof URL
+        ? input.href
+        : input.url;
+
   beforeEach(() => {
     getApiBaseMock.mockReset();
     getApiBaseMock.mockReturnValue('http://api.test');
@@ -173,97 +181,105 @@ describe('pages/economy', () => {
       isReady: true,
       asPath: '/economy#shipyard',
     });
-    (globalThis as any).fetch = jest.fn((url: string, init?: RequestInit) => {
-      const method = init?.method || 'GET';
-      if (url === 'http://api.test/api/economy/dashboard') {
+    globalThis.fetch = jest.fn(
+      (input: string | URL | Request, init?: RequestInit) => {
+        const url = toUrl(input);
+        const method = init?.method || 'GET';
+        if (url === 'http://api.test/api/economy/dashboard') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              fleet: [{ id: 'v1' }],
+              ports: [{ id: 'port-1', name: 'Port One' }],
+              currentPort: { id: 'port-1', name: 'Port One' },
+            }),
+          });
+        }
+        if (url === 'http://api.test/api/careers/status') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ careers: [] }),
+          });
+        }
+        if (url === 'http://api.test/api/licenses') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ licenses: [] }),
+          });
+        }
+        if (url === 'http://api.test/api/exams') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ exams: [] }),
+          });
+        }
+        if (url === 'http://api.test/api/reputation') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ reputation: [] }),
+          });
+        }
+        if (url === 'http://api.test/api/economy/vessels/catalog') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              vessels: [{ id: 'tmpl-1', name: 'Template' }],
+            }),
+          });
+        }
+        if (url === 'http://api.test/api/spaces') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ spaces: [{ id: 'global', name: 'Global' }] }),
+          });
+        }
+        if (url.startsWith('http://api.test/api/economy/cargo?')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ cargo: [], capacityTons: 10, loadedTons: 2 }),
+          });
+        }
+        if (url.startsWith('http://api.test/api/economy/passengers?')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ contracts: [], capacity: 25, onboard: 3 }),
+          });
+        }
+        if (
+          url === 'http://api.test/api/economy/vessels/purchase' &&
+          method === 'POST'
+        ) {
+          return Promise.resolve({ ok: true, json: async () => ({}) });
+        }
+        if (
+          url === 'http://api.test/api/economy/leases/end' &&
+          method === 'POST'
+        ) {
+          return Promise.resolve({ ok: true, json: async () => ({}) });
+        }
+        if (
+          url === 'http://api.test/api/economy/cargo/assign' &&
+          method === 'POST'
+        ) {
+          return Promise.resolve({ ok: true, json: async () => ({}) });
+        }
+        if (
+          url === 'http://api.test/api/economy/passengers/accept' &&
+          method === 'POST'
+        ) {
+          return Promise.resolve({ ok: true, json: async () => ({}) });
+        }
         return Promise.resolve({
-          ok: true,
-          json: async () => ({
-            fleet: [{ id: 'v1' }],
-            ports: [{ id: 'port-1', name: 'Port One' }],
-            currentPort: { id: 'port-1', name: 'Port One' },
-          }),
+          ok: false,
+          status: 500,
+          json: async () => ({ error: `Unhandled ${method} ${url}` }),
         });
-      }
-      if (url === 'http://api.test/api/careers/status') {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ careers: [] }),
-        });
-      }
-      if (url === 'http://api.test/api/licenses') {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ licenses: [] }),
-        });
-      }
-      if (url === 'http://api.test/api/exams') {
-        return Promise.resolve({ ok: true, json: async () => ({ exams: [] }) });
-      }
-      if (url === 'http://api.test/api/reputation') {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ reputation: [] }),
-        });
-      }
-      if (url === 'http://api.test/api/economy/vessels/catalog') {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ vessels: [{ id: 'tmpl-1', name: 'Template' }] }),
-        });
-      }
-      if (url === 'http://api.test/api/spaces') {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ spaces: [{ id: 'global', name: 'Global' }] }),
-        });
-      }
-      if (url.startsWith('http://api.test/api/economy/cargo?')) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ cargo: [], capacityTons: 10, loadedTons: 2 }),
-        });
-      }
-      if (url.startsWith('http://api.test/api/economy/passengers?')) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ contracts: [], capacity: 25, onboard: 3 }),
-        });
-      }
-      if (
-        url === 'http://api.test/api/economy/vessels/purchase' &&
-        method === 'POST'
-      ) {
-        return Promise.resolve({ ok: true, json: async () => ({}) });
-      }
-      if (
-        url === 'http://api.test/api/economy/leases/end' &&
-        method === 'POST'
-      ) {
-        return Promise.resolve({ ok: true, json: async () => ({}) });
-      }
-      if (
-        url === 'http://api.test/api/economy/cargo/assign' &&
-        method === 'POST'
-      ) {
-        return Promise.resolve({ ok: true, json: async () => ({}) });
-      }
-      if (
-        url === 'http://api.test/api/economy/passengers/accept' &&
-        method === 'POST'
-      ) {
-        return Promise.resolve({ ok: true, json: async () => ({}) });
-      }
-      return Promise.resolve({
-        ok: false,
-        status: 500,
-        json: async () => ({ error: `Unhandled ${method} ${url}` }),
-      });
-    });
+      },
+    ) as unknown as typeof fetch;
   });
 
   it('loads dashboard, renders contexts, and performs key actions', async () => {
-    const fetchMock = (globalThis as any).fetch as jest.Mock;
+    const fetchMock = globalThis.fetch as FetchMock;
     render(<EconomyPage />);
 
     expect(screen.getByText('EconomyHeader')).toBeInTheDocument();
@@ -310,8 +326,12 @@ describe('pages/economy', () => {
   });
 
   it('shows guard notices when vessel or port selection is missing', async () => {
-    const fetchMock = (globalThis as any).fetch as jest.Mock;
-    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+    const fetchMock = globalThis.fetch as FetchMock;
+    fetchMock.mockImplementation(((
+      input: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const url = toUrl(input);
       const method = init?.method || 'GET';
       if (url === 'http://api.test/api/economy/dashboard') {
         return Promise.resolve({
@@ -358,7 +378,7 @@ describe('pages/economy', () => {
         status: 500,
         json: async () => ({ error: `Unhandled ${method} ${url}` }),
       });
-    });
+    }) as typeof fetch);
 
     render(<EconomyPage />);
     await screen.findByText('ShipyardSection');
@@ -382,8 +402,12 @@ describe('pages/economy', () => {
   });
 
   it('surfaces server-side action errors to the UI notices', async () => {
-    const fetchMock = (globalThis as any).fetch as jest.Mock;
-    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+    const fetchMock = globalThis.fetch as FetchMock;
+    fetchMock.mockImplementation(((
+      input: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const url = toUrl(input);
       const method = init?.method || 'GET';
       if (url === 'http://api.test/api/economy/dashboard') {
         return Promise.resolve({
@@ -407,7 +431,14 @@ describe('pages/economy', () => {
       ) {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ careers: [], licenses: [], exams: [], reputation: [], vessels: [], spaces: [] }),
+          json: async () => ({
+            careers: [],
+            licenses: [],
+            exams: [],
+            reputation: [],
+            vessels: [],
+            spaces: [],
+          }),
         });
       }
       if (url.startsWith('http://api.test/api/economy/cargo?')) {
@@ -457,7 +488,7 @@ describe('pages/economy', () => {
         status: 500,
         json: async () => ({ error: `Unhandled ${method} ${url}` }),
       });
-    });
+    }) as typeof fetch);
 
     render(<EconomyPage />);
     await screen.findByText('ShipyardSection');

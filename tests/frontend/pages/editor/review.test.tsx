@@ -18,6 +18,9 @@ describe('pages/editor/review', () => {
         /Submissions and automated validation results will appear here\./i,
       ),
     ).toBeInTheDocument();
-    expect((EditorReviewPage as any).fullBleedLayout).toBe(true);
+    expect(
+      (EditorReviewPage as unknown as { fullBleedLayout?: boolean })
+        .fullBleedLayout,
+    ).toBe(true);
   });
 });

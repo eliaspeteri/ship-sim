@@ -4,6 +4,7 @@ import {
   getArpaTargetColor,
   isTargetInGuardZone,
 } from '../../../../../src/components/radar/render/targets';
+import type { RadarRenderModel } from '../../../../../src/components/radar/render/model';
 
 jest.mock('../../../../../src/components/radar/utils', () => ({
   calculateTargetVisibility: jest.fn(() => 1),
@@ -157,7 +158,7 @@ describe('radar render target helpers', () => {
         course: 0,
         heading: 0,
       },
-    } as any);
+    } as unknown as RadarRenderModel);
 
     expect(ctx.beginPath).toHaveBeenCalled();
     expect(ctx.fill).toHaveBeenCalled();

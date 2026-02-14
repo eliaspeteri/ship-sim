@@ -1,4 +1,5 @@
 import React from 'react';
+import type { GetServerSidePropsContext } from 'next';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import PhysicsDebugPage, {
@@ -10,46 +11,56 @@ const startSimulationMock = jest.fn();
 const stopSimulationMock = jest.fn();
 const readFileSyncMock = jest.fn();
 
-const storeState: any = {
+const initialVessel = {
+  position: { x: 0, y: 0, z: 0, lat: 0, lon: 0 },
+  orientation: { heading: 0, roll: 0, pitch: 0 },
+  velocity: { surge: 0, sway: 0, heave: 0 },
+  angularVelocity: { yaw: 0, roll: 0, pitch: 0 },
+  controls: { throttle: 0, rudderAngle: 0, ballast: 0.5, bowThruster: 0 },
+  properties: {
+    type: 'CONTAINER',
+    modelPath: null,
+    draft: 8,
+    name: 'Debug',
+    mass: 1,
+    length: 1,
+    beam: 1,
+    blockCoefficient: 0.8,
+    maxSpeed: 20,
+  },
+  render: {},
+};
+
+const initialEnvironment = {
+  wind: { speed: 5, direction: 0, gusting: false, gustFactor: 1 },
+  current: { speed: 0, direction: 0, variability: 0 },
+  seaState: 2,
+  timeOfDay: 12,
+  waveLength: 40,
+  waveDirection: 0,
+};
+
+const storeState = {
   vessel: {
-    position: { x: 0, y: 0, z: 0, lat: 0, lon: 0 },
-    orientation: { heading: 0, roll: 0, pitch: 0 },
-    velocity: { surge: 0, sway: 0, heave: 0 },
-    angularVelocity: { yaw: 0, roll: 0, pitch: 0 },
-    controls: { throttle: 0, rudderAngle: 0, ballast: 0.5, bowThruster: 0 },
-    properties: {
-      type: 'CONTAINER',
-      modelPath: null,
-      draft: 8,
-      name: 'Debug',
-      mass: 1,
-      length: 1,
-      beam: 1,
-      blockCoefficient: 0.8,
-      maxSpeed: 20,
-    },
-    render: {},
+    ...initialVessel,
   },
   environment: {
-    wind: { speed: 5, direction: 0, gusting: false, gustFactor: 1 },
-    current: { speed: 0, direction: 0, variability: 0 },
-    seaState: 2,
-    timeOfDay: 12,
-    waveLength: 40,
-    waveDirection: 0,
+    ...initialEnvironment,
   },
   currentVesselId: 'v-1',
   setMode: jest.fn(),
   setSpaceId: jest.fn(),
   setCurrentVesselId: jest.fn(),
   setOtherVessels: jest.fn(),
-  updateVessel: jest.fn((patch: any) => {
+  updateVessel: jest.fn((patch: Partial<typeof initialVessel>) => {
     storeState.vessel = { ...storeState.vessel, ...patch };
   }),
-  applyVesselControls: jest.fn((patch: any) => {
-    storeState.vessel.controls = { ...storeState.vessel.controls, ...patch };
-  }),
-  updateEnvironment: jest.fn((patch: any) => {
+  applyVesselControls: jest.fn(
+    (patch: Partial<typeof initialVessel.controls>) => {
+      storeState.vessel.controls = { ...storeState.vessel.controls, ...patch };
+    },
+  ),
+  updateEnvironment: jest.fn((patch: Partial<typeof initialEnvironment>) => {
     storeState.environment = { ...storeState.environment, ...patch };
   }),
 };
@@ -77,7 +88,7 @@ jest.mock('fs', () => ({
 jest.mock('../../../src/store', () => ({
   __esModule: true,
   default: Object.assign(
-    (selector: (state: any) => unknown) => selector(storeState),
+    (selector: (state: typeof storeState) => unknown) => selector(storeState),
     { getState: () => storeState },
   ),
 }));
@@ -205,7 +216,9 @@ describe('pages/physics-debug', () => {
       ]),
     );
 
-    const result = (await getServerSideProps({} as any)) as any;
+    const result = (await getServerSideProps(
+      {} as unknown as GetServerSidePropsContext,
+    )) as { props: { templates: Array<{ id: string; name: string }> } };
     expect(result.props.templates).toHaveLength(1);
     expect(result.props.templates[0]).toEqual(
       expect.objectContaining({ id: 't1', name: 'Template One' }),
@@ -217,7 +230,9 @@ describe('pages/physics-debug', () => {
       throw new Error('missing');
     });
 
-    const result = (await getServerSideProps({} as any)) as any;
+    const result = (await getServerSideProps(
+      {} as unknown as GetServerSidePropsContext,
+    )) as { props: { templates: Array<{ id: string }> } };
     expect(result.props.templates).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: 'starter-container' }),

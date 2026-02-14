@@ -11,7 +11,7 @@ jest.mock('next/router', () => ({
 }));
 
 jest.mock('next-auth/react', () => ({
-  signIn: (...args: any[]) => signInMock(...args),
+  signIn: (...args: unknown[]) => signInMock(...args),
 }));
 
 describe('pages/register', () => {
@@ -21,10 +21,10 @@ describe('pages/register', () => {
   });
 
   it('registers and auto-logins on success', async () => {
-    (globalThis as any).fetch = jest.fn().mockResolvedValue({
+    globalThis.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ success: true }),
-    });
+    }) as unknown as typeof fetch;
     signInMock.mockResolvedValue({});
 
     render(<RegisterPage />);
@@ -38,7 +38,7 @@ describe('pages/register', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Register' }));
 
     await waitFor(() => {
-      expect((globalThis as any).fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         '/api/register',
         expect.objectContaining({ method: 'POST' }),
       );
@@ -51,10 +51,10 @@ describe('pages/register', () => {
   });
 
   it('shows registration failure and login failure', async () => {
-    (globalThis as any).fetch = jest.fn().mockResolvedValue({
+    globalThis.fetch = jest.fn().mockResolvedValue({
       ok: false,
       json: async () => ({ success: false, error: 'Taken' }),
-    });
+    }) as unknown as typeof fetch;
 
     render(<RegisterPage />);
 
@@ -68,10 +68,10 @@ describe('pages/register', () => {
 
     expect(await screen.findByText('Taken')).toBeInTheDocument();
 
-    (globalThis as any).fetch = jest.fn().mockResolvedValue({
+    globalThis.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ success: true }),
-    });
+    }) as unknown as typeof fetch;
     signInMock.mockResolvedValue({ error: 'Nope' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Register' }));

@@ -2,6 +2,30 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import { useFrame } from '@react-three/fiber';
 
+type MockTextureShape = {
+  wrapS: unknown;
+  wrapT: unknown;
+  repeat: { set: jest.Mock };
+  dispose: jest.Mock;
+};
+
+type MockGeometryShape = {
+  width: number;
+  height: number;
+  dispose: jest.Mock;
+};
+
+type MockMaterialShape = {
+  uniforms: { uTime: { value: number } };
+  dispose: jest.Mock;
+};
+
+const testGlobals = globalThis as typeof globalThis & {
+  __lastTexture?: MockTextureShape;
+  __lastGeometry?: MockGeometryShape;
+  __lastShaderMaterial?: MockMaterialShape;
+};
+
 jest.mock('../../../../src/components/Ocean/shaders/caustics.vert', () => '', {
   virtual: true,
 });
@@ -16,8 +40,8 @@ jest.mock('@react-three/fiber', () => ({
 
 jest.mock('three', () => {
   class MockTexture {
-    wrapS: any = null;
-    wrapT: any = null;
+    wrapS: unknown = null;
+    wrapT: unknown = null;
     repeat = { set: jest.fn() };
     dispose = jest.fn();
   }
@@ -25,7 +49,7 @@ jest.mock('three', () => {
   class MockTextureLoader {
     load() {
       const tex = new MockTexture();
-      (globalThis as any).__lastTexture = tex;
+      testGlobals.__lastTexture = tex;
       return tex;
     }
   }
@@ -36,21 +60,21 @@ jest.mock('three', () => {
       public width: number,
       public height: number,
     ) {
-      (globalThis as any).__lastGeometry = this;
+      testGlobals.__lastGeometry = this;
     }
   }
 
   class MockShaderMaterial {
     dispose = jest.fn();
-    uniforms: any;
-    constructor(params: any) {
+    uniforms: { uTime: { value: number } };
+    constructor(params: { uniforms: { uTime: { value: number } } }) {
       this.uniforms = params.uniforms;
-      (globalThis as any).__lastShaderMaterial = this;
+      testGlobals.__lastShaderMaterial = this;
     }
   }
 
   class MockColor {
-    constructor(public value: any) {}
+    constructor(public value: unknown) {}
   }
 
   return {
@@ -70,9 +94,9 @@ describe('OceanFloor', () => {
 
     const { unmount } = render(<OceanFloor size={50} />);
 
-    const texture = (globalThis as any).__lastTexture;
-    const geometry = (globalThis as any).__lastGeometry;
-    const material = (globalThis as any).__lastShaderMaterial;
+    const texture = testGlobals.__lastTexture!;
+    const geometry = testGlobals.__lastGeometry!;
+    const material = testGlobals.__lastShaderMaterial!;
 
     expect(texture).toBeTruthy();
     expect(texture.repeat.set).toHaveBeenCalledWith(100, 100);

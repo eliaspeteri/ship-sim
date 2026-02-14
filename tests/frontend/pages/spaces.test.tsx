@@ -26,7 +26,7 @@ describe('pages/spaces', () => {
     getApiBaseMock.mockReset();
     getApiBaseMock.mockReturnValue('http://api.test');
     useSessionMock.mockReturnValue({ status: 'unauthenticated', data: null });
-    (globalThis as any).fetch = jest.fn();
+    globalThis.fetch = jest.fn() as unknown as typeof fetch;
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText: jest.fn().mockResolvedValue(undefined) },
       configurable: true,
@@ -58,7 +58,7 @@ describe('pages/spaces', () => {
       status: 'authenticated',
       data: { user: { id: 'admin-1', role: 'admin' } },
     });
-    const fetchMock = (globalThis as any).fetch as jest.Mock;
+    const fetchMock = globalThis.fetch as unknown as jest.Mock;
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {
       const method = init?.method || 'GET';
       if (url.startsWith('http://api.test/api/spaces/manage')) {
@@ -240,7 +240,7 @@ describe('pages/spaces', () => {
       status: 'authenticated',
       data: { user: { id: 'user-1', role: 'player' } },
     });
-    const fetchMock = (globalThis as any).fetch as jest.Mock;
+    const fetchMock = globalThis.fetch as unknown as jest.Mock;
     fetchMock
       .mockRejectedValueOnce(new Error('network down'))
       .mockResolvedValueOnce({
@@ -269,7 +269,7 @@ describe('pages/spaces', () => {
       status: 'authenticated',
       data: { user: { id: 'admin-1', role: 'admin' } },
     });
-    const fetchMock = (globalThis as any).fetch as jest.Mock;
+    const fetchMock = globalThis.fetch as unknown as jest.Mock;
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {
       const method = init?.method || 'GET';
       if (url.startsWith('http://api.test/api/spaces/manage')) {

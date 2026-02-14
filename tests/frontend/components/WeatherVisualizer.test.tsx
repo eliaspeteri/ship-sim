@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import useStore from '../../../src/store';
 import { WeatherVisualizer } from '../../../src/components/WeatherVisualizer';
 import { loadWasm } from '../../../src/lib/wasmLoader';
+import type { WasmBridge } from '../../../src/lib/wasmBridge';
 
 jest.mock('../../../src/lib/wasmLoader', () => ({
   loadWasm: jest.fn(),
@@ -20,7 +21,9 @@ describe('WeatherVisualizer', () => {
 
   it('renders weather data and precipitation using wasm sea state', async () => {
     const calculateSeaState = jest.fn().mockReturnValue(7);
-    loadWasmMock.mockResolvedValue({ calculateSeaState } as any);
+    loadWasmMock.mockResolvedValue({
+      calculateSeaState,
+    } as unknown as WasmBridge);
 
     useStore.setState({
       environment: {

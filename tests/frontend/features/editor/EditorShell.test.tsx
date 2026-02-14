@@ -60,14 +60,16 @@ jest.mock(
 jest.mock(
   '../../../../src/features/editor/services/overlayCompilation',
   () => ({
-    compileOverlayDraft: (...args: any[]) => compileOverlayDraftMock(...args),
-    compileOverlayServer: (...args: any[]) => compileOverlayServerMock(...args),
+    compileOverlayDraft: (...args: unknown[]) =>
+      compileOverlayDraftMock(...args),
+    compileOverlayServer: (...args: unknown[]) =>
+      compileOverlayServerMock(...args),
   }),
 );
 
 jest.mock('../../../../src/features/editor/services/overlayStreaming', () => ({
-  getWorkAreaTiles: (...args: any[]) => getWorkAreaTilesMock(...args),
-  clearOverlayCache: (...args: any[]) => clearOverlayCacheMock(...args),
+  getWorkAreaTiles: (...args: unknown[]) => getWorkAreaTilesMock(...args),
+  clearOverlayCache: (...args: unknown[]) => clearOverlayCacheMock(...args),
 }));
 
 describe('EditorShell', () => {
@@ -92,7 +94,7 @@ describe('EditorShell', () => {
         sources: ['terrain'],
       },
     ],
-  } as any;
+  } as React.ComponentProps<typeof EditorShell>['pack'];
 
   const layers = [
     {
@@ -111,7 +113,7 @@ describe('EditorShell', () => {
       isVisible: true,
       isLocked: false,
     },
-  ] as any;
+  ] as React.ComponentProps<typeof EditorShell>['layers'];
 
   beforeEach(() => {
     pushMock.mockReset();
@@ -119,7 +121,9 @@ describe('EditorShell', () => {
     compileOverlayServerMock.mockReset();
     getWorkAreaTilesMock.mockReset();
     clearOverlayCacheMock.mockReset();
-    (globalThis as any).fetch = jest.fn().mockResolvedValue({ ok: true });
+    globalThis.fetch = jest
+      .fn()
+      .mockResolvedValue({ ok: true }) as unknown as typeof fetch;
     getWorkAreaTilesMock.mockReturnValue([{ z: 8, x: 1, y: 2 }]);
     compileOverlayDraftMock.mockResolvedValue({ artifacts: [{}, {}, {}] });
     compileOverlayServerMock.mockResolvedValue({ artifactCount: 5 });

@@ -10,7 +10,15 @@ jest.mock('@react-three/drei', () => ({
 
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: ({ href, children, ...props }: any) => (
+  default: ({
+    href,
+    children,
+    ...props
+  }: {
+    href: string;
+    children: React.ReactNode;
+    [key: string]: unknown;
+  }) => (
     <a href={href} {...props}>
       {children}
     </a>
@@ -21,11 +29,13 @@ describe('VesselCallout', () => {
   const originalPointerEvent = window.PointerEvent;
 
   beforeAll(() => {
-    (window as any).PointerEvent = window.MouseEvent;
+    (window as unknown as { PointerEvent: typeof PointerEvent }).PointerEvent =
+      window.MouseEvent as unknown as typeof PointerEvent;
   });
 
   afterAll(() => {
-    (window as any).PointerEvent = originalPointerEvent;
+    (window as unknown as { PointerEvent: typeof PointerEvent }).PointerEvent =
+      originalPointerEvent as typeof PointerEvent;
   });
 
   it('renders title, rows, link, and actions', () => {

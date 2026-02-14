@@ -2,15 +2,25 @@ import { fetchLandTileMesh } from '../../../../src/lib/tiles/mvtLandMesh';
 import { latLonToXY } from '../../../../src/lib/geo';
 import earcut from 'earcut';
 
-let tileLayers: Record<string, any> = {};
-let lastGeometry: any = null;
-let lastMaterial: any = null;
+type MockGeometry = {
+  setAttribute: jest.Mock;
+  setIndex: jest.Mock;
+  computeVertexNormals: jest.Mock;
+};
 
-const captureGeometry = (instance: any) => {
+type MockMaterial = {
+  params: { color?: string };
+};
+
+let tileLayers: Record<string, unknown> = {};
+let lastGeometry: MockGeometry | null = null;
+let lastMaterial: MockMaterial | null = null;
+
+const captureGeometry = (instance: MockGeometry) => {
   lastGeometry = instance;
 };
 
-const captureMaterial = (instance: any) => {
+const captureMaterial = (instance: MockMaterial) => {
   lastMaterial = instance;
 };
 
@@ -50,18 +60,18 @@ jest.mock('three', () => {
     }
   }
   class MeshStandardMaterial {
-    params: any;
-    constructor(params: any) {
+    params: { color?: string };
+    constructor(params: { color?: string }) {
       this.params = params;
       captureMaterial(this);
     }
   }
   class Mesh {
-    geometry: any;
-    material: any;
+    geometry: unknown;
+    material: unknown;
     frustumCulled = false;
     name = '';
-    constructor(geometry: any, material: any) {
+    constructor(geometry: unknown, material: unknown) {
       this.geometry = geometry;
       this.material = material;
     }
@@ -85,17 +95,19 @@ describe('fetchLandTileMesh', () => {
   });
 
   it('returns null when land tile fetch fails', async () => {
-    (globalThis as any).fetch = jest.fn(async () => ({ ok: false }));
+    globalThis.fetch = jest.fn(async () => ({
+      ok: false,
+    })) as unknown as typeof fetch;
 
     const mesh = await fetchLandTileMesh({ z: 1, x: 2, y: 3 });
     expect(mesh).toBeNull();
   });
 
   it('returns null when no land layer exists', async () => {
-    (globalThis as any).fetch = jest.fn(async () => ({
+    globalThis.fetch = jest.fn(async () => ({
       ok: true,
       arrayBuffer: async () => new ArrayBuffer(8),
-    }));
+    })) as unknown as typeof fetch;
     tileLayers = {};
 
     const mesh = await fetchLandTileMesh({ z: 1, x: 2, y: 3 });
@@ -103,10 +115,10 @@ describe('fetchLandTileMesh', () => {
   });
 
   it('builds a mesh from land features without terrain sampling', async () => {
-    (globalThis as any).fetch = jest.fn(async () => ({
+    globalThis.fetch = jest.fn(async () => ({
       ok: true,
       arrayBuffer: async () => new ArrayBuffer(8),
-    }));
+    })) as unknown as typeof fetch;
 
     const ring = [
       { x: 0, y: 0 },
@@ -140,9 +152,11 @@ describe('fetchLandTileMesh', () => {
     expect(latLonToXY).toHaveBeenCalled();
     expect(earcut).toHaveBeenCalled();
 
-    const positionAttr = (lastGeometry as any).setAttribute.mock.calls[0][1];
+    const positionAttr = lastGeometry?.setAttribute.mock.calls[0][1] as {
+      array: number[];
+    };
     expect(positionAttr.array.length).toBe(9);
-    expect((lastGeometry as any).setIndex).toHaveBeenCalledWith([0, 1, 2]);
-    expect(lastMaterial.params.color).toBe('hotpink');
+    expect(lastGeometry?.setIndex).toHaveBeenCalledWith([0, 1, 2]);
+    expect(lastMaterial?.params.color).toBe('hotpink');
   });
 });

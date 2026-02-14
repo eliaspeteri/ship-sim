@@ -1,4 +1,5 @@
 import { drawRadarOverlays } from '../../../../../src/components/radar/render/overlays';
+import type { RadarRenderModel } from '../../../../../src/components/radar/render/model';
 
 jest.mock('../../../../../src/components/radar/utils', () => ({
   getSeaClutterStrength: jest.fn(() => 0.5),
@@ -59,7 +60,7 @@ describe('drawRadarOverlays', () => {
         },
         ebl: { active: true, angle: 75 },
         vrm: { active: true, distance: 3 },
-      } as any,
+      } as RadarRenderModel,
     );
 
     expect(ctx.createRadialGradient).toHaveBeenCalled();
@@ -95,7 +96,7 @@ describe('drawRadarOverlays', () => {
       },
       ebl: { active: false, angle: 0 },
       vrm: { active: false, distance: 0 },
-    } as any);
+    } as RadarRenderModel);
 
     expect(ctx.beginPath).toHaveBeenCalled();
     expect(ctx.stroke).toHaveBeenCalled();

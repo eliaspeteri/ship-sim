@@ -1,9 +1,10 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { StatusBoxContent } from '../../../../src/components/common/StatusBoxContent';
+import type { ValueLine } from '../../../../src/components/common/StatusPanelTypes';
 
 const renderBox = (
-  overrides: Partial<any> = {},
+  overrides: Partial<React.ComponentProps<typeof StatusBoxContent>['box']> = {},
   data: Record<string, string | number | undefined> = {},
 ) => {
   const box = {
@@ -56,7 +57,7 @@ describe('StatusBoxContent', () => {
         label: 'POSN',
         mainValue: undefined,
         statusValue: { text: 'data:status' },
-        additionalLines: [{ text: '' } as any],
+        additionalLines: [{ text: '' } as ValueLine],
       },
       { status: 'OK' },
     );

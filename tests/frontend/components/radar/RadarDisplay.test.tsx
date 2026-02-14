@@ -31,7 +31,9 @@ describe('RadarDisplay', () => {
     jest
       .spyOn(HTMLCanvasElement.prototype, 'getContext')
       .mockImplementation(() => {
-        const gradient = { addColorStop: jest.fn() } as any;
+        const gradient = {
+          addColorStop: jest.fn(),
+        } as unknown as CanvasGradient;
         return {
           fillStyle: '',
           strokeStyle: '',
@@ -54,7 +56,7 @@ describe('RadarDisplay', () => {
           rect: jest.fn(),
           closePath: jest.fn(),
           clip: jest.fn(),
-        } as any;
+        } as unknown as CanvasRenderingContext2D;
       });
   });
 

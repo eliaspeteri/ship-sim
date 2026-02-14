@@ -22,7 +22,7 @@ describe('overlayCompilation', () => {
       ok: true,
       json: async () => ({ artifactCount: 5, storedAt: 'now' }),
     });
-    (globalThis as any).fetch = fetchMock;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const result = await compileOverlayServer({
       packId: 'pack-1',
@@ -38,9 +38,9 @@ describe('overlayCompilation', () => {
   });
 
   it('throws on non-ok compile response', async () => {
-    (globalThis as any).fetch = jest
+    globalThis.fetch = jest
       .fn()
-      .mockResolvedValue({ ok: false, status: 503 });
+      .mockResolvedValue({ ok: false, status: 503 }) as unknown as typeof fetch;
 
     await expect(
       compileOverlayServer({

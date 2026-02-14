@@ -28,7 +28,7 @@ jest.mock('../../../src/networking/socket', () => ({
   __esModule: true,
   socketManager: {
     isConnected: jest.fn(() => isConnected),
-    sendWeatherControl: (...args: any[]) => mockSendWeatherControl(...args),
+    sendWeatherControl: (...args: unknown[]) => mockSendWeatherControl(...args),
   },
 }));
 
@@ -43,8 +43,10 @@ jest.mock('next-auth/react', () => ({
 }));
 
 jest.mock('../../../src/store', () => {
-  const useStore = (selector: any) => selector(mockState);
-  (useStore as any).getState = () => mockState;
+  const useStore = (selector: (state: typeof mockState) => unknown) =>
+    selector(mockState);
+  (useStore as unknown as { getState: () => typeof mockState }).getState = () =>
+    mockState;
   return {
     __esModule: true,
     default: useStore,
@@ -73,10 +75,10 @@ describe('EnvironmentControls', () => {
       vessel: { position: { lon: 24.97 } },
     };
     mockSendWeatherControl.mockClear();
-    (globalThis as any).fetch = jest.fn(async () => ({
+    globalThis.fetch = jest.fn(async () => ({
       ok: true,
       json: async () => ({ events: [] }),
-    }));
+    })) as unknown as typeof fetch;
   });
 
   it('expands and sends weather presets', async () => {
@@ -108,11 +110,11 @@ describe('EnvironmentControls', () => {
 
   it('shows offline feedback and handles failed event loading', async () => {
     isConnected = false;
-    (globalThis as any).fetch = jest.fn(async () => ({
+    globalThis.fetch = jest.fn(async () => ({
       ok: false,
       status: 503,
       json: async () => ({}),
-    }));
+    })) as unknown as typeof fetch;
 
     render(<EnvironmentControls />);
     fireEvent.click(screen.getByText('Expand'));
@@ -131,64 +133,72 @@ describe('EnvironmentControls', () => {
   });
 
   it('handles schedule validation, create, and delete flows', async () => {
-    const fetchMock = jest.fn(async (input: RequestInfo, init?: RequestInit) => {
-      const url = String(input);
-      const method = init?.method || 'GET';
-      if (url.includes('/api/environment/events?')) {
-        return {
-          ok: true,
-          json: async () => ({
-            events: [
-              {
-                id: 'evt-active',
-                name: 'Active rain',
-                runAt: '2026-01-01T10:00:00.000Z',
-                executedAt: '2026-01-01T10:05:00.000Z',
-                enabled: true,
-              },
-              {
-                id: 'evt-ended',
-                pattern: 'foggy',
-                runAt: 'invalid-date',
-                endAt: '2026-01-01T12:00:00.000Z',
-                endedAt: '2026-01-01T12:05:00.000Z',
-                enabled: true,
-              },
-            ],
-          }),
-        };
-      }
-      if (url.endsWith('/api/environment/events') && method === 'POST') {
-        return {
-          ok: true,
-          json: async () => ({
-            id: 'evt-new',
-            name: 'New storm',
-            pattern: 'stormy',
-            runAt: '2026-01-01T09:00:00.000Z',
-            enabled: true,
-          }),
-        };
-      }
-      if (url.endsWith('/api/environment/events/evt-active') && method === 'DELETE') {
-        return {
-          ok: false,
-          status: 400,
-          json: async () => ({ error: 'cannot remove active event' }),
-        };
-      }
-      if (url.endsWith('/api/environment/events/evt-ended') && method === 'DELETE') {
+    const fetchMock = jest.fn(
+      async (input: RequestInfo, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method || 'GET';
+        if (url.includes('/api/environment/events?')) {
+          return {
+            ok: true,
+            json: async () => ({
+              events: [
+                {
+                  id: 'evt-active',
+                  name: 'Active rain',
+                  runAt: '2026-01-01T10:00:00.000Z',
+                  executedAt: '2026-01-01T10:05:00.000Z',
+                  enabled: true,
+                },
+                {
+                  id: 'evt-ended',
+                  pattern: 'foggy',
+                  runAt: 'invalid-date',
+                  endAt: '2026-01-01T12:00:00.000Z',
+                  endedAt: '2026-01-01T12:05:00.000Z',
+                  enabled: true,
+                },
+              ],
+            }),
+          };
+        }
+        if (url.endsWith('/api/environment/events') && method === 'POST') {
+          return {
+            ok: true,
+            json: async () => ({
+              id: 'evt-new',
+              name: 'New storm',
+              pattern: 'stormy',
+              runAt: '2026-01-01T09:00:00.000Z',
+              enabled: true,
+            }),
+          };
+        }
+        if (
+          url.endsWith('/api/environment/events/evt-active') &&
+          method === 'DELETE'
+        ) {
+          return {
+            ok: false,
+            status: 400,
+            json: async () => ({ error: 'cannot remove active event' }),
+          };
+        }
+        if (
+          url.endsWith('/api/environment/events/evt-ended') &&
+          method === 'DELETE'
+        ) {
+          return {
+            ok: true,
+            json: async () => ({}),
+          };
+        }
         return {
           ok: true,
           json: async () => ({}),
         };
-      }
-      return {
-        ok: true,
-        json: async () => ({}),
-      };
-    });
-    (globalThis as any).fetch = fetchMock;
+      },
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     render(<EnvironmentControls />);
     fireEvent.click(screen.getByText('Expand'));
@@ -200,9 +210,7 @@ describe('EnvironmentControls', () => {
       expect(screen.getByText(/Invalid time/)).toBeInTheDocument();
     });
 
-    const scheduleInput = screen.getByDisplayValue(
-      /T/,
-    ) as HTMLInputElement;
+    const scheduleInput = screen.getByDisplayValue(/T/) as HTMLInputElement;
     const endInputs = screen.getAllByPlaceholderText('End time (optional)');
     const endInput = endInputs[0] as HTMLInputElement;
     const scheduleName = screen.getByPlaceholderText(
@@ -236,7 +244,9 @@ describe('EnvironmentControls', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove' })[0]);
     await waitFor(() => {
-      expect(screen.getByText('cannot remove active event')).toBeInTheDocument();
+      expect(
+        screen.getByText('cannot remove active event'),
+      ).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove' })[1]);
