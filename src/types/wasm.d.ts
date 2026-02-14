@@ -13,48 +13,52 @@ export interface WasmModule {
   __getArrayView?: (...args: unknown[]) => ArrayBufferView;
   // Vessel creation and management
   createVessel: (
-    x: number,
-    y: number,
-    z: number,
-    heading: number,
-    roll: number,
-    pitch: number,
-    surge: number,
-    sway: number,
-    heave: number,
-    yawRate: number,
-    rollRate: number,
-    pitchRate: number,
-    throttle: number,
-    rudderAngle: number,
-    mass: number,
-    length: number,
-    beam: number,
-    draft: number,
-    blockCoefficient: number,
-    rudderForceCoefficient: number,
-    rudderStallAngle: number,
-    rudderMaxAngle: number,
-    dragCoefficient: number,
-    yawDamping: number,
-    yawDampingQuad: number,
-    swayDamping: number,
-    maxThrust: number,
-    maxSpeed: number,
-    rollDamping: number,
-    pitchDamping: number,
-    heaveStiffness: number,
-    heaveDamping: number,
+    ...args: [
+      x: number,
+      y: number,
+      z: number,
+      heading: number,
+      roll: number,
+      pitch: number,
+      surge: number,
+      sway: number,
+      heave: number,
+      yawRate: number,
+      rollRate: number,
+      pitchRate: number,
+      throttle: number,
+      rudderAngle: number,
+      mass: number,
+      length: number,
+      beam: number,
+      draft: number,
+      blockCoefficient: number,
+      rudderForceCoefficient: number,
+      rudderStallAngle: number,
+      rudderMaxAngle: number,
+      dragCoefficient: number,
+      yawDamping: number,
+      yawDampingQuad: number,
+      swayDamping: number,
+      maxThrust: number,
+      maxSpeed: number,
+      rollDamping: number,
+      pitchDamping: number,
+      heaveStiffness: number,
+      heaveDamping: number,
+    ]
   ) => number;
   destroyVessel?: (vesselPtr: number) => void;
 
   getVesselParamsBufferPtr?: () => number;
   getVesselParamsBufferCapacity?: () => number;
   setVesselParams?: (
-    vesselPtr: number,
-    modelId: number,
-    paramsPtr: number,
-    paramsLen: number,
+    ...args: [
+      vesselPtr: number,
+      modelId: number,
+      paramsPtr: number,
+      paramsLen: number,
+    ]
   ) => void;
   getEnvironmentBufferPtr?: () => number;
   getEnvironmentBufferCapacity?: () => number;
@@ -62,16 +66,18 @@ export interface WasmModule {
 
   // Physics update function with enhanced parameters
   updateVesselState: (
-    vesselPtr: number,
-    deltaTime: number,
-    windSpeed: number,
-    windDirection: number,
-    currentSpeed: number,
-    currentDirection: number,
-    waveHeight: number,
-    waveLength: number,
-    waveDirection: number,
-    waveSteepness: number,
+    ...args: [
+      vesselPtr: number,
+      deltaTime: number,
+      windSpeed: number,
+      windDirection: number,
+      currentSpeed: number,
+      currentDirection: number,
+      waveHeight: number,
+      waveLength: number,
+      waveDirection: number,
+      waveSteepness: number,
+    ]
   ) => number;
 
   // Control inputs
