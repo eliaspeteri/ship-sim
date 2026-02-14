@@ -146,11 +146,14 @@ export const CircularGauge: React.FC<CircularGaugeProps> = ({
 
 // Helper function to describe an SVG arc path
 function polarToCartesian(
-  centerX: number,
-  centerY: number,
-  radius: number,
-  angleInDegrees: number,
+  ...args: [
+    centerX: number,
+    centerY: number,
+    radius: number,
+    angleInDegrees: number,
+  ]
 ) {
+  const [centerX, centerY, radius, angleInDegrees] = args;
   const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
   return {
     x: centerX + radius * Math.cos(angleInRadians),
@@ -159,12 +162,16 @@ function polarToCartesian(
 }
 
 function describeArc(
-  x: number,
-  y: number,
-  radius: number,
-  startAngle: number,
-  endAngle: number,
+  ...args: [
+    x: number,
+    y: number,
+    radius: number,
+    startAngle: number,
+    endAngle: number,
+  ]
 ): string {
+  const [x, y, radius, startAngle, initialEndAngle] = args;
+  let endAngle = initialEndAngle;
   // Ensure endAngle doesn't slightly exceed startAngle for full circles if needed
   if (endAngle - startAngle >= 360) {
     endAngle = startAngle + 359.99;

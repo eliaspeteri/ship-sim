@@ -202,6 +202,48 @@ const decodeBytes = (payload?: string) => {
   return bytes.buffer;
 };
 
+const fetchOverlayChunk = async (
+  request: OverlayTileRequest,
+  layerId: string,
+  lod: number,
+): Promise<OverlayChunk | null> => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    const params = new URLSearchParams({
+      packId: request.packId,
+      z: request.key.z.toString(),
+      x: request.key.x.toString(),
+      y: request.key.y.toString(),
+      lod: lod.toString(),
+      layers: layerId,
+    });
+    const res = await fetch(`/api/editor/overlay?${params.toString()}`);
+    if (!res.ok) {
+      return null;
+    }
+    const data = (await res.json()) as {
+      chunks?: Array<{
+        layerId: string;
+        lod: number;
+        bytesBase64?: string;
+      }>;
+    };
+    const chunks = data.chunks ?? [];
+    const matched = chunks.find(chunk => chunk.layerId === layerId);
+    return {
+      key: request.key,
+      layerId,
+      lod,
+      bytes: decodeBytes(matched?.bytesBase64),
+    };
+  } catch (error) {
+    console.warn('Overlay fetch failed', error);
+    return null;
+  }
+};
+
 export const loadOverlayChunks = async (
   requests: OverlayTileRequest[],
 ): Promise<OverlayChunk[]> => {
@@ -219,40 +261,11 @@ export const loadOverlayChunks = async (
         continue;
       }
 
-      if (typeof window !== 'undefined') {
-        try {
-          const params = new URLSearchParams({
-            packId: request.packId,
-            z: request.key.z.toString(),
-            x: request.key.x.toString(),
-            y: request.key.y.toString(),
-            lod: lod.toString(),
-            layers: layerId,
-          });
-          const res = await fetch(`/api/editor/overlay?${params.toString()}`);
-          if (res.ok) {
-            const data = (await res.json()) as {
-              chunks?: Array<{
-                layerId: string;
-                lod: number;
-                bytesBase64?: string;
-              }>;
-            };
-            const chunks = data.chunks ?? [];
-            const matched = chunks.find(chunk => chunk.layerId === layerId);
-            const chunk = {
-              key: request.key,
-              layerId,
-              lod,
-              bytes: decodeBytes(matched?.bytesBase64),
-            };
-            overlayCache.set(key, { chunk, lastUsed: now });
-            results.push(chunk);
-            continue;
-          }
-        } catch (error) {
-          console.warn('Overlay fetch failed', error);
-        }
+      const fetched = await fetchOverlayChunk(request, layerId, lod);
+      if (fetched) {
+        overlayCache.set(key, { chunk: fetched, lastUsed: now });
+        results.push(fetched);
+        continue;
       }
 
       const chunk = {

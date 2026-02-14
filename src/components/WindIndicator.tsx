@@ -54,11 +54,9 @@ const DIRECTION_LABELS = [
  * Helper function to get point coordinates on a circle
  */
 const getPointOnCircle = (
-  cx: number,
-  cy: number,
-  radius: number,
-  angleDegrees: number,
+  ...args: [cx: number, cy: number, radius: number, angleDegrees: number]
 ): { x: number; y: number } => {
+  const [cx, cy, radius, angleDegrees] = args;
   // Convert degrees to radians and adjust for SVG coordinate system
   // where 0 degrees is at the top (North)
   const angleRadians = ((angleDegrees - 90) * Math.PI) / 180;

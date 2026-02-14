@@ -29,11 +29,9 @@ const TEMP_ANGLE_END = 225; // Bottom-right
 
 // Helper function to get point on circle
 const getPointOnCircle = (
-  cx: number,
-  cy: number,
-  r: number,
-  angleDeg: number,
+  ...args: [cx: number, cy: number, r: number, angleDeg: number]
 ) => {
+  const [cx, cy, r, angleDeg] = args;
   const angleRad = ((angleDeg - 90) * Math.PI) / 180;
   return {
     x: cx + r * Math.cos(angleRad),
@@ -58,15 +56,27 @@ interface TickOptions {
 
 // Updated generateScaleTicks helper
 const generateScaleTicks = (
-  minVal: number,
-  maxVal: number,
-  numTicks: number, // Total number of intervals (minor ticks)
-  startAngle: number,
-  endAngle: number,
-  center: number,
-  options: TickOptions,
-  valueToLabel: (value: number, index: number, totalTicks: number) => string, // Pass totalTicks too
+  ...args: [
+    minVal: number,
+    maxVal: number,
+    numTicks: number,
+    startAngle: number,
+    endAngle: number,
+    center: number,
+    options: TickOptions,
+    valueToLabel: (value: number, index: number, totalTicks: number) => string,
+  ]
 ): JSX.Element[] => {
+  const [
+    minVal,
+    maxVal,
+    numTicks,
+    startAngle,
+    endAngle,
+    center,
+    options,
+    valueToLabel,
+  ] = args;
   const ticks: JSX.Element[] = [];
   const valueRange = maxVal - minVal;
   const angleRange = endAngle - startAngle;
@@ -180,12 +190,15 @@ const Barometer: React.FC<BarometerProps> = ({
 
   // Helper to map value to angle
   const mapValueToAngle = (
-    value: number,
-    minVal: number,
-    maxVal: number,
-    startAngle: number,
-    endAngle: number,
+    ...args: [
+      value: number,
+      minVal: number,
+      maxVal: number,
+      startAngle: number,
+      endAngle: number,
+    ]
   ): number => {
+    const [value, minVal, maxVal, startAngle, endAngle] = args;
     const range = maxVal - minVal;
     const angleRange = endAngle - startAngle;
     const normalized = Math.max(0, Math.min(1, (value - minVal) / range));

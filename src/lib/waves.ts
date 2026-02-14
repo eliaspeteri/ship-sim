@@ -77,11 +77,9 @@ export const getWaveComponents = (wave: WaveState): WaveComponent[] => {
 };
 
 export const getGerstnerSample = (
-  x: number,
-  y: number,
-  time: number,
-  wave: WaveState,
+  ...args: [x: number, y: number, time: number, wave: WaveState]
 ) => {
+  const [x, y, time, wave] = args;
   const dirX = Math.cos(wave.direction);
   const dirY = Math.sin(wave.direction);
   const phase = wave.k * (dirX * x + dirY * y) - wave.omega * time;
@@ -100,11 +98,9 @@ export const getGerstnerSample = (
 };
 
 export const getCompositeWaveSample = (
-  x: number,
-  y: number,
-  time: number,
-  wave: WaveState,
+  ...args: [x: number, y: number, time: number, wave: WaveState]
 ) => {
+  const [x, y, time, wave] = args;
   const components = getWaveComponents(wave);
   let height = 0;
   let dydx = 0;

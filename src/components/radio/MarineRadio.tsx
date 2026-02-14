@@ -470,41 +470,45 @@ export function MarineRadio({
       if (!directEntryMode) {
         setDirectEntryMode(true);
         setDirectEntryBuffer(digit.toString());
-      } else {
-        // Append digit if less than 2 digits
-        if (directEntryBuffer.length < 2) {
-          setDirectEntryBuffer(prev => `${prev}${digit}`);
-        }
-
-        // If we have 2 digits, attempt to change channel
-        if (directEntryBuffer.length === 1) {
-          const channelNum = parseInt(`${directEntryBuffer}${digit}`, 10);
-          const channelIndex = MARINE_CHANNELS.findIndex(
-            ch => ch.number === channelNum,
-          );
-
-          if (channelIndex >= 0) {
-            // Valid channel, switch to it
-            setCurrentChannelIndex(channelIndex);
-            setDirectEntryMode(false);
-            setDirectEntryBuffer('');
-
-            if (onChannelChange) {
-              const channel = MARINE_CHANNELS[channelIndex];
-              onChannelChange(channel.number, channel.frequency);
-            }
-
-            // Stop scanning
-            if (scanActive) setScanActive(false);
-          } else {
-            // Invalid channel, clear input
-            setTimeout(() => {
-              setDirectEntryBuffer('');
-              setDirectEntryMode(false);
-            }, 1000);
-          }
-        }
+        return;
       }
+
+      // Append digit if less than 2 digits
+      if (directEntryBuffer.length < 2) {
+        setDirectEntryBuffer(prev => `${prev}${digit}`);
+      }
+
+      // If we have 2 digits, attempt to change channel
+      if (directEntryBuffer.length !== 1) {
+        return;
+      }
+
+      const channelNum = parseInt(`${directEntryBuffer}${digit}`, 10);
+      const channelIndex = MARINE_CHANNELS.findIndex(
+        ch => ch.number === channelNum,
+      );
+
+      if (channelIndex < 0) {
+        // Invalid channel, clear input
+        setTimeout(() => {
+          setDirectEntryBuffer('');
+          setDirectEntryMode(false);
+        }, 1000);
+        return;
+      }
+
+      // Valid channel, switch to it
+      setCurrentChannelIndex(channelIndex);
+      setDirectEntryMode(false);
+      setDirectEntryBuffer('');
+
+      if (onChannelChange) {
+        const channel = MARINE_CHANNELS[channelIndex];
+        onChannelChange(channel.number, channel.frequency);
+      }
+
+      // Stop scanning
+      if (scanActive) setScanActive(false);
     },
     [
       powerOn,

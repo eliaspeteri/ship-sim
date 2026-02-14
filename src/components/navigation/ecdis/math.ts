@@ -1,9 +1,12 @@
 export function latLonToXY(
-  latitude: number,
-  longitude: number,
-  center: { latitude: number; longitude: number },
-  scale: number,
+  ...args: [
+    latitude: number,
+    longitude: number,
+    center: { latitude: number; longitude: number },
+    scale: number,
+  ]
 ) {
+  const [latitude, longitude, center, scale] = args;
   return [
     (longitude - center.longitude) * scale,
     -(latitude - center.latitude) * scale,
@@ -11,12 +14,15 @@ export function latLonToXY(
 }
 
 export function worldFromShip(
-  ox: number,
-  oy: number,
-  headingDeg: number,
-  forward: number,
-  starboard: number,
+  ...args: [
+    ox: number,
+    oy: number,
+    headingDeg: number,
+    forward: number,
+    starboard: number,
+  ]
 ) {
+  const [ox, oy, headingDeg, forward, starboard] = args;
   const rad = (headingDeg * Math.PI) / 180;
   const sin = Math.sin(rad);
   const cos = Math.cos(rad);

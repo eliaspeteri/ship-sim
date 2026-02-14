@@ -27,11 +27,14 @@ interface RudderLeverProps {
  * @returns The Cartesian coordinates { x, y }.
  */
 const polarToCartesian = (
-  centerX: number,
-  centerY: number,
-  radius: number,
-  angleInDegrees: number,
+  ...args: [
+    centerX: number,
+    centerY: number,
+    radius: number,
+    angleInDegrees: number,
+  ]
 ): { x: number; y: number } => {
+  const [centerX, centerY, radius, angleInDegrees] = args;
   // Adjust angle so that 0 degrees is pointing upwards (mathematical standard is 0 degrees right)
   const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
   return {
@@ -51,13 +54,17 @@ const polarToCartesian = (
  * @returns SVG path 'd' attribute string for the arc segment.
  */
 const describeArcSegment = (
-  cx: number,
-  cy: number,
-  outerRadius: number,
-  innerRadius: number,
-  startAngleDegrees: number,
-  endAngleDegrees: number,
+  ...args: [
+    cx: number,
+    cy: number,
+    outerRadius: number,
+    innerRadius: number,
+    startAngleDegrees: number,
+    endAngleDegrees: number,
+  ]
 ): string => {
+  const [cx, cy, outerRadius, innerRadius, startAngleDegrees, endAngleDegrees] =
+    args;
   // Avoid issues with arcs of zero or 360 degrees by slightly adjusting the end angle
   const clampedEndAngle =
     Math.abs(startAngleDegrees - endAngleDegrees) % 360 < 0.001

@@ -136,10 +136,8 @@ export function RotaryDial(props: RotaryDialProps): React.ReactElement {
         const labelX = centerX + labelRadius * Math.cos(radians);
         const labelY = centerY + labelRadius * Math.sin(radians);
 
-        let labelValue: number;
-        if (i === 0) labelValue = min;
-        else if (i === numTicks - 1) labelValue = max;
-        else labelValue = min + (max - min) / 2;
+        const labelValue =
+          i === 0 ? min : i === numTicks - 1 ? max : min + (max - min) / 2;
 
         ticks.push(
           <text

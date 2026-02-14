@@ -147,11 +147,14 @@ const EditorWorkAreaEditor: React.FC<EditorWorkAreaEditorProps> = ({
   };
 
   const updateBboxFromCenterRadius = (
-    id: string,
-    centerLat: number,
-    centerLon: number,
-    radiusMeters: number,
+    ...args: [
+      id: string,
+      centerLat: number,
+      centerLon: number,
+      radiusMeters: number,
+    ]
   ) => {
+    const [id, centerLat, centerLon, radiusMeters] = args;
     updateBboxFields(
       id,
       getBboxFromCenterRadius(centerLat, centerLon, Math.max(0, radiusMeters)),

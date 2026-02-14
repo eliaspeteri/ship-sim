@@ -2,11 +2,9 @@ import { RadarBand, RadarEnvironment, RadarTarget } from './types';
 
 // Convert polar coordinates (distance, bearing) to Cartesian (x, y)
 export const polarToCartesian = (
-  distance: number,
-  bearing: number,
-  maxRange: number,
-  radius: number,
+  ...args: [distance: number, bearing: number, maxRange: number, radius: number]
 ): { x: number; y: number } => {
+  const [distance, bearing, maxRange, radius] = args;
   // Convert bearing to radians (0° = up, clockwise)
   const bearingRad = ((bearing - 90) * Math.PI) / 180;
 
@@ -21,13 +19,16 @@ export const polarToCartesian = (
 
 // Calculate target visibility based on radar settings and environment
 export const calculateTargetVisibility = (
-  target: RadarTarget,
-  band: RadarBand,
-  gain: number,
-  seaClutter: number,
-  rainClutter: number,
-  environment: RadarEnvironment,
+  ...args: [
+    target: RadarTarget,
+    band: RadarBand,
+    gain: number,
+    seaClutter: number,
+    rainClutter: number,
+    environment: RadarEnvironment,
+  ]
 ): number => {
+  const [target, band, gain, seaClutter, rainClutter, environment] = args;
   // Base visibility based on target size
   let visibility = target.size;
 
@@ -105,11 +106,14 @@ export const generateRadarNoise = (
 
 // Get sea clutter pattern strength based on distance from center
 export const getSeaClutterStrength = (
-  distanceFromCenter: number,
-  maxRange: number,
-  seaState: number,
-  seaClutterSetting: number,
+  ...args: [
+    distanceFromCenter: number,
+    maxRange: number,
+    seaState: number,
+    seaClutterSetting: number,
+  ]
 ): number => {
+  const [distanceFromCenter, maxRange, seaState, seaClutterSetting] = args;
   // Sea clutter is stronger closer to the vessel
   const normalizedDistance = distanceFromCenter / maxRange;
 

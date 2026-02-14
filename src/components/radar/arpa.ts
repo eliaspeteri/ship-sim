@@ -316,11 +316,14 @@ export const updateARPATarget = (
  * Calculate the distance between two points given in polar coordinates
  */
 export const calculateDistanceBetweenPoints = (
-  distance1: number,
-  bearing1: number,
-  distance2: number,
-  bearing2: number,
+  ...args: [
+    distance1: number,
+    bearing1: number,
+    distance2: number,
+    bearing2: number,
+  ]
 ): number => {
+  const [distance1, bearing1, distance2, bearing2] = args;
   // Convert degrees to radians
   const toRadians = (deg: number): number => (deg * Math.PI) / 180;
 
@@ -339,11 +342,14 @@ export const calculateDistanceBetweenPoints = (
  * Calculate the bearing between two points given in polar coordinates
  */
 export const calculateBearingBetweenPoints = (
-  distance1: number,
-  bearing1: number,
-  distance2: number,
-  bearing2: number,
+  ...args: [
+    distance1: number,
+    bearing1: number,
+    distance2: number,
+    bearing2: number,
+  ]
 ): number => {
+  const [distance1, bearing1, distance2, bearing2] = args;
   // Convert degrees to radians
   const toRadians = (deg: number): number => (deg * Math.PI) / 180;
 
@@ -369,11 +375,14 @@ export const calculateBearingBetweenPoints = (
  * Auto-acquire targets based on ARPA settings
  */
 export const autoAcquireTargets = (
-  targets: RadarTarget[],
-  arpaTargets: ARPATarget[],
-  settings: ARPASettings,
-  ownShip: OwnShipData,
+  ...args: [
+    targets: RadarTarget[],
+    arpaTargets: ARPATarget[],
+    settings: ARPASettings,
+    ownShip: OwnShipData,
+  ]
 ): ARPATarget[] => {
+  const [targets, arpaTargets, settings, ownShip] = args;
   // Skip if auto-acquisition is disabled
   if (!settings.autoAcquisitionEnabled) {
     return arpaTargets;
@@ -402,11 +411,14 @@ export const autoAcquireTargets = (
  * Process all radar targets and update ARPA data
  */
 export const processRadarTargets = (
-  radarTargets: RadarTarget[],
-  arpaTargets: ARPATarget[],
-  settings: ARPASettings,
-  ownShip: OwnShipData,
+  ...args: [
+    radarTargets: RadarTarget[],
+    arpaTargets: ARPATarget[],
+    settings: ARPASettings,
+    ownShip: OwnShipData,
+  ]
 ): ARPATarget[] => {
+  const [radarTargets, arpaTargets, settings, ownShip] = args;
   // First, auto-acquire any new targets
   const updatedArpaTargets = autoAcquireTargets(
     radarTargets,

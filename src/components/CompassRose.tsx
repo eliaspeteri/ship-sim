@@ -9,11 +9,14 @@ interface CompassRoseProps {
 
 // Helper to convert polar coordinates to Cartesian for SVG
 const polarToCartesian = (
-  centerX: number,
-  centerY: number,
-  radius: number,
-  angleInDegrees: number,
+  ...args: [
+    centerX: number,
+    centerY: number,
+    radius: number,
+    angleInDegrees: number,
+  ]
 ): { x: number; y: number } => {
+  const [centerX, centerY, radius, angleInDegrees] = args;
   const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0; // Adjust angle: 0 degrees is up
   return {
     x: centerX + radius * Math.cos(angleInRadians),

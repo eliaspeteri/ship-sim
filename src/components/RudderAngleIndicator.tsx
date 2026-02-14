@@ -48,11 +48,9 @@ const RudderAngleIndicator: React.FC<RudderAngleIndicatorProps> = ({
 
   // Helper function to get point on circle
   const getPointOnCircle = (
-    cx: number,
-    cy: number,
-    r: number,
-    angleDegrees: number,
+    ...args: [cx: number, cy: number, r: number, angleDegrees: number]
   ): { x: number; y: number } => {
+    const [cx, cy, r, angleDegrees] = args;
     const angleRadians = (angleDegrees * Math.PI) / 180;
     return {
       x: cx + r * Math.cos(angleRadians),
@@ -184,12 +182,15 @@ const RudderAngleIndicator: React.FC<RudderAngleIndicatorProps> = ({
 
   // Create SVG arc paths
   const createArc = (
-    startPoint: { x: number; y: number },
-    endPoint: { x: number; y: number },
-    radius: number,
-    largeArc: 0 | 1,
-    sweep: 0 | 1,
+    ...args: [
+      startPoint: { x: number; y: number },
+      endPoint: { x: number; y: number },
+      radius: number,
+      largeArc: 0 | 1,
+      sweep: 0 | 1,
+    ]
   ) => {
+    const [startPoint, endPoint, radius, largeArc, sweep] = args;
     return `M ${startPoint.x} ${startPoint.y} A ${radius} ${radius} 0 ${largeArc} ${sweep} ${endPoint.x} ${endPoint.y}`;
   };
 

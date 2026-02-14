@@ -4,11 +4,14 @@ import { RUDDER_STALL_ANGLE_DEG } from '../constants/vessel';
 
 // Helper functions (similar to TelegraphLever)
 const polarToCartesian = (
-  centerX: number,
-  centerY: number,
-  radius: number,
-  angleInDegrees: number,
+  ...args: [
+    centerX: number,
+    centerY: number,
+    radius: number,
+    angleInDegrees: number,
+  ]
 ): { x: number; y: number } => {
+  const [centerX, centerY, radius, angleInDegrees] = args;
   // 0 degrees is up, positive is clockwise
   const angleInRadians = (angleInDegrees * Math.PI) / 180.0;
   return {
@@ -18,13 +21,17 @@ const polarToCartesian = (
 };
 
 const describeArc = (
-  cx: number,
-  cy: number,
-  radius: number,
-  startAngleDegrees: number,
-  endAngleDegrees: number,
-  sweepFlag: '0' | '1' = '1',
+  ...args: [
+    cx: number,
+    cy: number,
+    radius: number,
+    startAngleDegrees: number,
+    endAngleDegrees: number,
+    sweepFlag?: '0' | '1',
+  ]
 ): string => {
+  const [cx, cy, radius, startAngleDegrees, endAngleDegrees, sweepFlag = '1'] =
+    args;
   // Handle potential floating point issues if start and end are identical after modulo
   const clampedEndAngle =
     Math.abs(startAngleDegrees - endAngleDegrees) % 360 < 0.01

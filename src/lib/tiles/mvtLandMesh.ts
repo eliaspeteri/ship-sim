@@ -20,13 +20,16 @@ function tile2lat(y: number, z: number) {
 }
 
 function mvtPointToLonLat(
-  z: number,
-  x: number,
-  y: number,
-  extent: number,
-  px: number,
-  py: number,
+  ...args: [
+    z: number,
+    x: number,
+    y: number,
+    extent: number,
+    px: number,
+    py: number,
+  ]
 ) {
+  const [z, x, y, extent, px, py] = args;
   // MVT local coords: [0..extent], slippy tile origin is top-left.
   const fx = x + px / extent;
   const fy = y + py / extent;
