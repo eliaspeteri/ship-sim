@@ -1342,7 +1342,7 @@ Acceptance:
 - [x] `A4` Scene split. `P1` `M`
 - [x] `B3` simulation loop test seam cleanup. `P1` `S`
 - [x] `C1` consolidate vessel derivation selectors across HUD/Scene/Sim. `P0` `M`
-- [ ] `A5` RadarDisplay split. `P1` `L`
+- [x] `A5` RadarDisplay split. `P1` `L`
 - [x] `C4` reduce high-frequency UI state churn. `P1` `M`
 - [x] `J3` replace high-risk runtime casts with typed adapters. `P1` `M`
 - [x] `K5` harden production origin controls. `P1` `S`
@@ -1354,17 +1354,17 @@ Acceptance:
 - [x] `E2` unify API state/auth boundaries (DB vs in-memory cleanup). `P0` `L`
 - [x] `E3` decompose server runtime (`index.ts`). `P0` `L`
 - [x] `E4` harden server mega-tests at boundary level. `P1` `M`
-- [ ] `F1` split assembly physics core modules. `P1` `L`
+- [x] `F1` split assembly physics core modules. `P1` `L`
 - [x] `F2` make assembly state reset semantics explicit. `P1` `M`
 - [x] `F3` refactor assembly core tests with builders. `P1` `M`
 - [x] `G1` define CSS->Tailwind guardrails/tokens. `P0` `S`
 - [x] `G2` migrate HUD + sim modal CSS modules. `P0` `L`
-- [ ] `G3` migrate layout/dashboard/chat/environment control modules. `P1` `L`
-- [ ] `G4` migrate remaining page-level CSS modules. `P1` `L`
-- [ ] `G5` enforce styling guardrails (no new module CSS drift). `P2` `S`
+- [x] `G3` migrate layout/dashboard/chat/environment control modules. `P1` `L`
+- [x] `G4` migrate remaining page-level CSS modules. `P1` `L`
+- [x] `G5` enforce styling guardrails (no new module CSS drift). `P2` `S`
 - [x] `J4` enforce nesting/parameter lint guardrails. `P1` `M`
-- [ ] `K8` add security baseline controls/documentation. `P2` `M`
-- [ ] `A6`/`A7` and `B5` cleanup. `P2` `M`
+- [x] `K8` add security baseline controls/documentation. `P2` `M`
+- [x] `A6`/`A7` and `B5` cleanup. `P2` `M`
 - [x] `L1` replace sync auth crypto in request paths. `P0` `S`
 - [x] `L2` remove sync editor disk writes on request-triggered paths. `P0` `M`
 - [x] `L3` harden tile proxy upstream failure handling. `P1` `S`
