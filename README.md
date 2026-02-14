@@ -104,7 +104,7 @@ npm run check:styles        # block CSS module regressions (Tailwind-first guard
 npm run check:security-baseline # verify security baseline docs/env coverage
 npm run wasm:check-exports  # wasm export contract check
 npm run lint                # eslint
-npm run lint:errors         # eslint --max-warnings 0
+npm run lint:strict         # eslint --max-warnings 0
 npm run format              # prettier
 ```
 
