@@ -15,7 +15,7 @@ describe('pages/index', () => {
   });
 
   it('renders landing content and routes from CTA buttons', () => {
-    render(<Home />);
+    const { container } = render(<Home />);
 
     expect(screen.getByText('Ship Simulator')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Launch simulator' }));
@@ -26,5 +26,6 @@ describe('pages/index', () => {
     expect(pushMock).toHaveBeenCalledWith('/sim');
     expect(pushMock).toHaveBeenCalledWith('/globe');
     expect(pushMock).toHaveBeenCalledWith('/spaces');
+    expect(container.firstChild).toMatchSnapshot();
   });
 });

@@ -3,6 +3,7 @@
 ## Scope and policy
 
 - Tailwind is the default styling path for component and page UI.
+- New `.module.css` files and imports are blocked by `npm run check:styles`.
 - `src/styles/globals.css` is restricted to:
   - Tailwind import and theme tokens
   - global reset/base defaults
@@ -35,6 +36,13 @@ Every exception must:
 - stay local to the owning component/module
 - include a short comment explaining why Tailwind was not feasible
 - avoid introducing global selectors
+- be listed in the allowlist inside `scripts/check-no-css-modules.js`
+
+## CI/Review checks
+
+- Run `npm run check:styles` locally before pushing.
+- CI runs the same check to prevent `.module.css` regressions.
+- Add or update snapshot coverage for key styled surfaces when changing major layout/panel styles.
 
 ## Migration order
 

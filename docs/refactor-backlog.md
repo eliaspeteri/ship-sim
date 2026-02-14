@@ -273,7 +273,7 @@ Acceptance:
 
 ### A7. Split `admin.tsx` and `spaces.tsx` service/hooks (`P2`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/pages/admin.tsx`, `src/pages/spaces.tsx`
 
@@ -366,7 +366,7 @@ Acceptance:
 
 ### B5. Add test guardrails (`P2`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: test lint config and test utilities
 
@@ -752,7 +752,7 @@ Acceptance:
 
 ### G5. Add style-system guardrails to prevent regression (`P2`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: frontend lint config and docs
 
@@ -1074,7 +1074,7 @@ Acceptance:
 
 ### K8. Add security baseline controls and documentation (`P2`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: server bootstrap/config docs, API docs
 

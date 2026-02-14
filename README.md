@@ -100,6 +100,8 @@ npm run test:e2e:playwright:ui # Playwright UI mode
 
 npm run typecheck           # tsc --noEmit
 npm run check:bootstrap     # verify referenced bootstrap scripts exist
+npm run check:styles        # block CSS module regressions (Tailwind-first guardrail)
+npm run check:security-baseline # verify security baseline docs/env coverage
 npm run wasm:check-exports  # wasm export contract check
 npm run lint                # eslint
 npm run lint:errors         # eslint --max-warnings 0
@@ -123,6 +125,9 @@ Recommended test loop:
 - Refactor and quality backlog: `docs/refactor-backlog.md`
 - AI coding guardrails: `docs/ai-engineering-guardrails.md`
 - Tailwind migration guardrails: `docs/tailwind-migration-guardrails.md`
+- Testing guardrails: `docs/testing-guardrails.md`
+- Security baseline: `docs/security-baseline.md`
+- Endpoint security checklist: `docs/security-endpoint-checklist.md`
 
 ## Contributing Notes
 

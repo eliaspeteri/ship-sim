@@ -175,6 +175,14 @@ export default [
       // Keep control flow and signatures readable by default.
       'max-depth': ['warn', 3],
       'max-params': ['warn', 3],
+
+      // Tailwind-first guardrail: avoid new CSS module imports.
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: ['*.module.css', '**/*.module.css'],
+        },
+      ],
     },
   },
 
@@ -210,7 +218,20 @@ export default [
       'no-console': 'off', // Allow console in test files
       'no-undef': 'off', // Disable no-undef for test globals
       '@typescript-eslint/no-require-imports': 'off', // Allow require in tests
-      '@typescript-eslint/no-explicit-any': 'off', // Allow any in tests
+      '@typescript-eslint/no-explicit-any': [
+        'warn',
+        {
+          fixToUnknown: false,
+          ignoreRestArgs: true,
+        },
+      ],
+      '@typescript-eslint/ban-ts-comment': [
+        'warn',
+        {
+          'ts-expect-error': 'allow-with-description',
+          minimumDescriptionLength: 6,
+        },
+      ],
       'max-depth': 'off',
       'max-params': 'off',
     },

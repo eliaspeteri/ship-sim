@@ -47,7 +47,7 @@ describe('Layout navigation', () => {
       status: 'authenticated',
       data: { user: { id: 'u1', role: 'player', name: 'Captain' } },
     });
-    render(
+    const { container } = render(
       <Layout>
         <div>Child</div>
       </Layout>,
@@ -59,6 +59,7 @@ describe('Layout navigation', () => {
     expect(
       screen.queryByRole('button', { name: 'Access' }),
     ).not.toBeInTheDocument();
+    expect(container.firstChild).toMatchSnapshot();
   });
 
   it('opens the access modal when Access is clicked', () => {

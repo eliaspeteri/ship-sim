@@ -1,0 +1,290 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`pages/index renders landing content and routes from CTA buttons 1`] = `
+<main
+  class="relative flex min-h-[calc(100vh-var(--nav-height))] flex-col gap-14 overflow-hidden px-6 pb-[72px] pt-12"
+>
+  <div
+    class="pointer-events-none absolute inset-x-[-10%] top-[-20%] z-0 h-[60%] bg-[radial-gradient(60%_60%_at_20%_20%,rgba(36,176,168,0.28)_0%,rgba(10,20,34,0.1)_60%,transparent_100%),radial-gradient(50%_50%_at_80%_10%,rgba(195,167,107,0.24)_0%,transparent_70%)]"
+  />
+  <section
+    class="relative z-[1] grid items-center gap-8 md:grid-cols-2"
+  >
+    <div
+      class="flex flex-col gap-[18px]"
+    >
+      <div
+        class="text-[11px] uppercase tracking-[0.4em] text-[rgba(195,167,107,0.9)]"
+      >
+        Bridge Ops - Live Physics
+      </div>
+      <h1
+        class="text-[clamp(36px,6vw,64px)] font-bold leading-[1.05] text-[#f2f7f9]"
+      >
+        Ship Simulator
+      </h1>
+      <p
+        class="max-w-[540px] text-base leading-[1.7] text-[rgba(197,213,222,0.86)]"
+      >
+        Command a live vessel, assign crew stations, and test mission scenarios across a real-time ocean simulation. Weather, currents, and systems respond as you steer.
+      </p>
+      <div
+        class="flex flex-wrap gap-3"
+      >
+        <button
+          class="rounded-xl border-0 bg-gradient-to-br from-[#25b2a6] to-[#15707d] px-[18px] py-3 text-[13px] font-semibold tracking-[0.02em] text-[#f8f8f8] shadow-[0_18px_35px_rgba(8,52,62,0.45)] transition-transform duration-200 hover:-translate-y-0.5"
+          type="button"
+        >
+          Launch simulator
+        </button>
+        <button
+          class="rounded-xl border border-[rgba(52,74,92,0.8)] bg-[rgba(20,34,48,0.9)] px-[18px] py-3 text-[13px] font-semibold tracking-[0.02em] text-[rgba(230,239,244,0.9)] transition-transform duration-200 hover:-translate-y-0.5"
+          type="button"
+        >
+          Explore the map
+        </button>
+      </div>
+      <div
+        class="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3"
+      >
+        <div
+          class="rounded-[14px] border border-[rgba(35,64,86,0.8)] bg-[rgba(10,22,36,0.65)] px-[14px] py-3 backdrop-blur-xl"
+        >
+          <div
+            class="text-[11px] uppercase tracking-[0.2em] text-[rgba(150,175,190,0.7)]"
+          >
+            Simulation rate
+          </div>
+          <div
+            class="mt-1.5 text-lg font-semibold text-[#f0f6f8]"
+          >
+            60 Hz physics
+          </div>
+        </div>
+        <div
+          class="rounded-[14px] border border-[rgba(35,64,86,0.8)] bg-[rgba(10,22,36,0.65)] px-[14px] py-3 backdrop-blur-xl"
+        >
+          <div
+            class="text-[11px] uppercase tracking-[0.2em] text-[rgba(150,175,190,0.7)]"
+          >
+            Crew stations
+          </div>
+          <div
+            class="mt-1.5 text-lg font-semibold text-[#f0f6f8]"
+          >
+            Helm / Engine / Radio
+          </div>
+        </div>
+        <div
+          class="rounded-[14px] border border-[rgba(35,64,86,0.8)] bg-[rgba(10,22,36,0.65)] px-[14px] py-3 backdrop-blur-xl"
+        >
+          <div
+            class="text-[11px] uppercase tracking-[0.2em] text-[rgba(150,175,190,0.7)]"
+          >
+            Weather
+          </div>
+          <div
+            class="mt-1.5 text-lg font-semibold text-[#f0f6f8]"
+          >
+            Dynamic presets + events
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="relative flex min-h-[320px] items-center justify-center"
+    >
+      <div
+        class="absolute h-[340px] w-[340px] rounded-full bg-[radial-gradient(circle,rgba(27,154,170,0.35),rgba(8,16,26,0.1)_70%)] blur-[10px] animate-pulse"
+      />
+      <div
+        class="relative w-[min(420px,90%)] rounded-[20px] border border-[rgba(40,80,96,0.7)] bg-gradient-to-br from-[rgba(8,18,32,0.85)] to-[rgba(16,34,52,0.9)] p-5 shadow-[0_30px_60px_rgba(6,12,18,0.6)] max-[960px]:w-full"
+      >
+        <div
+          class="text-xs uppercase tracking-[0.25em] text-[rgba(168,216,228,0.7)]"
+        >
+          Live systems snapshot
+        </div>
+        <div
+          class="mt-4 grid grid-cols-2 gap-3"
+        >
+          <div
+            class="rounded-xl border border-[rgba(40,65,80,0.6)] bg-[rgba(6,14,22,0.6)] p-3"
+          >
+            <div
+              class="text-[10px] uppercase tracking-[0.18em] text-[rgba(155,180,194,0.7)]"
+            >
+              Sea state
+            </div>
+            <div
+              class="mt-1.5 text-base font-semibold text-[#f2f7f9]"
+            >
+              Real-time swell
+            </div>
+          </div>
+          <div
+            class="rounded-xl border border-[rgba(40,65,80,0.6)] bg-[rgba(6,14,22,0.6)] p-3"
+          >
+            <div
+              class="text-[10px] uppercase tracking-[0.18em] text-[rgba(155,180,194,0.7)]"
+            >
+              Propulsion
+            </div>
+            <div
+              class="mt-1.5 text-base font-semibold text-[#f2f7f9]"
+            >
+              Throttle + ballast
+            </div>
+          </div>
+          <div
+            class="rounded-xl border border-[rgba(40,65,80,0.6)] bg-[rgba(6,14,22,0.6)] p-3"
+          >
+            <div
+              class="text-[10px] uppercase tracking-[0.18em] text-[rgba(155,180,194,0.7)]"
+            >
+              Navigation
+            </div>
+            <div
+              class="mt-1.5 text-base font-semibold text-[#f2f7f9]"
+            >
+              COG, SOG, heading
+            </div>
+          </div>
+          <div
+            class="rounded-xl border border-[rgba(40,65,80,0.6)] bg-[rgba(6,14,22,0.6)] p-3"
+          >
+            <div
+              class="text-[10px] uppercase tracking-[0.18em] text-[rgba(155,180,194,0.7)]"
+            >
+              Alerts
+            </div>
+            <div
+              class="mt-1.5 text-base font-semibold text-[#f2f7f9]"
+            >
+              Grounding + collision
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section
+    class="relative z-[1] flex flex-col gap-5"
+  >
+    <div
+      class="text-[22px] font-semibold text-[#f2f7f9]"
+    >
+      What you can do
+    </div>
+    <div
+      class="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4"
+    >
+      <div
+        class="min-h-[140px] rounded-2xl border border-[rgba(32,64,84,0.8)] bg-[rgba(7,16,28,0.7)] p-4"
+        style="animation-delay: 0s;"
+      >
+        <div
+          class="text-xs uppercase tracking-[0.2em] text-[rgba(195,167,107,0.7)]"
+        >
+          Navigation
+        </div>
+        <div
+          class="mt-2.5 text-base font-semibold text-[#f2f7f9]"
+        >
+          Pilot with real-time instruments
+        </div>
+        <div
+          class="mt-2 text-[13px] leading-[1.6] text-[rgba(180,201,212,0.8)]"
+        >
+          Track course, speed, and yaw rate while managing rudder and throttle from the bridge.
+        </div>
+      </div>
+      <div
+        class="min-h-[140px] rounded-2xl border border-[rgba(32,64,84,0.8)] bg-[rgba(7,16,28,0.7)] p-4"
+        style="animation-delay: 0.08s;"
+      >
+        <div
+          class="text-xs uppercase tracking-[0.2em] text-[rgba(195,167,107,0.7)]"
+        >
+          Crew
+        </div>
+        <div
+          class="mt-2.5 text-base font-semibold text-[#f2f7f9]"
+        >
+          Coordinate stations and roles
+        </div>
+        <div
+          class="mt-2 text-[13px] leading-[1.6] text-[rgba(180,201,212,0.8)]"
+        >
+          Assign helm, engine, and radio duties with role-based controls and comms.
+        </div>
+      </div>
+      <div
+        class="min-h-[140px] rounded-2xl border border-[rgba(32,64,84,0.8)] bg-[rgba(7,16,28,0.7)] p-4"
+        style="animation-delay: 0.16s;"
+      >
+        <div
+          class="text-xs uppercase tracking-[0.2em] text-[rgba(195,167,107,0.7)]"
+        >
+          Weather
+        </div>
+        <div
+          class="mt-2.5 text-base font-semibold text-[#f2f7f9]"
+        >
+          Shape the environment
+        </div>
+        <div
+          class="mt-2 text-[13px] leading-[1.6] text-[rgba(180,201,212,0.8)]"
+        >
+          Schedule presets, toggle auto-weather, and observe wave response instantly.
+        </div>
+      </div>
+      <div
+        class="min-h-[140px] rounded-2xl border border-[rgba(32,64,84,0.8)] bg-[rgba(7,16,28,0.7)] p-4"
+        style="animation-delay: 0.24s;"
+      >
+        <div
+          class="text-xs uppercase tracking-[0.2em] text-[rgba(195,167,107,0.7)]"
+        >
+          Missions
+        </div>
+        <div
+          class="mt-2.5 text-base font-semibold text-[#f2f7f9]"
+        >
+          Run scripted scenarios
+        </div>
+        <div
+          class="mt-2 text-[13px] leading-[1.6] text-[rgba(180,201,212,0.8)]"
+        >
+          Accept contracts, test route plans, and log performance across spaces.
+        </div>
+      </div>
+    </div>
+  </section>
+  <section
+    class="relative z-[1] flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[rgba(36,72,90,0.8)] bg-gradient-to-br from-[rgba(11,28,44,0.9)] to-[rgba(8,20,32,0.95)] p-5"
+  >
+    <div
+      class="text-base text-[rgba(220,233,238,0.9)]"
+    >
+      Ready to run a crewed sim or scout the global map?
+    </div>
+    <div
+      class="flex flex-wrap gap-3"
+    >
+      <button
+        class="rounded-xl border-0 bg-gradient-to-br from-[#25b2a6] to-[#15707d] px-[18px] py-3 text-[13px] font-semibold tracking-[0.02em] text-[#f8f8f8] shadow-[0_18px_35px_rgba(8,52,62,0.45)] transition-transform duration-200 hover:-translate-y-0.5"
+        type="button"
+      >
+        Enter simulator
+      </button>
+      <button
+        class="rounded-xl border border-[rgba(52,74,92,0.8)] bg-[rgba(20,34,48,0.9)] px-[18px] py-3 text-[13px] font-semibold tracking-[0.02em] text-[rgba(230,239,244,0.9)] transition-transform duration-200 hover:-translate-y-0.5"
+        type="button"
+      >
+        Manage spaces
+      </button>
+    </div>
+  </section>
+</main>
+`;
