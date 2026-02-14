@@ -1,6 +1,13 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
+import type {
+  MissionAssignmentData,
+  MissionDefinition,
+} from '../../../src/types/mission.types';
+import type { SimulationState } from '../../../src/store/types';
+import { ShipType } from '../../../src/types/vessel.types';
+
 const applyControlsMock = jest.fn();
 const refreshPhysicsParamsMock = jest.fn();
 
@@ -13,6 +20,34 @@ const socketManagerMock = {
   requestRepair: jest.fn(),
 };
 
+type HudStoreState = Pick<
+  SimulationState,
+  | 'mode'
+  | 'roles'
+  | 'sessionUserId'
+  | 'crewIds'
+  | 'crewNames'
+  | 'setNotice'
+  | 'account'
+  | 'setAccount'
+  | 'setPhysicsParams'
+  | 'missions'
+  | 'missionAssignments'
+  | 'upsertMissionAssignment'
+  | 'socketLatencyMs'
+  | 'replay'
+  | 'startReplayRecording'
+  | 'stopReplayRecording'
+  | 'startReplayPlayback'
+  | 'stopReplayPlayback'
+  | 'clearReplay'
+  | 'currentVesselId'
+  | 'spaceId'
+  | 'otherVessels'
+  | 'vessel'
+  | 'environment'
+>;
+
 const setNoticeMock = jest.fn();
 const setAccountMock = jest.fn();
 const setPhysicsParamsMock = jest.fn();
@@ -23,9 +58,30 @@ const startReplayPlaybackMock = jest.fn();
 const stopReplayPlaybackMock = jest.fn();
 const clearReplayMock = jest.fn();
 const chatPanelPropsMock = jest.fn();
-type CallbackProps = Record<string, (...args: unknown[]) => void>;
 
-const storeState: Record<string, unknown> = {
+const mission: MissionDefinition = {
+  id: 'm1',
+  spaceId: 'global',
+  name: 'Mission 1',
+  description: 'Starter mission',
+  type: 'delivery',
+  originLat: 60,
+  originLon: 24,
+  destinationLat: 60.2,
+  destinationLon: 24.2,
+  rewardCredits: 50,
+  requiredRank: 1,
+  active: true,
+};
+
+const missionAssignment: MissionAssignmentData = {
+  id: 'a-1',
+  missionId: 'm0',
+  userId: 'user-1',
+  status: 'assigned',
+};
+
+const createStoreState = (): HudStoreState => ({
   mode: 'player',
   roles: ['admin', 'player'],
   sessionUserId: 'user-1',
@@ -40,12 +96,25 @@ const storeState: Record<string, unknown> = {
   },
   setAccount: setAccountMock,
   setPhysicsParams: setPhysicsParamsMock,
-  missions: [{ id: 'm1', name: 'Mission 1' }],
-  missionAssignments: [{ missionId: 'm0', status: 'assigned' }],
+  missions: [mission],
+  missionAssignments: [missionAssignment],
   upsertMissionAssignment: upsertMissionAssignmentMock,
   socketLatencyMs: 42,
   replay: {
-    frames: [{ timestamp: 1000 }, { timestamp: 2000 }],
+    recording: false,
+    playing: false,
+    frames: [
+      {
+        timestamp: 1000,
+        position: { x: 0, y: 0, z: 0, lat: 60.17, lon: 24.94 },
+        orientation: { heading: 0.2, roll: 0.01, pitch: 0.02 },
+      },
+      {
+        timestamp: 2000,
+        position: { x: 10, y: 0, z: 0, lat: 60.171, lon: 24.941 },
+        orientation: { heading: 0.21, roll: 0.01, pitch: 0.02 },
+      },
+    ],
   },
   startReplayRecording: startReplayRecordingMock,
   stopReplayRecording: stopReplayRecordingMock,
@@ -56,12 +125,12 @@ const storeState: Record<string, unknown> = {
   spaceId: 'global',
   otherVessels: {
     'other-vessel': {
-      spaceId: 'global',
-      position: { lat: 60.171, lon: 24.941 },
-      orientation: { heading: 0.4 },
+      id: 'other-vessel',
+      position: { lat: 60.171, lon: 24.941, z: 0 },
+      orientation: { heading: 0.4, roll: 0, pitch: 0 },
       velocity: { surge: 2, sway: 0, heave: 0 },
-      properties: { length: 80, beam: 14, name: 'Other' },
-      helm: { username: 'Other Helm' },
+      properties: { length: 80, beam: 14, name: 'Other', type: ShipType.CARGO },
+      helm: { userId: 'user-9', username: 'Other Helm' },
     },
   },
   vessel: {
@@ -77,6 +146,22 @@ const storeState: Record<string, unknown> = {
       draft: 6,
       blockCoefficient: 0.8,
       name: 'Own Ship',
+      type: ShipType.CARGO,
+      maxSpeed: 30,
+    },
+    hydrodynamics: {
+      rudderForceCoefficient: 1,
+      rudderStallAngle: 0.6,
+      rudderMaxAngle: 0.7,
+      dragCoefficient: 0.8,
+      yawDamping: 0.1,
+      yawDampingQuad: 0.01,
+      swayDamping: 0.2,
+      maxThrust: 300000,
+      rollDamping: 0.3,
+      pitchDamping: 0.3,
+      heaveStiffness: 1200,
+      heaveDamping: 60,
     },
     engineState: {
       rpm: 1200,
@@ -112,8 +197,18 @@ const storeState: Record<string, unknown> = {
       blackout: false,
       otherAlarms: { customAlarm: true },
     },
-    damageState: {},
-    failureState: {},
+    damageState: {
+      hullIntegrity: 0.95,
+      engineHealth: 0.95,
+      steeringHealth: 0.95,
+      electricalHealth: 0.95,
+      floodingDamage: 0,
+    },
+    failureState: {
+      engineFailure: false,
+      steeringFailure: false,
+      floodingLevel: 0,
+    },
     waterDepth: 30,
     helm: { userId: 'user-1', username: 'Captain' },
     stations: {
@@ -132,11 +227,18 @@ const storeState: Record<string, unknown> = {
     precipitationIntensity: 0.1,
     waterDepth: 50,
   },
-};
+});
 
-const useStoreMock = (selector: (state: Record<string, unknown>) => unknown) =>
-  selector(storeState);
-useStoreMock.getState = () => storeState;
+let storeState: HudStoreState = createStoreState();
+
+const useStoreMock = jest.fn(
+  <Selected,>(selector: (state: HudStoreState) => Selected) =>
+    selector(storeState),
+);
+
+(
+  useStoreMock as typeof useStoreMock & { getState: () => HudStoreState }
+).getState = () => storeState;
 
 const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
   const url = String(input);
@@ -187,7 +289,7 @@ const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
 
 jest.mock('../../../src/store', () => ({
   __esModule: true,
-  default: (selector: (state: Record<string, unknown>) => unknown) =>
+  default: (selector: (state: HudStoreState) => unknown) =>
     useStoreMock(selector),
 }));
 
@@ -207,32 +309,11 @@ jest.mock('../../../src/lib/api', () => ({
   getApiBase: () => 'http://api.test',
 }));
 
-jest.mock('../../../src/components/hud/panels/HudAdminPanel', () => ({
-  HudAdminPanel: ({ onMove, onMoveToSelf }: CallbackProps) => (
-    <div>
-      <button onClick={onMove} type="button">
-        Admin move
-      </button>
-      <button onClick={onMoveToSelf} type="button">
-        Admin move to self
-      </button>
-    </div>
-  ),
-}));
-
-jest.mock('../../../src/components/hud/panels/HudAlarmsPanel', () => ({
-  HudAlarmsPanel: () => <div>Alarms panel</div>,
-}));
-
 jest.mock('../../../src/components/hud/panels/HudChatPanel', () => ({
   HudChatPanel: (props: unknown) => {
     chatPanelPropsMock(props);
     return <div>Chat panel</div>;
   },
-}));
-
-jest.mock('../../../src/components/hud/panels/HudConningPanel', () => ({
-  HudConningPanel: () => <div>Conning panel</div>,
 }));
 
 jest.mock('../../../src/components/hud/panels/HudNavControls', () => ({
@@ -254,115 +335,30 @@ jest.mock('../../../src/components/hud/panels/HudNavControls', () => ({
   ),
 }));
 
-jest.mock('../../../src/components/hud/panels/HudCrewPanel', () => ({
-  HudCrewPanel: ({ onRequestStation }: CallbackProps) => (
-    <button onClick={() => onRequestStation('helm', 'claim')} type="button">
-      Request station
-    </button>
-  ),
-}));
-
-jest.mock('../../../src/components/hud/panels/HudEcdisPanel', () => ({
-  HudEcdisPanel: () => <div>ECDIS panel</div>,
-}));
-
-jest.mock('../../../src/components/hud/panels/HudEventsPanel', () => ({
-  HudEventsPanel: () => <div>Events panel</div>,
-}));
-
-jest.mock('../../../src/components/hud/panels/HudMissionsPanel', () => ({
-  HudMissionsPanel: ({ onAssignMission }: CallbackProps) => (
-    <button onClick={() => onAssignMission('m1')} type="button">
-      Assign mission
-    </button>
-  ),
-}));
-
-jest.mock('../../../src/components/hud/panels/HudNavigationPanel', () => ({
-  HudNavigationPanel: () => <div>Navigation panel</div>,
-}));
-
-jest.mock('../../../src/components/hud/panels/HudRadarPanel', () => ({
-  HudRadarPanel: () => <div>Radar panel</div>,
-}));
-
-jest.mock('../../../src/components/hud/panels/HudRadioPanel', () => ({
-  HudRadioPanel: () => <div>Radio panel</div>,
-}));
-
-jest.mock('../../../src/components/hud/panels/HudReplayPanel', () => ({
-  HudReplayPanel: () => <div>Replay panel</div>,
-}));
-
-jest.mock('../../../src/components/hud/panels/HudSounderPanel', () => ({
-  HudSounderPanel: () => <div>Sounder panel</div>,
-}));
-
-jest.mock('../../../src/components/hud/panels/HudSystemsPanel', () => ({
-  HudSystemsPanel: ({ onRequestRepair }: CallbackProps) => (
-    <button onClick={onRequestRepair} type="button">
-      Request repair
-    </button>
-  ),
-}));
-
-jest.mock('../../../src/components/hud/panels/HudVesselsPanel', () => ({
-  HudVesselsPanel: ({ onJoinVessel }: CallbackProps) => (
-    <button onClick={() => onJoinVessel('other-vessel')} type="button">
-      Join vessel
-    </button>
-  ),
-}));
-
-jest.mock('../../../src/components/hud/panels/HudWeatherPanel', () => ({
-  HudWeatherPanel: () => <div>Weather panel</div>,
-}));
-
-jest.mock('../../../src/components/hud/PhysicsInspectorPanel', () => ({
-  HudPhysicsInspectorPanel: ({ onApplyParams }: CallbackProps) => (
-    <button
-      onClick={() => onApplyParams({ dragCoefficient: 0.33 })}
-      type="button"
-    >
-      Apply physics params
-    </button>
-  ),
-}));
-
-import { HudDrawer } from '../../../src/components/HudDrawer';
+const { HudDrawer } = require('../../../src/components/HudDrawer');
 
 describe('HudDrawer', () => {
-  const snapshot = JSON.parse(JSON.stringify(storeState));
-
   beforeEach(() => {
     jest.clearAllMocks();
     chatPanelPropsMock.mockClear();
+    storeState = createStoreState();
     global.fetch = fetchMock as typeof fetch;
-    Object.assign(storeState, JSON.parse(JSON.stringify(snapshot)));
-    storeState.setNotice = setNoticeMock;
-    storeState.setAccount = setAccountMock;
-    storeState.setPhysicsParams = setPhysicsParamsMock;
-    storeState.upsertMissionAssignment = upsertMissionAssignmentMock;
-    storeState.startReplayRecording = startReplayRecordingMock;
-    storeState.stopReplayRecording = stopReplayRecordingMock;
-    storeState.startReplayPlayback = startReplayPlaybackMock;
-    storeState.stopReplayPlayback = stopReplayPlaybackMock;
-    storeState.clearReplay = clearReplayMock;
   });
 
-  it('renders tabs and drives core interactions', async () => {
+  it('renders tabs and drives user-visible interactions', async () => {
     const onOpenSpaces = jest.fn();
     render(<HudDrawer onOpenSpaces={onOpenSpaces} />);
 
     expect(screen.getByText(/HUD • Player mode/i)).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole('button', { name: 'Set throttle' }));
     await waitFor(() => {
       expect(applyControlsMock).toHaveBeenCalled();
       expect(socketManagerMock.sendControlUpdate).toHaveBeenCalled();
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Vessels' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Join vessel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Request join' }));
     expect(socketManagerMock.setJoinPreference).toHaveBeenCalledWith(
       'player',
       true,
@@ -372,18 +368,14 @@ describe('HudDrawer', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Crew & stations' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Request station' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Release' }));
     expect(socketManagerMock.requestStation).toHaveBeenCalledWith(
       'helm',
-      'claim',
+      'release',
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Systems' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Request repair' }));
-    expect(socketManagerMock.requestRepair).toHaveBeenCalledWith('own-vessel');
-
     fireEvent.click(screen.getByRole('button', { name: 'Missions' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Assign mission' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         'http://api.test/api/missions/m1/assign',
@@ -396,29 +388,26 @@ describe('HudDrawer', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Admin' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Admin move' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move vessel' }));
     expect(setNoticeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'error',
         message: expect.stringContaining('Enter coordinates'),
       }),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Admin move to self' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Move to my position' }),
+    );
     expect(socketManagerMock.sendAdminVesselMove).toHaveBeenCalledWith(
       'own-vessel',
-      expect.objectContaining({
-        lat: 60.17,
-        lon: 24.94,
-      }),
+      expect.objectContaining({ lat: 60.17, lon: 24.94 }),
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Debug' }));
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Apply physics params' }),
-    );
-    expect(setPhysicsParamsMock).toHaveBeenCalledWith({
-      dragCoefficient: 0.33,
-    });
+    const firstOverrideInput = screen.getAllByRole('spinbutton')[0];
+    fireEvent.change(firstOverrideInput, { target: { value: '1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply overrides' }));
+    expect(setPhysicsParamsMock).toHaveBeenCalled();
     expect(refreshPhysicsParamsMock).toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Spaces' }));

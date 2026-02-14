@@ -8,56 +8,8 @@ import {
   HudSounderPanel,
   HudVesselsPanel,
 } from '../../../../src/components/hud/panels';
-
-jest.mock('../../../../src/components/EnvironmentControls', () => {
-  function EnvironmentControlsMock() {
-    return <div>Environment Controls Mock</div>;
-  }
-  return EnvironmentControlsMock;
-});
-
-jest.mock('../../../../src/components/TelegraphLever', () => ({
-  TelegraphLever: () => <div>Telegraph Lever Mock</div>,
-}));
-
-jest.mock('../../../../src/components/HelmControl', () => ({
-  HelmControl: () => <div>Helm Control Mock</div>,
-}));
-
-jest.mock('../../../../src/components/RudderAngleIndicator', () => {
-  function RudderAngleIndicatorMock() {
-    return <div>Rudder Indicator Mock</div>;
-  }
-  return RudderAngleIndicatorMock;
-});
-
-jest.mock('../../../../src/components/ChatPanel', () => ({
-  ChatPanel: () => <div>Chat Panel Mock</div>,
-}));
-
-jest.mock('../../../../src/components/EventLog', () => {
-  function EventLogMock() {
-    return <div>Event Log Mock</div>;
-  }
-  return EventLogMock;
-});
-
-jest.mock('../../../../src/components/radio', () => ({
-  MarineRadio: () => <div>Marine Radio Mock</div>,
-}));
-
-jest.mock('../../../../src/components/bridge/ConningDisplay', () => ({
-  ConningDisplay: () => <div>Conning Display Mock</div>,
-}));
-
-jest.mock('../../../../src/components/alarms/AlarmIndicator', () => ({
-  AlarmIndicator: () => <div>Alarm Indicator Mock</div>,
-}));
-
-jest.mock('../../../../src/components/DepthSounder', () => ({
-  __esModule: true,
-  default: ({ depth }: { depth: number }) => <div>Depth: {depth}</div>,
-}));
+import { ShipType } from '../../../../src/types/vessel.types';
+import type { SimpleVesselState } from '../../../../src/types/vessel.types';
 
 jest.mock('../../../../src/components/navigation/ecdis/EcdisDisplay', () => ({
   EcdisDisplay: ({
@@ -73,12 +25,9 @@ jest.mock('../../../../src/components/navigation/ecdis/EcdisDisplay', () => ({
   ),
 }));
 
-jest.mock('../../../../src/components/radar', () => ({
-  RadarDisplay: () => <div>Radar Display Mock</div>,
-}));
-
-jest.mock('../../../../src/components/SystemMeter', () => ({
-  SystemMeter: () => <div>System Meter Mock</div>,
+jest.mock('../../../../src/components/DepthSounder', () => ({
+  __esModule: true,
+  default: ({ depth }: { depth: number }) => <div>Depth: {depth}</div>,
 }));
 
 describe('HudPanels exports', () => {
@@ -118,16 +67,17 @@ describe('HudPanels exports', () => {
         spaceId: 'other-space',
       },
     ];
-    const otherVessels: React.ComponentProps<
-      typeof HudVesselsPanel
-    >['otherVessels'] = {
+    const otherVessels: Record<string, SimpleVesselState> = {
       ov1: {
         id: 'ov1',
         crewCount: 2,
         position: { lat: 60.17, lon: 24.94, z: 0 },
         orientation: { heading: 34, roll: 0, pitch: 0 },
         velocity: { surge: 0, sway: 0, heave: 0 },
-        properties: { name: 'Scout' },
+        properties: {
+          name: 'Scout',
+          type: ShipType.CARGO,
+        },
       },
     };
     const resolveNearestPort: React.ComponentProps<
