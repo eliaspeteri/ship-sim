@@ -349,7 +349,7 @@ Acceptance:
 
 ### B4. Rebalance component tests away from broad child mocking (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `tests/frontend/components/HudDrawer.test.tsx`, `tests/frontend/SimPage.test.tsx`, `tests/frontend/components/hud/HudPanels.test.tsx`
 
