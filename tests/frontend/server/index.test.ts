@@ -112,6 +112,27 @@ describe('server/index', () => {
     ).toThrow('Missing FRONTEND_ORIGINS/FRONTEND_URL in production');
   });
 
+  it('parses allowed origins in development and rejects invalid production origins', async () => {
+    const mod = await loadModule();
+    expect(
+      mod.__test__.parseAllowedOrigins({ production: false, rawOrigins: '' }),
+    ).toEqual(['http://localhost:3000', 'http://127.0.0.1:3000']);
+
+    expect(
+      mod.__test__.parseAllowedOrigins({
+        production: false,
+        rawOrigins: 'notaurl,http://ok.local',
+      }),
+    ).toEqual(['http://ok.local']);
+
+    expect(() =>
+      mod.__test__.parseAllowedOrigins({
+        production: true,
+        rawOrigins: 'notaurl',
+      }),
+    ).toThrow('Invalid FRONTEND_ORIGINS/FRONTEND_URL in production');
+  });
+
   it('applies environment overrides and updates tide state', async () => {
     const mod = await loadModule();
     const { computeTideState } = await import('../../../src/lib/tides');
@@ -346,6 +367,44 @@ describe('server/index', () => {
     expect(prisma.space.findUnique).toHaveBeenCalled();
   });
 
+  it('handles metadata, role, and economy socket sync failures gracefully', async () => {
+    const mod = await loadModule();
+    const { prisma } = await import('../../../src/lib/prisma');
+    (prisma.space.findUnique as jest.Mock).mockRejectedValueOnce(
+      new Error('meta fail'),
+    );
+    const meta = await mod.__test__.getSpaceMeta('space-catch');
+    expect(meta.id).toBe('space-catch');
+
+    mod.__test__.spaceMetaCache.set('space-role-catch', {
+      id: 'space-role-catch',
+      name: 'Role Catch',
+      visibility: 'public',
+      kind: 'free',
+      rankRequired: 1,
+      rulesetType: null,
+      rules: null,
+      createdBy: null,
+    });
+    (prisma.spaceAccess.findUnique as jest.Mock).mockRejectedValueOnce(
+      new Error('role fail'),
+    );
+    const role = await mod.__test__.getSpaceRole('user-1', 'space-role-catch');
+    expect(role).toBe('member');
+
+    mockIo.in.mockReturnValueOnce({
+      fetchSockets: jest.fn(async () => {
+        throw new Error('socket sync fail');
+      }),
+    });
+    await mod.syncUserSocketsEconomy('user-1', {
+      rank: 1,
+      experience: 2,
+      credits: 3,
+      safetyScore: 0.4,
+    });
+  });
+
   it('resolves space roles and access', async () => {
     const mod = await loadModule();
     const { prisma } = await import('../../../src/lib/prisma');
@@ -416,6 +475,40 @@ describe('server/index', () => {
     expect(
       mod.__test__.globalState.environmentBySpace.get('space-1'),
     ).toBeTruthy();
+  });
+
+  it('loads persisted environment rows and updates tide values', async () => {
+    const mod = await loadModule();
+    const { prisma } = await import('../../../src/lib/prisma');
+    const { computeTideState } = await import('../../../src/lib/tides');
+    (prisma.weatherState.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'space-env',
+      spaceId: 'space-env',
+      name: 'Stored',
+      windSpeed: 4,
+      windDirection: 1,
+      windGusting: true,
+      windGustFactor: 1.7,
+      currentSpeed: 0.8,
+      currentDirection: 0.3,
+      currentVariability: 0.2,
+      seaState: 2,
+      waterDepth: 40,
+      visibility: 9,
+      timeOfDay: 5,
+      precipitation: 'rain',
+      precipitationIntensity: 0.6,
+    });
+    (computeTideState as jest.Mock).mockReturnValueOnce({
+      height: 1.2,
+      range: 2.1,
+      phase: 0.4,
+      trend: 'falling',
+    });
+    await mod.__test__.loadEnvironmentFromDb('space-env');
+    const env = mod.__test__.globalState.environmentBySpace.get('space-env');
+    expect(env?.name).toBe('Stored');
+    expect(env?.tideTrend).toBe('falling');
   });
 
   it('ensures default space exists', async () => {
@@ -610,6 +703,21 @@ describe('server/index', () => {
     const next = jest.fn();
     await authMiddleware!(socket, next);
     expect(next).toHaveBeenCalledWith(expect.any(Error));
+    void mod;
+  });
+
+  it('guest auth path proceeds as guest when secret is missing', async () => {
+    delete process.env.NEXTAUTH_SECRET;
+    const mod = await loadModule();
+    const socket = {
+      handshake: { headers: { cookie: '' }, auth: {} },
+      data: {} as TestSocketData,
+      join: jest.fn(),
+    };
+    const next = jest.fn();
+    await authMiddleware!(socket, next);
+    expect(next).toHaveBeenCalled();
+    expect((socket.data as TestSocketAuth['data']).mode).toBe('spectator');
     void mod;
   });
 
@@ -977,6 +1085,82 @@ describe('server/index', () => {
     void mod;
   });
 
+  it('covers handler context adapters and weather mutators', async () => {
+    const mod = await loadModule();
+    const { registerStationHandlers } = await import(
+      '../../../src/server/socketHandlers/stations'
+    );
+    const { registerAdminWeatherHandler } = await import(
+      '../../../src/server/socketHandlers/adminWeather'
+    );
+    (registerStationHandlers as jest.Mock).mockImplementationOnce(context => {
+      const built = context.buildVesselRecordFromRow({
+        id: 'v-built',
+        spaceId: 'space-1',
+        ownerId: 'owner',
+        status: 'active',
+        storagePortId: null,
+        storedAt: null,
+        chartererId: null,
+        leaseeId: null,
+        mode: 'player',
+        desiredMode: 'player',
+        lastCrewAt: new Date(),
+        lat: 0,
+        lon: 0,
+        z: 0,
+        heading: 0,
+        roll: 0,
+        pitch: 0,
+        surge: 0,
+        sway: 0,
+        heave: 0,
+        yawRate: 0,
+        throttle: 0,
+        rudderAngle: 0,
+        ballast: 0.5,
+        bowThruster: 0,
+        mass: 1,
+        length: 1,
+        beam: 1,
+        draft: 1,
+        lastUpdate: new Date(),
+        templateId: 'template-1',
+      });
+      context.globalState.vessels.set(built.id, built);
+      const result = context.updateStationAssignment(
+        built,
+        'helm',
+        'claim',
+        'u-a',
+        'User A',
+        false,
+      );
+      expect(result).toEqual({ ok: true });
+      expect(context.isPlayerOrHigher()).toBe(true);
+      expect(context.resolveChatChannel(undefined, built.id, 'space-1')).toBe(
+        'space:space-1:vessel:v-built',
+      );
+    });
+    (registerAdminWeatherHandler as jest.Mock).mockImplementationOnce(
+      context => {
+        expect(context.weather.getMode()).toBeTruthy();
+        context.weather.setMode('manual');
+        context.weather.setTarget({ name: 'Manual' });
+        context.weather.setNextAuto(Date.now() + 1000);
+        expect(context.weather.getMode()).toBe('manual');
+        expect(context.weather.getTarget()).toEqual({ name: 'Manual' });
+      },
+    );
+
+    const socket = createConnectionSocket({
+      id: 's-context',
+      data: { userId: 'user-ctx', username: 'Ctx', roles: ['player'] },
+    });
+    await connectionHandler!(socket);
+    void mod;
+  });
+
   it('falls back to guest when user auth verification fails', async () => {
     process.env.NEXTAUTH_SECRET = 'test-secret';
     const mod = await loadModule();
@@ -1057,5 +1241,69 @@ describe('server/index', () => {
     await mod.persistVesselToDb(vessel, { force: true });
     expect(prisma.vessel.upsert).toHaveBeenCalledTimes(2);
     jest.useRealTimers();
+  });
+
+  it('detaches a user from crewed vessel and clears stations', async () => {
+    const mod = await loadModule();
+    const vessel = buildVessel('v-detach');
+    vessel.crewIds.add('u-detach');
+    vessel.crewNames.set('u-detach', 'Detach User');
+    vessel.helmUserId = 'u-detach';
+    vessel.helmUsername = 'Detach User';
+    vessel.engineUserId = 'u-detach';
+    vessel.engineUsername = 'Detach User';
+    vessel.radioUserId = 'u-detach';
+    vessel.radioUsername = 'Detach User';
+    mod.__test__.globalState.vessels.set(vessel.id, vessel);
+
+    mod.__test__.detachUserFromCurrentVessel('u-detach', 'space-1');
+    expect(vessel.crewIds.has('u-detach')).toBe(false);
+    expect(vessel.helmUserId).toBeNull();
+    expect(vessel.engineUserId).toBeNull();
+    expect(vessel.radioUserId).toBeNull();
+    expect(vessel.mode).toBe('ai');
+  });
+
+  it('returns rules from explicit rulesetType metadata', async () => {
+    const mod = await loadModule();
+    mod.__test__.spaceMetaCache.set('space-ruleset', {
+      id: 'space-ruleset',
+      name: 'Ruleset Space',
+      visibility: 'public',
+      kind: 'free',
+      rankRequired: 1,
+      rulesetType: 'REALISTIC',
+      rules: null,
+      createdBy: null,
+    });
+    const rules = mod.getRulesForSpace('space-ruleset');
+    expect(rules).toHaveProperty('realism');
+  });
+
+  it('returns null for ban and mute lookups without identity', async () => {
+    const mod = await loadModule();
+    expect(
+      await mod.__test__.getActiveBan(undefined, undefined, 'space-1'),
+    ).toBe(null);
+    expect(
+      await mod.__test__.getActiveMute(undefined, undefined, 'space-1'),
+    ).toBe(null);
+  });
+
+  it('handles ban/mute lookup failures by returning null', async () => {
+    const mod = await loadModule();
+    const { prisma } = await import('../../../src/lib/prisma');
+    (prisma.ban.findFirst as jest.Mock).mockRejectedValueOnce(
+      new Error('ban fail'),
+    );
+    (prisma.mute.findFirst as jest.Mock).mockRejectedValueOnce(
+      new Error('mute fail'),
+    );
+    expect(await mod.__test__.getActiveBan('u-1', 'User', 'space-1')).toBe(
+      null,
+    );
+    expect(await mod.__test__.getActiveMute('u-1', 'User', 'space-1')).toBe(
+      null,
+    );
   });
 });

@@ -126,4 +126,57 @@ describe('registerVesselLeaseHandler', () => {
     expect(vessel.leaseeId).toBe('user-2');
     expect(persistVesselToDb).toHaveBeenCalled();
   });
+
+  it('validates lease create inputs and acceptance fallback path', async () => {
+    const handlers: Record<string, any> = {};
+    const socket = {
+      on: jest.fn((event, cb) => {
+        handlers[event] = cb;
+      }),
+      emit: jest.fn(),
+      data: { userId: 'user-2' },
+    };
+
+    registerVesselLeaseHandler({
+      socket,
+      effectiveUserId: 'user-2',
+      globalState: {
+        vessels: new Map([['v-1', { id: 'v-1', ownerId: 'user-2' }]]),
+      },
+      hasAdminRole: jest.fn(() => false),
+      persistVesselToDb: jest.fn(),
+    } as any);
+
+    handlers['vessel:lease:create']({ vesselId: 'v-1', ratePerHour: 0 });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('error', 'Invalid lease rate');
+
+    handlers['vessel:lease:accept']({});
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('error', 'Missing lease id');
+
+    (prisma.vesselLease.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'lease-charter',
+      vesselId: 'v-missing',
+      status: 'open',
+      type: 'charter',
+    });
+    (prisma.vesselLease.update as jest.Mock).mockResolvedValueOnce({
+      id: 'lease-charter',
+      vesselId: 'v-missing',
+      status: 'active',
+      type: 'charter',
+    });
+
+    handlers['vessel:lease:accept']({ leaseId: 'lease-charter' });
+    await flushPromises();
+    expect(prisma.vessel.update).toHaveBeenCalledWith({
+      where: { id: 'v-missing' },
+      data: {
+        status: 'chartered',
+        chartererId: 'user-2',
+        leaseeId: null,
+      },
+    });
+  });
 });

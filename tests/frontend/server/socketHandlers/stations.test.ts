@@ -94,4 +94,51 @@ describe('registerStationHandlers', () => {
     });
     nowSpy.mockRestore();
   });
+
+  it('emits assignment errors and allows admin station override', () => {
+    const handlers: Record<string, any> = {};
+    const emitSpy = jest.fn();
+    const socket = {
+      on: jest.fn((event, cb) => {
+        handlers[event] = cb;
+      }),
+      emit: jest.fn(),
+      data: { userId: 'admin', username: 'Admin' },
+    };
+    const vessel = {
+      id: 'v-1',
+      spaceId: 'space-1',
+      crewIds: new Set<string>(),
+      crewNames: new Map<string, string>(),
+      lastUpdate: 0,
+    };
+    const updateStationAssignment = jest
+      .fn()
+      .mockReturnValueOnce({ ok: false, message: 'Station locked' })
+      .mockReturnValueOnce({ ok: true });
+
+    registerStationHandlers({
+      io: { to: jest.fn(() => ({ emit: emitSpy })) },
+      socket,
+      spaceId: 'space-1',
+      effectiveUserId: 'admin',
+      effectiveUsername: 'Admin',
+      globalState: { vessels: new Map([['v-1', vessel]]) },
+      getVesselIdForUser: jest.fn(() => 'v-1'),
+      updateStationAssignment,
+      hasAdminRole: jest.fn(() => true),
+      toSimpleVesselState: jest.fn(() => ({ id: 'v-1' })),
+      persistVesselToDb: jest.fn(),
+      defaultSpaceId: 'space-1',
+    } as any);
+
+    handlers['vessel:helm']({ action: 'claim' });
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'You are not crew on this vessel',
+    );
+
+    handlers['vessel:station']({ station: 'radio', action: 'claim' });
+    expect(socket.emit).toHaveBeenCalledWith('error', 'Station locked');
+  });
 });

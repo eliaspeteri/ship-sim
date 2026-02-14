@@ -188,4 +188,89 @@ describe('registerEconomyHandlers', () => {
       data: { status: 'canceled', activeUntil: expect.any(Date) },
     });
   });
+
+  it('rejects loan request when active debt exceeds max credit', async () => {
+    const handlers: Record<string, any> = {};
+    const socket = {
+      on: jest.fn((event, cb) => {
+        handlers[event] = cb;
+      }),
+      emit: jest.fn(),
+      data: { userId: 'user-1', rank: 1 },
+    };
+
+    (prisma.loan.aggregate as jest.Mock).mockResolvedValue({
+      _sum: { balance: 6500 },
+    });
+
+    registerEconomyHandlers({
+      io: { to: jest.fn(() => ({ emit: jest.fn() })) },
+      socket,
+      effectiveUserId: 'user-1',
+      globalState: { vessels: new Map() },
+      syncUserSocketsEconomy: jest.fn(),
+    } as any);
+
+    handlers['economy:loan:request']({ amount: 1000 });
+    await flushPromises();
+
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Loan request exceeds available credit',
+    );
+  });
+
+  it('validates repayment and insurance ownership checks', async () => {
+    const handlers: Record<string, any> = {};
+    const socket = {
+      on: jest.fn((event, cb) => {
+        handlers[event] = cb;
+      }),
+      emit: jest.fn(),
+      data: { userId: 'user-1', rank: 1 },
+    };
+
+    registerEconomyHandlers({
+      io: { to: jest.fn(() => ({ emit: jest.fn() })) },
+      socket,
+      effectiveUserId: 'user-1',
+      globalState: { vessels: new Map() },
+      syncUserSocketsEconomy: jest.fn(),
+    } as any);
+
+    handlers['economy:loan:repay']({ amount: 10 });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('error', 'Missing loan id');
+
+    handlers['economy:loan:repay']({ loanId: 'l-1', amount: 0 });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Invalid repayment amount',
+    );
+
+    (prisma.loan.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    handlers['economy:loan:repay']({ loanId: 'l-1', amount: 10 });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('error', 'Loan not found');
+
+    handlers['economy:insurance:purchase']({ vesselId: 'v-1' });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Not authorized to insure this vessel',
+    );
+
+    handlers['economy:insurance:cancel']({});
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('error', 'Missing policy id');
+
+    (prisma.insurancePolicy.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'p-1',
+      ownerId: 'other-user',
+    });
+    handlers['economy:insurance:cancel']({ policyId: 'p-1' });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('error', 'Policy not found');
+  });
 });

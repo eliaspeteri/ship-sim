@@ -1,9 +1,12 @@
 import { registerVesselJoinHandler } from '../../../../src/server/socketHandlers/vesselJoin';
+import { prisma } from '../../../../src/lib/prisma';
 import {
   applyEconomyAdjustment,
   calculateVesselCreationCost,
   getEconomyProfile,
+  resolvePortForPosition,
 } from '../../../../src/server/economy';
+import { distanceMeters } from '../../../../src/lib/position';
 
 jest.mock('../../../../src/lib/prisma', () => ({
   prisma: {
@@ -259,5 +262,214 @@ describe('registerVesselJoinHandler', () => {
       partial: true,
       timestamp: expect.any(Number),
     });
+  });
+
+  it('rejects joining when rank is below space requirement', async () => {
+    const handlers: Record<string, any> = {};
+    const socket = {
+      on: jest.fn((event, cb) => {
+        handlers[event] = cb;
+      }),
+      emit: jest.fn(),
+      data: { userId: 'user-1', username: 'User', rank: 1 },
+    };
+
+    registerVesselJoinHandler({
+      io: { to: jest.fn(() => ({ emit: jest.fn() })) },
+      socket,
+      spaceId: 'space-1',
+      effectiveUserId: 'user-1',
+      effectiveUsername: 'User',
+      isPlayerOrHigher: jest.fn(() => true),
+      spaceMeta: { rankRequired: 3 },
+      globalState: { vessels: new Map(), userLastVessel: new Map() },
+      buildVesselRecordFromRow: jest.fn(),
+      findVesselInSpace: jest.fn(),
+      getVesselIdForUser: jest.fn(),
+      findJoinableVessel: jest.fn(),
+      hasAdminRole: jest.fn(() => false),
+      maxCrew: 4,
+      detachUserFromCurrentVessel: jest.fn(),
+      assignStationsForCrew: jest.fn(),
+      aiControllers: new Set(),
+      userSpaceKey: jest.fn(() => 'key'),
+      updateSocketVesselRoom: jest.fn(),
+      toSimpleVesselState: jest.fn(),
+      persistVesselToDb: jest.fn(),
+      defaultSpaceId: 'space-1',
+      createNewVesselForUser: jest.fn(),
+      syncUserSocketsEconomy: jest.fn(),
+      getRulesForSpace: jest.fn(() => ({ type: 'casual' })),
+    } as any);
+
+    await handlers['vessel:join']({ vesselId: 'v-1' });
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Rank 3 required for this space',
+    );
+  });
+
+  it('loads vessel from persistence and rejects unauthorized users', async () => {
+    const handlers: Record<string, any> = {};
+    const socket = {
+      on: jest.fn((event, cb) => {
+        handlers[event] = cb;
+      }),
+      emit: jest.fn(),
+      data: { userId: 'user-1', username: 'User', rank: 5 },
+    };
+
+    (prisma.vessel.findUnique as jest.Mock).mockResolvedValue({
+      id: 'v-db',
+      ownerId: 'other-user',
+      chartererId: null,
+      leaseeId: null,
+    });
+
+    registerVesselJoinHandler({
+      io: { to: jest.fn(() => ({ emit: jest.fn() })) },
+      socket,
+      spaceId: 'space-1',
+      effectiveUserId: 'user-1',
+      effectiveUsername: 'User',
+      isPlayerOrHigher: jest.fn(() => true),
+      spaceMeta: { rankRequired: 1 },
+      globalState: { vessels: new Map(), userLastVessel: new Map() },
+      buildVesselRecordFromRow: jest.fn(),
+      findVesselInSpace: jest.fn(() => null),
+      getVesselIdForUser: jest.fn(),
+      findJoinableVessel: jest.fn(() => null),
+      hasAdminRole: jest.fn(() => false),
+      maxCrew: 4,
+      detachUserFromCurrentVessel: jest.fn(),
+      assignStationsForCrew: jest.fn(),
+      aiControllers: new Set(),
+      userSpaceKey: jest.fn(() => 'key'),
+      updateSocketVesselRoom: jest.fn(),
+      toSimpleVesselState: jest.fn(),
+      persistVesselToDb: jest.fn(),
+      defaultSpaceId: 'space-1',
+      createNewVesselForUser: jest.fn(),
+      syncUserSocketsEconomy: jest.fn(),
+      getRulesForSpace: jest.fn(() => ({ type: 'casual' })),
+    } as any);
+
+    await handlers['vessel:join']({ vesselId: 'v-db' });
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Not authorized to join this vessel',
+    );
+  });
+
+  it('blocks realism vessel switching when far from target and no port', async () => {
+    const handlers: Record<string, any> = {};
+    const socket = {
+      on: jest.fn((event, cb) => {
+        handlers[event] = cb;
+      }),
+      emit: jest.fn(),
+      data: { userId: 'user-1', username: 'User', rank: 5 },
+    };
+    const currentVessel = {
+      id: 'v-current',
+      position: { lat: 0, lon: 0 },
+      crewIds: new Set<string>(),
+      crewNames: new Map<string, string>(),
+    };
+    const targetVessel = {
+      id: 'v-target',
+      position: { lat: 5, lon: 5 },
+      crewIds: new Set<string>(),
+      crewNames: new Map<string, string>(),
+    };
+
+    (distanceMeters as jest.Mock).mockReturnValueOnce(2001);
+    (resolvePortForPosition as jest.Mock).mockReturnValue(null);
+
+    registerVesselJoinHandler({
+      io: { to: jest.fn(() => ({ emit: jest.fn() })) },
+      socket,
+      spaceId: 'space-1',
+      effectiveUserId: 'user-1',
+      effectiveUsername: 'User',
+      isPlayerOrHigher: jest.fn(() => true),
+      spaceMeta: { rankRequired: 1 },
+      globalState: { vessels: new Map(), userLastVessel: new Map() },
+      buildVesselRecordFromRow: jest.fn(),
+      findVesselInSpace: jest.fn((id: string) =>
+        id === 'v-target' ? targetVessel : currentVessel,
+      ),
+      getVesselIdForUser: jest.fn(() => 'v-current'),
+      findJoinableVessel: jest.fn(() => targetVessel),
+      hasAdminRole: jest.fn(() => false),
+      maxCrew: 4,
+      detachUserFromCurrentVessel: jest.fn(),
+      assignStationsForCrew: jest.fn(),
+      aiControllers: new Set(),
+      userSpaceKey: jest.fn(() => 'key'),
+      updateSocketVesselRoom: jest.fn(),
+      toSimpleVesselState: jest.fn(),
+      persistVesselToDb: jest.fn(),
+      defaultSpaceId: 'space-1',
+      createNewVesselForUser: jest.fn(),
+      syncUserSocketsEconomy: jest.fn(),
+      getRulesForSpace: jest.fn(() => ({ type: 'REALISM' })),
+    } as any);
+
+    await handlers['vessel:join']({ vesselId: 'v-target' });
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Switching vessels is only allowed in port or near the target vessel.',
+    );
+  });
+
+  it('rejects creating a vessel when not docked in realism mode', async () => {
+    const handlers: Record<string, any> = {};
+    const socket = {
+      on: jest.fn((event, cb) => {
+        handlers[event] = cb;
+      }),
+      emit: jest.fn(),
+      data: { userId: 'user-1', username: 'User', rank: 5 },
+    };
+    const currentVessel = {
+      id: 'v-current',
+      position: { lat: 0, lon: 0 },
+    };
+    (resolvePortForPosition as jest.Mock).mockReturnValue(null);
+
+    registerVesselJoinHandler({
+      io: { to: jest.fn(() => ({ emit: jest.fn() })) },
+      socket,
+      spaceId: 'space-1',
+      effectiveUserId: 'user-1',
+      effectiveUsername: 'User',
+      isPlayerOrHigher: jest.fn(() => true),
+      spaceMeta: { rankRequired: 1 },
+      globalState: { vessels: new Map(), userLastVessel: new Map() },
+      buildVesselRecordFromRow: jest.fn(),
+      findVesselInSpace: jest.fn(() => currentVessel),
+      getVesselIdForUser: jest.fn(() => 'v-current'),
+      findJoinableVessel: jest.fn(),
+      hasAdminRole: jest.fn(() => false),
+      maxCrew: 4,
+      detachUserFromCurrentVessel: jest.fn(),
+      assignStationsForCrew: jest.fn(),
+      aiControllers: new Set(),
+      userSpaceKey: jest.fn(() => 'key'),
+      updateSocketVesselRoom: jest.fn(),
+      toSimpleVesselState: jest.fn(),
+      persistVesselToDb: jest.fn(),
+      defaultSpaceId: 'space-1',
+      createNewVesselForUser: jest.fn(),
+      syncUserSocketsEconomy: jest.fn(),
+      getRulesForSpace: jest.fn(() => ({ type: 'EXAM' })),
+    } as any);
+
+    handlers['vessel:create']({});
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Creating a vessel is only allowed while docked at a port.',
+    );
   });
 });

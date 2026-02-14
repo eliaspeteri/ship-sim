@@ -1314,6 +1314,1163 @@ describe('server/api router', () => {
     );
   });
 
+  it('handles economy endpoint validation and error paths', async () => {
+    const cargoModel = prismaMock.cargoLot as Record<string, MockedAsync>;
+    const passengerModel = prismaMock.passengerContract as Record<
+      string,
+      MockedAsync
+    >;
+    const loanModel = prismaMock.loan as Record<string, MockedAsync>;
+    const insuranceModel = prismaMock.insurancePolicy as Record<
+      string,
+      MockedAsync
+    >;
+    const leaseModel = prismaMock.vesselLease as Record<string, MockedAsync>;
+    const saleModel = prismaMock.vesselSale as Record<string, MockedAsync>;
+
+    const purchaseMissingTemplate = await invokeRoute(
+      'post',
+      '/economy/vessels/purchase',
+      { body: {} },
+    );
+    expect(purchaseMissingTemplate.res.statusCode).toBe(400);
+
+    const leaseMissingTemplate = await invokeRoute(
+      'post',
+      '/economy/vessels/lease',
+      { body: {} },
+    );
+    expect(leaseMissingTemplate.res.statusCode).toBe(400);
+
+    const cargoAssignMissing = await invokeRoute(
+      'post',
+      '/economy/cargo/assign',
+      { body: {} },
+    );
+    expect(cargoAssignMissing.res.statusCode).toBe(400);
+
+    cargoModel.findUnique.mockResolvedValueOnce(null as never);
+    const cargoReleaseMissing = await invokeRoute(
+      'post',
+      '/economy/cargo/release',
+      { body: { cargoId: 'cargo-404' } },
+    );
+    expect(cargoReleaseMissing.res.statusCode).toBe(404);
+
+    const passengerMissing = await invokeRoute(
+      'post',
+      '/economy/passengers/accept',
+      { body: {} },
+    );
+    expect(passengerMissing.res.statusCode).toBe(400);
+
+    const loanInvalidAmount = await invokeRoute(
+      'post',
+      '/economy/loans/request',
+      { body: { amount: 0 } },
+    );
+    expect(loanInvalidAmount.res.statusCode).toBe(400);
+
+    const loanRepayMissing = await invokeRoute('post', '/economy/loans/repay', {
+      body: {},
+    });
+    expect(loanRepayMissing.res.statusCode).toBe(400);
+
+    const insuranceMissing = await invokeRoute(
+      'post',
+      '/economy/insurance/purchase',
+      { body: {} },
+    );
+    expect(insuranceMissing.res.statusCode).toBe(400);
+
+    const insuranceCancelMissing = await invokeRoute(
+      'post',
+      '/economy/insurance/cancel',
+      { body: {} },
+    );
+    expect(insuranceCancelMissing.res.statusCode).toBe(400);
+
+    const createLeaseMissing = await invokeRoute('post', '/economy/leases', {
+      body: {},
+    });
+    expect(createLeaseMissing.res.statusCode).toBe(400);
+
+    const acceptLeaseMissing = await invokeRoute(
+      'post',
+      '/economy/leases/accept',
+      { body: {} },
+    );
+    expect(acceptLeaseMissing.res.statusCode).toBe(400);
+
+    const endLeaseMissing = await invokeRoute('post', '/economy/leases/end', {
+      body: {},
+    });
+    expect(endLeaseMissing.res.statusCode).toBe(400);
+
+    const saleMissing = await invokeRoute('post', '/economy/sales', {
+      body: {},
+    });
+    expect(saleMissing.res.statusCode).toBe(400);
+
+    const saleBuyMissing = await invokeRoute('post', '/economy/sales/buy', {
+      body: {},
+    });
+    expect(saleBuyMissing.res.statusCode).toBe(400);
+
+    const storageMissing = await invokeRoute(
+      'post',
+      '/economy/vessels/storage',
+      { body: {} },
+    );
+    expect(storageMissing.res.statusCode).toBe(400);
+
+    const summaryModel = prismaMock.economyTransaction as Record<
+      string,
+      MockedAsync
+    >;
+    summaryModel.findMany.mockRejectedValueOnce(new Error('db down') as never);
+    const summaryFailure = await invokeRoute('get', '/economy/summary');
+    expect(summaryFailure.res.statusCode).toBe(500);
+
+    loanModel.findUnique.mockResolvedValueOnce(null as never);
+    const loanNotFound = await invokeRoute('post', '/economy/loans/repay', {
+      body: { loanId: 'loan-404', amount: 5 },
+    });
+    expect(loanNotFound.res.statusCode).toBe(404);
+
+    insuranceModel.findUnique.mockResolvedValueOnce(null as never);
+    const insuranceNotFound = await invokeRoute(
+      'post',
+      '/economy/insurance/cancel',
+      {
+        body: { policyId: 'policy-404' },
+      },
+    );
+    expect(insuranceNotFound.res.statusCode).toBe(404);
+
+    leaseModel.findUnique.mockResolvedValueOnce(null as never);
+    const leaseNotFound = await invokeRoute('post', '/economy/leases/accept', {
+      body: { leaseId: 'lease-404' },
+    });
+    expect(leaseNotFound.res.statusCode).toBe(404);
+
+    saleModel.findUnique.mockResolvedValueOnce(null as never);
+    const saleNotFound = await invokeRoute('post', '/economy/sales/buy', {
+      body: { saleId: 'sale-404' },
+    });
+    expect(saleNotFound.res.statusCode).toBe(404);
+
+    passengerModel.findUnique.mockResolvedValueOnce(null as never);
+    const passengerNotFound = await invokeRoute(
+      'post',
+      '/economy/passengers/accept',
+      {
+        body: { contractId: 'contract-404', vesselId: 'v-1' },
+      },
+    );
+    expect(passengerNotFound.res.statusCode).toBe(404);
+  });
+
+  it('handles spaces, careers, licenses, and exams validation branches', async () => {
+    const spaceModel = prismaMock.space as Record<string, MockedAsync>;
+    const careerModel = prismaMock.userCareer as Record<string, MockedAsync>;
+    const examModel = prismaMock.exam as Record<string, MockedAsync>;
+
+    const createSpaceMissingName = await invokeRoute('post', '/spaces', {
+      body: { name: '  ' },
+    });
+    expect(createSpaceMissingName.res.statusCode).toBe(400);
+
+    const knownMissingSpaceId = await invokeRoute('post', '/spaces/known', {
+      body: {},
+    });
+    expect(knownMissingSpaceId.res.statusCode).toBe(400);
+
+    const activateMissingCareer = await invokeRoute(
+      'post',
+      '/careers/activate',
+      {
+        body: {},
+      },
+    );
+    expect(activateMissingCareer.res.statusCode).toBe(400);
+
+    const renewMissingKey = await invokeRoute('post', '/licenses/renew', {
+      body: {},
+    });
+    expect(renewMissingKey.res.statusCode).toBe(400);
+
+    const examMissingScore = await invokeRoute('post', '/exams/:id/attempt', {
+      params: { id: 'exam-1' },
+      body: {},
+    });
+    expect(examMissingScore.res.statusCode).toBe(400);
+
+    examModel.findUnique.mockResolvedValueOnce(null as never);
+    const examNotFound = await invokeRoute('post', '/exams/:id/attempt', {
+      params: { id: 'exam-404' },
+      body: { score: 80 },
+    });
+    expect(examNotFound.res.statusCode).toBe(404);
+
+    spaceModel.findMany.mockResolvedValueOnce([] as never);
+    spaceModel.findUnique.mockResolvedValueOnce(null as never);
+    const accessNotFound = await invokeRoute('post', '/spaces/access', {
+      body: { inviteToken: 'missing-token' },
+    });
+    expect(accessNotFound.res.statusCode).toBe(404);
+
+    careerModel.findMany.mockRejectedValueOnce(new Error('boom') as never);
+    const careersFailure = await invokeRoute('get', '/careers/status');
+    expect(careersFailure.res.statusCode).toBe(500);
+  });
+
+  it('covers additional economy route edge branches', async () => {
+    const vesselModel = prismaMock.vessel as Record<string, MockedAsync>;
+    const userModel = prismaMock.user as Record<string, MockedAsync>;
+    const cargoModel = prismaMock.cargoLot as Record<string, MockedAsync>;
+    const passengerModel = prismaMock.passengerContract as Record<
+      string,
+      MockedAsync
+    >;
+    const loanModel = prismaMock.loan as Record<string, MockedAsync>;
+    const leaseModel = prismaMock.vesselLease as Record<string, MockedAsync>;
+    const saleModel = prismaMock.vesselSale as Record<string, MockedAsync>;
+    const txModel = prismaMock.economyTransaction as Record<
+      string,
+      MockedAsync
+    >;
+    const vesselCatalogModule = jest.requireMock(
+      '../../../src/server/vesselCatalog',
+    ) as {
+      getVesselCatalog: jest.Mock;
+      warmVesselCatalog: jest.Mock;
+    };
+    const economyModule = jest.requireMock('../../../src/server/economy') as {
+      resolvePortForPosition: jest.Mock;
+    };
+
+    vesselCatalogModule.getVesselCatalog.mockReturnValueOnce({
+      entries: [],
+      byId: new Map(),
+    });
+    const purchaseUnknown = await invokeRoute(
+      'post',
+      '/economy/vessels/purchase',
+      {
+        body: { templateId: 'unknown-template' },
+      },
+    );
+    expect(purchaseUnknown.res.statusCode).toBe(404);
+
+    vesselCatalogModule.getVesselCatalog.mockReturnValueOnce({
+      entries: [
+        {
+          id: 'free-vessel',
+          properties: { mass: 1, length: 1, beam: 1, draft: 1 },
+          commerce: { purchasePrice: 0, minRank: 1 },
+        },
+      ],
+      byId: new Map([
+        [
+          'free-vessel',
+          {
+            id: 'free-vessel',
+            properties: { mass: 1, length: 1, beam: 1, draft: 1 },
+            commerce: { purchasePrice: 0, minRank: 1 },
+          },
+        ],
+      ]),
+    });
+    const purchaseUnavailable = await invokeRoute(
+      'post',
+      '/economy/vessels/purchase',
+      {
+        body: { templateId: 'free-vessel' },
+      },
+    );
+    expect(purchaseUnavailable.res.statusCode).toBe(400);
+
+    vesselCatalogModule.getVesselCatalog.mockReturnValueOnce({
+      entries: [
+        {
+          id: 'starter-container',
+          properties: { mass: 1, length: 2, beam: 3, draft: 4 },
+          commerce: { purchasePrice: 1000, minRank: 5 },
+        },
+      ],
+      byId: new Map([
+        [
+          'starter-container',
+          {
+            id: 'starter-container',
+            properties: { mass: 1, length: 2, beam: 3, draft: 4 },
+            commerce: { purchasePrice: 1000, minRank: 5 },
+          },
+        ],
+      ]),
+    });
+    userModel.findUnique.mockResolvedValueOnce({
+      credits: 9999,
+      rank: 1,
+    } as never);
+    const purchaseLowRank = await invokeRoute(
+      'post',
+      '/economy/vessels/purchase',
+      {
+        body: { templateId: 'starter-container' },
+      },
+    );
+    expect(purchaseLowRank.res.statusCode).toBe(403);
+
+    userModel.findUnique.mockResolvedValueOnce({
+      credits: 10,
+      rank: 5,
+    } as never);
+    const purchaseLowCredits = await invokeRoute(
+      'post',
+      '/economy/vessels/purchase',
+      {
+        body: { templateId: 'starter-container' },
+      },
+    );
+    expect(purchaseLowCredits.res.statusCode).toBe(400);
+
+    vesselCatalogModule.getVesselCatalog.mockReturnValueOnce({
+      entries: [],
+      byId: new Map(),
+    });
+    const leaseUnknown = await invokeRoute('post', '/economy/vessels/lease', {
+      body: { templateId: 'unknown-template' },
+    });
+    expect(leaseUnknown.res.statusCode).toBe(404);
+
+    vesselCatalogModule.getVesselCatalog.mockReturnValueOnce({
+      entries: [
+        {
+          id: 'starter-container',
+          properties: { mass: 1, length: 2, beam: 3, draft: 4 },
+          commerce: {
+            purchasePrice: 1000,
+            minRank: 5,
+            leaseRatePerHour: 50,
+            charterRatePerHour: 40,
+            revenueShare: 0.15,
+          },
+        },
+      ],
+      byId: new Map([
+        [
+          'starter-container',
+          {
+            id: 'starter-container',
+            properties: { mass: 1, length: 2, beam: 3, draft: 4 },
+            commerce: {
+              purchasePrice: 1000,
+              minRank: 5,
+              leaseRatePerHour: 50,
+              charterRatePerHour: 40,
+              revenueShare: 0.15,
+            },
+          },
+        ],
+      ]),
+    });
+    userModel.findUnique.mockResolvedValueOnce({ rank: 1 } as never);
+    const leaseLowRank = await invokeRoute('post', '/economy/vessels/lease', {
+      body: { templateId: 'starter-container', type: 'lease' },
+    });
+    expect(leaseLowRank.res.statusCode).toBe(403);
+
+    cargoModel.findUnique.mockResolvedValueOnce({
+      id: 'cargo-1',
+      ownerId: 'other-user',
+      status: 'listed',
+    } as never);
+    const cargoNotOwner = await invokeRoute('post', '/economy/cargo/assign', {
+      body: { cargoId: 'cargo-1', vesselId: 'v-1' },
+    });
+    expect(cargoNotOwner.res.statusCode).toBe(404);
+
+    passengerModel.findUnique.mockResolvedValueOnce({
+      id: 'pc-1',
+      status: 'listed',
+      expiresAt: new Date(Date.now() - 1000),
+      originPortId: 'harbor-alpha',
+      paxCount: 2,
+    } as never);
+    const passengerExpired = await invokeRoute(
+      'post',
+      '/economy/passengers/accept',
+      {
+        body: { contractId: 'pc-1', vesselId: 'v-1' },
+      },
+    );
+    expect(passengerExpired.res.statusCode).toBe(400);
+
+    loanModel.aggregate.mockResolvedValueOnce({
+      _sum: { balance: 8000 },
+    } as never);
+    const loanLimit = await invokeRoute('post', '/economy/loans/request', {
+      body: { amount: 2000 },
+    });
+    expect(loanLimit.res.statusCode).toBe(400);
+
+    loanModel.findUnique.mockResolvedValueOnce({
+      id: 'loan-1',
+      userId: 'user-1',
+      balance: 100,
+      status: 'active',
+    } as never);
+    userModel.findUnique.mockResolvedValueOnce({ credits: 0 } as never);
+    const repayNoCredits = await invokeRoute('post', '/economy/loans/repay', {
+      body: { loanId: 'loan-1', amount: 50 },
+    });
+    expect(repayNoCredits.res.statusCode).toBe(400);
+
+    leaseModel.findUnique.mockResolvedValueOnce({
+      id: 'lease-1',
+      status: 'active',
+      lesseeId: 'other-user',
+      ownerId: 'other-owner',
+      vesselId: 'v-lease',
+    } as never);
+    const endLeaseForbidden = await invokeRoute('post', '/economy/leases/end', {
+      body: { leaseId: 'lease-1' },
+    });
+    expect(endLeaseForbidden.res.statusCode).toBe(403);
+
+    saleModel.findUnique.mockResolvedValueOnce({
+      id: 'sale-1',
+      status: 'open',
+      reservePrice: 2000,
+      price: 1000,
+      sellerId: 'seller-1',
+      vesselId: 'v-s1',
+    } as never);
+    const reserveNotMet = await invokeRoute('post', '/economy/sales/buy', {
+      body: { saleId: 'sale-1' },
+    });
+    expect(reserveNotMet.res.statusCode).toBe(400);
+
+    saleModel.findUnique.mockResolvedValueOnce({
+      id: 'sale-2',
+      status: 'open',
+      reservePrice: null,
+      price: 5000,
+      sellerId: 'seller-1',
+      vesselId: 'v-s2',
+    } as never);
+    userModel.findUnique.mockResolvedValueOnce({ credits: 10 } as never);
+    const saleInsufficientCredits = await invokeRoute(
+      'post',
+      '/economy/sales/buy',
+      {
+        body: { saleId: 'sale-2' },
+      },
+    );
+    expect(saleInsufficientCredits.res.statusCode).toBe(400);
+
+    vesselModel.findUnique.mockResolvedValueOnce(
+      createVesselRecord({ id: 'store-1', ownerId: 'user-1' }) as never,
+    );
+    economyModule.resolvePortForPosition.mockReturnValueOnce(null);
+    const storeOutsidePort = await invokeRoute(
+      'post',
+      '/economy/vessels/storage',
+      {
+        body: { vesselId: 'store-1' },
+      },
+    );
+    expect(storeOutsidePort.res.statusCode).toBe(400);
+
+    txModel.findMany.mockRejectedValueOnce(
+      new Error('transactions failed') as never,
+    );
+    const transactionsFailure = await invokeRoute(
+      'get',
+      '/economy/transactions',
+    );
+    expect(transactionsFailure.res.statusCode).toBe(500);
+  });
+
+  it('covers additional spaces route management and conflict branches', async () => {
+    const spaceModel = prismaMock.space as Record<string, MockedAsync>;
+    const vesselModel = prismaMock.vessel as Record<string, MockedAsync>;
+    const weatherStateModel = prismaMock.weatherState as Record<
+      string,
+      MockedAsync
+    >;
+    const spaceAccessModel = prismaMock.spaceAccess as Record<
+      string,
+      MockedAsync
+    >;
+
+    spaceModel.findMany.mockResolvedValueOnce([] as never);
+    const spacesList = await invokeRoute('get', '/spaces');
+    expect(spacesList.res.statusCode).toBe(200);
+
+    spaceModel.findFirst.mockResolvedValueOnce(createSpaceRecord() as never);
+    const duplicatePublic = await invokeRoute('post', '/spaces', {
+      body: { name: 'Space One', visibility: 'public' },
+    });
+    expect(duplicatePublic.res.statusCode).toBe(409);
+
+    spaceModel.findMany.mockResolvedValueOnce([] as never);
+    spaceModel.findMany.mockResolvedValueOnce([
+      createSpaceRecord({ id: 'known-space-1' }),
+    ] as never);
+    spaceAccessModel.findMany.mockResolvedValueOnce([
+      { spaceId: 'known-space-1' },
+    ] as never);
+    const includeKnown = await invokeRoute('get', '/spaces', {
+      query: { includeKnown: 'true' },
+    });
+    expect(includeKnown.res.statusCode).toBe(200);
+
+    spaceModel.findMany.mockResolvedValueOnce([] as never);
+    const manageEmpty = await invokeRoute('get', '/spaces/manage', {
+      query: { scope: 'mine' },
+    });
+    expect(manageEmpty.res.statusCode).toBe(200);
+    expect(manageEmpty.res.body).toEqual({ spaces: [] });
+
+    spaceModel.findUnique.mockResolvedValueOnce(null as never);
+    const patchMissing = await invokeRoute('patch', '/spaces/:spaceId', {
+      params: { spaceId: 'space-missing' },
+      body: { name: 'x' },
+    });
+    expect(patchMissing.res.statusCode).toBe(404);
+
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'space-forbidden' }) as never,
+    );
+    const patchForbidden = await invokeRoute('patch', '/spaces/:spaceId', {
+      params: { spaceId: 'space-forbidden' },
+      body: { name: 'x' },
+      user: { userId: 'non-admin', roles: ['player'] },
+    });
+    expect(patchForbidden.res.statusCode).toBe(403);
+
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'space-noop', createdBy: 'user-1' }) as never,
+    );
+    const patchNoop = await invokeRoute('patch', '/spaces/:spaceId', {
+      params: { spaceId: 'space-noop' },
+      body: {},
+    });
+    expect(patchNoop.res.statusCode).toBe(200);
+
+    const deleteDefault = await invokeRoute('delete', '/spaces/:spaceId', {
+      params: { spaceId: 'global' },
+    });
+    expect(deleteDefault.res.statusCode).toBe(400);
+
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'space-active' }) as never,
+    );
+    vesselModel.count.mockResolvedValueOnce(2 as never);
+    const deleteWithActive = await invokeRoute('delete', '/spaces/:spaceId', {
+      params: { spaceId: 'space-active' },
+    });
+    expect(deleteWithActive.res.statusCode).toBe(409);
+
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'space-has-vessels' }) as never,
+    );
+    vesselModel.count.mockResolvedValueOnce(0 as never);
+    vesselModel.count.mockResolvedValueOnce(3 as never);
+    const deleteWithVessels = await invokeRoute('delete', '/spaces/:spaceId', {
+      params: { spaceId: 'space-has-vessels' },
+    });
+    expect(deleteWithVessels.res.statusCode).toBe(409);
+
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'space-delete-ok' }) as never,
+    );
+    vesselModel.count.mockResolvedValueOnce(0 as never);
+    vesselModel.count.mockResolvedValueOnce(0 as never);
+    spaceAccessModel.deleteMany.mockResolvedValueOnce({ count: 1 } as never);
+    weatherStateModel.deleteMany.mockResolvedValueOnce({ count: 1 } as never);
+    spaceModel.delete.mockResolvedValueOnce({ id: 'space-delete-ok' } as never);
+    const deleteOk = await invokeRoute('delete', '/spaces/:spaceId', {
+      params: { spaceId: 'space-delete-ok' },
+    });
+    expect(deleteOk.res.statusCode).toBe(200);
+  });
+
+  it('covers remaining economy and spaces catch/guard branches', async () => {
+    const vesselModel = prismaMock.vessel as Record<string, MockedAsync>;
+    const cargoModel = prismaMock.cargoLot as Record<string, MockedAsync>;
+    const passengerModel = prismaMock.passengerContract as Record<
+      string,
+      MockedAsync
+    >;
+    const loanModel = prismaMock.loan as Record<string, MockedAsync>;
+    const insuranceModel = prismaMock.insurancePolicy as Record<
+      string,
+      MockedAsync
+    >;
+    const leaseModel = prismaMock.vesselLease as Record<string, MockedAsync>;
+    const saleModel = prismaMock.vesselSale as Record<string, MockedAsync>;
+    const spaceModel = prismaMock.space as Record<string, MockedAsync>;
+    const careerModel = prismaMock.userCareer as Record<string, MockedAsync>;
+    const licenseModel = prismaMock.license as Record<string, MockedAsync>;
+    const reputationModel = prismaMock.reputation as Record<
+      string,
+      MockedAsync
+    >;
+    const examModel = prismaMock.exam as Record<string, MockedAsync>;
+    const examAttemptModel = prismaMock.examAttempt as Record<
+      string,
+      MockedAsync
+    >;
+
+    vesselModel.findUnique.mockResolvedValueOnce(null as never);
+    const cargoListNoVessel = await invokeRoute('get', '/economy/cargo', {
+      query: { vesselId: 'missing' },
+    });
+    expect(cargoListNoVessel.res.statusCode).toBe(200);
+
+    cargoModel.findUnique.mockResolvedValueOnce({
+      id: 'cargo-nonavail',
+      ownerId: 'user-1',
+      status: 'loading',
+      expiresAt: null,
+      weightTons: 1,
+      portId: 'harbor-alpha',
+    } as never);
+    const cargoNotAvailable = await invokeRoute(
+      'post',
+      '/economy/cargo/assign',
+      {
+        body: { cargoId: 'cargo-nonavail', vesselId: 'v-1' },
+      },
+    );
+    expect(cargoNotAvailable.res.statusCode).toBe(400);
+
+    cargoModel.findUnique.mockResolvedValueOnce({
+      id: 'cargo-vessel-missing',
+      ownerId: 'user-1',
+      status: 'listed',
+      expiresAt: null,
+      weightTons: 1,
+      portId: 'harbor-alpha',
+    } as never);
+    vesselModel.findUnique.mockResolvedValueOnce(null as never);
+    const cargoVesselMissing = await invokeRoute(
+      'post',
+      '/economy/cargo/assign',
+      {
+        body: { cargoId: 'cargo-vessel-missing', vesselId: 'missing' },
+      },
+    );
+    expect(cargoVesselMissing.res.statusCode).toBe(404);
+
+    cargoModel.findUnique.mockResolvedValueOnce({
+      id: 'cargo-port-mismatch',
+      ownerId: 'user-1',
+      status: 'listed',
+      expiresAt: null,
+      weightTons: 1,
+      portId: 'other-port',
+    } as never);
+    vesselModel.findUnique.mockResolvedValueOnce(createVesselRecord() as never);
+    const cargoPortMismatch = await invokeRoute(
+      'post',
+      '/economy/cargo/assign',
+      {
+        body: { cargoId: 'cargo-port-mismatch', vesselId: 'v-1' },
+      },
+    );
+    expect(cargoPortMismatch.res.statusCode).toBe(400);
+
+    cargoModel.findUnique.mockResolvedValueOnce({
+      id: 'cargo-release-1',
+      ownerId: 'user-1',
+    } as never);
+    cargoModel.update.mockRejectedValueOnce(
+      new Error('release failed') as never,
+    );
+    const cargoReleaseError = await invokeRoute(
+      'post',
+      '/economy/cargo/release',
+      {
+        body: { cargoId: 'cargo-release-1' },
+      },
+    );
+    expect(cargoReleaseError.res.statusCode).toBe(500);
+
+    passengerModel.findMany.mockRejectedValueOnce(
+      new Error('pax list fail') as never,
+    );
+    const paxListFailure = await invokeRoute('get', '/economy/passengers');
+    expect(paxListFailure.res.statusCode).toBe(500);
+
+    passengerModel.findUnique.mockResolvedValueOnce({
+      id: 'pc-vessel-missing',
+      status: 'listed',
+      expiresAt: null,
+      originPortId: 'harbor-alpha',
+      paxCount: 2,
+    } as never);
+    vesselModel.findUnique.mockResolvedValueOnce(null as never);
+    const paxMissingVessel = await invokeRoute(
+      'post',
+      '/economy/passengers/accept',
+      {
+        body: { contractId: 'pc-vessel-missing', vesselId: 'missing' },
+      },
+    );
+    expect(paxMissingVessel.res.statusCode).toBe(404);
+
+    passengerModel.findUnique.mockResolvedValueOnce({
+      id: 'pc-port-mismatch',
+      status: 'listed',
+      expiresAt: null,
+      originPortId: 'somewhere-else',
+      paxCount: 2,
+    } as never);
+    vesselModel.findUnique.mockResolvedValueOnce(createVesselRecord() as never);
+    const paxPortMismatch = await invokeRoute(
+      'post',
+      '/economy/passengers/accept',
+      {
+        body: { contractId: 'pc-port-mismatch', vesselId: 'vessel-1' },
+      },
+    );
+    expect(paxPortMismatch.res.statusCode).toBe(400);
+
+    passengerModel.findUnique.mockResolvedValueOnce({
+      id: 'pc-overcap',
+      status: 'listed',
+      expiresAt: null,
+      originPortId: 'harbor-alpha',
+      paxCount: 100,
+    } as never);
+    vesselModel.findUnique.mockResolvedValueOnce(createVesselRecord() as never);
+    passengerModel.aggregate.mockResolvedValueOnce({
+      _sum: { paxCount: 0 },
+    } as never);
+    const paxOverCapacity = await invokeRoute(
+      'post',
+      '/economy/passengers/accept',
+      {
+        body: { contractId: 'pc-overcap', vesselId: 'vessel-1' },
+      },
+    );
+    expect(paxOverCapacity.res.statusCode).toBe(400);
+
+    loanModel.findMany.mockRejectedValueOnce(
+      new Error('loan list fail') as never,
+    );
+    const loansFailure = await invokeRoute('get', '/economy/loans');
+    expect(loansFailure.res.statusCode).toBe(500);
+
+    insuranceModel.findMany.mockRejectedValueOnce(
+      new Error('ins list fail') as never,
+    );
+    const insuranceFailure = await invokeRoute('get', '/economy/insurance');
+    expect(insuranceFailure.res.statusCode).toBe(500);
+
+    leaseModel.findMany.mockRejectedValueOnce(
+      new Error('lease list fail') as never,
+    );
+    const leasesFailure = await invokeRoute('get', '/economy/leases');
+    expect(leasesFailure.res.statusCode).toBe(500);
+
+    saleModel.findMany.mockRejectedValueOnce(
+      new Error('sale list fail') as never,
+    );
+    const salesFailure = await invokeRoute('get', '/economy/sales');
+    expect(salesFailure.res.statusCode).toBe(500);
+
+    vesselModel.findUnique.mockResolvedValueOnce(
+      createVesselRecord({ ownerId: 'other-user' }) as never,
+    );
+    const insuranceUnauthorized = await invokeRoute(
+      'post',
+      '/economy/insurance/purchase',
+      {
+        body: {
+          vesselId: 'v-no-auth',
+          coverage: 1000,
+          premiumRate: 10,
+        },
+      },
+    );
+    expect(insuranceUnauthorized.res.statusCode).toBe(403);
+
+    vesselModel.findUnique.mockResolvedValueOnce(
+      createVesselRecord({ ownerId: 'other-user' }) as never,
+    );
+    const createLeaseUnauthorized = await invokeRoute(
+      'post',
+      '/economy/leases',
+      {
+        body: { vesselId: 'v-no-auth', ratePerHour: 10 },
+      },
+    );
+    expect(createLeaseUnauthorized.res.statusCode).toBe(403);
+
+    leaseModel.findUnique.mockResolvedValueOnce({
+      id: 'lease-inactive',
+      status: 'closed',
+      vesselId: 'v-1',
+    } as never);
+    const leaseInactive = await invokeRoute('post', '/economy/leases/end', {
+      body: { leaseId: 'lease-inactive' },
+    });
+    expect(leaseInactive.res.statusCode).toBe(404);
+
+    vesselModel.findUnique.mockResolvedValueOnce(
+      createVesselRecord({ id: 'sale-auth', ownerId: 'other-user' }) as never,
+    );
+    const createSaleUnauthorized = await invokeRoute('post', '/economy/sales', {
+      body: { vesselId: 'sale-auth', price: 5000 },
+    });
+    expect(createSaleUnauthorized.res.statusCode).toBe(403);
+
+    vesselModel.findUnique.mockResolvedValueOnce(
+      createVesselRecord({ id: 'store-auth', ownerId: 'other-user' }) as never,
+    );
+    const storageUnauthorized = await invokeRoute(
+      'post',
+      '/economy/vessels/storage',
+      {
+        body: { vesselId: 'store-auth' },
+      },
+    );
+    expect(storageUnauthorized.res.statusCode).toBe(404);
+
+    vesselModel.findMany.mockRejectedValueOnce(
+      new Error('dashboard fail') as never,
+    );
+    const dashboardFailure = await invokeRoute('get', '/economy/dashboard');
+    expect(dashboardFailure.res.statusCode).toBe(500);
+
+    cargoModel.count.mockRejectedValueOnce(new Error('ports fail') as never);
+    const portsFailure = await invokeRoute('get', '/economy/ports');
+    expect(portsFailure.res.statusCode).toBe(500);
+
+    const vesselCatalogModule = await import(
+      '../../../src/server/vesselCatalog'
+    );
+    (vesselCatalogModule.warmVesselCatalog as jest.Mock).mockRejectedValueOnce(
+      new Error('catalog fail'),
+    );
+    const catalogFailure = await invokeRoute('get', '/economy/vessels/catalog');
+    expect(catalogFailure.res.statusCode).toBe(500);
+
+    (
+      prismaMock.user as Record<string, MockedAsync>
+    ).findUnique.mockResolvedValueOnce({
+      rank: 2,
+      credits: 100_000,
+    } as never);
+    (prismaMock.$transaction as jest.Mock).mockRejectedValueOnce(
+      new Error('purchase tx fail'),
+    );
+    const purchaseFailure = await invokeRoute(
+      'post',
+      '/economy/vessels/purchase',
+      {
+        body: { templateId: 'starter-container' },
+      },
+    );
+    expect(purchaseFailure.res.statusCode).toBe(500);
+
+    (prismaMock.user as Record<string, MockedAsync>).findUnique
+      .mockResolvedValueOnce({ rank: 2 } as never)
+      .mockResolvedValueOnce(null as never);
+    (
+      prismaMock.user as Record<string, MockedAsync>
+    ).create.mockResolvedValueOnce({
+      id: 'system_shipyard',
+    } as never);
+    leaseModel.create.mockResolvedValueOnce({ id: 'lease-created' } as never);
+    const leaseShipyardCreate = await invokeRoute(
+      'post',
+      '/economy/vessels/lease',
+      {
+        body: { templateId: 'starter-container', type: 'lease' },
+      },
+    );
+    expect(leaseShipyardCreate.res.statusCode).toBe(200);
+    expect(
+      (prismaMock.user as Record<string, MockedAsync>).create,
+    ).toHaveBeenCalled();
+
+    (prismaMock.$transaction as jest.Mock).mockRejectedValueOnce(
+      new Error('lease tx fail'),
+    );
+    (prismaMock.user as Record<string, MockedAsync>).findUnique
+      .mockResolvedValueOnce({ rank: 2 } as never)
+      .mockResolvedValueOnce({ id: 'system_shipyard' } as never);
+    const leaseFailure = await invokeRoute('post', '/economy/vessels/lease', {
+      body: { templateId: 'starter-container', type: 'charter' },
+    });
+    expect(leaseFailure.res.statusCode).toBe(500);
+
+    cargoModel.findMany.mockRejectedValueOnce(
+      new Error('cargo list fail') as never,
+    );
+    const cargoFailure = await invokeRoute('get', '/economy/cargo');
+    expect(cargoFailure.res.statusCode).toBe(500);
+
+    const cargoMissingId = await invokeRoute('post', '/economy/cargo/release', {
+      body: {},
+    });
+    expect(cargoMissingId.res.statusCode).toBe(400);
+
+    passengerModel.findUnique.mockResolvedValueOnce({
+      id: 'pc-update-fail',
+      status: 'listed',
+      expiresAt: null,
+      originPortId: 'harbor-alpha',
+      paxCount: 2,
+    } as never);
+    vesselModel.findUnique.mockResolvedValueOnce(createVesselRecord() as never);
+    passengerModel.aggregate.mockResolvedValueOnce({
+      _sum: { paxCount: 0 },
+    } as never);
+    passengerModel.update.mockRejectedValueOnce(
+      new Error('pax update fail') as never,
+    );
+    const passengerAcceptFailure = await invokeRoute(
+      'post',
+      '/economy/passengers/accept',
+      {
+        body: { contractId: 'pc-update-fail', vesselId: 'vessel-1' },
+      },
+    );
+    expect(passengerAcceptFailure.res.statusCode).toBe(500);
+
+    const fleetSuccess = await invokeRoute('get', '/economy/fleet');
+    expect(fleetSuccess.res.statusCode).toBe(200);
+
+    loanModel.aggregate.mockRejectedValueOnce(
+      new Error('loan issue fail') as never,
+    );
+    const issueLoanFailure = await invokeRoute(
+      'post',
+      '/economy/loans/request',
+      {
+        body: { amount: 200 },
+      },
+    );
+    expect(issueLoanFailure.res.statusCode).toBe(500);
+
+    loanModel.findUnique.mockResolvedValueOnce({
+      id: 'loan-err',
+      userId: 'user-1',
+      balance: 100,
+      status: 'active',
+    } as never);
+    (
+      prismaMock.user as Record<string, MockedAsync>
+    ).findUnique.mockRejectedValueOnce(new Error('repay fail'));
+    const repayFailure = await invokeRoute('post', '/economy/loans/repay', {
+      body: { loanId: 'loan-err', amount: 10 },
+    });
+    expect(repayFailure.res.statusCode).toBe(500);
+
+    const insuranceSuccess = await invokeRoute('get', '/economy/insurance');
+    expect(insuranceSuccess.res.statusCode).toBe(200);
+
+    vesselModel.findUnique.mockResolvedValueOnce(createVesselRecord() as never);
+    insuranceModel.create.mockRejectedValueOnce(
+      new Error('insurance create fail') as never,
+    );
+    const insuranceCreateFailure = await invokeRoute(
+      'post',
+      '/economy/insurance/purchase',
+      {
+        body: {
+          vesselId: 'vessel-1',
+          coverage: 1000,
+          premiumRate: 1.2,
+        },
+      },
+    );
+    expect(insuranceCreateFailure.res.statusCode).toBe(500);
+
+    insuranceModel.findUnique.mockResolvedValueOnce({
+      id: 'policy-err',
+      ownerId: 'user-1',
+    } as never);
+    insuranceModel.update.mockRejectedValueOnce(
+      new Error('insurance cancel fail') as never,
+    );
+    const insuranceCancelFailure = await invokeRoute(
+      'post',
+      '/economy/insurance/cancel',
+      {
+        body: { policyId: 'policy-err' },
+      },
+    );
+    expect(insuranceCancelFailure.res.statusCode).toBe(500);
+
+    const leaseSuccess = await invokeRoute('get', '/economy/leases');
+    expect(leaseSuccess.res.statusCode).toBe(200);
+
+    const leaseAcceptMissing = await invokeRoute(
+      'post',
+      '/economy/leases/accept',
+      {
+        body: {},
+      },
+    );
+    expect(leaseAcceptMissing.res.statusCode).toBe(400);
+
+    leaseModel.findUnique.mockResolvedValueOnce({
+      id: 'lease-catch',
+      status: 'open',
+      vesselId: 'vessel-1',
+      type: 'lease',
+    } as never);
+    leaseModel.update.mockRejectedValueOnce(new Error('accept fail') as never);
+    const leaseAcceptFailure = await invokeRoute(
+      'post',
+      '/economy/leases/accept',
+      {
+        body: { leaseId: 'lease-catch' },
+      },
+    );
+    expect(leaseAcceptFailure.res.statusCode).toBe(500);
+
+    leaseModel.findUnique.mockResolvedValueOnce({
+      id: 'lease-end-catch',
+      status: 'active',
+      vesselId: 'vessel-1',
+      ownerId: 'user-1',
+      lesseeId: 'user-2',
+    } as never);
+    vesselModel.findUnique.mockResolvedValueOnce(createVesselRecord() as never);
+    (prismaMock.$transaction as jest.Mock).mockRejectedValueOnce(
+      new Error('end lease fail'),
+    );
+    const leaseEndFailure = await invokeRoute('post', '/economy/leases/end', {
+      body: { leaseId: 'lease-end-catch' },
+    });
+    expect(leaseEndFailure.res.statusCode).toBe(500);
+
+    const salesSuccess = await invokeRoute('get', '/economy/sales');
+    expect(salesSuccess.res.statusCode).toBe(200);
+
+    vesselModel.findUnique.mockResolvedValueOnce(createVesselRecord() as never);
+    saleModel.create.mockRejectedValueOnce(
+      new Error('sale create fail') as never,
+    );
+    const saleCreateFailure = await invokeRoute('post', '/economy/sales', {
+      body: { vesselId: 'vessel-1', price: 7000 },
+    });
+    expect(saleCreateFailure.res.statusCode).toBe(500);
+
+    saleModel.findUnique.mockResolvedValueOnce({
+      id: 'sale-open',
+      status: 'open',
+      price: 100,
+      sellerId: 'seller-1',
+      vesselId: 'vessel-1',
+      reservePrice: null,
+    } as never);
+    (
+      prismaMock.user as Record<string, MockedAsync>
+    ).findUnique.mockResolvedValueOnce({
+      credits: 1000,
+    } as never);
+    (prismaMock.user as Record<string, MockedAsync>).update
+      .mockResolvedValueOnce({} as never)
+      .mockRejectedValueOnce(new Error('buy fail') as never);
+    const saleBuyFailure = await invokeRoute('post', '/economy/sales/buy', {
+      body: { saleId: 'sale-open' },
+    });
+    expect(saleBuyFailure.res.statusCode).toBe(500);
+
+    vesselModel.findUnique.mockResolvedValueOnce(createVesselRecord() as never);
+    vesselModel.update.mockRejectedValueOnce(new Error('store fail') as never);
+    const storageFailure = await invokeRoute(
+      'post',
+      '/economy/vessels/storage',
+      {
+        body: { vesselId: 'vessel-1' },
+      },
+    );
+    expect(storageFailure.res.statusCode).toBe(500);
+
+    careerModel.update.mockRejectedValueOnce(
+      new Error('activate fail') as never,
+    );
+    const activateFailure = await invokeRoute('post', '/careers/activate', {
+      body: { careerId: 'pilot' },
+    });
+    expect(activateFailure.res.statusCode).toBe(500);
+
+    licenseModel.findMany.mockRejectedValueOnce(
+      new Error('license fail') as never,
+    );
+    const licenseFailure = await invokeRoute('get', '/licenses');
+    expect(licenseFailure.res.statusCode).toBe(500);
+
+    examModel.findUnique.mockResolvedValueOnce({
+      id: 'exam-1',
+      minScore: 70,
+      licenseKey: null,
+    } as never);
+    examAttemptModel.create.mockRejectedValueOnce(
+      new Error('exam fail') as never,
+    );
+    const examAttemptFailure = await invokeRoute('post', '/exams/:id/attempt', {
+      params: { id: 'exam-1' },
+      body: { score: 75 },
+    });
+    expect(examAttemptFailure.res.statusCode).toBe(500);
+
+    reputationModel.findMany.mockRejectedValueOnce(
+      new Error('rep fail') as never,
+    );
+    const reputationFailure = await invokeRoute('get', '/reputation');
+    expect(reputationFailure.res.statusCode).toBe(500);
+
+    spaceModel.findMany.mockRejectedValueOnce(
+      new Error('spaces fail') as never,
+    );
+    const spacesFailure = await invokeRoute('get', '/spaces');
+    expect(spacesFailure.res.statusCode).toBe(500);
+
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'patch-conflict', name: 'Old Name' }) as never,
+    );
+    spaceModel.findFirst.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'other', name: 'Conflict Name' }) as never,
+    );
+    const patchConflict = await invokeRoute('patch', '/spaces/:spaceId', {
+      params: { spaceId: 'patch-conflict' },
+      body: { name: 'Conflict Name', visibility: 'public' },
+    });
+    expect(patchConflict.res.statusCode).toBe(409);
+
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'patch-password', createdBy: 'user-1' }) as never,
+    );
+    spaceModel.update.mockResolvedValueOnce(
+      createSpaceRecord({
+        id: 'patch-password',
+        inviteToken: 'new-token',
+      }) as never,
+    );
+    const patchPassword = await invokeRoute('patch', '/spaces/:spaceId', {
+      params: { spaceId: 'patch-password' },
+      body: {
+        password: 'new-secret',
+        regenerateInvite: true,
+        clearPassword: true,
+      },
+    });
+    expect(patchPassword.res.statusCode).toBe(200);
+  });
+
   it('handles logs, settings, profile and stats', async () => {
     (
       prismaMock.user as Record<string, MockedAsync>
@@ -1488,5 +2645,184 @@ describe('server/api router', () => {
       user: adminUser,
     });
     expect(adminDelete.res.statusCode).toBe(200);
+  });
+
+  it('covers additional careers/spaces route branches and catches', async () => {
+    const spaceModel = prismaMock.space as Record<string, MockedAsync>;
+    const spaceAccessModel = prismaMock.spaceAccess as Record<
+      string,
+      MockedAsync
+    >;
+    const vesselModel = prismaMock.vessel as Record<string, MockedAsync>;
+    const weatherStateModel = prismaMock.weatherState as Record<
+      string,
+      MockedAsync
+    >;
+    const careerModel = prismaMock.userCareer as Record<string, MockedAsync>;
+    const licenseModel = prismaMock.license as Record<string, MockedAsync>;
+
+    const careers = await invokeRoute('get', '/careers');
+    expect(careers.res.statusCode).toBe(200);
+
+    const exams = await invokeRoute('get', '/exams');
+    expect(exams.res.statusCode).toBe(200);
+
+    licenseModel.findMany.mockResolvedValueOnce([{ id: 'lic-1' }] as never);
+    const licenses = await invokeRoute('get', '/licenses');
+    expect(licenses.res.statusCode).toBe(200);
+
+    const renewLicenseFailure = await invokeRoute('post', '/licenses/renew', {
+      body: { licenseKey: 'deck-watch' },
+    });
+    expect(renewLicenseFailure.res.statusCode).toBe(200);
+
+    licenseModel.findMany.mockRejectedValueOnce(
+      new Error('license catch') as never,
+    );
+    const licensesFailure = await invokeRoute('get', '/licenses');
+    expect(licensesFailure.res.statusCode).toBe(500);
+
+    spaceModel.findMany.mockResolvedValueOnce([] as never);
+    const spacesInviteMissing = await invokeRoute('get', '/spaces', {
+      query: { inviteToken: 'nope-token' },
+    });
+    expect(spacesInviteMissing.res.statusCode).toBe(404);
+
+    spaceModel.findMany.mockResolvedValueOnce([] as never);
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'inv-public', visibility: 'public' }) as never,
+    );
+    const spacesInviteFound = await invokeRoute('get', '/spaces', {
+      query: { inviteToken: 'public-token' },
+    });
+    expect(spacesInviteFound.res.statusCode).toBe(200);
+    expect(
+      (spacesInviteFound.res.body as { spaces?: unknown[] }).spaces,
+    ).toHaveLength(1);
+
+    spaceModel.findMany.mockRejectedValueOnce(
+      new Error('spaces access fail') as never,
+    );
+    const spacesAccessFailure = await invokeRoute('post', '/spaces/access', {
+      body: { includeKnown: true },
+    });
+    expect(spacesAccessFailure.res.statusCode).toBe(500);
+
+    spaceModel.findFirst.mockResolvedValueOnce(null as never);
+    spaceModel.create.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'space-seed-catch' }) as never,
+    );
+    spaceAccessModel.upsert.mockResolvedValueOnce({
+      id: 'sa-seed-catch',
+    } as never);
+    const missionModule = jest.requireMock('../../../src/server/missions') as {
+      seedDefaultMissions: jest.Mock;
+    };
+    missionModule.seedDefaultMissions.mockRejectedValueOnce(
+      new Error('seed fail'),
+    );
+    const createSpaceSeedCatch = await invokeRoute('post', '/spaces', {
+      body: { name: 'Seed Catch Space', visibility: 'public' },
+    });
+    expect(createSpaceSeedCatch.res.statusCode).toBe(201);
+
+    spaceModel.findFirst.mockResolvedValueOnce(null as never);
+    spaceModel.create.mockRejectedValueOnce(new Error('create fail') as never);
+    const createSpaceCatch = await invokeRoute('post', '/spaces', {
+      body: { name: 'Create Catch Space', visibility: 'public' },
+    });
+    expect(createSpaceCatch.res.statusCode).toBe(500);
+
+    spaceModel.findUnique.mockResolvedValueOnce(null as never);
+    const knownSpaceNotFound = await invokeRoute('post', '/spaces/known', {
+      body: { spaceId: 'unknown-space' },
+    });
+    expect(knownSpaceNotFound.res.statusCode).toBe(404);
+
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'known-catch' }) as never,
+    );
+    spaceAccessModel.upsert.mockRejectedValueOnce(
+      new Error('known fail') as never,
+    );
+    const knownSpaceCatch = await invokeRoute('post', '/spaces/known', {
+      body: { spaceId: 'known-catch' },
+    });
+    expect(knownSpaceCatch.res.statusCode).toBe(500);
+
+    spaceModel.findMany.mockRejectedValueOnce(new Error('mine fail') as never);
+    const mineCatch = await invokeRoute('get', '/spaces/mine');
+    expect(mineCatch.res.statusCode).toBe(500);
+
+    spaceModel.findMany.mockRejectedValueOnce(
+      new Error('manage fail') as never,
+    );
+    const manageCatch = await invokeRoute('get', '/spaces/manage');
+    expect(manageCatch.res.statusCode).toBe(500);
+
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'patch-admin', createdBy: 'user-1' }) as never,
+    );
+    spaceModel.findFirst.mockResolvedValueOnce(null as never);
+    spaceModel.update.mockResolvedValueOnce(
+      createSpaceRecord({
+        id: 'patch-admin',
+        kind: 'tutorial',
+        rankRequired: 3,
+        passwordHash: null,
+      }) as never,
+    );
+    const patchAdmin = await invokeRoute('patch', '/spaces/:spaceId', {
+      params: { spaceId: 'patch-admin' },
+      body: {
+        clearPassword: true,
+        kind: 'tutorial',
+        rankRequired: 3,
+      },
+    });
+    expect(patchAdmin.res.statusCode).toBe(200);
+
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'patch-catch', createdBy: 'user-1' }) as never,
+    );
+    spaceModel.update.mockRejectedValueOnce(new Error('patch fail') as never);
+    const patchCatch = await invokeRoute('patch', '/spaces/:spaceId', {
+      params: { spaceId: 'patch-catch' },
+      body: { name: 'boom' },
+    });
+    expect(patchCatch.res.statusCode).toBe(500);
+
+    spaceModel.findUnique.mockResolvedValueOnce(null as never);
+    const deleteMissing = await invokeRoute('delete', '/spaces/:spaceId', {
+      params: { spaceId: 'missing-delete' },
+    });
+    expect(deleteMissing.res.statusCode).toBe(404);
+
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'delete-forbidden' }) as never,
+    );
+    const deleteForbidden = await invokeRoute('delete', '/spaces/:spaceId', {
+      params: { spaceId: 'delete-forbidden' },
+      user: { userId: 'u-player', roles: ['player'] },
+    });
+    expect(deleteForbidden.res.statusCode).toBe(403);
+
+    spaceModel.findUnique.mockResolvedValueOnce(
+      createSpaceRecord({ id: 'delete-catch' }) as never,
+    );
+    vesselModel.count
+      .mockResolvedValueOnce(0 as never)
+      .mockResolvedValueOnce(0 as never);
+    spaceAccessModel.deleteMany.mockResolvedValueOnce({ count: 1 } as never);
+    weatherStateModel.deleteMany.mockResolvedValueOnce({ count: 1 } as never);
+    spaceModel.delete.mockRejectedValueOnce(new Error('delete fail') as never);
+    const deleteCatch = await invokeRoute('delete', '/spaces/:spaceId', {
+      params: { spaceId: 'delete-catch' },
+    });
+    expect(deleteCatch.res.statusCode).toBe(500);
+
+    careerModel.findMany.mockResolvedValueOnce([] as never);
+    const careersStatus = await invokeRoute('get', '/careers/status');
+    expect(careersStatus.res.statusCode).toBe(200);
   });
 });

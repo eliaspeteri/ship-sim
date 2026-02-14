@@ -187,4 +187,133 @@ describe('registerCargoHandlers', () => {
       data: { vesselId: null, status: 'delivered', portId: null },
     });
   });
+
+  it('validates cargo create inputs and permissions', async () => {
+    const handlers: Record<string, any> = {};
+    const socket = {
+      on: jest.fn((event, cb) => {
+        handlers[event] = cb;
+      }),
+      emit: jest.fn(),
+      data: { userId: 'user-1' },
+    };
+
+    registerCargoHandlers({
+      socket,
+      effectiveUserId: 'user-1',
+      globalState: {
+        vessels: new Map([
+          [
+            'v-1',
+            { id: 'v-1', ownerId: 'other', position: { lat: 0, lon: 0 } },
+          ],
+        ]),
+      },
+      hasAdminRole: jest.fn(() => false),
+    } as any);
+
+    handlers['cargo:create']({ value: 1, weightTons: -1 });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('error', 'Invalid cargo weight');
+
+    handlers['cargo:create']({ value: 1, rewardCredits: 0 });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('error', 'Invalid cargo reward');
+
+    handlers['cargo:create']({ value: 1, vesselId: 'v-missing' });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('error', 'Vessel not found');
+
+    handlers['cargo:create']({ value: 1, vesselId: 'v-1' });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Not authorized to load cargo',
+    );
+
+    handlers['cargo:create']({ value: 1 });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Missing port for cargo listing',
+    );
+  });
+
+  it('validates cargo assignment failure branches', async () => {
+    const handlers: Record<string, any> = {};
+    const socket = {
+      on: jest.fn((event, cb) => {
+        handlers[event] = cb;
+      }),
+      emit: jest.fn(),
+      data: { userId: 'user-1' },
+    };
+    const vessel = {
+      id: 'v-1',
+      position: { lat: 1, lon: 2 },
+      ownerId: 'user-1',
+    };
+
+    registerCargoHandlers({
+      socket,
+      effectiveUserId: 'user-1',
+      globalState: { vessels: new Map([['v-1', vessel]]) },
+      hasAdminRole: jest.fn(() => false),
+    } as any);
+
+    handlers['cargo:assign']({});
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Missing cargo or vessel id',
+    );
+
+    (prisma.cargoLot.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    handlers['cargo:assign']({ cargoId: 'c-1', vesselId: 'v-1' });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('error', 'Cargo not found');
+
+    (prisma.cargoLot.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'c-2',
+      ownerId: 'user-1',
+      status: 'loaded',
+      weightTons: 10,
+      expiresAt: null,
+      portId: 'p-1',
+    });
+    handlers['cargo:assign']({ cargoId: 'c-2', vesselId: 'v-1' });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('error', 'Cargo not available');
+
+    (prisma.cargoLot.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'c-3',
+      ownerId: 'user-1',
+      status: 'listed',
+      weightTons: 10,
+      expiresAt: new Date(Date.now() - 1000),
+      portId: 'p-1',
+    });
+    handlers['cargo:assign']({ cargoId: 'c-3', vesselId: 'v-1' });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith('error', 'Cargo offer expired');
+
+    (prisma.cargoLot.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'c-4',
+      ownerId: 'user-1',
+      status: 'listed',
+      weightTons: 101,
+      expiresAt: null,
+      portId: 'p-1',
+    });
+    (prisma.cargoLot.aggregate as jest.Mock).mockResolvedValueOnce({
+      _sum: { weightTons: 0 },
+    });
+    (getVesselCargoCapacityTons as jest.Mock).mockReturnValueOnce(100);
+    handlers['cargo:assign']({ cargoId: 'c-4', vesselId: 'v-1' });
+    await flushPromises();
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Cargo exceeds vessel capacity',
+    );
+  });
 });

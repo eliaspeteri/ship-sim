@@ -240,4 +240,55 @@ describe('registerAdminHandlers', () => {
     });
     nowSpy.mockRestore();
   });
+
+  it('validates admin permissions and required payload fields', async () => {
+    const handlers: Record<string, any> = {};
+    const socket = {
+      on: jest.fn((event, cb) => {
+        handlers[event] = cb;
+      }),
+      emit: jest.fn(),
+      data: { userId: 'user-1' },
+    };
+
+    registerAdminHandlers({
+      io: { to: jest.fn(() => ({ emit: jest.fn() })), fetchSockets: jest.fn() },
+      socket,
+      hasAdminRole: jest.fn(() => false),
+      globalState: { vessels: new Map(), userLastVessel: new Map() },
+      aiControllers: new Set(),
+      economyLedger: new Map(),
+      findVesselInSpace: jest.fn(() => null),
+      getSpaceIdForSocket: jest.fn(() => 'space-1'),
+      toSimpleVesselState: jest.fn(),
+      persistVesselToDb: jest.fn(),
+    } as any);
+
+    handlers['admin:vesselMode']({ vesselId: 'v-1', mode: 'ai' });
+    handlers['admin:vessel:stop']({ vesselId: 'v-1' });
+    await handlers['admin:kick']({ userId: 'user-2' });
+    await handlers['admin:vessel:remove']({ vesselId: 'v-1' });
+    handlers['admin:vessel:move']({ vesselId: 'v-1', position: { lat: 1 } });
+
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Not authorized to change vessel mode',
+    );
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Not authorized to stop vessels',
+    );
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Not authorized to kick users',
+    );
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Not authorized to remove vessels',
+    );
+    expect(socket.emit).toHaveBeenCalledWith(
+      'error',
+      'Not authorized to move vessels',
+    );
+  });
 });
