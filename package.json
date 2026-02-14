@@ -31,7 +31,7 @@
     "lint:backend": "eslint src/server --cache --cache-location .cache/eslint --cache-strategy content",
     "lint:backend:fix": "eslint src/server --fix --cache --cache-location .cache/eslint --cache-strategy content",
     "lint:errors": "eslint . --max-warnings 0 --cache --cache-location .cache/eslint --cache-strategy content",
-    "format": "prettier --write .",
+    "format": "prettier --write --cache --cache-location .cache/prettier --cache-strategy content .",
     "asbuild:debug": "asc assembly/index.ts --config asconfig.json --target debug --measure --debug",
     "asbuild:release": "asc assembly/index.ts --config asconfig.json --target release --measure",
     "asbuild": "npm run asbuild:debug && npm run asbuild:release",
