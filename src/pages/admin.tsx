@@ -361,7 +361,10 @@ const AdminPage: React.FC = () => {
     let cancelled = false;
     const run = () => {
       if (cancelled) return;
-      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+      if (
+        typeof document === 'undefined' ||
+        document.visibilityState === 'visible'
+      ) {
         void fetchMetrics();
       }
     };

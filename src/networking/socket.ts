@@ -539,7 +539,9 @@ class SocketManager {
     return this.socket?.connected || false;
   }
 
-  subscribeConnectionStatus(listener: (connected: boolean) => void): () => void {
+  subscribeConnectionStatus(
+    listener: (connected: boolean) => void,
+  ): () => void {
     this.connectionStatusListeners.add(listener);
     listener(this.isConnected());
     return () => {

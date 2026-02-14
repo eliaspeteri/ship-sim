@@ -26,10 +26,12 @@ jest.mock('../../../src/networking/socket', () => ({
   __esModule: true,
   socketManager: {
     isConnected: jest.fn(() => true),
-    subscribeConnectionStatus: jest.fn((listener: (connected: boolean) => void) => {
-      listener(true);
-      return () => undefined;
-    }),
+    subscribeConnectionStatus: jest.fn(
+      (listener: (connected: boolean) => void) => {
+        listener(true);
+        return () => undefined;
+      },
+    ),
     connect: jest.fn(),
     waitForConnection: jest.fn(() => Promise.resolve()),
     setAuthToken: jest.fn(),

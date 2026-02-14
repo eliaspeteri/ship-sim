@@ -6,7 +6,10 @@ module.exports = {
     '**/__tests__/**/*.test.(ts|tsx)',
     '**/?(*.)+(spec|test).(ts|tsx)',
   ],
-  testPathIgnorePatterns: ['<rootDir>/assembly/', '<rootDir>/tests/playwright/'],
+  testPathIgnorePatterns: [
+    '<rootDir>/assembly/',
+    '<rootDir>/tests/playwright/',
+  ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',

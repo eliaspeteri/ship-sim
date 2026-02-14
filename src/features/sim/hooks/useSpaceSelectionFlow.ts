@@ -176,7 +176,9 @@ export function useSpaceSelectionFlow({
       setSpaceError(null);
       try {
         const apiBase = getApiBase();
-        const hasSecretInput = Boolean(options?.inviteToken || options?.password);
+        const hasSecretInput = Boolean(
+          options?.inviteToken || options?.password,
+        );
         const response = hasSecretInput
           ? await fetch(`${apiBase}/api/spaces/access`, {
               method: 'POST',

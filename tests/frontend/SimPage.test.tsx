@@ -489,7 +489,9 @@ describe('Sim page', () => {
     const calls = (global.fetch as jest.Mock).mock.calls as Array<
       [string, RequestInit | undefined]
     >;
-    const accessCall = calls.find(([url]) => url.includes('/api/spaces/access'));
+    const accessCall = calls.find(([url]) =>
+      url.includes('/api/spaces/access'),
+    );
     expect(accessCall).toBeDefined();
     expect(accessCall?.[0]).not.toContain('password=');
     expect(accessCall?.[1]?.method).toBe('POST');

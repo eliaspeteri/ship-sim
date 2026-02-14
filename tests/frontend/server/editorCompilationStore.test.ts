@@ -24,7 +24,8 @@ type MockedFs = {
 };
 let mockedFs = fs as unknown as MockedFs;
 
-const loadStore = async () => import('../../../src/server/editorCompilationStore');
+const loadStore = async () =>
+  import('../../../src/server/editorCompilationStore');
 
 const sampleArtifact = {
   tile: { z: 10, x: 20, y: 30 },

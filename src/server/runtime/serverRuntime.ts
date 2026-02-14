@@ -1605,31 +1605,34 @@ if (PERF_LOGGING_ENABLED) {
 
 function parseCookies(cookieHeader?: string): Record<string, string> {
   if (!cookieHeader) return {};
-  return cookieHeader.split(';').reduce((acc, part) => {
-    const token = part.trim();
-    if (!token) {
-      return acc;
-    }
+  return cookieHeader.split(';').reduce(
+    (acc, part) => {
+      const token = part.trim();
+      if (!token) {
+        return acc;
+      }
 
-    const splitAt = token.indexOf('=');
-    if (splitAt <= 0) {
-      return acc;
-    }
+      const splitAt = token.indexOf('=');
+      if (splitAt <= 0) {
+        return acc;
+      }
 
-    const key = token.slice(0, splitAt).trim();
-    if (!key) {
-      return acc;
-    }
+      const key = token.slice(0, splitAt).trim();
+      if (!key) {
+        return acc;
+      }
 
-    const rawValue = token.slice(splitAt + 1);
-    try {
-      acc[key] = decodeURIComponent(rawValue);
-    } catch {
-      // Malformed cookie fragments should not abort auth handshake processing.
-      acc[key] = rawValue;
-    }
-    return acc;
-  }, {} as Record<string, string>);
+      const rawValue = token.slice(splitAt + 1);
+      try {
+        acc[key] = decodeURIComponent(rawValue);
+      } catch {
+        // Malformed cookie fragments should not abort auth handshake processing.
+        acc[key] = rawValue;
+      }
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
 }
 
 // --- Authentication Routes --- (legacy custom auth removed; use NextAuth)
