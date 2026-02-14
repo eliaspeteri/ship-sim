@@ -23,7 +23,9 @@ jest.mock('../../../src/server', () => ({
 
 describe('weatherSystem', () => {
   it('applies a pattern and preserves tide fields', () => {
-    const globalState = { environmentBySpace: new Map() } as any;
+    const globalState = {
+      environmentBySpace: new Map(),
+    } as Parameters<typeof applyWeatherPattern>[2];
     const pattern = { ...weatherPresets.calm, timeOfDay: undefined };
 
     const next = applyWeatherPattern('space-1', pattern, globalState);

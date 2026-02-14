@@ -20,7 +20,7 @@ describe('registerSeamarksHandler', () => {
   });
 
   it('emits seamarks data for valid request', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -28,7 +28,9 @@ describe('registerSeamarksHandler', () => {
       emit: jest.fn(),
     };
 
-    registerSeamarksHandler({ socket } as any);
+    registerSeamarksHandler({ socket } as unknown as Parameters<
+      typeof registerSeamarksHandler
+    >[0]);
 
     handlers['seamarks:nearby']({ lat: 10, lon: 20, radiusMeters: 5000 });
 
@@ -58,7 +60,7 @@ describe('registerSeamarksHandler', () => {
   });
 
   it('ignores invalid coordinates', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -66,7 +68,9 @@ describe('registerSeamarksHandler', () => {
       emit: jest.fn(),
     };
 
-    registerSeamarksHandler({ socket } as any);
+    registerSeamarksHandler({ socket } as unknown as Parameters<
+      typeof registerSeamarksHandler
+    >[0]);
 
     handlers['seamarks:nearby']({ lat: 'nope', lon: 20 });
 

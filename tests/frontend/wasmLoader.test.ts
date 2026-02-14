@@ -14,7 +14,9 @@ describe('wasmLoader', () => {
     }));
     jest.doMock('../../src/store', () => {
       const useStore = () => ({ setWasmExports });
-      (useStore as any).getState = () => ({ setWasmExports });
+      (useStore as unknown as { getState: () => unknown }).getState = () => ({
+        setWasmExports,
+      });
       return { __esModule: true, default: useStore };
     });
 
@@ -51,7 +53,8 @@ describe('wasmLoader', () => {
     }));
     jest.doMock('../../src/store', () => {
       const useStore = () => ({});
-      (useStore as any).getState = () => ({});
+      (useStore as unknown as { getState: () => unknown }).getState =
+        () => ({});
       return { __esModule: true, default: useStore };
     });
 

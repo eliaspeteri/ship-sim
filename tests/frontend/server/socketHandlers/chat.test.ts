@@ -22,7 +22,7 @@ describe('registerChatHandlers', () => {
   it('rejects messages without permission', async () => {
     (socketHasPermission as jest.Mock).mockReturnValue(false);
 
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -43,7 +43,7 @@ describe('registerChatHandlers', () => {
       loadChatHistory: jest.fn(),
       chatHistoryPageSize: 20,
       defaultSpaceId: 'space-1',
-    } as any);
+    } as unknown as Parameters<typeof registerChatHandlers>[0]);
 
     await handlers['chat:message']({ message: 'hello' });
 
@@ -60,7 +60,7 @@ describe('registerChatHandlers', () => {
       createdAt: new Date(1000),
     });
 
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -82,7 +82,7 @@ describe('registerChatHandlers', () => {
       loadChatHistory: jest.fn(),
       chatHistoryPageSize: 20,
       defaultSpaceId: 'space-1',
-    } as any);
+    } as unknown as Parameters<typeof registerChatHandlers>[0]);
 
     await handlers['chat:message']({ message: ' hello ' });
 
@@ -99,7 +99,7 @@ describe('registerChatHandlers', () => {
 
   it('loads chat history with defaults', async () => {
     (socketHasPermission as jest.Mock).mockReturnValue(true);
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -124,7 +124,7 @@ describe('registerChatHandlers', () => {
       loadChatHistory,
       chatHistoryPageSize: 20,
       defaultSpaceId: 'space-1',
-    } as any);
+    } as unknown as Parameters<typeof registerChatHandlers>[0]);
 
     await handlers['chat:history']({});
 

@@ -3,17 +3,18 @@ const mockGetPack = jest.fn();
 const mockGetToken = jest.fn();
 
 jest.mock('next-auth/jwt', () => ({
-  getToken: (...args: any[]) => mockGetToken(...args),
+  getToken: (...args: unknown[]) => mockGetToken(...args),
 }));
 
 jest.mock('../../../../../src/server/editorCompilationStore', () => ({
-  storeArtifacts: (...args: any[]) => mockStoreArtifacts(...args),
+  storeArtifacts: (...args: unknown[]) => mockStoreArtifacts(...args),
 }));
 
 jest.mock('../../../../../src/server/editorPacksStore', () => ({
-  getPack: (...args: any[]) => mockGetPack(...args),
+  getPack: (...args: unknown[]) => mockGetPack(...args),
 }));
 
+import type { NextApiRequest, NextApiResponse } from 'next';
 import handler from '../../../../../src/pages/api/editor/compile';
 import { COMPILE_LIMITS } from '../../../../../src/server/requestLimits';
 
@@ -31,6 +32,10 @@ const makeRes = () => {
   return res;
 };
 
+const toReq = (req: Partial<NextApiRequest>) => req as NextApiRequest;
+const toRes = (res: ReturnType<typeof makeRes>) =>
+  res as unknown as NextApiResponse;
+
 describe('pages/api/editor/compile', () => {
   beforeEach(() => {
     mockStoreArtifacts.mockReset();
@@ -42,7 +47,7 @@ describe('pages/api/editor/compile', () => {
   it('rejects non-POST requests', async () => {
     const res = makeRes();
 
-    await handler({ method: 'GET' } as any, res as any);
+    await handler(toReq({ method: 'GET' }), toRes(res));
 
     expect(res.status).toHaveBeenCalledWith(405);
     expect(res.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
@@ -53,11 +58,11 @@ describe('pages/api/editor/compile', () => {
     mockGetToken.mockResolvedValue(null);
 
     await handler(
-      {
+      toReq({
         method: 'POST',
         body: { packId: 'pack-1', layerIds: [], tiles: [] },
-      } as any,
-      res as any,
+      }),
+      toRes(res),
     );
 
     expect(res.status).toHaveBeenCalledWith(401);
@@ -69,8 +74,8 @@ describe('pages/api/editor/compile', () => {
     mockGetToken.mockResolvedValue({ sub: 'owner-1', role: 'player' });
 
     await handler(
-      { method: 'POST', body: { layerIds: [] } } as any,
-      res as any,
+      toReq({ method: 'POST', body: { layerIds: [] } }),
+      toRes(res),
     );
 
     expect(res.status).toHaveBeenCalledWith(400);
@@ -83,15 +88,15 @@ describe('pages/api/editor/compile', () => {
     mockGetPack.mockReturnValue({ id: 'pack-1', ownerId: 'owner-1' });
 
     await handler(
-      {
+      toReq({
         method: 'POST',
         body: {
           packId: 'pack-1',
           layerIds: ['l1'],
           tiles: [{ z: 10, x: 3, y: 4 }],
         },
-      } as any,
-      res as any,
+      }),
+      toRes(res),
     );
 
     expect(res.status).toHaveBeenCalledWith(403);
@@ -106,15 +111,15 @@ describe('pages/api/editor/compile', () => {
     mockGetPack.mockReturnValue({ id: 'pack-1', ownerId: 'owner-1' });
 
     await handler(
-      {
+      toReq({
         method: 'POST',
         body: {
           packId: 'pack-1',
           layerIds: ['l1', 'l2'],
           tiles: [{ z: 10, x: 3, y: 4 }],
         },
-      } as any,
-      res as any,
+      }),
+      toRes(res),
     );
 
     expect(mockStoreArtifacts).toHaveBeenCalledWith(
@@ -140,15 +145,15 @@ describe('pages/api/editor/compile', () => {
     mockGetPack.mockReturnValue({ id: 'pack-1', ownerId: 'owner-1' });
 
     await handler(
-      {
+      toReq({
         method: 'POST',
         body: {
           packId: 'pack-1',
           layerIds: ['l1'],
           tiles: [{ z: 8, x: 1, y: 2 }],
         },
-      } as any,
-      res as any,
+      }),
+      toRes(res),
     );
 
     expect(res.status).toHaveBeenCalledWith(200);
@@ -166,15 +171,15 @@ describe('pages/api/editor/compile', () => {
     );
 
     await handler(
-      {
+      toReq({
         method: 'POST',
         body: {
           packId: 'pack-1',
           layerIds: ['l1'],
           tiles,
         },
-      } as any,
-      res as any,
+      }),
+      toRes(res),
     );
 
     expect(res.status).toHaveBeenCalledWith(413);
@@ -196,7 +201,7 @@ describe('pages/api/editor/compile', () => {
     let sawRateLimit = false;
     for (let i = 0; i < COMPILE_LIMITS.rateLimit.max + 2; i += 1) {
       const res = makeRes();
-      await handler({ method: 'POST', body } as any, res as any);
+      await handler(toReq({ method: 'POST', body }), toRes(res));
       if (res.statusCode === 429) {
         sawRateLimit = true;
         break;

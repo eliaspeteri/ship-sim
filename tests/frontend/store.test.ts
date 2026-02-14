@@ -411,7 +411,7 @@ describe('store', () => {
 
   it('updateVessel handles errors gracefully', () => {
     act(() => {
-      useStore.setState({ vessel: null as any }, false);
+      useStore.setState({ vessel: null as unknown as VesselState }, false);
       useStore.getState().updateVessel({ position: { lat: 1, lon: 2 } });
     });
     expect(console.error).toHaveBeenCalled();

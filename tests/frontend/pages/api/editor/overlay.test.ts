@@ -1,9 +1,10 @@
 const mockGetOverlayChunks = jest.fn();
 
 jest.mock('../../../../../src/server/editorCompilationStore', () => ({
-  getOverlayChunks: (...args: any[]) => mockGetOverlayChunks(...args),
+  getOverlayChunks: (...args: unknown[]) => mockGetOverlayChunks(...args),
 }));
 
+import type { NextApiRequest, NextApiResponse } from 'next';
 import handler from '../../../../../src/pages/api/editor/overlay';
 
 const makeRes = () => {
@@ -11,6 +12,10 @@ const makeRes = () => {
   const status = jest.fn(() => ({ json }));
   return { status, json };
 };
+
+const toReq = (req: Partial<NextApiRequest>) => req as NextApiRequest;
+const toRes = (res: ReturnType<typeof makeRes>) =>
+  res as unknown as NextApiResponse;
 
 describe('pages/api/editor/overlay', () => {
   beforeEach(() => {
@@ -20,7 +25,7 @@ describe('pages/api/editor/overlay', () => {
   it('rejects non-GET requests', async () => {
     const res = makeRes();
 
-    await handler({ method: 'POST' } as any, res as any);
+    await handler(toReq({ method: 'POST' }), toRes(res));
 
     expect(res.status).toHaveBeenCalledWith(405);
     expect(res.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
@@ -29,7 +34,7 @@ describe('pages/api/editor/overlay', () => {
   it('validates required query parameters', async () => {
     const res = makeRes();
 
-    await handler({ method: 'GET', query: { packId: 'p' } } as any, res as any);
+    await handler(toReq({ method: 'GET', query: { packId: 'p' } }), toRes(res));
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
@@ -45,7 +50,7 @@ describe('pages/api/editor/overlay', () => {
     ]);
 
     await handler(
-      {
+      toReq({
         method: 'GET',
         query: {
           packId: 'pack-1',
@@ -55,8 +60,8 @@ describe('pages/api/editor/overlay', () => {
           lod: '8',
           layers: 'l1,l2',
         },
-      } as any,
-      res as any,
+      }),
+      toRes(res),
     );
 
     expect(mockGetOverlayChunks).toHaveBeenCalledWith({
@@ -79,7 +84,7 @@ describe('pages/api/editor/overlay', () => {
     mockGetOverlayChunks.mockResolvedValue([]);
 
     await handler(
-      {
+      toReq({
         method: 'GET',
         query: {
           packId: 'pack-1',
@@ -89,8 +94,8 @@ describe('pages/api/editor/overlay', () => {
           lod: '8',
           layers: ['l1', 'l2'],
         },
-      } as any,
-      res as any,
+      }),
+      toRes(res),
     );
 
     expect(mockGetOverlayChunks).toHaveBeenCalledWith(

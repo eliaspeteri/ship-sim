@@ -11,7 +11,7 @@ jest.mock('../../../../src/lib/position', () => ({
 
 describe('registerUserModeHandler', () => {
   it('rejects player mode for insufficient role', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -40,7 +40,7 @@ describe('registerUserModeHandler', () => {
       aiControllers: new Set(),
       spaceMeta: { rankRequired: 1 },
       getRulesForSpace: jest.fn(() => ({ type: RulesetType.CASUAL })),
-    } as any);
+    } as unknown as Parameters<typeof registerUserModeHandler>[0]);
 
     handlers['user:mode']({ mode: 'player' });
 
@@ -51,7 +51,7 @@ describe('registerUserModeHandler', () => {
   });
 
   it('blocks spectator switch in restricted rules without nearby vessels', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -86,7 +86,7 @@ describe('registerUserModeHandler', () => {
       aiControllers: new Set(),
       spaceMeta: { rankRequired: 1 },
       getRulesForSpace: jest.fn(() => ({ type: RulesetType.REALISM })),
-    } as any);
+    } as unknown as Parameters<typeof registerUserModeHandler>[0]);
 
     handlers['user:mode']({ mode: 'spectator' });
 
@@ -97,7 +97,7 @@ describe('registerUserModeHandler', () => {
   });
 
   it('switches to player mode and broadcasts update', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socketEmit = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -145,7 +145,7 @@ describe('registerUserModeHandler', () => {
       aiControllers,
       spaceMeta: { rankRequired: 1 },
       getRulesForSpace: jest.fn(() => ({ type: RulesetType.CASUAL })),
-    } as any);
+    } as unknown as Parameters<typeof registerUserModeHandler>[0]);
 
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1234);
     handlers['user:mode']({ mode: 'player' });

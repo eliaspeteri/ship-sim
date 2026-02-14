@@ -208,7 +208,9 @@ describe('editorPacksStore', () => {
     );
 
     expect(
-      await updatePack('missing-pack', { name: 'Nope' } as any),
+      await updatePack('missing-pack', { name: 'Nope' } as Parameters<
+        typeof updatePack
+      >[1]),
     ).toBeNull();
     expect(await deletePack('missing-pack')).toBe(false);
     expect(await transitionPackStatus('missing-pack', 'submitted')).toBeNull();

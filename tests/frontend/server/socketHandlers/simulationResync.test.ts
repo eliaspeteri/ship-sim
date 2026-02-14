@@ -2,7 +2,7 @@ import { registerSimulationResyncHandler } from '../../../../src/server/socketHa
 
 describe('registerSimulationResyncHandler', () => {
   it('emits full simulation update payload', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -45,7 +45,7 @@ describe('registerSimulationResyncHandler', () => {
       defaultSpaceId: 'space-1',
       getEnvironmentForSpace,
       getRulesForSpace,
-    } as any);
+    } as unknown as Parameters<typeof registerSimulationResyncHandler>[0]);
 
     handlers['simulation:resync']();
 

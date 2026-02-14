@@ -7,7 +7,7 @@ jest.mock('../../../../src/server/economy', () => ({
 
 describe('registerVesselStorageHandler', () => {
   it('rejects storing when not in port', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -41,7 +41,7 @@ describe('registerVesselStorageHandler', () => {
       persistVesselToDb: jest.fn(),
       toSimpleVesselState: jest.fn(),
       defaultSpaceId: 'space-1',
-    } as any);
+    } as unknown as Parameters<typeof registerVesselStorageHandler>[0]);
 
     handlers['vessel:storage']({ action: 'store' });
 
@@ -52,7 +52,7 @@ describe('registerVesselStorageHandler', () => {
   });
 
   it('stores vessel and broadcasts update', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -91,7 +91,7 @@ describe('registerVesselStorageHandler', () => {
       persistVesselToDb,
       toSimpleVesselState,
       defaultSpaceId: 'space-1',
-    } as any);
+    } as unknown as Parameters<typeof registerVesselStorageHandler>[0]);
 
     handlers['vessel:storage']({ action: 'store' });
 
@@ -108,7 +108,7 @@ describe('registerVesselStorageHandler', () => {
   });
 
   it('activates stored vessel', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -143,7 +143,7 @@ describe('registerVesselStorageHandler', () => {
       persistVesselToDb: jest.fn(),
       toSimpleVesselState: jest.fn(() => ({ id: 'v-1' })),
       defaultSpaceId: 'space-1',
-    } as any);
+    } as unknown as Parameters<typeof registerVesselStorageHandler>[0]);
 
     handlers['vessel:storage']({ action: 'activate' });
 

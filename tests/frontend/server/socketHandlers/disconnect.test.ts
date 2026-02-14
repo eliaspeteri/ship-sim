@@ -7,7 +7,7 @@ jest.mock('../../../../src/server/metrics', () => ({
 
 describe('registerDisconnectHandler', () => {
   it('clears crew assignment and broadcasts leave', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       id: 'socket-1',
@@ -22,7 +22,20 @@ describe('registerDisconnectHandler', () => {
       },
     };
 
-    const vesselRecord: any = {
+    const vesselRecord: {
+      id: string;
+      crewIds: Set<string>;
+      crewNames: Map<string, string>;
+      helmUserId: string | null;
+      helmUsername: string | null;
+      engineUserId: string | null;
+      engineUsername: string | null;
+      radioUserId: string | null;
+      radioUsername: string | null;
+      mode: string;
+      desiredMode: string;
+      lastCrewAt: number;
+    } = {
       id: 'v-1',
       crewIds: new Set(['user-1']),
       crewNames: new Map([['user-1', 'User One']]),
@@ -55,7 +68,7 @@ describe('registerDisconnectHandler', () => {
       getVesselIdForUser,
       globalState,
       activeUserSockets,
-    } as any);
+    } as unknown as Parameters<typeof registerDisconnectHandler>[0]);
 
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(12345);
     handlers.disconnect();
@@ -72,7 +85,7 @@ describe('registerDisconnectHandler', () => {
   });
 
   it('does nothing when another socket is active', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       id: 'socket-1',
       on: jest.fn((event, cb) => {
@@ -100,7 +113,7 @@ describe('registerDisconnectHandler', () => {
       getVesselIdForUser: jest.fn(),
       globalState,
       activeUserSockets,
-    } as any);
+    } as unknown as Parameters<typeof registerDisconnectHandler>[0]);
 
     handlers.disconnect();
 

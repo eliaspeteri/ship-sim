@@ -7,18 +7,20 @@ const mockUpdatePack = jest.fn();
 const mockGetToken = jest.fn();
 
 jest.mock('next-auth/jwt', () => ({
-  getToken: (...args: any[]) => mockGetToken(...args),
+  getToken: (...args: unknown[]) => mockGetToken(...args),
 }));
 
 jest.mock('../../../../../../src/server/editorPacksStore', () => ({
-  deletePack: (...args: any[]) => mockDeletePack(...args),
-  getPack: (...args: any[]) => mockGetPack(...args),
-  getPackBySlug: (...args: any[]) => mockGetPackBySlug(...args),
-  hasDuplicateName: (...args: any[]) => mockHasDuplicateName(...args),
-  transitionPackStatus: (...args: any[]) => mockTransitionPackStatus(...args),
-  updatePack: (...args: any[]) => mockUpdatePack(...args),
+  deletePack: (...args: unknown[]) => mockDeletePack(...args),
+  getPack: (...args: unknown[]) => mockGetPack(...args),
+  getPackBySlug: (...args: unknown[]) => mockGetPackBySlug(...args),
+  hasDuplicateName: (...args: unknown[]) => mockHasDuplicateName(...args),
+  transitionPackStatus: (...args: unknown[]) =>
+    mockTransitionPackStatus(...args),
+  updatePack: (...args: unknown[]) => mockUpdatePack(...args),
 }));
 
+import type { NextApiRequest, NextApiResponse } from 'next';
 import handler from '../../../../../../src/pages/api/editor/packs/[packId]';
 
 const makeRes = () => {
@@ -27,6 +29,11 @@ const makeRes = () => {
   const status = jest.fn(() => ({ json, end }));
   return { status, json, end };
 };
+
+const callHandler = (
+  req: Partial<NextApiRequest>,
+  res: ReturnType<typeof makeRes>,
+) => handler(req as NextApiRequest, res as unknown as NextApiResponse);
 
 describe('pages/api/editor/packs/[packId]', () => {
   beforeEach(() => {
@@ -44,10 +51,7 @@ describe('pages/api/editor/packs/[packId]', () => {
   it('validates pack id', async () => {
     const res = makeRes();
 
-    await handler(
-      { method: 'GET', query: { packId: ['x'] } } as any,
-      res as any,
-    );
+    await callHandler({ method: 'GET', query: { packId: ['x'] } }, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: 'Invalid pack id' });
@@ -57,9 +61,9 @@ describe('pages/api/editor/packs/[packId]', () => {
     const res = makeRes();
     mockGetPackBySlug.mockReturnValue({ id: 'p1' });
 
-    await handler(
-      { method: 'GET', query: { packId: 'slug', ownerId: 'owner-1' } } as any,
-      res as any,
+    await callHandler(
+      { method: 'GET', query: { packId: 'slug', ownerId: 'owner-1' } },
+      res,
     );
 
     expect(mockGetPackBySlug).toHaveBeenCalledWith('owner-1', 'slug');
@@ -70,10 +74,7 @@ describe('pages/api/editor/packs/[packId]', () => {
     const res = makeRes();
     mockGetPack.mockReturnValue(null);
 
-    await handler(
-      { method: 'GET', query: { packId: 'p1' } } as any,
-      res as any,
-    );
+    await callHandler({ method: 'GET', query: { packId: 'p1' } }, res);
 
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({ error: 'Pack not found' });
@@ -83,13 +84,13 @@ describe('pages/api/editor/packs/[packId]', () => {
     const res = makeRes();
     mockGetToken.mockResolvedValue(null);
 
-    await handler(
+    await callHandler(
       {
         method: 'PATCH',
         query: { packId: 'p1' },
         body: { status: 'submitted' },
-      } as any,
-      res as any,
+      },
+      res,
     );
 
     expect(res.status).toHaveBeenCalledWith(401);
@@ -102,13 +103,13 @@ describe('pages/api/editor/packs/[packId]', () => {
     mockGetPack.mockReturnValue({ id: 'p1', ownerId: 'o1', status: 'draft' });
     mockTransitionPackStatus.mockReturnValue({ id: 'p1', status: 'submitted' });
 
-    await handler(
+    await callHandler(
       {
         method: 'PATCH',
         query: { packId: 'p1' },
         body: { status: 'submitted' },
-      } as any,
-      res as any,
+      },
+      res,
     );
 
     expect(res.status).toHaveBeenCalledWith(200);
@@ -120,13 +121,13 @@ describe('pages/api/editor/packs/[packId]', () => {
     mockGetPack.mockReturnValue({ id: 'p1', ownerId: 'o1', status: 'draft' });
     mockTransitionPackStatus.mockReturnValue(null);
 
-    await handler(
+    await callHandler(
       {
         method: 'PATCH',
         query: { packId: 'p1' },
         body: { status: 'published' },
-      } as any,
-      res as any,
+      },
+      res,
     );
 
     expect(res.status).toHaveBeenCalledWith(400);
@@ -140,13 +141,13 @@ describe('pages/api/editor/packs/[packId]', () => {
     mockGetToken.mockResolvedValue({ sub: 'o2', role: 'player' });
     mockGetPack.mockReturnValue({ id: 'p1', ownerId: 'o1', status: 'draft' });
 
-    await handler(
+    await callHandler(
       {
         method: 'PATCH',
         query: { packId: 'p1' },
         body: { name: 'Updated' },
-      } as any,
-      res as any,
+      },
+      res,
     );
 
     expect(res.status).toHaveBeenCalledWith(403);
@@ -165,13 +166,13 @@ describe('pages/api/editor/packs/[packId]', () => {
     });
     mockHasDuplicateName.mockReturnValue(true);
 
-    await handler(
+    await callHandler(
       {
         method: 'PATCH',
         query: { packId: 'p1' },
         body: { name: 'Duplicate', submitForReview: true },
-      } as any,
-      res as any,
+      },
+      res,
     );
 
     expect(res.status).toHaveBeenCalledWith(409);
@@ -179,13 +180,13 @@ describe('pages/api/editor/packs/[packId]', () => {
     const res2 = makeRes();
     mockHasDuplicateName.mockReturnValue(false);
 
-    await handler(
+    await callHandler(
       {
         method: 'PATCH',
         query: { packId: 'p1' },
         body: { submitForReview: false },
-      } as any,
-      res2 as any,
+      },
+      res2,
     );
 
     expect(res2.status).toHaveBeenCalledWith(400);
@@ -201,13 +202,13 @@ describe('pages/api/editor/packs/[packId]', () => {
     mockHasDuplicateName.mockReturnValue(false);
     mockUpdatePack.mockReturnValue({ id: 'p1', name: 'Updated' });
 
-    await handler(
+    await callHandler(
       {
         method: 'PATCH',
         query: { packId: 'p1' },
         body: { name: 'Updated' },
-      } as any,
-      res as any,
+      },
+      res,
     );
 
     expect(res.status).toHaveBeenCalledWith(200);
@@ -221,10 +222,7 @@ describe('pages/api/editor/packs/[packId]', () => {
     mockGetToken.mockResolvedValue({ sub: 'o2', role: 'player' });
     mockGetPack.mockReturnValue({ id: 'p1', ownerId: 'o1', status: 'draft' });
 
-    await handler(
-      { method: 'DELETE', query: { packId: 'p1' } } as any,
-      res as any,
-    );
+    await callHandler({ method: 'DELETE', query: { packId: 'p1' } }, res);
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith({
@@ -238,10 +236,7 @@ describe('pages/api/editor/packs/[packId]', () => {
     mockGetPack.mockReturnValue({ id: 'p1', ownerId: 'o1', status: 'draft' });
     mockDeletePack.mockReturnValue(true);
 
-    await handler(
-      { method: 'DELETE', query: { packId: 'p1' } } as any,
-      res as any,
-    );
+    await callHandler({ method: 'DELETE', query: { packId: 'p1' } }, res);
 
     expect(res.status).toHaveBeenCalledWith(204);
     expect(res.end).toHaveBeenCalled();
@@ -253,17 +248,11 @@ describe('pages/api/editor/packs/[packId]', () => {
     mockGetPack.mockReturnValue(null);
     mockDeletePack.mockReturnValue(false);
 
-    await handler(
-      { method: 'DELETE', query: { packId: 'p1' } } as any,
-      res as any,
-    );
+    await callHandler({ method: 'DELETE', query: { packId: 'p1' } }, res);
     expect(res.status).toHaveBeenCalledWith(404);
 
     const res2 = makeRes();
-    await handler(
-      { method: 'PUT', query: { packId: 'p1' } } as any,
-      res2 as any,
-    );
+    await callHandler({ method: 'PUT', query: { packId: 'p1' } }, res2);
     expect(res2.status).toHaveBeenCalledWith(405);
   });
 });

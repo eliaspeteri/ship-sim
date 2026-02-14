@@ -1,5 +1,6 @@
 /** @jest-environment node */
 import type { Request } from 'express';
+import type { Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { getToken } from 'next-auth/jwt';
 import {
@@ -17,6 +18,7 @@ jest.mock('jsonwebtoken', () => ({
 
 const getTokenMock = getToken as jest.MockedFunction<typeof getToken>;
 const verifyMock = jwt.verify as jest.MockedFunction<typeof jwt.verify>;
+const fakeRes = {} as unknown as Response;
 
 const makeReq = (overrides: Partial<Request> = {}): Request => {
   return {
@@ -48,12 +50,12 @@ describe('authentication middleware', () => {
       credits: 100,
       experience: 5,
       safetyScore: 1.2,
-    } as any);
+    } as Awaited<ReturnType<typeof getToken>>);
 
     const req = makeReq();
     const next = jest.fn();
 
-    await authenticateRequest(req, {} as any, next);
+    await authenticateRequest(req, fakeRes, next);
 
     expect(req.user).toBeTruthy();
     expect(req.user?.userId).toBe('user-1');
@@ -69,14 +71,14 @@ describe('authentication middleware', () => {
       sub: 'user-2',
       name: 'Jane',
       role: 'spectator',
-    } as any);
+    } as unknown as ReturnType<typeof jwt.verify>);
 
     const req = makeReq({
       headers: { authorization: 'Bearer token-abc' },
     });
     const next = jest.fn();
 
-    await authenticateRequest(req, {} as any, next);
+    await authenticateRequest(req, fakeRes, next);
 
     expect(verifyMock).toHaveBeenCalledWith('token-abc', 'test-secret');
     expect(req.user?.userId).toBe('user-2');
@@ -89,7 +91,7 @@ describe('authentication middleware', () => {
     const req = makeReq();
     const next = jest.fn();
 
-    await authenticateRequest(req, {} as any, next);
+    await authenticateRequest(req, fakeRes, next);
 
     expect(req.user).toBeUndefined();
     expect(next).toHaveBeenCalled();
@@ -100,7 +102,7 @@ describe('authentication middleware', () => {
     const req = makeReq();
     const next = jest.fn();
 
-    await authenticateRequest(req, {} as any, next);
+    await authenticateRequest(req, fakeRes, next);
 
     expect(req.user).toBeUndefined();
     expect(next).toHaveBeenCalled();
@@ -117,12 +119,12 @@ describe('authentication middleware', () => {
         credits: 0,
         experience: 0,
         safetyScore: 1,
-      } as any,
+      } as Request['user'],
     });
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
-    } as any;
+    } as unknown as Response;
 
     const user = requireUser(req, res);
 
@@ -135,7 +137,7 @@ describe('authentication middleware', () => {
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
-    } as any;
+    } as unknown as Response;
 
     const user = requireUser(req, res);
 

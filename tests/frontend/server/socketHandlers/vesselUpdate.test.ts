@@ -2,7 +2,7 @@ import { registerVesselUpdateHandler } from '../../../../src/server/socketHandle
 
 describe('registerVesselUpdateHandler', () => {
   it('updates vessel state and emits simulation update', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -41,7 +41,7 @@ describe('registerVesselUpdateHandler', () => {
       persistVesselToDb,
       toSimpleVesselState,
       defaultSpaceId: 'space-1',
-    } as any);
+    } as unknown as Parameters<typeof registerVesselUpdateHandler>[0]);
 
     const nowSpy = jest
       .spyOn(Date, 'now')

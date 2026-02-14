@@ -36,7 +36,7 @@ describe('registerVesselRepairHandler', () => {
   });
 
   it('rejects repairs when vessel not found', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -56,7 +56,7 @@ describe('registerVesselRepairHandler', () => {
       persistVesselToDb: jest.fn(),
       toSimpleVesselState: jest.fn(),
       defaultSpaceId: 'space-1',
-    } as any);
+    } as unknown as Parameters<typeof registerVesselRepairHandler>[0]);
 
     const callback = jest.fn();
     await handlers['vessel:repair']({}, callback);
@@ -68,7 +68,7 @@ describe('registerVesselRepairHandler', () => {
   });
 
   it('repairs vessel and emits updates', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -89,7 +89,20 @@ describe('registerVesselRepairHandler', () => {
         steeringFailure: true,
       },
       lastUpdate: 0,
-    } as any;
+    } as {
+      id: string;
+      spaceId: string;
+      crewIds: Set<string>;
+      velocity: { surge: number; sway: number };
+      damageState: Record<string, unknown>;
+      ownerId: string;
+      failureState: {
+        floodingLevel: number;
+        engineFailure: boolean;
+        steeringFailure: boolean;
+      };
+      lastUpdate: number;
+    };
 
     (prisma.insurancePolicy.findFirst as jest.Mock).mockResolvedValue({
       id: 'policy-1',
@@ -112,7 +125,7 @@ describe('registerVesselRepairHandler', () => {
       persistVesselToDb: jest.fn(),
       toSimpleVesselState: jest.fn(() => ({ id: 'v-1' })),
       defaultSpaceId: 'space-1',
-    } as any);
+    } as unknown as Parameters<typeof registerVesselRepairHandler>[0]);
 
     const callback = jest.fn();
     await handlers['vessel:repair']({}, callback);

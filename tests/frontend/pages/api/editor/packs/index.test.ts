@@ -3,14 +3,15 @@ const mockCreatePack = jest.fn();
 const mockGetToken = jest.fn();
 
 jest.mock('next-auth/jwt', () => ({
-  getToken: (...args: any[]) => mockGetToken(...args),
+  getToken: (...args: unknown[]) => mockGetToken(...args),
 }));
 
 jest.mock('../../../../../../src/server/editorPacksStore', () => ({
-  listPacks: (...args: any[]) => mockListPacks(...args),
-  createPack: (...args: any[]) => mockCreatePack(...args),
+  listPacks: (...args: unknown[]) => mockListPacks(...args),
+  createPack: (...args: unknown[]) => mockCreatePack(...args),
 }));
 
+import type { NextApiRequest, NextApiResponse } from 'next';
 import handler from '../../../../../../src/pages/api/editor/packs/index';
 
 const makeRes = () => {
@@ -18,6 +19,10 @@ const makeRes = () => {
   const status = jest.fn(() => ({ json }));
   return { status, json };
 };
+
+const toReq = (req: Partial<NextApiRequest>) => req as NextApiRequest;
+const toRes = (res: ReturnType<typeof makeRes>) =>
+  res as unknown as NextApiResponse;
 
 describe('pages/api/editor/packs/index', () => {
   beforeEach(() => {
@@ -31,8 +36,8 @@ describe('pages/api/editor/packs/index', () => {
     mockListPacks.mockReturnValue([{ id: 'p1' }]);
 
     await handler(
-      { method: 'GET', query: { userId: 'u1' } } as any,
-      res as any,
+      toReq({ method: 'GET', query: { userId: 'u1' } }),
+      toRes(res),
     );
 
     expect(mockListPacks).toHaveBeenCalledWith('u1');
@@ -44,7 +49,7 @@ describe('pages/api/editor/packs/index', () => {
     const res = makeRes();
     mockListPacks.mockReturnValue([]);
 
-    await handler({ method: 'GET', query: {} } as any, res as any);
+    await handler(toReq({ method: 'GET', query: {} }), toRes(res));
 
     expect(mockListPacks).toHaveBeenCalledWith('demo');
   });
@@ -54,8 +59,8 @@ describe('pages/api/editor/packs/index', () => {
     mockGetToken.mockResolvedValue(null);
 
     await handler(
-      { method: 'POST', body: { name: 'Pack', description: 'Desc' } } as any,
-      res as any,
+      toReq({ method: 'POST', body: { name: 'Pack', description: 'Desc' } }),
+      toRes(res),
     );
 
     expect(res.status).toHaveBeenCalledWith(401);
@@ -67,8 +72,8 @@ describe('pages/api/editor/packs/index', () => {
     mockGetToken.mockResolvedValue({ sub: 'u1', role: 'player' });
 
     await handler(
-      { method: 'POST', body: { name: 'name' } } as any,
-      res as any,
+      toReq({ method: 'POST', body: { name: 'name' } }),
+      toRes(res),
     );
 
     expect(res.status).toHaveBeenCalledWith(400);
@@ -83,11 +88,11 @@ describe('pages/api/editor/packs/index', () => {
     mockCreatePack.mockReturnValue({ error: 'Duplicate' });
 
     await handler(
-      {
+      toReq({
         method: 'POST',
         body: { name: 'Pack', description: 'Desc', ownerId: 'u1' },
-      } as any,
-      res as any,
+      }),
+      toRes(res),
     );
 
     expect(res.status).toHaveBeenCalledWith(409);
@@ -100,11 +105,11 @@ describe('pages/api/editor/packs/index', () => {
     mockCreatePack.mockReturnValue({ pack: { id: 'p1', name: 'Pack' } });
 
     await handler(
-      {
+      toReq({
         method: 'POST',
         body: { name: 'Pack', description: 'Desc', ownerId: 'spoofed-owner' },
-      } as any,
-      res as any,
+      }),
+      toRes(res),
     );
 
     expect(mockCreatePack).toHaveBeenCalledWith(
@@ -121,7 +126,7 @@ describe('pages/api/editor/packs/index', () => {
   it('rejects unsupported methods', async () => {
     const res = makeRes();
 
-    await handler({ method: 'PATCH' } as any, res as any);
+    await handler(toReq({ method: 'PATCH' }), toRes(res));
 
     expect(res.status).toHaveBeenCalledWith(405);
     expect(res.json).toHaveBeenCalledWith({ error: 'Method not allowed' });

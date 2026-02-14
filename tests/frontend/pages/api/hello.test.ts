@@ -4,8 +4,8 @@ describe('pages/api/hello', () => {
   it('returns hello response', () => {
     const json = jest.fn();
     const status = jest.fn(() => ({ json }));
-    const req = {} as any;
-    const res = { status } as any;
+    const req = {} as unknown as import('next').NextApiRequest;
+    const res = { status } as unknown as import('next').NextApiResponse;
 
     handler(req, res);
 

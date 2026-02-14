@@ -39,7 +39,7 @@ describe('registerVesselJoinHandler', () => {
   });
 
   it('rejects join when not authorized', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -74,7 +74,7 @@ describe('registerVesselJoinHandler', () => {
       createNewVesselForUser: jest.fn(),
       syncUserSocketsEconomy: jest.fn(),
       getRulesForSpace: jest.fn(() => ({ type: 'casual' })),
-    } as any);
+    } as unknown as Parameters<typeof registerVesselJoinHandler>[0]);
 
     await handlers['vessel:join']({ vesselId: 'v-1' });
 
@@ -85,7 +85,7 @@ describe('registerVesselJoinHandler', () => {
   });
 
   it('joins an existing vessel and broadcasts update', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -136,7 +136,7 @@ describe('registerVesselJoinHandler', () => {
       createNewVesselForUser: jest.fn(),
       syncUserSocketsEconomy: jest.fn(),
       getRulesForSpace: jest.fn(() => ({ type: 'casual' })),
-    } as any);
+    } as unknown as Parameters<typeof registerVesselJoinHandler>[0]);
 
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(500);
     await handlers['vessel:join']({ vesselId: 'v-1' });
@@ -152,7 +152,7 @@ describe('registerVesselJoinHandler', () => {
   });
 
   it('rejects vessel creation with insufficient credits', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -190,7 +190,7 @@ describe('registerVesselJoinHandler', () => {
       createNewVesselForUser: jest.fn(),
       syncUserSocketsEconomy: jest.fn(),
       getRulesForSpace: jest.fn(() => ({ type: 'casual' })),
-    } as any);
+    } as unknown as Parameters<typeof registerVesselJoinHandler>[0]);
 
     handlers['vessel:create']({});
 
@@ -202,7 +202,7 @@ describe('registerVesselJoinHandler', () => {
   });
 
   it('creates a new vessel and broadcasts update', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -252,7 +252,7 @@ describe('registerVesselJoinHandler', () => {
       createNewVesselForUser: jest.fn(() => newVessel),
       syncUserSocketsEconomy: jest.fn(),
       getRulesForSpace: jest.fn(() => ({ type: 'casual' })),
-    } as any);
+    } as unknown as Parameters<typeof registerVesselJoinHandler>[0]);
 
     handlers['vessel:create']({});
 
@@ -265,7 +265,7 @@ describe('registerVesselJoinHandler', () => {
   });
 
   it('rejects joining when rank is below space requirement', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -300,7 +300,7 @@ describe('registerVesselJoinHandler', () => {
       createNewVesselForUser: jest.fn(),
       syncUserSocketsEconomy: jest.fn(),
       getRulesForSpace: jest.fn(() => ({ type: 'casual' })),
-    } as any);
+    } as unknown as Parameters<typeof registerVesselJoinHandler>[0]);
 
     await handlers['vessel:join']({ vesselId: 'v-1' });
     expect(socket.emit).toHaveBeenCalledWith(
@@ -310,7 +310,7 @@ describe('registerVesselJoinHandler', () => {
   });
 
   it('loads vessel from persistence and rejects unauthorized users', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -352,7 +352,7 @@ describe('registerVesselJoinHandler', () => {
       createNewVesselForUser: jest.fn(),
       syncUserSocketsEconomy: jest.fn(),
       getRulesForSpace: jest.fn(() => ({ type: 'casual' })),
-    } as any);
+    } as unknown as Parameters<typeof registerVesselJoinHandler>[0]);
 
     await handlers['vessel:join']({ vesselId: 'v-db' });
     expect(socket.emit).toHaveBeenCalledWith(
@@ -362,7 +362,7 @@ describe('registerVesselJoinHandler', () => {
   });
 
   it('blocks realism vessel switching when far from target and no port', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -414,7 +414,7 @@ describe('registerVesselJoinHandler', () => {
       createNewVesselForUser: jest.fn(),
       syncUserSocketsEconomy: jest.fn(),
       getRulesForSpace: jest.fn(() => ({ type: 'REALISM' })),
-    } as any);
+    } as unknown as Parameters<typeof registerVesselJoinHandler>[0]);
 
     await handlers['vessel:join']({ vesselId: 'v-target' });
     expect(socket.emit).toHaveBeenCalledWith(
@@ -424,7 +424,7 @@ describe('registerVesselJoinHandler', () => {
   });
 
   it('rejects creating a vessel when not docked in realism mode', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -464,7 +464,7 @@ describe('registerVesselJoinHandler', () => {
       createNewVesselForUser: jest.fn(),
       syncUserSocketsEconomy: jest.fn(),
       getRulesForSpace: jest.fn(() => ({ type: 'EXAM' })),
-    } as any);
+    } as unknown as Parameters<typeof registerVesselJoinHandler>[0]);
 
     handlers['vessel:create']({});
     expect(socket.emit).toHaveBeenCalledWith(

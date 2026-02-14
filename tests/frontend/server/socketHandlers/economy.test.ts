@@ -38,7 +38,7 @@ describe('registerEconomyHandlers', () => {
   });
 
   it('rejects invalid loan amounts', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -53,7 +53,7 @@ describe('registerEconomyHandlers', () => {
       effectiveUserId: 'user-1',
       globalState: { vessels: new Map() },
       syncUserSocketsEconomy: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerEconomyHandlers>[0]);
 
     handlers['economy:loan:request']({ amount: -5 });
 
@@ -62,7 +62,7 @@ describe('registerEconomyHandlers', () => {
   });
 
   it('issues loan and emits economy update', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -84,7 +84,7 @@ describe('registerEconomyHandlers', () => {
       effectiveUserId: 'user-1',
       globalState: { vessels: new Map() },
       syncUserSocketsEconomy: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerEconomyHandlers>[0]);
 
     handlers['economy:loan:request']({ amount: 1000 });
 
@@ -101,7 +101,7 @@ describe('registerEconomyHandlers', () => {
   });
 
   it('repays loan and updates balance', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -126,7 +126,7 @@ describe('registerEconomyHandlers', () => {
       effectiveUserId: 'user-1',
       globalState: { vessels: new Map() },
       syncUserSocketsEconomy: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerEconomyHandlers>[0]);
 
     handlers['economy:loan:repay']({ loanId: 'loan-1', amount: 200 });
 
@@ -139,7 +139,7 @@ describe('registerEconomyHandlers', () => {
   });
 
   it('purchases and cancels insurance policies', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -166,7 +166,7 @@ describe('registerEconomyHandlers', () => {
         vessels: new Map([['v-1', { id: 'v-1', ownerId: 'user-1' }]]),
       },
       syncUserSocketsEconomy: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerEconomyHandlers>[0]);
 
     handlers['economy:insurance:purchase']({
       vesselId: 'v-1',
@@ -190,7 +190,7 @@ describe('registerEconomyHandlers', () => {
   });
 
   it('rejects loan request when active debt exceeds max credit', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -209,7 +209,7 @@ describe('registerEconomyHandlers', () => {
       effectiveUserId: 'user-1',
       globalState: { vessels: new Map() },
       syncUserSocketsEconomy: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerEconomyHandlers>[0]);
 
     handlers['economy:loan:request']({ amount: 1000 });
     await flushPromises();
@@ -221,7 +221,7 @@ describe('registerEconomyHandlers', () => {
   });
 
   it('validates repayment and insurance ownership checks', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -236,7 +236,7 @@ describe('registerEconomyHandlers', () => {
       effectiveUserId: 'user-1',
       globalState: { vessels: new Map() },
       syncUserSocketsEconomy: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerEconomyHandlers>[0]);
 
     handlers['economy:loan:repay']({ amount: 10 });
     await flushPromises();

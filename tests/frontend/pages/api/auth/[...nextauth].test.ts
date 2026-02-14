@@ -178,7 +178,7 @@ describe('pages/api/auth/[...nextauth]', () => {
         type: 'credentials',
         providerAccountId: 'x',
       },
-    } as any);
+    } as unknown as Parameters<NonNullable<typeof jwtCallback>>[0]);
 
     expect(first).toEqual(
       expect.objectContaining({
@@ -202,7 +202,7 @@ describe('pages/api/auth/[...nextauth]', () => {
       token: { iat: 1, sub: 'u3' },
       user: undefined,
       account: undefined,
-    } as any);
+    } as unknown as Parameters<NonNullable<typeof jwtCallback>>[0]);
 
     expect(rotated).toEqual(
       expect.objectContaining({ lastRotationAt: 30_000_000 }),
@@ -231,7 +231,7 @@ describe('pages/api/auth/[...nextauth]', () => {
         safetyScore: 0.88,
         iat: 1,
       },
-    } as any);
+    } as unknown as Parameters<NonNullable<typeof sessionCallback>>[0]);
 
     expect(session).toEqual(
       expect.objectContaining({

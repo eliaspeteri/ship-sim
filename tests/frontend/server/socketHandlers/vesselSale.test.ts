@@ -37,7 +37,7 @@ describe('registerVesselSaleHandler', () => {
   });
 
   it('rejects invalid sale price', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -63,7 +63,7 @@ describe('registerVesselSaleHandler', () => {
       defaultSpaceId: 'space-1',
       userSpaceKey: jest.fn(() => 'user:space-1'),
       syncUserSocketsEconomy: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerVesselSaleHandler>[0]);
 
     handlers['vessel:sale:create']({ vesselId: 'v-1', price: -1 });
 
@@ -72,7 +72,7 @@ describe('registerVesselSaleHandler', () => {
   });
 
   it('creates sale and updates vessel status', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -87,7 +87,15 @@ describe('registerVesselSaleHandler', () => {
       crewIds: new Set(['user-1']),
       crewNames: new Map(),
       lastUpdate: 0,
-    } as any;
+    } as {
+      id: string;
+      ownerId: string;
+      position: { lat: number; lon: number };
+      crewIds: Set<string>;
+      crewNames: Map<string, string>;
+      lastUpdate: number;
+      status?: string;
+    };
 
     registerVesselSaleHandler({
       io: { to: jest.fn(() => ({ emit: jest.fn() })) },
@@ -102,7 +110,7 @@ describe('registerVesselSaleHandler', () => {
       defaultSpaceId: 'space-1',
       userSpaceKey: jest.fn(() => 'user:space-1'),
       syncUserSocketsEconomy: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerVesselSaleHandler>[0]);
 
     handlers['vessel:sale:create']({ vesselId: 'v-1', price: 1000 });
 
@@ -113,7 +121,7 @@ describe('registerVesselSaleHandler', () => {
   });
 
   it('completes sale purchase and credits seller', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -130,7 +138,15 @@ describe('registerVesselSaleHandler', () => {
       crewIds: new Set(),
       crewNames: new Map(),
       lastUpdate: 0,
-    } as any;
+    } as {
+      id: string;
+      spaceId: string;
+      ownerId: string;
+      status: string;
+      crewIds: Set<string>;
+      crewNames: Map<string, string>;
+      lastUpdate: number;
+    };
 
     (prisma.vesselSale.findUnique as jest.Mock).mockResolvedValue({
       id: 'sale-1',
@@ -158,7 +174,7 @@ describe('registerVesselSaleHandler', () => {
       defaultSpaceId: 'space-1',
       userSpaceKey: jest.fn(() => 'user:space-1'),
       syncUserSocketsEconomy: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerVesselSaleHandler>[0]);
 
     handlers['vessel:sale:buy']({ saleId: 'sale-1' });
 

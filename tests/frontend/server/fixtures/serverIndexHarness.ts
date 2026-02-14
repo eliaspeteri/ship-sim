@@ -22,7 +22,10 @@ export const mockServer = {
 
 jest.mock('express', () => {
   const app = { use: jest.fn(), get: jest.fn() };
-  const express = jest.fn(() => app) as any;
+  const express = jest.fn(() => app) as unknown as {
+    (): typeof app;
+    json: jest.Mock;
+  };
   express.json = jest.fn(() => jest.fn());
   return express;
 });
@@ -36,29 +39,31 @@ jest.mock('socket.io', () => ({
 }));
 
 jest.mock('cors', () =>
-  jest.fn(() => (_req: any, _res: any, next: any) => next()),
+  jest.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
 );
 jest.mock('cookie-parser', () =>
-  jest.fn(() => (_req: any, _res: any, next: any) => next()),
+  jest.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
 );
 
 jest.mock('../../../../src/server/api', () => jest.fn());
 jest.mock('../../../../src/server/weatherSystem', () => ({
-  applyWeatherPattern: jest.fn((_spaceId: string, pattern: any) => ({
-    wind: { speed: 5, direction: 0, gustFactor: 1.5, gusting: false },
-    current: { speed: 0.5, direction: 0.2, variability: 0 },
-    seaState: 2,
-    waterDepth: 100,
-    visibility: 10,
-    timeOfDay: pattern.timeOfDay ?? 0,
-    precipitation: 'none',
-    precipitationIntensity: 0,
-    tideHeight: 0,
-    tideRange: 0,
-    tidePhase: 0,
-    tideTrend: 'rising',
-    name: pattern.name || 'Auto weather',
-  })),
+  applyWeatherPattern: jest.fn(
+    (_spaceId: string, pattern: { timeOfDay?: number; name?: string }) => ({
+      wind: { speed: 5, direction: 0, gustFactor: 1.5, gusting: false },
+      current: { speed: 0.5, direction: 0.2, variability: 0 },
+      seaState: 2,
+      waterDepth: 100,
+      visibility: 10,
+      timeOfDay: pattern.timeOfDay ?? 0,
+      precipitation: 'none',
+      precipitationIntensity: 0,
+      tideHeight: 0,
+      tideRange: 0,
+      tidePhase: 0,
+      tideTrend: 'rising',
+      name: pattern.name || 'Auto weather',
+    }),
+  ),
   getWeatherPattern: jest.fn(() => ({ name: 'Mock Pattern', timeOfDay: 12 })),
   WeatherPattern: {},
 }));
@@ -143,8 +148,8 @@ jest.mock('../../../../src/server/failureModel', () => ({
 }));
 jest.mock('../../../../src/server/damageModel', () => ({
   applyCollisionDamage: jest.fn(),
-  applyFailureWear: jest.fn((state: any) => state),
-  applyGroundingDamage: jest.fn((state: any) => state),
+  applyFailureWear: jest.fn((state: unknown) => state),
+  applyGroundingDamage: jest.fn((state: unknown) => state),
   mergeDamageState: jest.fn(state => state),
 }));
 jest.mock('../../../../src/lib/failureControls', () => ({

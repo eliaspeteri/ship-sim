@@ -42,7 +42,7 @@ describe('registerCargoHandlers', () => {
   });
 
   it('rejects invalid cargo values', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -56,7 +56,7 @@ describe('registerCargoHandlers', () => {
       effectiveUserId: 'user-1',
       globalState: { vessels: new Map() },
       hasAdminRole: jest.fn(() => false),
-    } as any);
+    } as unknown as Parameters<typeof registerCargoHandlers>[0]);
 
     handlers['cargo:create']({ value: -10 });
 
@@ -66,7 +66,7 @@ describe('registerCargoHandlers', () => {
   });
 
   it('creates loaded cargo when vessel provided', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -85,7 +85,7 @@ describe('registerCargoHandlers', () => {
       effectiveUserId: 'user-1',
       globalState: { vessels: new Map([['v-1', vessel]]) },
       hasAdminRole: jest.fn(() => false),
-    } as any);
+    } as unknown as Parameters<typeof registerCargoHandlers>[0]);
 
     handlers['cargo:create']({
       value: 1000,
@@ -110,7 +110,7 @@ describe('registerCargoHandlers', () => {
   });
 
   it('assigns cargo to a vessel when capacity allows', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -141,7 +141,7 @@ describe('registerCargoHandlers', () => {
       effectiveUserId: 'user-1',
       globalState: { vessels: new Map([['v-1', vessel]]) },
       hasAdminRole: jest.fn(() => false),
-    } as any);
+    } as unknown as Parameters<typeof registerCargoHandlers>[0]);
 
     handlers['cargo:assign']({ cargoId: 'c-1', vesselId: 'v-1' });
 
@@ -158,7 +158,7 @@ describe('registerCargoHandlers', () => {
   });
 
   it('releases cargo when owned by user', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -177,7 +177,7 @@ describe('registerCargoHandlers', () => {
       effectiveUserId: 'user-1',
       globalState: { vessels: new Map() },
       hasAdminRole: jest.fn(() => false),
-    } as any);
+    } as unknown as Parameters<typeof registerCargoHandlers>[0]);
 
     handlers['cargo:release']({ cargoId: 'c-1' });
 
@@ -189,7 +189,7 @@ describe('registerCargoHandlers', () => {
   });
 
   it('validates cargo create inputs and permissions', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -210,7 +210,7 @@ describe('registerCargoHandlers', () => {
         ]),
       },
       hasAdminRole: jest.fn(() => false),
-    } as any);
+    } as unknown as Parameters<typeof registerCargoHandlers>[0]);
 
     handlers['cargo:create']({ value: 1, weightTons: -1 });
     await flushPromises();
@@ -240,7 +240,7 @@ describe('registerCargoHandlers', () => {
   });
 
   it('validates cargo assignment failure branches', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -259,7 +259,7 @@ describe('registerCargoHandlers', () => {
       effectiveUserId: 'user-1',
       globalState: { vessels: new Map([['v-1', vessel]]) },
       hasAdminRole: jest.fn(() => false),
-    } as any);
+    } as unknown as Parameters<typeof registerCargoHandlers>[0]);
 
     handlers['cargo:assign']({});
     await flushPromises();

@@ -73,9 +73,12 @@ describe('server/careers', () => {
     expect(prismaMock.userCareer.createMany).toHaveBeenCalledTimes(1);
     const payload =
       prismaMock.userCareer.createMany.mock.calls[0]?.[0]?.data ?? [];
+    type CreateUserCareerRow = (typeof payload)[number];
     expect(payload.length).toBeGreaterThan(0);
-    expect(payload.some((row: any) => row.careerId === 'cargo')).toBe(false);
-    expect(payload.some((row: any) => row.active)).toBe(false);
+    expect(
+      payload.some((row: CreateUserCareerRow) => row.careerId === 'cargo'),
+    ).toBe(false);
+    expect(payload.some((row: CreateUserCareerRow) => row.active)).toBe(false);
 
     prismaMock.userCareer.createMany.mockReset();
     prismaMock.userCareer.findMany.mockResolvedValue(

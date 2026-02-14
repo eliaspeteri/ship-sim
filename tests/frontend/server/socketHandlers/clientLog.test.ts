@@ -12,7 +12,7 @@ describe('registerClientLogHandler', () => {
 
   it('records client logs with defaults', () => {
     (recordLog as jest.Mock).mockClear();
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -23,7 +23,7 @@ describe('registerClientLogHandler', () => {
     registerClientLogHandler({
       socket,
       defaultSpaceId: 'default-space',
-    } as any);
+    } as unknown as Parameters<typeof registerClientLogHandler>[0]);
 
     handlers['client:log']({ message: 'hello' });
 
@@ -37,7 +37,7 @@ describe('registerClientLogHandler', () => {
 
   it('skips invalid log payloads', () => {
     (recordLog as jest.Mock).mockClear();
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -48,7 +48,7 @@ describe('registerClientLogHandler', () => {
     registerClientLogHandler({
       socket,
       defaultSpaceId: 'default-space',
-    } as any);
+    } as unknown as Parameters<typeof registerClientLogHandler>[0]);
 
     handlers['client:log']({ level: 'warn' });
 

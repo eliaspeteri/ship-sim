@@ -17,7 +17,7 @@ describe('registerAdminWeatherHandler', () => {
   });
 
   it('rejects unauthorized weather updates', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -43,7 +43,7 @@ describe('registerAdminWeatherHandler', () => {
       weatherAutoIntervalMs: 1000,
       persistEnvironmentToDb: jest.fn(),
       globalState: { environmentBySpace: new Map() },
-    } as any);
+    } as unknown as Parameters<typeof registerAdminWeatherHandler>[0]);
 
     await handlers['admin:weather']({ mode: 'auto' });
 
@@ -54,7 +54,7 @@ describe('registerAdminWeatherHandler', () => {
   });
 
   it('switches to auto mode and broadcasts update', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -83,7 +83,7 @@ describe('registerAdminWeatherHandler', () => {
       weatherAutoIntervalMs: 1000,
       persistEnvironmentToDb,
       globalState: { environmentBySpace: new Map() },
-    } as any);
+    } as unknown as Parameters<typeof registerAdminWeatherHandler>[0]);
 
     await handlers['admin:weather']({ mode: 'auto' });
 
@@ -106,7 +106,7 @@ describe('registerAdminWeatherHandler', () => {
   });
 
   it('applies manual pattern updates', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -134,7 +134,7 @@ describe('registerAdminWeatherHandler', () => {
       weatherAutoIntervalMs: 1000,
       persistEnvironmentToDb: jest.fn(),
       globalState: { environmentBySpace: new Map() },
-    } as any);
+    } as unknown as Parameters<typeof registerAdminWeatherHandler>[0]);
 
     await handlers['admin:weather']({ mode: 'manual', pattern: 'storm' });
 
@@ -147,7 +147,7 @@ describe('registerAdminWeatherHandler', () => {
   });
 
   it('applies coordinate-based manual updates', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -175,7 +175,7 @@ describe('registerAdminWeatherHandler', () => {
       weatherAutoIntervalMs: 1000,
       persistEnvironmentToDb: jest.fn(),
       globalState: { environmentBySpace: new Map() },
-    } as any);
+    } as unknown as Parameters<typeof registerAdminWeatherHandler>[0]);
 
     await handlers['admin:weather']({
       mode: 'manual',

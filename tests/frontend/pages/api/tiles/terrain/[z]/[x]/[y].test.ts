@@ -1,3 +1,4 @@
+import type { NextApiRequest, NextApiResponse } from 'next';
 import handler from '../../../../../../../../src/pages/api/tiles/terrain/[z]/[x]/[y]';
 
 const makeRes = () => {
@@ -7,6 +8,13 @@ const makeRes = () => {
   return { status, send, setHeader };
 };
 
+const callHandler = (
+  req: Partial<NextApiRequest>,
+  res: ReturnType<typeof makeRes>,
+) => handler(req as NextApiRequest, res as unknown as NextApiResponse);
+
+const mockFetch = jest.fn();
+
 describe('terrain tile api', () => {
   beforeEach(() => {
     process.env.TERRAIN_TILES_BASE_URL = 'https://tiles.example.com';
@@ -15,7 +23,7 @@ describe('terrain tile api', () => {
   it('validates z/x/y', async () => {
     const res = makeRes();
 
-    await handler({ query: {} } as any, res as any);
+    await callHandler({ query: {} }, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.send).toHaveBeenCalledWith('Missing z/x/y');
@@ -25,7 +33,7 @@ describe('terrain tile api', () => {
     const res = makeRes();
     delete process.env.TERRAIN_TILES_BASE_URL;
 
-    await handler({ query: { z: '3', x: '4', y: '5' } } as any, res as any);
+    await callHandler({ query: { z: '3', x: '4', y: '5' } }, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.send).toHaveBeenCalledWith('Tile proxy is not configured');
@@ -33,13 +41,14 @@ describe('terrain tile api', () => {
 
   it('maps non-ok upstream responses to 502', async () => {
     const res = makeRes();
-    (globalThis as any).fetch = jest.fn().mockResolvedValue({
+    globalThis.fetch = mockFetch as typeof fetch;
+    mockFetch.mockResolvedValue({
       ok: false,
       status: 500,
       text: async () => 'upstream fail',
     });
 
-    await handler({ query: { z: '3', x: '4', y: '5' } } as any, res as any);
+    await callHandler({ query: { z: '3', x: '4', y: '5' } }, res);
 
     expect(res.status).toHaveBeenCalledWith(502);
     expect(res.send).toHaveBeenCalledWith('Terrain tile upstream error');
@@ -47,13 +56,12 @@ describe('terrain tile api', () => {
 
   it('maps upstream timeout to 504', async () => {
     const res = makeRes();
-    (globalThis as any).fetch = jest
-      .fn()
-      .mockRejectedValue(
-        Object.assign(new Error('timed out'), { name: 'AbortError' }),
-      );
+    globalThis.fetch = mockFetch as typeof fetch;
+    mockFetch.mockRejectedValue(
+      Object.assign(new Error('timed out'), { name: 'AbortError' }),
+    );
 
-    await handler({ query: { z: '3', x: '4', y: '5' } } as any, res as any);
+    await callHandler({ query: { z: '3', x: '4', y: '5' } }, res);
 
     expect(res.status).toHaveBeenCalledWith(504);
     expect(res.send).toHaveBeenCalledWith('Terrain tile upstream timeout');
@@ -61,11 +69,10 @@ describe('terrain tile api', () => {
 
   it('maps upstream network failure to 502', async () => {
     const res = makeRes();
-    (globalThis as any).fetch = jest
-      .fn()
-      .mockRejectedValue(new Error('network down'));
+    globalThis.fetch = mockFetch as typeof fetch;
+    mockFetch.mockRejectedValue(new Error('network down'));
 
-    await handler({ query: { z: '3', x: '4', y: '5' } } as any, res as any);
+    await callHandler({ query: { z: '3', x: '4', y: '5' } }, res);
 
     expect(res.status).toHaveBeenCalledWith(502);
     expect(res.send).toHaveBeenCalledWith('Terrain tile upstream unavailable');
@@ -74,12 +81,13 @@ describe('terrain tile api', () => {
   it('returns png tile bytes', async () => {
     const infoSpy = jest.spyOn(console, 'info').mockImplementation(() => {});
     const res = makeRes();
-    (globalThis as any).fetch = jest.fn().mockResolvedValue({
+    globalThis.fetch = mockFetch as typeof fetch;
+    mockFetch.mockResolvedValue({
       ok: true,
       arrayBuffer: async () => new Uint8Array([4, 5, 6]).buffer,
     });
 
-    await handler({ query: { z: '3', x: '4', y: '5' } } as any, res as any);
+    await callHandler({ query: { z: '3', x: '4', y: '5' } }, res);
 
     expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'image/png');
     expect(res.status).toHaveBeenCalledWith(200);

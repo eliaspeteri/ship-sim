@@ -1,4 +1,5 @@
 import { prismaMock } from '../lib/prismaMock';
+type EconomyModule = typeof import('../../../src/server/economy');
 
 type VesselRecord = {
   id: string;
@@ -33,13 +34,27 @@ type VesselRecord = {
   lastUpdate: number;
 };
 
-const economyLedger = new Map<string, any>();
+type EconomyLedgerEntry = {
+  lastChargeAt: number;
+  accrued: number;
+  lastPortId?: string;
+};
+
+const economyLedger = new Map<string, EconomyLedgerEntry>();
 const serverIo = { to: jest.fn(() => ({ emit: jest.fn() })) };
 const getRulesForSpace = jest.fn(() => ({
   economy: { autoStopOnEmpty: true },
 }));
 const persistVesselToDb = jest.fn();
 const syncUserSocketsEconomy = jest.fn();
+
+const asUpdateIo = (_mod: EconomyModule) =>
+  serverIo as unknown as Parameters<EconomyModule['updateEconomyForVessel']>[2];
+
+const asRevenueIo = (_mod: EconomyModule) =>
+  ({ to: jest.fn(() => ({ emit: jest.fn() })) }) as unknown as Parameters<
+    EconomyModule['applyEconomyAdjustmentWithRevenueShare']
+  >[1];
 
 jest.mock('../../../src/server/index', () => ({
   economyLedger,
@@ -221,7 +236,7 @@ describe('economy profile updates', () => {
 
     const mod = await loadEconomy();
 
-    const io = { to: jest.fn(() => ({ emit: jest.fn() })) } as any;
+    const io = asRevenueIo(mod);
     await mod.applyEconomyAdjustmentWithRevenueShare(
       {
         userId: 'owner-1',
@@ -278,7 +293,7 @@ describe('updateEconomyForVessel', () => {
   it('skips when no charge user exists', async () => {
     const mod = await loadEconomy();
     const vessel = buildVessel({ ownerId: null });
-    await mod.updateEconomyForVessel(vessel, Date.now(), serverIo as any);
+    await mod.updateEconomyForVessel(vessel, Date.now(), asUpdateIo(mod));
     expect(prismaMock.user.update).not.toHaveBeenCalled();
   });
 
@@ -310,7 +325,7 @@ describe('updateEconomyForVessel', () => {
       accrued: 0,
       lastPortId: undefined,
     });
-    await mod.updateEconomyForVessel(vessel, now, serverIo as any);
+    await mod.updateEconomyForVessel(vessel, now, asUpdateIo(mod));
 
     expect(prismaMock.economyTransaction.create).toHaveBeenCalled();
     const reasons = prismaMock.economyTransaction.create.mock.calls.map(
@@ -330,7 +345,7 @@ describe('updateEconomyForVessel', () => {
       accrued: 0,
       lastPortId: undefined,
     });
-    await mod.updateEconomyForVessel(vessel, now + 1, serverIo as any);
+    await mod.updateEconomyForVessel(vessel, now + 1, asUpdateIo(mod));
     expect(prismaMock.economyTransaction.create).not.toHaveBeenCalled();
   });
 
@@ -343,7 +358,7 @@ describe('updateEconomyForVessel', () => {
       accrued: 0,
       lastPortId: undefined,
     });
-    await mod.updateEconomyForVessel(vessel, now, serverIo as any);
+    await mod.updateEconomyForVessel(vessel, now, asUpdateIo(mod));
     expect(prismaMock.economyTransaction.create).not.toHaveBeenCalled();
     expect(economyLedger.get(vessel.id)).toBeTruthy();
   });
@@ -376,7 +391,7 @@ describe('updateEconomyForVessel', () => {
       accrued: 0,
       lastPortId: undefined,
     });
-    await mod.updateEconomyForVessel(vessel, now, serverIo as any);
+    await mod.updateEconomyForVessel(vessel, now, asUpdateIo(mod));
     expect(prismaMock.crewContract.updateMany).toHaveBeenCalled();
   });
 
@@ -408,7 +423,7 @@ describe('updateEconomyForVessel', () => {
       accrued: 0,
       lastPortId: undefined,
     });
-    await mod.updateEconomyForVessel(vessel, now, serverIo as any);
+    await mod.updateEconomyForVessel(vessel, now, asUpdateIo(mod));
     expect(vessel.controls.throttle).toBe(0);
     expect(vessel.controls.rudderAngle).toBe(0);
     expect(persistVesselToDb).toHaveBeenCalled();
@@ -459,7 +474,7 @@ describe('updateEconomyForVessel', () => {
       accrued: 0,
       lastPortId: undefined,
     });
-    await mod.updateEconomyForVessel(vessel, now, serverIo as any);
+    await mod.updateEconomyForVessel(vessel, now, asUpdateIo(mod));
 
     const reasons = prismaMock.economyTransaction.create.mock.calls.map(
       call => call[0].data.reason,
@@ -524,7 +539,7 @@ describe('updateEconomyForVessel', () => {
       accrued: 0,
       lastPortId: undefined,
     });
-    await mod.updateEconomyForVessel(vessel, now, serverIo as any);
+    await mod.updateEconomyForVessel(vessel, now, asUpdateIo(mod));
 
     expect(prismaMock.loan.update).toHaveBeenCalled();
     expect(prismaMock.vesselSale.create).toHaveBeenCalled();

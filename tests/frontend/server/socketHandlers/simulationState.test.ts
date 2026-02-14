@@ -2,7 +2,7 @@ import { registerSimulationStateHandler } from '../../../../src/server/socketHan
 
 describe('registerSimulationStateHandler', () => {
   it('rejects non-admin updates', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -14,7 +14,7 @@ describe('registerSimulationStateHandler', () => {
     registerSimulationStateHandler({
       socket,
       hasAdminRole: jest.fn(() => false),
-    } as any);
+    } as unknown as Parameters<typeof registerSimulationStateHandler>[0]);
 
     handlers['simulation:state']({ paused: true });
 
@@ -25,7 +25,7 @@ describe('registerSimulationStateHandler', () => {
   });
 
   it('accepts admin updates', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -38,7 +38,7 @@ describe('registerSimulationStateHandler', () => {
     registerSimulationStateHandler({
       socket,
       hasAdminRole: jest.fn(() => true),
-    } as any);
+    } as unknown as Parameters<typeof registerSimulationStateHandler>[0]);
 
     handlers['simulation:state']({ paused: true });
 

@@ -7,7 +7,7 @@ jest.mock('../../../../src/lib/failureControls', () => ({
 
 describe('registerVesselControlHandler', () => {
   it('rejects control from non-player', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -29,7 +29,7 @@ describe('registerVesselControlHandler', () => {
       clamp: jest.fn((value: number) => value),
       rudderMaxAngleRad: 1,
       defaultSpaceId: 'space-1',
-    } as any);
+    } as unknown as Parameters<typeof registerVesselControlHandler>[0]);
 
     handlers['vessel:control']({ throttle: 0.5 });
 
@@ -40,7 +40,7 @@ describe('registerVesselControlHandler', () => {
   });
 
   it('applies control changes and failure limits', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -81,7 +81,7 @@ describe('registerVesselControlHandler', () => {
       clamp,
       rudderMaxAngleRad: 0.5,
       defaultSpaceId: 'space-1',
-    } as any);
+    } as unknown as Parameters<typeof registerVesselControlHandler>[0]);
 
     handlers['vessel:control']({
       throttle: 2,

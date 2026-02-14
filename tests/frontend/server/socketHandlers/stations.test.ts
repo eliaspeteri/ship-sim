@@ -2,7 +2,7 @@ import { registerStationHandlers } from '../../../../src/server/socketHandlers/s
 
 describe('registerStationHandlers', () => {
   it('rejects helm change for non-crew', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -30,7 +30,7 @@ describe('registerStationHandlers', () => {
       toSimpleVesselState: jest.fn(),
       persistVesselToDb: jest.fn(),
       defaultSpaceId: 'space-1',
-    } as any);
+    } as unknown as Parameters<typeof registerStationHandlers>[0]);
 
     handlers['vessel:helm']({ action: 'claim' });
 
@@ -41,7 +41,7 @@ describe('registerStationHandlers', () => {
   });
 
   it('updates station assignment and emits simulation update', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -73,7 +73,7 @@ describe('registerStationHandlers', () => {
       toSimpleVesselState: jest.fn(() => ({ id: 'v-1' })),
       persistVesselToDb,
       defaultSpaceId: 'space-1',
-    } as any);
+    } as unknown as Parameters<typeof registerStationHandlers>[0]);
 
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(999);
     handlers['vessel:station']({ station: 'engine', action: 'claim' });
@@ -96,7 +96,7 @@ describe('registerStationHandlers', () => {
   });
 
   it('emits assignment errors and allows admin station override', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -130,7 +130,7 @@ describe('registerStationHandlers', () => {
       toSimpleVesselState: jest.fn(() => ({ id: 'v-1' })),
       persistVesselToDb: jest.fn(),
       defaultSpaceId: 'space-1',
-    } as any);
+    } as unknown as Parameters<typeof registerStationHandlers>[0]);
 
     handlers['vessel:helm']({ action: 'claim' });
     expect(socket.emit).toHaveBeenCalledWith(

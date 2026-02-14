@@ -26,7 +26,7 @@ describe('registerVesselLeaseHandler', () => {
   });
 
   it('rejects lease creation with missing vessel id', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -41,7 +41,7 @@ describe('registerVesselLeaseHandler', () => {
       globalState: { vessels: new Map() },
       hasAdminRole: jest.fn(() => false),
       persistVesselToDb: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerVesselLeaseHandler>[0]);
 
     handlers['vessel:lease:create']({});
 
@@ -50,7 +50,7 @@ describe('registerVesselLeaseHandler', () => {
   });
 
   it('rejects lease creation when not owner', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -66,7 +66,7 @@ describe('registerVesselLeaseHandler', () => {
       globalState: { vessels: new Map([['v-1', vessel]]) },
       hasAdminRole: jest.fn(() => false),
       persistVesselToDb: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerVesselLeaseHandler>[0]);
 
     handlers['vessel:lease:create']({ vesselId: 'v-1', ratePerHour: 10 });
 
@@ -78,7 +78,7 @@ describe('registerVesselLeaseHandler', () => {
   });
 
   it('accepts lease and updates vessel in memory', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -117,7 +117,7 @@ describe('registerVesselLeaseHandler', () => {
       globalState: { vessels: new Map([['v-1', vessel]]) },
       hasAdminRole: jest.fn(() => false),
       persistVesselToDb,
-    } as any);
+    } as unknown as Parameters<typeof registerVesselLeaseHandler>[0]);
 
     handlers['vessel:lease:accept']({ leaseId: 'lease-1' });
 
@@ -128,7 +128,7 @@ describe('registerVesselLeaseHandler', () => {
   });
 
   it('validates lease create inputs and acceptance fallback path', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -145,7 +145,7 @@ describe('registerVesselLeaseHandler', () => {
       },
       hasAdminRole: jest.fn(() => false),
       persistVesselToDb: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerVesselLeaseHandler>[0]);
 
     handlers['vessel:lease:create']({ vesselId: 'v-1', ratePerHour: 0 });
     await flushPromises();

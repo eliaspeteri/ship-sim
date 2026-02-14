@@ -6,23 +6,24 @@ const mockRecordAuthEvent = jest.fn();
 jest.mock('bcryptjs', () => ({
   __esModule: true,
   default: {
-    hash: (...args: any[]) => mockHash(...args),
+    hash: (...args: unknown[]) => mockHash(...args),
   },
 }));
 
 jest.mock('../../../../src/lib/prisma', () => ({
   prisma: {
     user: {
-      findFirst: (...args: any[]) => mockFindFirst(...args),
-      create: (...args: any[]) => mockCreate(...args),
+      findFirst: (...args: unknown[]) => mockFindFirst(...args),
+      create: (...args: unknown[]) => mockCreate(...args),
     },
   },
 }));
 
 jest.mock('../../../../src/lib/authAudit', () => ({
-  recordAuthEvent: (...args: any[]) => mockRecordAuthEvent(...args),
+  recordAuthEvent: (...args: unknown[]) => mockRecordAuthEvent(...args),
 }));
 
+import type { NextApiRequest, NextApiResponse } from 'next';
 import handler from '../../../../src/pages/api/register';
 import { REGISTER_LIMITS } from '../../../../src/server/requestLimits';
 
@@ -40,6 +41,10 @@ const makeRes = () => {
   return res;
 };
 
+const toReq = (req: Partial<NextApiRequest>) => req as NextApiRequest;
+const toRes = (res: ReturnType<typeof makeRes>) =>
+  res as unknown as NextApiResponse;
+
 describe('pages/api/register', () => {
   beforeEach(() => {
     mockHash.mockReset();
@@ -52,7 +57,7 @@ describe('pages/api/register', () => {
   it('rejects non-POST requests', async () => {
     const res = makeRes();
 
-    await handler({ method: 'GET' } as any, res as any);
+    await handler(toReq({ method: 'GET' }), toRes(res));
 
     expect(res.setHeader).toHaveBeenCalledWith('Allow', 'POST');
     expect(res.status).toHaveBeenCalledWith(405);
@@ -66,8 +71,8 @@ describe('pages/api/register', () => {
     const res = makeRes();
 
     await handler(
-      { method: 'POST', body: { username: 'captain' } } as any,
-      res as any,
+      toReq({ method: 'POST', body: { username: 'captain' } }),
+      toRes(res),
     );
 
     expect(res.status).toHaveBeenCalledWith(400);
@@ -82,11 +87,11 @@ describe('pages/api/register', () => {
     mockFindFirst.mockResolvedValue({ id: 'existing-user' });
 
     await handler(
-      {
+      toReq({
         method: 'POST',
         body: { username: 'captain', password: 'secret' },
-      } as any,
-      res as any,
+      }),
+      toRes(res),
     );
 
     expect(mockFindFirst).toHaveBeenCalled();
@@ -103,11 +108,11 @@ describe('pages/api/register', () => {
     mockCreate.mockResolvedValue({ id: 'u1', name: 'captain', role: 'player' });
 
     await handler(
-      {
+      toReq({
         method: 'POST',
         body: { username: 'captain', password: 'secret' },
-      } as any,
-      res as any,
+      }),
+      toRes(res),
     );
 
     expect(mockHash).toHaveBeenCalledWith('secret', 10);
@@ -139,11 +144,11 @@ describe('pages/api/register', () => {
     mockCreate.mockRejectedValue(new Error('db fail'));
 
     await handler(
-      {
+      toReq({
         method: 'POST',
         body: { username: 'captain', password: 'secret' },
-      } as any,
-      res as any,
+      }),
+      toRes(res),
     );
 
     expect(res.status).toHaveBeenCalledWith(500);
@@ -160,11 +165,11 @@ describe('pages/api/register', () => {
     const longName = 'a'.repeat(REGISTER_LIMITS.maxUsernameLength + 1);
 
     await handler(
-      {
+      toReq({
         method: 'POST',
         body: { username: longName, password: 'secret' },
-      } as any,
-      res as any,
+      }),
+      toRes(res),
     );
 
     expect(res.status).toHaveBeenCalledWith(400);
@@ -181,14 +186,14 @@ describe('pages/api/register', () => {
 
     for (let i = 0; i < attempts; i += 1) {
       const res = makeRes();
-      await handler(
-        {
-          method: 'POST',
-          body: { username: 'ratelimit-user' },
-          socket: { remoteAddress: ip },
-        } as any,
-        res as any,
-      );
+      const req = toReq({
+        method: 'POST',
+        body: { username: 'ratelimit-user' },
+      });
+      Object.defineProperty(req, 'socket', {
+        value: { remoteAddress: ip },
+      });
+      await handler(req, toRes(res));
       lastStatus = res.statusCode;
     }
 

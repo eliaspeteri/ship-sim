@@ -1,14 +1,16 @@
 import { WasmBridge } from '../../src/lib/wasmBridge';
 
+type WasmModuleArg = ConstructorParameters<typeof WasmBridge>[0];
+
 describe('WasmBridge', () => {
   it('writes vessel params into the wasm buffer', () => {
     const buffer = new ArrayBuffer(8 * 6);
-    const wasmModule: any = {
+    const wasmModule = {
       memory: { buffer },
       getVesselParamsBufferCapacity: jest.fn(() => 4),
       getVesselParamsBufferPtr: jest.fn(() => 8),
       setVesselParams: jest.fn(),
-    };
+    } as unknown as WasmModuleArg;
     const bridge = new WasmBridge(wasmModule);
 
     bridge.setVesselParams(3, 7, [1, 2]);
@@ -23,12 +25,12 @@ describe('WasmBridge', () => {
 
   it('writes environment params and respects capacity', () => {
     const buffer = new ArrayBuffer(8 * 4);
-    const wasmModule: any = {
+    const wasmModule = {
       memory: { buffer },
       getEnvironmentBufferCapacity: jest.fn(() => 2),
       getEnvironmentBufferPtr: jest.fn(() => 8),
       setEnvironment: jest.fn(),
-    };
+    } as unknown as WasmModuleArg;
     const bridge = new WasmBridge(wasmModule);
 
     bridge.setEnvironment([9, 8, 7]);
@@ -40,9 +42,9 @@ describe('WasmBridge', () => {
   });
 
   it('no-ops when wasm buffer helpers are missing', () => {
-    const wasmModule: any = {
+    const wasmModule = {
       setVesselParams: jest.fn(),
-    };
+    } as unknown as WasmModuleArg;
     const bridge = new WasmBridge(wasmModule);
 
     bridge.setVesselParams(1, 2, [1]);
@@ -54,8 +56,12 @@ describe('WasmBridge', () => {
   it('uses destroyVessel when available, otherwise resetGlobalVessel', () => {
     const destroy = jest.fn();
     const reset = jest.fn();
-    const bridgeA = new WasmBridge({ destroyVessel: destroy } as any);
-    const bridgeB = new WasmBridge({ resetGlobalVessel: reset } as any);
+    const bridgeA = new WasmBridge({
+      destroyVessel: destroy,
+    } as unknown as WasmModuleArg);
+    const bridgeB = new WasmBridge({
+      resetGlobalVessel: reset,
+    } as unknown as WasmModuleArg);
 
     bridgeA.destroyVessel(10);
     bridgeB.destroyVessel(11);
@@ -65,7 +71,7 @@ describe('WasmBridge', () => {
   });
 
   it('proxies passthrough methods to the wasm module', () => {
-    const wasmModule: any = {
+    const wasmModule = {
       updateVesselState: jest.fn().mockReturnValue(99),
       createVessel: jest.fn().mockReturnValue(7),
       setThrottle: jest.fn(),
@@ -93,7 +99,7 @@ describe('WasmBridge', () => {
       getVesselYawRate: jest.fn().mockReturnValue(20),
       calculateSeaState: jest.fn().mockReturnValue(21),
       getWaveHeightForSeaState: jest.fn().mockReturnValue(22),
-    };
+    } as unknown as WasmModuleArg;
     const bridge = new WasmBridge(wasmModule);
 
     expect(bridge.updateVesselState(1, 0.1, 1, 2, 3, 4, 5, 6, 7, 8)).toBe(99);

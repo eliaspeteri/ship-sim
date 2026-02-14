@@ -1,6 +1,7 @@
 import type { WasmBridge } from '../../src/lib/wasmBridge';
+import type useStore from '../../src/store';
 
-type StoreState = Record<string, any>;
+type StoreState = ReturnType<typeof useStore.getState>;
 
 const mockHydro = {
   rudderForceCoefficient: 1,
@@ -19,7 +20,7 @@ const mockHydro = {
 };
 
 const createStoreState = (overrides: Partial<StoreState> = {}): StoreState => {
-  const state: StoreState = {
+  const state = {
     mode: 'player',
     currentVesselId: 'v-1',
     wasmVesselPtr: 1,
@@ -66,7 +67,7 @@ const createStoreState = (overrides: Partial<StoreState> = {}): StoreState => {
     addReplayFrame: jest.fn(),
     setMode: jest.fn(),
     setCurrentVesselId: jest.fn(),
-  };
+  } as unknown as StoreState;
 
   return Object.assign(state, overrides);
 };
@@ -247,7 +248,10 @@ describe('simulation loop', () => {
       wasmVesselPtr: 7,
       vessel: {
         ...createStoreState().vessel,
-        hydrodynamics: { rudderMaxAngle: 0.4 },
+        hydrodynamics: {
+          ...createStoreState().vessel.hydrodynamics,
+          rudderMaxAngle: 0.4,
+        },
       },
     });
 
@@ -336,7 +340,11 @@ describe('simulation loop', () => {
           ...createStoreState().vessel.properties,
           draft: 5,
         },
-        alarms: { lowFuel: false, otherAlarms: {} },
+        alarms: {
+          ...createStoreState().vessel.alarms,
+          lowFuel: false,
+          otherAlarms: {},
+        },
       },
     });
     wasmBridge.getVesselFuelLevel.mockReturnValue(0.05);
@@ -345,7 +353,9 @@ describe('simulation loop', () => {
 
     expect(storeState.updateVessel).toHaveBeenCalled();
     const eventTypes = (
-      storeState.addEvent.mock.calls as Array<[{ type: string }]>
+      (storeState.addEvent as unknown as jest.Mock).mock.calls as Array<
+        [{ type: string }]
+      >
     ).map(call => call[0].type);
     expect(eventTypes).toEqual(
       expect.arrayContaining(['grounding', 'low_fuel']),

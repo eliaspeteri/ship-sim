@@ -7,6 +7,16 @@ import {
   createSocketPermissionMiddleware,
 } from '../../../src/server/middleware/authorization';
 
+type PermissionHandler = ReturnType<typeof requirePermission>;
+type RoleHandler = ReturnType<typeof requireRole>;
+type PermissionReq = Parameters<PermissionHandler>[0];
+type PermissionRes = Parameters<PermissionHandler>[1];
+type RoleReq = Parameters<RoleHandler>[0];
+type RoleRes = Parameters<RoleHandler>[1];
+type SocketArg = Parameters<typeof socketHasPermission>[0];
+type SocketMiddleware = ReturnType<typeof createSocketPermissionMiddleware>;
+type MiddlewareSocketArg = Parameters<SocketMiddleware>[0];
+
 const makeRes = () => {
   const res = {
     status: jest.fn().mockReturnThis(),
@@ -32,11 +42,15 @@ describe('authorization middleware', () => {
   });
 
   it('requirePermission returns 401 when no user', () => {
-    const req = {} as any;
+    const req = {} as PermissionReq;
     const res = makeRes();
     const next = jest.fn();
 
-    requirePermission('vessel', 'list')(req, res as any, next);
+    requirePermission('vessel', 'list')(
+      req,
+      res as unknown as PermissionRes,
+      next,
+    );
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
@@ -49,11 +63,15 @@ describe('authorization middleware', () => {
   it('requirePermission calls next when permitted', () => {
     const req = {
       user: { permissions: [{ resource: 'vessel', action: 'list' }] },
-    } as any;
+    } as PermissionReq;
     const res = makeRes();
     const next = jest.fn();
 
-    requirePermission('vessel', 'list')(req, res as any, next);
+    requirePermission('vessel', 'list')(
+      req,
+      res as unknown as PermissionRes,
+      next,
+    );
 
     expect(next).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();
@@ -62,11 +80,15 @@ describe('authorization middleware', () => {
   it('requirePermission returns 403 when forbidden', () => {
     const req = {
       user: { permissions: [{ resource: 'vessel', action: 'list' }] },
-    } as any;
+    } as PermissionReq;
     const res = makeRes();
     const next = jest.fn();
 
-    requirePermission('vessel', 'update')(req, res as any, next);
+    requirePermission('vessel', 'update')(
+      req,
+      res as unknown as PermissionRes,
+      next,
+    );
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith({
@@ -81,8 +103,8 @@ describe('authorization middleware', () => {
     const next = jest.fn();
 
     requireRole(['admin'])(
-      { user: { roles: ['player'] } } as any,
-      res as any,
+      { user: { roles: ['player'] } } as RoleReq,
+      res as unknown as RoleRes,
       next,
     );
     expect(res.status).toHaveBeenCalledWith(403);
@@ -92,8 +114,8 @@ describe('authorization middleware', () => {
     next.mockClear();
 
     requireRole(['player', 'admin'])(
-      { user: { roles: ['player'] } } as any,
-      res as any,
+      { user: { roles: ['player'] } } as RoleReq,
+      res as unknown as RoleRes,
       next,
     );
     expect(next).toHaveBeenCalled();
@@ -102,10 +124,10 @@ describe('authorization middleware', () => {
   it('socketHasPermission checks socket data', () => {
     const socket = {
       data: { permissions: [{ resource: 'chat', action: 'send' }] },
-    } as any;
+    } as SocketArg;
     expect(socketHasPermission(socket, 'chat', 'send')).toBe(true);
     expect(socketHasPermission(socket, 'chat', 'read')).toBe(false);
-    expect(socketHasPermission({ data: {} } as any, 'chat', 'send')).toBe(
+    expect(socketHasPermission({ data: {} } as SocketArg, 'chat', 'send')).toBe(
       false,
     );
   });
@@ -114,14 +136,14 @@ describe('authorization middleware', () => {
     const next = jest.fn();
     const middleware = createSocketPermissionMiddleware('mission', 'assign');
 
-    middleware({ data: null } as any, next);
+    middleware({ data: null } as MiddlewareSocketArg, next);
     expect(next).toHaveBeenCalledWith(new Error('Authentication required'));
 
     next.mockClear();
     middleware(
       {
         data: { permissions: [{ resource: 'mission', action: 'assign' }] },
-      } as any,
+      } as MiddlewareSocketArg,
       next,
     );
     expect(next).toHaveBeenCalledWith();
@@ -130,7 +152,7 @@ describe('authorization middleware', () => {
     middleware(
       {
         data: { permissions: [{ resource: 'mission', action: 'list' }] },
-      } as any,
+      } as MiddlewareSocketArg,
       next,
     );
     expect(next).toHaveBeenCalledWith(new Error('Insufficient permissions'));

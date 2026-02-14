@@ -20,7 +20,7 @@ describe('registerAdminHandlers', () => {
   });
 
   it('updates vessel mode to ai and clears crew', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -48,7 +48,7 @@ describe('registerAdminHandlers', () => {
       getSpaceIdForSocket: jest.fn(() => 'space-1'),
       toSimpleVesselState: jest.fn(),
       persistVesselToDb,
-    } as any);
+    } as unknown as Parameters<typeof registerAdminHandlers>[0]);
 
     handlers['admin:vesselMode']({ vesselId: 'v-1', mode: 'ai' });
 
@@ -59,7 +59,7 @@ describe('registerAdminHandlers', () => {
   });
 
   it('stops vessel and broadcasts update', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -88,7 +88,7 @@ describe('registerAdminHandlers', () => {
       getSpaceIdForSocket: jest.fn(() => 'space-1'),
       toSimpleVesselState: jest.fn(() => ({ id: 'v-1' })),
       persistVesselToDb,
-    } as any);
+    } as unknown as Parameters<typeof registerAdminHandlers>[0]);
 
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1234);
     handlers['admin:vessel:stop']({ vesselId: 'v-1' });
@@ -106,7 +106,7 @@ describe('registerAdminHandlers', () => {
   });
 
   it('kicks matching user sockets', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const targetSocket = {
       data: { userId: 'user-2' },
       emit: jest.fn(),
@@ -135,7 +135,7 @@ describe('registerAdminHandlers', () => {
       getSpaceIdForSocket: jest.fn(),
       toSimpleVesselState: jest.fn(),
       persistVesselToDb: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerAdminHandlers>[0]);
 
     await handlers['admin:kick']({ userId: 'user-2', reason: 'bye' });
 
@@ -144,7 +144,7 @@ describe('registerAdminHandlers', () => {
   });
 
   it('removes vessels and clears caches', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -152,7 +152,7 @@ describe('registerAdminHandlers', () => {
       emit: jest.fn(),
       data: { userId: 'admin' },
     };
-    const vessel = { id: 'v-1' } as any;
+    const vessel = { id: 'v-1' } as { id: string };
     const globalState = {
       vessels: new Map([['v-1', vessel]]),
       userLastVessel: new Map([['user:space-1', 'v-1']]),
@@ -171,7 +171,7 @@ describe('registerAdminHandlers', () => {
       getSpaceIdForSocket: jest.fn(() => 'space-1'),
       toSimpleVesselState: jest.fn(),
       persistVesselToDb: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerAdminHandlers>[0]);
 
     await handlers['admin:vessel:remove']({ vesselId: 'v-1' });
 
@@ -185,7 +185,7 @@ describe('registerAdminHandlers', () => {
   });
 
   it('teleports vessel and broadcasts updates', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const emitSpy = jest.fn();
     const socket = {
       on: jest.fn((event, cb) => {
@@ -215,7 +215,7 @@ describe('registerAdminHandlers', () => {
       getSpaceIdForSocket: jest.fn(() => 'space-1'),
       toSimpleVesselState: jest.fn(() => ({ id: 'v-1' })),
       persistVesselToDb,
-    } as any);
+    } as unknown as Parameters<typeof registerAdminHandlers>[0]);
 
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(111);
     handlers['admin:vessel:move']({
@@ -242,7 +242,7 @@ describe('registerAdminHandlers', () => {
   });
 
   it('validates admin permissions and required payload fields', async () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -262,7 +262,7 @@ describe('registerAdminHandlers', () => {
       getSpaceIdForSocket: jest.fn(() => 'space-1'),
       toSimpleVesselState: jest.fn(),
       persistVesselToDb: jest.fn(),
-    } as any);
+    } as unknown as Parameters<typeof registerAdminHandlers>[0]);
 
     handlers['admin:vesselMode']({ vesselId: 'v-1', mode: 'ai' });
     handlers['admin:vessel:stop']({ vesselId: 'v-1' });

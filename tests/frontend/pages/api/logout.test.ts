@@ -2,13 +2,14 @@ const mockGetToken = jest.fn();
 const mockRecordAuthEvent = jest.fn();
 
 jest.mock('next-auth/jwt', () => ({
-  getToken: (...args: any[]) => mockGetToken(...args),
+  getToken: (...args: unknown[]) => mockGetToken(...args),
 }));
 
 jest.mock('../../../../src/lib/authAudit', () => ({
-  recordAuthEvent: (...args: any[]) => mockRecordAuthEvent(...args),
+  recordAuthEvent: (...args: unknown[]) => mockRecordAuthEvent(...args),
 }));
 
+import type { NextApiRequest, NextApiResponse } from 'next';
 import handler from '../../../../src/pages/api/logout';
 
 const makeRes = () => {
@@ -17,6 +18,10 @@ const makeRes = () => {
   const setHeader = jest.fn();
   return { json, status, setHeader };
 };
+
+const toReq = (req: Partial<NextApiRequest>) => req as NextApiRequest;
+const toRes = (res: ReturnType<typeof makeRes>) =>
+  res as unknown as NextApiResponse;
 
 describe('pages/api/logout', () => {
   beforeEach(() => {
@@ -27,7 +32,7 @@ describe('pages/api/logout', () => {
   it('rejects non-POST requests', async () => {
     const res = makeRes();
 
-    await handler({ method: 'GET' } as any, res as any);
+    await handler(toReq({ method: 'GET' }), toRes(res));
 
     expect(res.setHeader).toHaveBeenCalledWith('Allow', 'POST');
     expect(res.status).toHaveBeenCalledWith(405);
@@ -41,7 +46,7 @@ describe('pages/api/logout', () => {
     const res = makeRes();
     mockGetToken.mockResolvedValue({ sub: 'user-1' });
 
-    await handler({ method: 'POST' } as any, res as any);
+    await handler(toReq({ method: 'POST' }), toRes(res));
 
     expect(mockRecordAuthEvent).toHaveBeenCalledWith({
       userId: 'user-1',
@@ -66,7 +71,7 @@ describe('pages/api/logout', () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     mockGetToken.mockRejectedValue(new Error('boom'));
 
-    await handler({ method: 'POST' } as any, res as any);
+    await handler(toReq({ method: 'POST' }), toRes(res));
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ success: true });

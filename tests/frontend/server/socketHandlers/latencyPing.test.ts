@@ -7,7 +7,7 @@ jest.mock('../../../../src/server/metrics', () => ({
 
 describe('registerLatencyPingHandler', () => {
   it('responds with pong and records latency', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -17,7 +17,9 @@ describe('registerLatencyPingHandler', () => {
     };
 
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1000);
-    registerLatencyPingHandler({ socket } as any);
+    registerLatencyPingHandler({ socket } as unknown as Parameters<
+      typeof registerLatencyPingHandler
+    >[0]);
 
     handlers['latency:ping']({ sentAt: 900 });
 
@@ -30,7 +32,7 @@ describe('registerLatencyPingHandler', () => {
   });
 
   it('ignores invalid payloads', () => {
-    const handlers: Record<string, any> = {};
+    const handlers: Record<string, (...args: unknown[]) => unknown> = {};
     const socket = {
       on: jest.fn((event, cb) => {
         handlers[event] = cb;
@@ -39,7 +41,9 @@ describe('registerLatencyPingHandler', () => {
       data: {},
     };
 
-    registerLatencyPingHandler({ socket } as any);
+    registerLatencyPingHandler({ socket } as unknown as Parameters<
+      typeof registerLatencyPingHandler
+    >[0]);
 
     handlers['latency:ping']({});
     expect(socket.emit).not.toHaveBeenCalled();
