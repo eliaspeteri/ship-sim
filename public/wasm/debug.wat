@@ -2,180 +2,182 @@
  (type $0 (func (param i32) (result f64)))
  (type $1 (func (param i32 f64)))
  (type $2 (func (param i32 i32)))
- (type $3 (func (param f64) (result f64)))
- (type $4 (func (param i32) (result i32)))
+ (type $3 (func))
+ (type $4 (func (param f64) (result f64)))
  (type $5 (func (result i32)))
  (type $6 (func (param i32)))
- (type $7 (func))
+ (type $7 (func (param i32) (result i32)))
  (type $8 (func (param f64 f64) (result f64)))
  (type $9 (func (param i32 i32 i32 i32)))
  (type $10 (func (param i32 i32) (result i32)))
  (type $11 (func (param f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64) (result i32)))
- (type $12 (func (param i32 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64) (result i32)))
+ (type $12 (func (param i32 i32 f64)))
  (type $13 (func (param i32 i32) (result f64)))
  (type $14 (func (param i32 i32 i32 f64) (result f64)))
- (type $15 (func (param f64 i64) (result i32)))
- (type $16 (func (param i32 f64 f64 f64 f64 f64 f64 f64 f64 f64) (result i32)))
+ (type $15 (func (param i32 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64 f64) (result i32)))
+ (type $16 (func (param f64 i64) (result i32)))
+ (type $17 (func (param i32 f64 f64 f64 f64 f64 f64 f64 f64 f64) (result i32)))
  (import "env" "memory" (memory $0 16 100))
  (import "env" "abort" (func $~lib/builtins/abort (param i32 i32 i32 i32)))
- (global $assembly/index/WATER_DENSITY f64 (f64.const 1025))
- (global $assembly/index/DEFAULT_DRAG_COEFFICIENT f64 (f64.const 0.8))
- (global $assembly/index/DEFAULT_RUDDER_FORCE_COEFFICIENT f64 (f64.const 2e5))
- (global $assembly/index/DEFAULT_RUDDER_STALL_ANGLE f64 (f64.const 0.5))
- (global $assembly/index/DEFAULT_RUDDER_MAX_ANGLE f64 (f64.const 0.6))
- (global $assembly/index/DEFAULT_MAX_THRUST f64 (f64.const 8e5))
- (global $assembly/index/DEFAULT_MASS f64 (f64.const 5e6))
- (global $assembly/index/DEFAULT_LENGTH f64 (f64.const 120))
- (global $assembly/index/DEFAULT_BEAM f64 (f64.const 20))
- (global $assembly/index/DEFAULT_DRAFT f64 (f64.const 6))
- (global $assembly/index/DEFAULT_BLOCK_COEFFICIENT f64 (f64.const 0.75))
- (global $assembly/index/GRAVITY f64 (f64.const 9.81))
- (global $assembly/index/DEFAULT_YAW_DAMPING f64 (f64.const 0.5))
- (global $assembly/index/DEFAULT_YAW_DAMPING_QUAD f64 (f64.const 1.2))
- (global $assembly/index/DEFAULT_SWAY_DAMPING f64 (f64.const 0.6))
- (global $assembly/index/MAX_YAW_RATE f64 (f64.const 0.8))
- (global $assembly/index/DEFAULT_MAX_SPEED f64 (f64.const 15))
- (global $assembly/index/PIVOT_AFT_RATIO f64 (f64.const 0.25))
- (global $assembly/index/DEFAULT_HEAVE_STIFFNESS f64 (f64.const 2))
- (global $assembly/index/DEFAULT_HEAVE_DAMPING f64 (f64.const 1.6))
- (global $assembly/index/WAVE_HEIGHT_PER_WIND f64 (f64.const 0.05))
- (global $assembly/index/MAX_WAVE_HEIGHT f64 (f64.const 3))
- (global $assembly/index/DEFAULT_ROLL_DAMPING f64 (f64.const 0.8))
- (global $assembly/index/DEFAULT_PITCH_DAMPING f64 (f64.const 0.6))
- (global $assembly/index/DEFAULT_FUEL_CONSUMPTION_RATE f64 (f64.const 0.000015))
- (global $assembly/index/DEFAULT_RUDDER_AREA_RATIO f64 (f64.const 0.02))
- (global $assembly/index/DEFAULT_RUDDER_ARM_RATIO f64 (f64.const 0.45))
- (global $assembly/index/DEFAULT_RUDDER_LIFT_SLOPE f64 (f64.const 6))
- (global $assembly/index/DEFAULT_PROP_WASH f64 (f64.const 0.6))
- (global $assembly/index/DEFAULT_ENGINE_TIME_CONSTANT f64 (f64.const 2.5))
- (global $assembly/index/DEFAULT_RUDDER_RATE f64 (f64.const 0.25))
- (global $assembly/index/DEFAULT_ADDED_MASS_X_COEFF f64 (f64.const 0.05))
- (global $assembly/index/DEFAULT_ADDED_MASS_Y_COEFF f64 (f64.const 0.2))
- (global $assembly/index/DEFAULT_ADDED_MASS_YAW_COEFF f64 (f64.const 0.02))
- (global $assembly/index/DEFAULT_HULL_YV f64 (f64.const 0))
- (global $assembly/index/DEFAULT_HULL_YR f64 (f64.const 0))
- (global $assembly/index/DEFAULT_HULL_NV f64 (f64.const 0))
- (global $assembly/index/DEFAULT_HULL_NR f64 (f64.const 0))
- (global $assembly/index/DEFAULT_CD_SURGE f64 (f64.const 0.7))
- (global $assembly/index/DEFAULT_CD_SWAY f64 (f64.const 1.1))
- (global $assembly/index/DEFAULT_CD_YAW f64 (f64.const 0.2))
- (global $assembly/index/DEFAULT_SHALLOW_WATER_FACTOR f64 (f64.const 1.5))
- (global $assembly/index/DEFAULT_SHALLOW_WATER_YAW_FACTOR f64 (f64.const 1.4))
- (global $assembly/index/DEFAULT_SHALLOW_WATER_RUDDER_FACTOR f64 (f64.const 0.7))
- (global $assembly/index/SHALLOW_WATER_MIN_RATIO f64 (f64.const 1.1))
- (global $assembly/index/SHALLOW_WATER_MAX_RATIO f64 (f64.const 3))
- (global $assembly/index/MAX_SPEED_MULTIPLIER f64 (f64.const 1.2))
- (global $assembly/index/MAX_YAW_MULTIPLIER f64 (f64.const 1.5))
- (global $assembly/index/MODEL_DISPLACEMENT i32 (i32.const 0))
- (global $assembly/index/VESSEL_PARAM_BUFFER_CAPACITY i32 (i32.const 64))
- (global $assembly/index/ENVIRONMENT_BUFFER_CAPACITY i32 (i32.const 16))
- (global $assembly/index/PARAM_MASS i32 (i32.const 0))
- (global $assembly/index/PARAM_LENGTH i32 (i32.const 1))
- (global $assembly/index/PARAM_BEAM i32 (i32.const 2))
- (global $assembly/index/PARAM_DRAFT i32 (i32.const 3))
- (global $assembly/index/PARAM_BLOCK_COEFFICIENT i32 (i32.const 4))
- (global $assembly/index/PARAM_RUDDER_FORCE_COEFFICIENT i32 (i32.const 5))
- (global $assembly/index/PARAM_RUDDER_STALL_ANGLE i32 (i32.const 6))
- (global $assembly/index/PARAM_RUDDER_MAX_ANGLE i32 (i32.const 7))
- (global $assembly/index/PARAM_DRAG_COEFFICIENT i32 (i32.const 8))
- (global $assembly/index/PARAM_YAW_DAMPING i32 (i32.const 9))
- (global $assembly/index/PARAM_YAW_DAMPING_QUAD i32 (i32.const 10))
- (global $assembly/index/PARAM_SWAY_DAMPING i32 (i32.const 11))
- (global $assembly/index/PARAM_MAX_THRUST i32 (i32.const 12))
- (global $assembly/index/PARAM_MAX_SPEED i32 (i32.const 13))
- (global $assembly/index/PARAM_ROLL_DAMPING i32 (i32.const 14))
- (global $assembly/index/PARAM_PITCH_DAMPING i32 (i32.const 15))
- (global $assembly/index/PARAM_HEAVE_STIFFNESS i32 (i32.const 16))
- (global $assembly/index/PARAM_HEAVE_DAMPING i32 (i32.const 17))
- (global $assembly/index/PARAM_RUDDER_AREA i32 (i32.const 18))
- (global $assembly/index/PARAM_RUDDER_ARM i32 (i32.const 19))
- (global $assembly/index/PARAM_RUDDER_LIFT_SLOPE i32 (i32.const 20))
- (global $assembly/index/PARAM_PROP_WASH i32 (i32.const 21))
- (global $assembly/index/PARAM_ENGINE_TIME_CONSTANT i32 (i32.const 22))
- (global $assembly/index/PARAM_RUDDER_RATE i32 (i32.const 23))
- (global $assembly/index/PARAM_ADDED_MASS_X i32 (i32.const 24))
- (global $assembly/index/PARAM_ADDED_MASS_Y i32 (i32.const 25))
- (global $assembly/index/PARAM_ADDED_MASS_YAW i32 (i32.const 26))
- (global $assembly/index/PARAM_HULL_YV i32 (i32.const 27))
- (global $assembly/index/PARAM_HULL_YR i32 (i32.const 28))
- (global $assembly/index/PARAM_HULL_NV i32 (i32.const 29))
- (global $assembly/index/PARAM_HULL_NR i32 (i32.const 30))
- (global $assembly/index/PARAM_CD_SURGE i32 (i32.const 31))
- (global $assembly/index/PARAM_CD_SWAY i32 (i32.const 32))
- (global $assembly/index/PARAM_CD_YAW i32 (i32.const 33))
- (global $assembly/index/PARAM_SHALLOW_WATER_FACTOR i32 (i32.const 34))
- (global $assembly/index/PARAM_SHALLOW_WATER_YAW_FACTOR i32 (i32.const 35))
- (global $assembly/index/PARAM_SHALLOW_WATER_RUDDER_FACTOR i32 (i32.const 36))
- (global $assembly/index/ENV_WIND_SPEED i32 (i32.const 0))
- (global $assembly/index/ENV_WIND_DIRECTION i32 (i32.const 1))
- (global $assembly/index/ENV_CURRENT_SPEED i32 (i32.const 2))
- (global $assembly/index/ENV_CURRENT_DIRECTION i32 (i32.const 3))
- (global $assembly/index/ENV_WAVE_HEIGHT i32 (i32.const 4))
- (global $assembly/index/ENV_WAVE_LENGTH i32 (i32.const 5))
- (global $assembly/index/ENV_WAVE_DIRECTION i32 (i32.const 6))
- (global $assembly/index/ENV_WAVE_STEEPNESS i32 (i32.const 7))
- (global $assembly/index/ENV_WATER_DEPTH i32 (i32.const 8))
- (global $assembly/index/globalVessel (mut i32) (i32.const 0))
+ (global $assembly/runtimeCore/WATER_DENSITY f64 (f64.const 1025))
+ (global $assembly/runtimeCore/DEFAULT_DRAG_COEFFICIENT f64 (f64.const 0.8))
+ (global $assembly/runtimeCore/DEFAULT_RUDDER_FORCE_COEFFICIENT f64 (f64.const 2e5))
+ (global $assembly/runtimeCore/DEFAULT_RUDDER_STALL_ANGLE f64 (f64.const 0.5))
+ (global $assembly/runtimeCore/DEFAULT_RUDDER_MAX_ANGLE f64 (f64.const 0.6))
+ (global $assembly/runtimeCore/DEFAULT_MAX_THRUST f64 (f64.const 8e5))
+ (global $assembly/runtimeCore/DEFAULT_MASS f64 (f64.const 5e6))
+ (global $assembly/runtimeCore/DEFAULT_LENGTH f64 (f64.const 120))
+ (global $assembly/runtimeCore/DEFAULT_BEAM f64 (f64.const 20))
+ (global $assembly/runtimeCore/DEFAULT_DRAFT f64 (f64.const 6))
+ (global $assembly/runtimeCore/DEFAULT_BLOCK_COEFFICIENT f64 (f64.const 0.75))
+ (global $assembly/runtimeCore/GRAVITY f64 (f64.const 9.81))
+ (global $assembly/runtimeCore/DEFAULT_YAW_DAMPING f64 (f64.const 0.5))
+ (global $assembly/runtimeCore/DEFAULT_YAW_DAMPING_QUAD f64 (f64.const 1.2))
+ (global $assembly/runtimeCore/DEFAULT_SWAY_DAMPING f64 (f64.const 0.6))
+ (global $assembly/runtimeCore/MAX_YAW_RATE f64 (f64.const 0.8))
+ (global $assembly/runtimeCore/DEFAULT_MAX_SPEED f64 (f64.const 15))
+ (global $assembly/runtimeCore/DEFAULT_HEAVE_STIFFNESS f64 (f64.const 2))
+ (global $assembly/runtimeCore/DEFAULT_HEAVE_DAMPING f64 (f64.const 1.6))
+ (global $assembly/runtimeCore/WAVE_HEIGHT_PER_WIND f64 (f64.const 0.05))
+ (global $assembly/runtimeCore/MAX_WAVE_HEIGHT f64 (f64.const 3))
+ (global $assembly/runtimeCore/DEFAULT_ROLL_DAMPING f64 (f64.const 0.8))
+ (global $assembly/runtimeCore/DEFAULT_PITCH_DAMPING f64 (f64.const 0.6))
+ (global $assembly/runtimeCore/DEFAULT_FUEL_CONSUMPTION_RATE f64 (f64.const 0.000015))
+ (global $assembly/runtimeCore/DEFAULT_RUDDER_AREA_RATIO f64 (f64.const 0.02))
+ (global $assembly/runtimeCore/DEFAULT_RUDDER_ARM_RATIO f64 (f64.const 0.45))
+ (global $assembly/runtimeCore/DEFAULT_RUDDER_LIFT_SLOPE f64 (f64.const 6))
+ (global $assembly/runtimeCore/DEFAULT_PROP_WASH f64 (f64.const 0.6))
+ (global $assembly/runtimeCore/DEFAULT_ENGINE_TIME_CONSTANT f64 (f64.const 2.5))
+ (global $assembly/runtimeCore/DEFAULT_RUDDER_RATE f64 (f64.const 0.25))
+ (global $assembly/runtimeCore/DEFAULT_ADDED_MASS_X_COEFF f64 (f64.const 0.05))
+ (global $assembly/runtimeCore/DEFAULT_ADDED_MASS_Y_COEFF f64 (f64.const 0.2))
+ (global $assembly/runtimeCore/DEFAULT_ADDED_MASS_YAW_COEFF f64 (f64.const 0.02))
+ (global $assembly/runtimeCore/DEFAULT_HULL_YV f64 (f64.const 0))
+ (global $assembly/runtimeCore/DEFAULT_HULL_YR f64 (f64.const 0))
+ (global $assembly/runtimeCore/DEFAULT_HULL_NV f64 (f64.const 0))
+ (global $assembly/runtimeCore/DEFAULT_HULL_NR f64 (f64.const 0))
+ (global $assembly/runtimeCore/DEFAULT_CD_SURGE f64 (f64.const 0.7))
+ (global $assembly/runtimeCore/DEFAULT_CD_SWAY f64 (f64.const 1.1))
+ (global $assembly/runtimeCore/DEFAULT_CD_YAW f64 (f64.const 0.2))
+ (global $assembly/runtimeCore/DEFAULT_SHALLOW_WATER_FACTOR f64 (f64.const 1.5))
+ (global $assembly/runtimeCore/DEFAULT_SHALLOW_WATER_YAW_FACTOR f64 (f64.const 1.4))
+ (global $assembly/runtimeCore/DEFAULT_SHALLOW_WATER_RUDDER_FACTOR f64 (f64.const 0.7))
+ (global $assembly/runtimeCore/SHALLOW_WATER_MIN_RATIO f64 (f64.const 1.1))
+ (global $assembly/runtimeCore/SHALLOW_WATER_MAX_RATIO f64 (f64.const 3))
+ (global $assembly/runtimeCore/MAX_SPEED_MULTIPLIER f64 (f64.const 1.2))
+ (global $assembly/runtimeCore/MAX_YAW_MULTIPLIER f64 (f64.const 1.5))
+ (global $assembly/runtimeCore/MODEL_DISPLACEMENT i32 (i32.const 0))
+ (global $assembly/runtimeCore/VESSEL_PARAM_BUFFER_CAPACITY i32 (i32.const 64))
+ (global $assembly/runtimeCore/ENVIRONMENT_BUFFER_CAPACITY i32 (i32.const 16))
+ (global $assembly/runtimeCore/PARAM_MASS i32 (i32.const 0))
+ (global $assembly/runtimeCore/PARAM_LENGTH i32 (i32.const 1))
+ (global $assembly/runtimeCore/PARAM_BEAM i32 (i32.const 2))
+ (global $assembly/runtimeCore/PARAM_DRAFT i32 (i32.const 3))
+ (global $assembly/runtimeCore/PARAM_BLOCK_COEFFICIENT i32 (i32.const 4))
+ (global $assembly/runtimeCore/PARAM_RUDDER_FORCE_COEFFICIENT i32 (i32.const 5))
+ (global $assembly/runtimeCore/PARAM_RUDDER_STALL_ANGLE i32 (i32.const 6))
+ (global $assembly/runtimeCore/PARAM_RUDDER_MAX_ANGLE i32 (i32.const 7))
+ (global $assembly/runtimeCore/PARAM_DRAG_COEFFICIENT i32 (i32.const 8))
+ (global $assembly/runtimeCore/PARAM_YAW_DAMPING i32 (i32.const 9))
+ (global $assembly/runtimeCore/PARAM_YAW_DAMPING_QUAD i32 (i32.const 10))
+ (global $assembly/runtimeCore/PARAM_SWAY_DAMPING i32 (i32.const 11))
+ (global $assembly/runtimeCore/PARAM_MAX_THRUST i32 (i32.const 12))
+ (global $assembly/runtimeCore/PARAM_MAX_SPEED i32 (i32.const 13))
+ (global $assembly/runtimeCore/PARAM_ROLL_DAMPING i32 (i32.const 14))
+ (global $assembly/runtimeCore/PARAM_PITCH_DAMPING i32 (i32.const 15))
+ (global $assembly/runtimeCore/PARAM_HEAVE_STIFFNESS i32 (i32.const 16))
+ (global $assembly/runtimeCore/PARAM_HEAVE_DAMPING i32 (i32.const 17))
+ (global $assembly/runtimeCore/PARAM_RUDDER_AREA i32 (i32.const 18))
+ (global $assembly/runtimeCore/PARAM_RUDDER_ARM i32 (i32.const 19))
+ (global $assembly/runtimeCore/PARAM_RUDDER_LIFT_SLOPE i32 (i32.const 20))
+ (global $assembly/runtimeCore/PARAM_PROP_WASH i32 (i32.const 21))
+ (global $assembly/runtimeCore/PARAM_ENGINE_TIME_CONSTANT i32 (i32.const 22))
+ (global $assembly/runtimeCore/PARAM_RUDDER_RATE i32 (i32.const 23))
+ (global $assembly/runtimeCore/PARAM_ADDED_MASS_X i32 (i32.const 24))
+ (global $assembly/runtimeCore/PARAM_ADDED_MASS_Y i32 (i32.const 25))
+ (global $assembly/runtimeCore/PARAM_ADDED_MASS_YAW i32 (i32.const 26))
+ (global $assembly/runtimeCore/PARAM_HULL_YV i32 (i32.const 27))
+ (global $assembly/runtimeCore/PARAM_HULL_YR i32 (i32.const 28))
+ (global $assembly/runtimeCore/PARAM_HULL_NV i32 (i32.const 29))
+ (global $assembly/runtimeCore/PARAM_HULL_NR i32 (i32.const 30))
+ (global $assembly/runtimeCore/PARAM_CD_SURGE i32 (i32.const 31))
+ (global $assembly/runtimeCore/PARAM_CD_SWAY i32 (i32.const 32))
+ (global $assembly/runtimeCore/PARAM_CD_YAW i32 (i32.const 33))
+ (global $assembly/runtimeCore/PARAM_SHALLOW_WATER_FACTOR i32 (i32.const 34))
+ (global $assembly/runtimeCore/PARAM_SHALLOW_WATER_YAW_FACTOR i32 (i32.const 35))
+ (global $assembly/runtimeCore/PARAM_SHALLOW_WATER_RUDDER_FACTOR i32 (i32.const 36))
+ (global $assembly/runtimeCore/ENV_WIND_SPEED i32 (i32.const 0))
+ (global $assembly/runtimeCore/ENV_WIND_DIRECTION i32 (i32.const 1))
+ (global $assembly/runtimeCore/ENV_CURRENT_SPEED i32 (i32.const 2))
+ (global $assembly/runtimeCore/ENV_CURRENT_DIRECTION i32 (i32.const 3))
+ (global $assembly/runtimeCore/ENV_WAVE_HEIGHT i32 (i32.const 4))
+ (global $assembly/runtimeCore/ENV_WAVE_LENGTH i32 (i32.const 5))
+ (global $assembly/runtimeCore/ENV_WAVE_DIRECTION i32 (i32.const 6))
+ (global $assembly/runtimeCore/ENV_WAVE_STEEPNESS i32 (i32.const 7))
+ (global $assembly/runtimeCore/ENV_WATER_DEPTH i32 (i32.const 8))
+ (global $assembly/runtimeCore/globalVessel (mut i32) (i32.const 0))
  (global $~lib/rt/stub/startOffset (mut i32) (i32.const 0))
  (global $~lib/rt/stub/offset (mut i32) (i32.const 0))
- (global $assembly/index/globalEnvironment (mut i32) (i32.const 0))
+ (global $assembly/runtimeCore/globalEnvironment (mut i32) (i32.const 0))
  (global $~lib/shared/runtime/Runtime.Stub i32 (i32.const 0))
  (global $~lib/shared/runtime/Runtime.Minimal i32 (i32.const 1))
  (global $~lib/shared/runtime/Runtime.Incremental i32 (i32.const 2))
  (global $~lib/native/ASC_RUNTIME i32 (i32.const 0))
- (global $assembly/index/vesselParamsBuffer (mut i32) (i32.const 0))
- (global $assembly/index/environmentBuffer (mut i32) (i32.const 0))
+ (global $assembly/runtimeCore/vesselParamsBuffer (mut i32) (i32.const 0))
+ (global $assembly/runtimeCore/environmentBuffer (mut i32) (i32.const 0))
  (global $~argumentsLength (mut i32) (i32.const 0))
  (global $~lib/native/ASC_SHRINK_LEVEL i32 (i32.const 0))
  (global $~lib/math/rempio2_y0 (mut f64) (f64.const 0))
  (global $~lib/math/rempio2_y1 (mut f64) (f64.const 0))
  (global $~lib/math/res128_hi (mut i64) (i64.const 0))
  (global $~lib/math/NativeMath.PI f64 (f64.const 3.141592653589793))
- (global $~lib/memory/__heap_base i32 (i32.const 576))
+ (global $~lib/memory/__heap_base i32 (i32.const 592))
  (data $0 (i32.const 12) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00(\00\00\00A\00l\00l\00o\00c\00a\00t\00i\00o\00n\00 \00t\00o\00o\00 \00l\00a\00r\00g\00e\00\00\00\00\00")
  (data $1 (i32.const 76) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\1e\00\00\00~\00l\00i\00b\00/\00r\00t\00/\00s\00t\00u\00b\00.\00t\00s\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
  (data $2 (i32.const 140) ",\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\1c\00\00\00I\00n\00v\00a\00l\00i\00d\00 \00l\00e\00n\00g\00t\00h\00")
  (data $3 (i32.const 188) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00&\00\00\00~\00l\00i\00b\00/\00s\00t\00a\00t\00i\00c\00a\00r\00r\00a\00y\00.\00t\00s\00\00\00\00\00\00\00")
  (data $4 (i32.const 252) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00,\00\00\00V\00e\00s\00s\00e\00l\00 \00p\00o\00i\00n\00t\00e\00r\00 \00i\00s\00 \00n\00u\00l\00l\00")
- (data $5 (i32.const 316) "<\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00\"\00\00\00a\00s\00s\00e\00m\00b\00l\00y\00/\00i\00n\00d\00e\00x\00.\00t\00s\00\00\00\00\00\00\00\00\00\00\00")
- (data $6 (i32.const 384) "n\83\f9\a2\00\00\00\00\d1W\'\fc)\15DN\99\95b\db\c0\dd4\f5\abcQ\feA\90C<:n$\b7a\c5\bb\de\ea.I\06\e0\d2MB\1c\eb\1d\fe\1c\92\d1\t\f55\82\e8>\a7)\b1&p\9c\e9\84D\bb.9\d6\919A~_\b4\8b_\84\9c\f49S\83\ff\97\f8\1f;(\f9\bd\8b\11/\ef\0f\98\05\de\cf~6m\1fm\nZf?FO\b7\t\cb\'\c7\ba\'u-\ea_\9e\f79\07={\f1\e5\eb\b1_\fbk\ea\92R\8aF0\03V\08]\8d\1f \bc\cf\f0\abk{\fca\91\e3\a9\1d6\f4\9a_\85\99e\08\1b\e6^\80\d8\ff\8d@h\a0\14W\15\06\061\'sM")
+ (data $5 (i32.const 316) "L\00\00\00\00\00\00\00\00\00\00\00\02\00\00\00.\00\00\00a\00s\00s\00e\00m\00b\00l\00y\00/\00r\00u\00n\00t\00i\00m\00e\00C\00o\00r\00e\00.\00t\00s\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
+ (data $6 (i32.const 400) "n\83\f9\a2\00\00\00\00\d1W\'\fc)\15DN\99\95b\db\c0\dd4\f5\abcQ\feA\90C<:n$\b7a\c5\bb\de\ea.I\06\e0\d2MB\1c\eb\1d\fe\1c\92\d1\t\f55\82\e8>\a7)\b1&p\9c\e9\84D\bb.9\d6\919A~_\b4\8b_\84\9c\f49S\83\ff\97\f8\1f;(\f9\bd\8b\11/\ef\0f\98\05\de\cf~6m\1fm\nZf?FO\b7\t\cb\'\c7\ba\'u-\ea_\9e\f79\07={\f1\e5\eb\b1_\fbk\ea\92R\8aF0\03V\08]\8d\1f \bc\cf\f0\abk{\fca\91\e3\a9\1d6\f4\9a_\85\99e\08\1b\e6^\80\d8\ff\8d@h\a0\14W\15\06\061\'sM")
  (table $0 1 funcref)
  (elem $0 (i32.const 1))
- (export "createVessel" (func $assembly/index/createVessel@varargs))
- (export "destroyVessel" (func $assembly/index/destroyVessel))
- (export "getVesselParamsBufferPtr" (func $assembly/index/getVesselParamsBufferPtr))
- (export "getVesselParamsBufferCapacity" (func $assembly/index/getVesselParamsBufferCapacity))
- (export "setVesselParams" (func $assembly/index/setVesselParams))
- (export "getEnvironmentBufferPtr" (func $assembly/index/getEnvironmentBufferPtr))
- (export "getEnvironmentBufferCapacity" (func $assembly/index/getEnvironmentBufferCapacity))
- (export "setEnvironment" (func $assembly/index/setEnvironment))
- (export "updateVesselState" (func $assembly/index/updateVesselState))
- (export "setThrottle" (func $assembly/index/setThrottle))
- (export "setRudderAngle" (func $assembly/index/setRudderAngle))
- (export "setBallast" (func $assembly/index/setBallast))
- (export "getVesselX" (func $assembly/index/getVesselX))
- (export "getVesselY" (func $assembly/index/getVesselY))
- (export "getVesselZ" (func $assembly/index/getVesselZ))
- (export "getVesselHeading" (func $assembly/index/getVesselHeading))
- (export "getVesselSpeed" (func $assembly/index/getVesselSpeed))
- (export "getVesselSurgeVelocity" (func $assembly/index/getVesselSurgeVelocity))
- (export "getVesselSwayVelocity" (func $assembly/index/getVesselSwayVelocity))
- (export "getVesselHeaveVelocity" (func $assembly/index/getVesselHeaveVelocity))
- (export "getVesselRollAngle" (func $assembly/index/getVesselRollAngle))
- (export "getVesselPitchAngle" (func $assembly/index/getVesselPitchAngle))
- (export "getVesselRudderAngle" (func $assembly/index/getVesselRudderAngle))
- (export "getVesselEngineRPM" (func $assembly/index/getVesselEngineRPM))
- (export "getVesselFuelLevel" (func $assembly/index/getVesselFuelLevel))
- (export "getVesselFuelConsumption" (func $assembly/index/getVesselFuelConsumption))
- (export "getVesselGM" (func $assembly/index/getVesselGM))
- (export "getVesselCenterOfGravityY" (func $assembly/index/getVesselCenterOfGravityY))
- (export "getVesselBallastLevel" (func $assembly/index/getVesselBallastLevel))
- (export "getVesselRollRate" (func $assembly/index/getVesselRollRate))
- (export "getVesselPitchRate" (func $assembly/index/getVesselPitchRate))
- (export "getVesselYawRate" (func $assembly/index/getVesselYawRate))
- (export "calculateSeaState" (func $assembly/index/calculateSeaState))
- (export "getWaveHeightForSeaState" (func $assembly/index/getWaveHeightForSeaState))
- (export "resetGlobalVessel" (func $assembly/index/resetGlobalVessel))
+ (export "getEnvironmentBufferCapacity" (func $assembly/runtimeCore/getEnvironmentBufferCapacity))
+ (export "getEnvironmentBufferPtr" (func $assembly/runtimeCore/getEnvironmentBufferPtr))
+ (export "resetGlobalEnvironment" (func $assembly/runtimeCore/resetGlobalEnvironment))
+ (export "resetGlobalVessel" (func $assembly/runtimeCore/resetGlobalVessel))
+ (export "resetSimulationRuntime" (func $assembly/runtimeCore/resetSimulationRuntime))
+ (export "getVesselParamsBufferCapacity" (func $assembly/runtimeCore/getVesselParamsBufferCapacity))
+ (export "getVesselParamsBufferPtr" (func $assembly/runtimeCore/getVesselParamsBufferPtr))
+ (export "calculateSeaState" (func $assembly/environment/calculateSeaState))
+ (export "getWaveHeightForSeaState" (func $assembly/environment/getWaveHeightForSeaState))
+ (export "setEnvironment" (func $assembly/environment/setEnvironment))
+ (export "setVesselParams" (func $assembly/vesselParams/setVesselParams))
+ (export "createVessel" (func $assembly/simulation/createVessel@varargs))
+ (export "destroyVessel" (func $assembly/simulation/destroyVessel))
+ (export "setBallast" (func $assembly/simulation/setBallast))
+ (export "setRudderAngle" (func $assembly/simulation/setRudderAngle))
+ (export "setThrottle" (func $assembly/simulation/setThrottle))
+ (export "updateVesselState" (func $assembly/simulation/updateVesselState))
+ (export "getVesselBallastLevel" (func $assembly/getters/getVesselBallastLevel))
+ (export "getVesselCenterOfGravityY" (func $assembly/getters/getVesselCenterOfGravityY))
+ (export "getVesselEngineRPM" (func $assembly/getters/getVesselEngineRPM))
+ (export "getVesselFuelConsumption" (func $assembly/getters/getVesselFuelConsumption))
+ (export "getVesselFuelLevel" (func $assembly/getters/getVesselFuelLevel))
+ (export "getVesselGM" (func $assembly/getters/getVesselGM))
+ (export "getVesselHeading" (func $assembly/getters/getVesselHeading))
+ (export "getVesselHeaveVelocity" (func $assembly/getters/getVesselHeaveVelocity))
+ (export "getVesselPitchAngle" (func $assembly/getters/getVesselPitchAngle))
+ (export "getVesselPitchRate" (func $assembly/getters/getVesselPitchRate))
+ (export "getVesselRollAngle" (func $assembly/getters/getVesselRollAngle))
+ (export "getVesselRollRate" (func $assembly/getters/getVesselRollRate))
+ (export "getVesselRudderAngle" (func $assembly/getters/getVesselRudderAngle))
+ (export "getVesselSpeed" (func $assembly/getters/getVesselSpeed))
+ (export "getVesselSurgeVelocity" (func $assembly/getters/getVesselSurgeVelocity))
+ (export "getVesselSwayVelocity" (func $assembly/getters/getVesselSwayVelocity))
+ (export "getVesselX" (func $assembly/getters/getVesselX))
+ (export "getVesselY" (func $assembly/getters/getVesselY))
+ (export "getVesselYawRate" (func $assembly/getters/getVesselYawRate))
+ (export "getVesselZ" (func $assembly/getters/getVesselZ))
  (export "memory" (memory $0))
  (export "table" (table $0))
  (export "__setArgumentsLength" (func $~setArgumentsLength))
@@ -366,52 +368,52 @@
   end
   local.get $this
  )
- (func $assembly/index/EnvironmentState#set:windSpeed (param $this i32) (param $windSpeed f64)
+ (func $assembly/runtimeCore/EnvironmentState#set:windSpeed (param $this i32) (param $windSpeed f64)
   local.get $this
   local.get $windSpeed
   f64.store
  )
- (func $assembly/index/EnvironmentState#set:windDirection (param $this i32) (param $windDirection f64)
+ (func $assembly/runtimeCore/EnvironmentState#set:windDirection (param $this i32) (param $windDirection f64)
   local.get $this
   local.get $windDirection
   f64.store offset=8
  )
- (func $assembly/index/EnvironmentState#set:currentSpeed (param $this i32) (param $currentSpeed f64)
+ (func $assembly/runtimeCore/EnvironmentState#set:currentSpeed (param $this i32) (param $currentSpeed f64)
   local.get $this
   local.get $currentSpeed
   f64.store offset=16
  )
- (func $assembly/index/EnvironmentState#set:currentDirection (param $this i32) (param $currentDirection f64)
+ (func $assembly/runtimeCore/EnvironmentState#set:currentDirection (param $this i32) (param $currentDirection f64)
   local.get $this
   local.get $currentDirection
   f64.store offset=24
  )
- (func $assembly/index/EnvironmentState#set:waveHeight (param $this i32) (param $waveHeight f64)
+ (func $assembly/runtimeCore/EnvironmentState#set:waveHeight (param $this i32) (param $waveHeight f64)
   local.get $this
   local.get $waveHeight
   f64.store offset=32
  )
- (func $assembly/index/EnvironmentState#set:waveLength (param $this i32) (param $waveLength f64)
+ (func $assembly/runtimeCore/EnvironmentState#set:waveLength (param $this i32) (param $waveLength f64)
   local.get $this
   local.get $waveLength
   f64.store offset=40
  )
- (func $assembly/index/EnvironmentState#set:waveDirection (param $this i32) (param $waveDirection f64)
+ (func $assembly/runtimeCore/EnvironmentState#set:waveDirection (param $this i32) (param $waveDirection f64)
   local.get $this
   local.get $waveDirection
   f64.store offset=48
  )
- (func $assembly/index/EnvironmentState#set:waveSteepness (param $this i32) (param $waveSteepness f64)
+ (func $assembly/runtimeCore/EnvironmentState#set:waveSteepness (param $this i32) (param $waveSteepness f64)
   local.get $this
   local.get $waveSteepness
   f64.store offset=56
  )
- (func $assembly/index/EnvironmentState#set:waterDepth (param $this i32) (param $waterDepth f64)
+ (func $assembly/runtimeCore/EnvironmentState#set:waterDepth (param $this i32) (param $waterDepth f64)
   local.get $this
   local.get $waterDepth
   f64.store offset=64
  )
- (func $assembly/index/EnvironmentState#constructor (param $this i32) (result i32)
+ (func $assembly/runtimeCore/EnvironmentState#constructor (param $this i32) (result i32)
   local.get $this
   i32.eqz
   if
@@ -425,31 +427,31 @@
   local.set $this
   local.get $this
   f64.const 0
-  call $assembly/index/EnvironmentState#set:windSpeed
+  call $assembly/runtimeCore/EnvironmentState#set:windSpeed
   local.get $this
   f64.const 0
-  call $assembly/index/EnvironmentState#set:windDirection
+  call $assembly/runtimeCore/EnvironmentState#set:windDirection
   local.get $this
   f64.const 0
-  call $assembly/index/EnvironmentState#set:currentSpeed
+  call $assembly/runtimeCore/EnvironmentState#set:currentSpeed
   local.get $this
   f64.const 0
-  call $assembly/index/EnvironmentState#set:currentDirection
+  call $assembly/runtimeCore/EnvironmentState#set:currentDirection
   local.get $this
   f64.const 0
-  call $assembly/index/EnvironmentState#set:waveHeight
+  call $assembly/runtimeCore/EnvironmentState#set:waveHeight
   local.get $this
   f64.const 0
-  call $assembly/index/EnvironmentState#set:waveLength
+  call $assembly/runtimeCore/EnvironmentState#set:waveLength
   local.get $this
   f64.const 0
-  call $assembly/index/EnvironmentState#set:waveDirection
+  call $assembly/runtimeCore/EnvironmentState#set:waveDirection
   local.get $this
   f64.const 0
-  call $assembly/index/EnvironmentState#set:waveSteepness
+  call $assembly/runtimeCore/EnvironmentState#set:waveSteepness
   local.get $this
   f64.const 0
-  call $assembly/index/EnvironmentState#set:waterDepth
+  call $assembly/runtimeCore/EnvironmentState#set:waterDepth
   local.get $this
  )
  (func $~lib/staticarray/StaticArray<f64>#constructor (param $this i32) (param $length i32) (result i32)
@@ -487,7 +489,7 @@
   local.get $out
   return
  )
- (func $start:assembly/index
+ (func $start:assembly/runtimeCore
   global.get $~lib/memory/__heap_base
   i32.const 4
   i32.add
@@ -503,1163 +505,127 @@
   global.get $~lib/rt/stub/startOffset
   global.set $~lib/rt/stub/offset
   i32.const 0
-  call $assembly/index/EnvironmentState#constructor
-  global.set $assembly/index/globalEnvironment
+  call $assembly/runtimeCore/EnvironmentState#constructor
+  global.set $assembly/runtimeCore/globalEnvironment
   i32.const 0
-  global.get $assembly/index/VESSEL_PARAM_BUFFER_CAPACITY
+  global.get $assembly/runtimeCore/VESSEL_PARAM_BUFFER_CAPACITY
   call $~lib/staticarray/StaticArray<f64>#constructor
-  global.set $assembly/index/vesselParamsBuffer
+  global.set $assembly/runtimeCore/vesselParamsBuffer
   i32.const 0
-  global.get $assembly/index/ENVIRONMENT_BUFFER_CAPACITY
+  global.get $assembly/runtimeCore/ENVIRONMENT_BUFFER_CAPACITY
   call $~lib/staticarray/StaticArray<f64>#constructor
-  global.set $assembly/index/environmentBuffer
+  global.set $assembly/runtimeCore/environmentBuffer
  )
- (func $assembly/index/VesselState#set:x (param $this i32) (param $x f64)
-  local.get $this
-  local.get $x
-  f64.store
+ (func $start:assembly/index
+  call $start:assembly/runtimeCore
  )
- (func $assembly/index/VesselState#set:y (param $this i32) (param $y f64)
-  local.get $this
-  local.get $y
-  f64.store offset=8
- )
- (func $assembly/index/VesselState#set:z (param $this i32) (param $z f64)
-  local.get $this
-  local.get $z
-  f64.store offset=16
- )
- (func $assembly/index/VesselState#set:psi (param $this i32) (param $psi f64)
-  local.get $this
-  local.get $psi
-  f64.store offset=40
- )
- (func $assembly/index/VesselState#set:rollAngle (param $this i32) (param $rollAngle f64)
-  local.get $this
-  local.get $rollAngle
-  f64.store offset=24
- )
- (func $assembly/index/VesselState#set:pitchAngle (param $this i32) (param $pitchAngle f64)
-  local.get $this
-  local.get $pitchAngle
-  f64.store offset=32
- )
- (func $assembly/index/VesselState#set:u (param $this i32) (param $u f64)
-  local.get $this
-  local.get $u
-  f64.store offset=48
- )
- (func $assembly/index/VesselState#set:v (param $this i32) (param $v f64)
-  local.get $this
-  local.get $v
-  f64.store offset=56
- )
- (func $assembly/index/VesselState#set:w (param $this i32) (param $w f64)
-  local.get $this
-  local.get $w
-  f64.store offset=64
- )
- (func $assembly/index/VesselState#set:r (param $this i32) (param $r f64)
-  local.get $this
-  local.get $r
-  f64.store offset=72
- )
- (func $assembly/index/VesselState#set:p (param $this i32) (param $p f64)
-  local.get $this
-  local.get $p
-  f64.store offset=80
- )
- (func $assembly/index/VesselState#set:q (param $this i32) (param $q f64)
-  local.get $this
-  local.get $q
-  f64.store offset=88
- )
- (func $assembly/index/clampSigned (param $value f64) (param $limit f64) (result f64)
-  local.get $value
-  local.get $limit
-  f64.gt
-  if
-   local.get $limit
-   return
-  end
-  local.get $value
-  local.get $limit
-  f64.neg
-  f64.lt
-  if
-   local.get $limit
-   f64.neg
-   return
-  end
-  local.get $value
+ (func $assembly/runtimeCore/getEnvironmentBufferCapacity (result i32)
+  global.get $assembly/runtimeCore/ENVIRONMENT_BUFFER_CAPACITY
   return
  )
- (func $assembly/index/VesselState#set:throttle (param $this i32) (param $throttle f64)
-  local.get $this
-  local.get $throttle
-  f64.store offset=96
+ (func $assembly/runtimeCore/getEnvironmentBufferPtr (result i32)
+  global.get $assembly/runtimeCore/environmentBuffer
+  return
  )
- (func $assembly/index/VesselState#set:throttleCommand (param $this i32) (param $throttleCommand f64)
-  local.get $this
-  local.get $throttleCommand
-  f64.store offset=104
- )
- (func $assembly/index/VesselState#set:mass (param $this i32) (param $mass f64)
-  local.get $this
-  local.get $mass
-  f64.store offset=128
- )
- (func $assembly/index/VesselState#set:length (param $this i32) (param $length f64)
-  local.get $this
-  local.get $length
-  f64.store offset=136
- )
- (func $assembly/index/VesselState#set:beam (param $this i32) (param $beam f64)
-  local.get $this
-  local.get $beam
-  f64.store offset=144
- )
- (func $assembly/index/VesselState#set:draft (param $this i32) (param $draft f64)
-  local.get $this
-  local.get $draft
-  f64.store offset=152
- )
- (func $assembly/index/VesselState#set:ballast (param $this i32) (param $ballast f64)
-  local.get $this
-  local.get $ballast
-  f64.store offset=160
- )
- (func $assembly/index/VesselState#set:blockCoefficient (param $this i32) (param $blockCoefficient f64)
-  local.get $this
-  local.get $blockCoefficient
-  f64.store offset=168
- )
- (func $assembly/index/VesselState#set:rudderForceCoefficient (param $this i32) (param $rudderForceCoefficient f64)
-  local.get $this
-  local.get $rudderForceCoefficient
-  f64.store offset=176
- )
- (func $assembly/index/VesselState#set:rudderStallAngle (param $this i32) (param $rudderStallAngle f64)
-  local.get $this
-  local.get $rudderStallAngle
-  f64.store offset=184
- )
- (func $assembly/index/VesselState#set:rudderMaxAngle (param $this i32) (param $rudderMaxAngle f64)
-  local.get $this
-  local.get $rudderMaxAngle
-  f64.store offset=192
- )
- (func $assembly/index/VesselState#get:rudderMaxAngle (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=192
- )
- (func $assembly/index/VesselState#set:rudderCommand (param $this i32) (param $rudderCommand f64)
-  local.get $this
-  local.get $rudderCommand
-  f64.store offset=120
- )
- (func $assembly/index/VesselState#get:rudderCommand (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=120
- )
- (func $assembly/index/VesselState#set:rudderAngle (param $this i32) (param $rudderAngle f64)
-  local.get $this
-  local.get $rudderAngle
-  f64.store offset=112
- )
- (func $assembly/index/VesselState#set:dragCoefficient (param $this i32) (param $dragCoefficient f64)
-  local.get $this
-  local.get $dragCoefficient
-  f64.store offset=200
- )
- (func $assembly/index/VesselState#set:yawDamping (param $this i32) (param $yawDamping f64)
-  local.get $this
-  local.get $yawDamping
-  f64.store offset=208
- )
- (func $assembly/index/VesselState#set:yawDampingQuad (param $this i32) (param $yawDampingQuad f64)
-  local.get $this
-  local.get $yawDampingQuad
-  f64.store offset=216
- )
- (func $assembly/index/VesselState#set:swayDamping (param $this i32) (param $swayDamping f64)
-  local.get $this
-  local.get $swayDamping
-  f64.store offset=224
- )
- (func $assembly/index/VesselState#set:maxThrust (param $this i32) (param $maxThrust f64)
-  local.get $this
-  local.get $maxThrust
-  f64.store offset=232
- )
- (func $assembly/index/VesselState#set:maxSpeed (param $this i32) (param $maxSpeed f64)
-  local.get $this
-  local.get $maxSpeed
-  f64.store offset=240
- )
- (func $assembly/index/VesselState#set:rollDamping (param $this i32) (param $rollDamping f64)
-  local.get $this
-  local.get $rollDamping
-  f64.store offset=248
- )
- (func $assembly/index/VesselState#set:pitchDamping (param $this i32) (param $pitchDamping f64)
-  local.get $this
-  local.get $pitchDamping
-  f64.store offset=256
- )
- (func $assembly/index/VesselState#set:heaveStiffness (param $this i32) (param $heaveStiffness f64)
-  local.get $this
-  local.get $heaveStiffness
-  f64.store offset=264
- )
- (func $assembly/index/VesselState#set:heaveDamping (param $this i32) (param $heaveDamping f64)
-  local.get $this
-  local.get $heaveDamping
-  f64.store offset=272
- )
- (func $assembly/index/VesselState#get:length (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=136
- )
- (func $assembly/index/VesselState#get:draft (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=152
- )
- (func $assembly/index/VesselState#set:rudderArea (param $this i32) (param $rudderArea f64)
-  local.get $this
-  local.get $rudderArea
-  f64.store offset=280
- )
- (func $assembly/index/VesselState#set:rudderArm (param $this i32) (param $rudderArm f64)
-  local.get $this
-  local.get $rudderArm
-  f64.store offset=288
- )
- (func $assembly/index/VesselState#set:rudderLiftSlope (param $this i32) (param $rudderLiftSlope f64)
-  local.get $this
-  local.get $rudderLiftSlope
-  f64.store offset=296
- )
- (func $assembly/index/VesselState#set:propWashFactor (param $this i32) (param $propWashFactor f64)
-  local.get $this
-  local.get $propWashFactor
-  f64.store offset=304
- )
- (func $assembly/index/VesselState#set:engineTimeConstant (param $this i32) (param $engineTimeConstant f64)
-  local.get $this
-  local.get $engineTimeConstant
-  f64.store offset=312
- )
- (func $assembly/index/VesselState#set:rudderRateLimit (param $this i32) (param $rudderRateLimit f64)
-  local.get $this
-  local.get $rudderRateLimit
-  f64.store offset=320
- )
- (func $assembly/index/VesselState#get:mass (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=128
- )
- (func $assembly/index/VesselState#set:addedMassX (param $this i32) (param $addedMassX f64)
-  local.get $this
-  local.get $addedMassX
-  f64.store offset=328
- )
- (func $assembly/index/VesselState#set:addedMassY (param $this i32) (param $addedMassY f64)
-  local.get $this
-  local.get $addedMassY
-  f64.store offset=336
- )
- (func $assembly/index/VesselState#set:addedMassYaw (param $this i32) (param $addedMassYaw f64)
-  local.get $this
-  local.get $addedMassYaw
-  f64.store offset=344
- )
- (func $assembly/index/VesselState#set:hullYv (param $this i32) (param $hullYv f64)
-  local.get $this
-  local.get $hullYv
-  f64.store offset=352
- )
- (func $assembly/index/VesselState#set:hullYr (param $this i32) (param $hullYr f64)
-  local.get $this
-  local.get $hullYr
-  f64.store offset=360
- )
- (func $assembly/index/VesselState#set:hullNv (param $this i32) (param $hullNv f64)
-  local.get $this
-  local.get $hullNv
-  f64.store offset=368
- )
- (func $assembly/index/VesselState#set:hullNr (param $this i32) (param $hullNr f64)
-  local.get $this
-  local.get $hullNr
-  f64.store offset=376
- )
- (func $assembly/index/VesselState#get:dragCoefficient (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=200
- )
- (func $assembly/index/VesselState#set:cdSurge (param $this i32) (param $cdSurge f64)
-  local.get $this
-  local.get $cdSurge
-  f64.store offset=384
- )
- (func $assembly/index/VesselState#set:cdSway (param $this i32) (param $cdSway f64)
-  local.get $this
-  local.get $cdSway
-  f64.store offset=392
- )
- (func $assembly/index/VesselState#set:cdYaw (param $this i32) (param $cdYaw f64)
-  local.get $this
-  local.get $cdYaw
-  f64.store offset=400
- )
- (func $assembly/index/VesselState#set:shallowWaterFactor (param $this i32) (param $shallowWaterFactor f64)
-  local.get $this
-  local.get $shallowWaterFactor
-  f64.store offset=408
- )
- (func $assembly/index/VesselState#set:shallowWaterYawFactor (param $this i32) (param $shallowWaterYawFactor f64)
-  local.get $this
-  local.get $shallowWaterYawFactor
-  f64.store offset=416
- )
- (func $assembly/index/VesselState#set:shallowWaterRudderFactor (param $this i32) (param $shallowWaterRudderFactor f64)
-  local.get $this
-  local.get $shallowWaterRudderFactor
-  f64.store offset=424
- )
- (func $assembly/index/VesselState#set:waveAmplitude (param $this i32) (param $waveAmplitude f64)
-  local.get $this
-  local.get $waveAmplitude
-  f64.store offset=432
- )
- (func $assembly/index/VesselState#set:waveLength (param $this i32) (param $waveLength f64)
-  local.get $this
-  local.get $waveLength
-  f64.store offset=440
- )
- (func $assembly/index/VesselState#set:waveDirection (param $this i32) (param $waveDirection f64)
-  local.get $this
-  local.get $waveDirection
-  f64.store offset=448
- )
- (func $assembly/index/VesselState#set:waveSteepness (param $this i32) (param $waveSteepness f64)
-  local.get $this
-  local.get $waveSteepness
-  f64.store offset=456
- )
- (func $assembly/index/VesselState#set:waveTime (param $this i32) (param $waveTime f64)
-  local.get $this
-  local.get $waveTime
-  f64.store offset=464
- )
- (func $assembly/index/VesselState#set:fuelLevel (param $this i32) (param $fuelLevel f64)
-  local.get $this
-  local.get $fuelLevel
-  f64.store offset=472
- )
- (func $assembly/index/VesselState#set:fuelConsumptionRate (param $this i32) (param $fuelConsumptionRate f64)
-  local.get $this
-  local.get $fuelConsumptionRate
-  f64.store offset=480
- )
- (func $assembly/index/VesselState#set:lastFuelConsumption (param $this i32) (param $lastFuelConsumption f64)
-  local.get $this
-  local.get $lastFuelConsumption
-  f64.store offset=488
- )
- (func $assembly/index/VesselState#set:modelId (param $this i32) (param $modelId i32)
-  local.get $this
-  local.get $modelId
-  i32.store offset=496
- )
- (func $assembly/index/VesselState#constructor (param $this i32) (param $x f64) (param $y f64) (param $z f64) (param $psi f64) (param $roll f64) (param $pitch f64) (param $u f64) (param $v f64) (param $w f64) (param $r f64) (param $p f64) (param $q f64) (param $throttle f64) (param $rudderAngle f64) (param $mass f64) (param $length f64) (param $beam f64) (param $draft f64) (param $blockCoefficient f64) (param $rudderForceCoefficient f64) (param $rudderStallAngle f64) (param $rudderMaxAngle f64) (param $dragCoefficient f64) (param $yawDamping f64) (param $yawDampingQuad f64) (param $swayDamping f64) (param $maxThrust f64) (param $maxSpeed f64) (param $rollDamping f64) (param $pitchDamping f64) (param $heaveStiffness f64) (param $heaveDamping f64) (result i32)
-  (local $initialThrottle f64)
-  (local $value1 f64)
-  (local $value2 f64)
-  (local $baseCd f64)
-  local.get $this
-  i32.eqz
-  if
-   i32.const 500
-   i32.const 4
-   call $~lib/rt/stub/__new
-   local.set $this
-  end
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:x
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:y
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:z
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:rollAngle
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:pitchAngle
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:psi
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:u
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:v
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:w
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:r
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:p
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:q
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:throttle
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:throttleCommand
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:rudderAngle
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:rudderCommand
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:mass
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:length
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:beam
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:draft
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:ballast
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:blockCoefficient
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:rudderForceCoefficient
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:rudderStallAngle
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:rudderMaxAngle
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:dragCoefficient
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:yawDamping
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:yawDampingQuad
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:swayDamping
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:maxThrust
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:maxSpeed
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:rollDamping
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:pitchDamping
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:heaveStiffness
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:heaveDamping
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:rudderArea
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:rudderArm
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:rudderLiftSlope
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:propWashFactor
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:engineTimeConstant
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:rudderRateLimit
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:addedMassX
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:addedMassY
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:addedMassYaw
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:hullYv
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:hullYr
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:hullNv
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:hullNr
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:cdSurge
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:cdSway
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:cdYaw
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:shallowWaterFactor
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:shallowWaterYawFactor
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:shallowWaterRudderFactor
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:waveAmplitude
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:waveLength
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:waveDirection
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:waveSteepness
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:waveTime
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:fuelLevel
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:fuelConsumptionRate
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:lastFuelConsumption
-  local.get $this
+ (func $assembly/runtimeCore/resetEnvironmentState
   i32.const 0
-  call $assembly/index/VesselState#set:modelId
-  local.get $this
-  local.get $x
-  call $assembly/index/VesselState#set:x
-  local.get $this
-  local.get $y
-  call $assembly/index/VesselState#set:y
-  local.get $this
-  local.get $z
-  call $assembly/index/VesselState#set:z
-  local.get $this
-  local.get $psi
-  call $assembly/index/VesselState#set:psi
-  local.get $this
-  local.get $roll
-  call $assembly/index/VesselState#set:rollAngle
-  local.get $this
-  local.get $pitch
-  call $assembly/index/VesselState#set:pitchAngle
-  local.get $this
-  local.get $u
-  call $assembly/index/VesselState#set:u
-  local.get $this
-  local.get $v
-  call $assembly/index/VesselState#set:v
-  local.get $this
-  local.get $w
-  call $assembly/index/VesselState#set:w
-  local.get $this
-  local.get $r
-  call $assembly/index/VesselState#set:r
-  local.get $this
-  local.get $p
-  call $assembly/index/VesselState#set:p
-  local.get $this
-  local.get $q
-  call $assembly/index/VesselState#set:q
-  local.get $throttle
-  f64.const 1
-  call $assembly/index/clampSigned
-  local.set $initialThrottle
-  local.get $this
-  local.get $initialThrottle
-  call $assembly/index/VesselState#set:throttle
-  local.get $this
-  local.get $initialThrottle
-  call $assembly/index/VesselState#set:throttleCommand
-  local.get $this
-  local.get $mass
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $mass
-  else
-   global.get $assembly/index/DEFAULT_MASS
-  end
-  call $assembly/index/VesselState#set:mass
-  local.get $this
-  local.get $length
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $length
-  else
-   global.get $assembly/index/DEFAULT_LENGTH
-  end
-  call $assembly/index/VesselState#set:length
-  local.get $this
-  local.get $beam
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $beam
-  else
-   global.get $assembly/index/DEFAULT_BEAM
-  end
-  call $assembly/index/VesselState#set:beam
-  local.get $this
-  local.get $draft
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $draft
-  else
-   global.get $assembly/index/DEFAULT_DRAFT
-  end
-  call $assembly/index/VesselState#set:draft
-  local.get $this
-  f64.const 0.5
-  call $assembly/index/VesselState#set:ballast
-  local.get $this
-  local.get $blockCoefficient
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $blockCoefficient
-  else
-   global.get $assembly/index/DEFAULT_BLOCK_COEFFICIENT
-  end
-  call $assembly/index/VesselState#set:blockCoefficient
-  local.get $this
-  local.get $rudderForceCoefficient
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $rudderForceCoefficient
-  else
-   global.get $assembly/index/DEFAULT_RUDDER_FORCE_COEFFICIENT
-  end
-  call $assembly/index/VesselState#set:rudderForceCoefficient
-  local.get $this
-  local.get $rudderStallAngle
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $rudderStallAngle
-  else
-   global.get $assembly/index/DEFAULT_RUDDER_STALL_ANGLE
-  end
-  call $assembly/index/VesselState#set:rudderStallAngle
-  local.get $this
-  local.get $rudderMaxAngle
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $rudderMaxAngle
-  else
-   global.get $assembly/index/DEFAULT_RUDDER_MAX_ANGLE
-  end
-  call $assembly/index/VesselState#set:rudderMaxAngle
-  local.get $this
-  local.get $rudderAngle
-  local.get $this
-  call $assembly/index/VesselState#get:rudderMaxAngle
-  call $assembly/index/clampSigned
-  call $assembly/index/VesselState#set:rudderCommand
-  local.get $this
-  local.get $this
-  call $assembly/index/VesselState#get:rudderCommand
-  call $assembly/index/VesselState#set:rudderAngle
-  local.get $this
-  local.get $dragCoefficient
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $dragCoefficient
-  else
-   global.get $assembly/index/DEFAULT_DRAG_COEFFICIENT
-  end
-  call $assembly/index/VesselState#set:dragCoefficient
-  local.get $this
-  local.get $yawDamping
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $yawDamping
-  else
-   global.get $assembly/index/DEFAULT_YAW_DAMPING
-  end
-  call $assembly/index/VesselState#set:yawDamping
-  local.get $this
-  local.get $yawDampingQuad
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $yawDampingQuad
-  else
-   global.get $assembly/index/DEFAULT_YAW_DAMPING_QUAD
-  end
-  call $assembly/index/VesselState#set:yawDampingQuad
-  local.get $this
-  local.get $swayDamping
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $swayDamping
-  else
-   global.get $assembly/index/DEFAULT_SWAY_DAMPING
-  end
-  call $assembly/index/VesselState#set:swayDamping
-  local.get $this
-  local.get $maxThrust
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $maxThrust
-  else
-   global.get $assembly/index/DEFAULT_MAX_THRUST
-  end
-  call $assembly/index/VesselState#set:maxThrust
-  local.get $this
-  local.get $maxSpeed
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $maxSpeed
-  else
-   global.get $assembly/index/DEFAULT_MAX_SPEED
-  end
-  call $assembly/index/VesselState#set:maxSpeed
-  local.get $this
-  local.get $rollDamping
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $rollDamping
-  else
-   global.get $assembly/index/DEFAULT_ROLL_DAMPING
-  end
-  call $assembly/index/VesselState#set:rollDamping
-  local.get $this
-  local.get $pitchDamping
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $pitchDamping
-  else
-   global.get $assembly/index/DEFAULT_PITCH_DAMPING
-  end
-  call $assembly/index/VesselState#set:pitchDamping
-  local.get $this
-  local.get $heaveStiffness
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $heaveStiffness
-  else
-   global.get $assembly/index/DEFAULT_HEAVE_STIFFNESS
-  end
-  call $assembly/index/VesselState#set:heaveStiffness
-  local.get $this
-  local.get $heaveDamping
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $heaveDamping
-  else
-   global.get $assembly/index/DEFAULT_HEAVE_DAMPING
-  end
-  call $assembly/index/VesselState#set:heaveDamping
-  local.get $this
-  block $~lib/math/NativeMath.max|inlined.0 (result f64)
-   f64.const 0.1
-   local.set $value1
-   global.get $assembly/index/DEFAULT_RUDDER_AREA_RATIO
-   local.get $this
-   call $assembly/index/VesselState#get:length
-   f64.mul
-   local.get $this
-   call $assembly/index/VesselState#get:draft
-   f64.mul
-   local.set $value2
-   local.get $value1
-   local.get $value2
-   f64.max
-   br $~lib/math/NativeMath.max|inlined.0
-  end
-  call $assembly/index/VesselState#set:rudderArea
-  local.get $this
-  global.get $assembly/index/DEFAULT_RUDDER_ARM_RATIO
-  local.get $this
-  call $assembly/index/VesselState#get:length
-  f64.mul
-  call $assembly/index/VesselState#set:rudderArm
-  local.get $this
-  global.get $assembly/index/DEFAULT_RUDDER_LIFT_SLOPE
-  call $assembly/index/VesselState#set:rudderLiftSlope
-  local.get $this
-  global.get $assembly/index/DEFAULT_PROP_WASH
-  call $assembly/index/VesselState#set:propWashFactor
-  local.get $this
-  global.get $assembly/index/DEFAULT_ENGINE_TIME_CONSTANT
-  call $assembly/index/VesselState#set:engineTimeConstant
-  local.get $this
-  global.get $assembly/index/DEFAULT_RUDDER_RATE
-  call $assembly/index/VesselState#set:rudderRateLimit
-  local.get $this
-  local.get $this
-  call $assembly/index/VesselState#get:mass
-  global.get $assembly/index/DEFAULT_ADDED_MASS_X_COEFF
-  f64.mul
-  call $assembly/index/VesselState#set:addedMassX
-  local.get $this
-  local.get $this
-  call $assembly/index/VesselState#get:mass
-  global.get $assembly/index/DEFAULT_ADDED_MASS_Y_COEFF
-  f64.mul
-  call $assembly/index/VesselState#set:addedMassY
-  local.get $this
-  local.get $this
-  call $assembly/index/VesselState#get:mass
-  local.get $this
-  call $assembly/index/VesselState#get:length
-  f64.mul
-  local.get $this
-  call $assembly/index/VesselState#get:length
-  f64.mul
-  f64.const 0.1
-  f64.mul
-  global.get $assembly/index/DEFAULT_ADDED_MASS_YAW_COEFF
-  f64.mul
-  call $assembly/index/VesselState#set:addedMassYaw
-  local.get $this
-  global.get $assembly/index/DEFAULT_HULL_YV
-  call $assembly/index/VesselState#set:hullYv
-  local.get $this
-  global.get $assembly/index/DEFAULT_HULL_YR
-  call $assembly/index/VesselState#set:hullYr
-  local.get $this
-  global.get $assembly/index/DEFAULT_HULL_NV
-  call $assembly/index/VesselState#set:hullNv
-  local.get $this
-  global.get $assembly/index/DEFAULT_HULL_NR
-  call $assembly/index/VesselState#set:hullNr
-  local.get $this
-  call $assembly/index/VesselState#get:dragCoefficient
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $this
-   call $assembly/index/VesselState#get:dragCoefficient
-  else
-   global.get $assembly/index/DEFAULT_DRAG_COEFFICIENT
-  end
-  local.set $baseCd
-  local.get $this
-  local.get $baseCd
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $baseCd
-  else
-   global.get $assembly/index/DEFAULT_CD_SURGE
-  end
-  call $assembly/index/VesselState#set:cdSurge
-  local.get $this
-  local.get $baseCd
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $baseCd
-   f64.const 1.2
-   f64.mul
-  else
-   global.get $assembly/index/DEFAULT_CD_SWAY
-  end
-  call $assembly/index/VesselState#set:cdSway
-  local.get $this
-  local.get $baseCd
-  f64.const 0
-  f64.gt
-  if (result f64)
-   local.get $baseCd
-   f64.const 0.3
-   f64.mul
-  else
-   global.get $assembly/index/DEFAULT_CD_YAW
-  end
-  call $assembly/index/VesselState#set:cdYaw
-  local.get $this
-  global.get $assembly/index/DEFAULT_SHALLOW_WATER_FACTOR
-  call $assembly/index/VesselState#set:shallowWaterFactor
-  local.get $this
-  global.get $assembly/index/DEFAULT_SHALLOW_WATER_YAW_FACTOR
-  call $assembly/index/VesselState#set:shallowWaterYawFactor
-  local.get $this
-  global.get $assembly/index/DEFAULT_SHALLOW_WATER_RUDDER_FACTOR
-  call $assembly/index/VesselState#set:shallowWaterRudderFactor
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:waveAmplitude
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:waveLength
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:waveDirection
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:waveSteepness
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:waveTime
-  local.get $this
-  f64.const 1
-  call $assembly/index/VesselState#set:fuelLevel
-  local.get $this
-  global.get $assembly/index/DEFAULT_FUEL_CONSUMPTION_RATE
-  call $assembly/index/VesselState#set:fuelConsumptionRate
-  local.get $this
-  f64.const 0
-  call $assembly/index/VesselState#set:lastFuelConsumption
-  local.get $this
-  global.get $assembly/index/MODEL_DISPLACEMENT
-  call $assembly/index/VesselState#set:modelId
-  local.get $this
+  call $assembly/runtimeCore/EnvironmentState#constructor
+  global.set $assembly/runtimeCore/globalEnvironment
  )
- (func $assembly/index/clamp01 (param $value f64) (result f64)
+ (func $assembly/runtimeCore/resetGlobalEnvironment
+  call $assembly/runtimeCore/resetEnvironmentState
+ )
+ (func $assembly/runtimeCore/resetGlobalVessel
+  i32.const 0
+  global.set $assembly/runtimeCore/globalVessel
+ )
+ (func $~lib/staticarray/StaticArray<f64>#__uset (param $this i32) (param $index i32) (param $value f64)
+  local.get $this
+  local.get $index
+  i32.const 3
+  i32.shl
+  i32.add
   local.get $value
+  f64.store
+  i32.const 0
+  drop
+ )
+ (func $assembly/runtimeCore/clearBuffer (param $buffer i32) (param $capacity i32)
+  (local $i i32)
+  i32.const 0
+  local.set $i
+  loop $for-loop|0
+   local.get $i
+   local.get $capacity
+   i32.lt_s
+   if
+    local.get $buffer
+    local.get $i
+    f64.const 0
+    call $~lib/staticarray/StaticArray<f64>#__uset
+    local.get $i
+    i32.const 1
+    i32.add
+    local.set $i
+    br $for-loop|0
+   end
+  end
+ )
+ (func $assembly/runtimeCore/resetSimulationRuntime
+  i32.const 0
+  global.set $assembly/runtimeCore/globalVessel
+  call $assembly/runtimeCore/resetEnvironmentState
+  global.get $assembly/runtimeCore/vesselParamsBuffer
+  global.get $assembly/runtimeCore/VESSEL_PARAM_BUFFER_CAPACITY
+  call $assembly/runtimeCore/clearBuffer
+  global.get $assembly/runtimeCore/environmentBuffer
+  global.get $assembly/runtimeCore/ENVIRONMENT_BUFFER_CAPACITY
+  call $assembly/runtimeCore/clearBuffer
+ )
+ (func $assembly/runtimeCore/getVesselParamsBufferCapacity (result i32)
+  global.get $assembly/runtimeCore/VESSEL_PARAM_BUFFER_CAPACITY
+  return
+ )
+ (func $assembly/runtimeCore/getVesselParamsBufferPtr (result i32)
+  global.get $assembly/runtimeCore/vesselParamsBuffer
+  return
+ )
+ (func $assembly/environment/calculateSeaState (param $windSpeed f64) (result f64)
+  (local $beaufort f64)
+  local.get $windSpeed
+  f64.const 1.5
+  f64.div
+  local.set $beaufort
+  local.get $beaufort
   f64.const 0
   f64.lt
   if
    f64.const 0
    return
   end
-  local.get $value
-  f64.const 1
+  local.get $beaufort
+  f64.const 12
   f64.gt
   if
-   f64.const 1
+   f64.const 12
    return
   end
-  local.get $value
+  local.get $beaufort
   return
  )
- (func $assembly/index/createVessel (param $x f64) (param $y f64) (param $z f64) (param $psi f64) (param $_phi f64) (param $_theta f64) (param $u f64) (param $v f64) (param $w f64) (param $r f64) (param $_p f64) (param $_q f64) (param $throttle f64) (param $rudderAngle f64) (param $mass f64) (param $length f64) (param $beam f64) (param $draft f64) (param $blockCoefficient f64) (param $rudderForceCoefficient f64) (param $rudderStallAngle f64) (param $rudderMaxAngle f64) (param $dragCoefficient f64) (param $yawDamping f64) (param $yawDampingQuad f64) (param $swayDamping f64) (param $maxThrust f64) (param $maxSpeed f64) (param $rollDamping f64) (param $pitchDamping f64) (param $heaveStiffness f64) (param $heaveDamping f64) (result i32)
-  global.get $assembly/index/globalVessel
-  i32.const 0
-  i32.eq
-  if
-   i32.const 0
-   local.get $x
-   local.get $y
-   local.get $z
-   local.get $psi
-   local.get $_phi
-   local.get $_theta
-   local.get $u
-   local.get $v
-   local.get $w
-   local.get $r
-   local.get $_p
-   local.get $_q
-   local.get $throttle
-   call $assembly/index/clamp01
-   local.get $rudderAngle
-   local.get $mass
-   local.get $length
-   local.get $beam
-   local.get $draft
-   local.get $blockCoefficient
-   local.get $rudderForceCoefficient
-   local.get $rudderStallAngle
-   local.get $rudderMaxAngle
-   local.get $dragCoefficient
-   local.get $yawDamping
-   local.get $yawDampingQuad
-   local.get $swayDamping
-   local.get $maxThrust
-   local.get $maxSpeed
-   local.get $rollDamping
-   local.get $pitchDamping
-   local.get $heaveStiffness
-   local.get $heaveDamping
-   call $assembly/index/VesselState#constructor
-   global.set $assembly/index/globalVessel
-  end
-  global.get $assembly/index/globalVessel
+ (func $assembly/environment/getWaveHeightForSeaState (param $seaState f64) (result f64)
+  local.get $seaState
+  f64.const 0.5
+  f64.mul
   return
  )
- (func $assembly/index/createVessel@varargs (param $x f64) (param $y f64) (param $z f64) (param $psi f64) (param $_phi f64) (param $_theta f64) (param $u f64) (param $v f64) (param $w f64) (param $r f64) (param $_p f64) (param $_q f64) (param $throttle f64) (param $rudderAngle f64) (param $mass f64) (param $length f64) (param $beam f64) (param $draft f64) (param $blockCoefficient f64) (param $rudderForceCoefficient f64) (param $rudderStallAngle f64) (param $rudderMaxAngle f64) (param $dragCoefficient f64) (param $yawDamping f64) (param $yawDampingQuad f64) (param $swayDamping f64) (param $maxThrust f64) (param $maxSpeed f64) (param $rollDamping f64) (param $pitchDamping f64) (param $heaveStiffness f64) (param $heaveDamping f64) (result i32)
-  block $14of14
-   block $13of14
-    block $12of14
-     block $11of14
-      block $10of14
-       block $9of14
-        block $8of14
-         block $7of14
-          block $6of14
-           block $5of14
-            block $4of14
-             block $3of14
-              block $2of14
-               block $1of14
-                block $0of14
-                 block $outOfRange
-                  global.get $~argumentsLength
-                  i32.const 18
-                  i32.sub
-                  br_table $0of14 $1of14 $2of14 $3of14 $4of14 $5of14 $6of14 $7of14 $8of14 $9of14 $10of14 $11of14 $12of14 $13of14 $14of14 $outOfRange
-                 end
-                 unreachable
-                end
-                global.get $assembly/index/DEFAULT_BLOCK_COEFFICIENT
-                local.set $blockCoefficient
-               end
-               global.get $assembly/index/DEFAULT_RUDDER_FORCE_COEFFICIENT
-               local.set $rudderForceCoefficient
-              end
-              global.get $assembly/index/DEFAULT_RUDDER_STALL_ANGLE
-              local.set $rudderStallAngle
-             end
-             global.get $assembly/index/DEFAULT_RUDDER_MAX_ANGLE
-             local.set $rudderMaxAngle
-            end
-            global.get $assembly/index/DEFAULT_DRAG_COEFFICIENT
-            local.set $dragCoefficient
-           end
-           global.get $assembly/index/DEFAULT_YAW_DAMPING
-           local.set $yawDamping
-          end
-          global.get $assembly/index/DEFAULT_YAW_DAMPING_QUAD
-          local.set $yawDampingQuad
-         end
-         global.get $assembly/index/DEFAULT_SWAY_DAMPING
-         local.set $swayDamping
-        end
-        global.get $assembly/index/DEFAULT_MAX_THRUST
-        local.set $maxThrust
-       end
-       global.get $assembly/index/DEFAULT_MAX_SPEED
-       local.set $maxSpeed
-      end
-      global.get $assembly/index/DEFAULT_ROLL_DAMPING
-      local.set $rollDamping
-     end
-     global.get $assembly/index/DEFAULT_PITCH_DAMPING
-     local.set $pitchDamping
-    end
-    global.get $assembly/index/DEFAULT_HEAVE_STIFFNESS
-    local.set $heaveStiffness
-   end
-   global.get $assembly/index/DEFAULT_HEAVE_DAMPING
-   local.set $heaveDamping
-  end
-  local.get $x
-  local.get $y
-  local.get $z
-  local.get $psi
-  local.get $_phi
-  local.get $_theta
-  local.get $u
-  local.get $v
-  local.get $w
-  local.get $r
-  local.get $_p
-  local.get $_q
-  local.get $throttle
-  local.get $rudderAngle
-  local.get $mass
-  local.get $length
-  local.get $beam
-  local.get $draft
-  local.get $blockCoefficient
-  local.get $rudderForceCoefficient
-  local.get $rudderStallAngle
-  local.get $rudderMaxAngle
-  local.get $dragCoefficient
-  local.get $yawDamping
-  local.get $yawDampingQuad
-  local.get $swayDamping
-  local.get $maxThrust
-  local.get $maxSpeed
-  local.get $rollDamping
-  local.get $pitchDamping
-  local.get $heaveStiffness
-  local.get $heaveDamping
-  call $assembly/index/createVessel
- )
- (func $assembly/index/destroyVessel (param $_vesselPtr i32)
-  i32.const 0
-  global.set $assembly/index/globalVessel
- )
- (func $assembly/index/getVesselParamsBufferPtr (result i32)
-  global.get $assembly/index/vesselParamsBuffer
+ (func $assembly/runtimeCore/getGlobalEnvironment (result i32)
+  global.get $assembly/runtimeCore/globalEnvironment
   return
  )
- (func $assembly/index/getVesselParamsBufferCapacity (result i32)
-  global.get $assembly/index/VESSEL_PARAM_BUFFER_CAPACITY
-  return
- )
- (func $assembly/index/ensureVessel (param $vesselPtr i32) (result i32)
-  local.get $vesselPtr
-  i32.const 0
-  i32.eq
-  if
-   i32.const 272
-   i32.const 336
-   i32.const 328
-   i32.const 24
-   call $~lib/builtins/abort
-   unreachable
-  end
-  local.get $vesselPtr
-  return
+ (func $assembly/runtimeCore/EnvironmentState#get:windSpeed (param $this i32) (result f64)
+  local.get $this
+  f64.load
  )
  (func $~lib/staticarray/StaticArray<f64>#__uget (param $this i32) (param $index i32) (result f64)
   local.get $this
@@ -1670,7 +636,7 @@
   f64.load
   return
  )
- (func $assembly/index/readParam (param $params i32) (param $len i32) (param $index i32) (param $fallback f64) (result f64)
+ (func $assembly/runtimeCore/readParam (param $params i32) (param $len i32) (param $index i32) (param $fallback f64) (result f64)
   (local $value f64)
   local.get $index
   i32.const 0
@@ -1700,139 +666,533 @@
   end
   return
  )
- (func $assembly/index/VesselState#get:beam (param $this i32) (result f64)
+ (func $assembly/runtimeCore/EnvironmentState#get:windDirection (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=8
+ )
+ (func $assembly/runtimeCore/EnvironmentState#get:currentSpeed (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=16
+ )
+ (func $assembly/runtimeCore/EnvironmentState#get:currentDirection (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=24
+ )
+ (func $assembly/runtimeCore/EnvironmentState#get:waveHeight (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=32
+ )
+ (func $assembly/runtimeCore/EnvironmentState#get:waveLength (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=40
+ )
+ (func $assembly/runtimeCore/EnvironmentState#get:waveDirection (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=48
+ )
+ (func $assembly/runtimeCore/EnvironmentState#get:waveSteepness (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=56
+ )
+ (func $assembly/runtimeCore/EnvironmentState#get:waterDepth (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=64
+ )
+ (func $assembly/environment/setEnvironment (param $paramsPtr i32) (param $paramsLen i32)
+  (local $params i32)
+  (local $len i32)
+  (local $environment i32)
+  local.get $paramsPtr
+  i32.const 0
+  i32.eq
+  if (result i32)
+   i32.const 1
+  else
+   local.get $paramsLen
+   i32.const 0
+   i32.le_s
+  end
+  if
+   return
+  end
+  local.get $paramsPtr
+  local.set $params
+  local.get $paramsLen
+  i32.const 0
+  i32.gt_s
+  if (result i32)
+   local.get $paramsLen
+  else
+   i32.const 0
+  end
+  local.set $len
+  call $assembly/runtimeCore/getGlobalEnvironment
+  local.set $environment
+  local.get $environment
+  local.get $params
+  local.get $len
+  global.get $assembly/runtimeCore/ENV_WIND_SPEED
+  local.get $environment
+  call $assembly/runtimeCore/EnvironmentState#get:windSpeed
+  call $assembly/runtimeCore/readParam
+  call $assembly/runtimeCore/EnvironmentState#set:windSpeed
+  local.get $environment
+  local.get $params
+  local.get $len
+  global.get $assembly/runtimeCore/ENV_WIND_DIRECTION
+  local.get $environment
+  call $assembly/runtimeCore/EnvironmentState#get:windDirection
+  call $assembly/runtimeCore/readParam
+  call $assembly/runtimeCore/EnvironmentState#set:windDirection
+  local.get $environment
+  local.get $params
+  local.get $len
+  global.get $assembly/runtimeCore/ENV_CURRENT_SPEED
+  local.get $environment
+  call $assembly/runtimeCore/EnvironmentState#get:currentSpeed
+  call $assembly/runtimeCore/readParam
+  call $assembly/runtimeCore/EnvironmentState#set:currentSpeed
+  local.get $environment
+  local.get $params
+  local.get $len
+  global.get $assembly/runtimeCore/ENV_CURRENT_DIRECTION
+  local.get $environment
+  call $assembly/runtimeCore/EnvironmentState#get:currentDirection
+  call $assembly/runtimeCore/readParam
+  call $assembly/runtimeCore/EnvironmentState#set:currentDirection
+  local.get $environment
+  local.get $params
+  local.get $len
+  global.get $assembly/runtimeCore/ENV_WAVE_HEIGHT
+  local.get $environment
+  call $assembly/runtimeCore/EnvironmentState#get:waveHeight
+  call $assembly/runtimeCore/readParam
+  call $assembly/runtimeCore/EnvironmentState#set:waveHeight
+  local.get $environment
+  local.get $params
+  local.get $len
+  global.get $assembly/runtimeCore/ENV_WAVE_LENGTH
+  local.get $environment
+  call $assembly/runtimeCore/EnvironmentState#get:waveLength
+  call $assembly/runtimeCore/readParam
+  call $assembly/runtimeCore/EnvironmentState#set:waveLength
+  local.get $environment
+  local.get $params
+  local.get $len
+  global.get $assembly/runtimeCore/ENV_WAVE_DIRECTION
+  local.get $environment
+  call $assembly/runtimeCore/EnvironmentState#get:waveDirection
+  call $assembly/runtimeCore/readParam
+  call $assembly/runtimeCore/EnvironmentState#set:waveDirection
+  local.get $environment
+  local.get $params
+  local.get $len
+  global.get $assembly/runtimeCore/ENV_WAVE_STEEPNESS
+  local.get $environment
+  call $assembly/runtimeCore/EnvironmentState#get:waveSteepness
+  call $assembly/runtimeCore/readParam
+  call $assembly/runtimeCore/EnvironmentState#set:waveSteepness
+  local.get $environment
+  local.get $params
+  local.get $len
+  global.get $assembly/runtimeCore/ENV_WATER_DEPTH
+  local.get $environment
+  call $assembly/runtimeCore/EnvironmentState#get:waterDepth
+  call $assembly/runtimeCore/readParam
+  call $assembly/runtimeCore/EnvironmentState#set:waterDepth
+ )
+ (func $assembly/runtimeCore/ensureVessel (param $vesselPtr i32) (result i32)
+  local.get $vesselPtr
+  i32.const 0
+  i32.eq
+  if
+   i32.const 272
+   i32.const 336
+   i32.const 327
+   i32.const 24
+   call $~lib/builtins/abort
+   unreachable
+  end
+  local.get $vesselPtr
+  return
+ )
+ (func $assembly/runtimeCore/VesselState#set:modelId (param $this i32) (param $modelId i32)
+  local.get $this
+  local.get $modelId
+  i32.store offset=496
+ )
+ (func $assembly/runtimeCore/VesselState#get:mass (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=128
+ )
+ (func $assembly/runtimeCore/VesselState#set:mass (param $this i32) (param $mass f64)
+  local.get $this
+  local.get $mass
+  f64.store offset=128
+ )
+ (func $assembly/runtimeCore/VesselState#get:length (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=136
+ )
+ (func $assembly/runtimeCore/VesselState#set:length (param $this i32) (param $length f64)
+  local.get $this
+  local.get $length
+  f64.store offset=136
+ )
+ (func $assembly/runtimeCore/VesselState#get:beam (param $this i32) (result f64)
   local.get $this
   f64.load offset=144
  )
- (func $assembly/index/VesselState#get:blockCoefficient (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:beam (param $this i32) (param $beam f64)
+  local.get $this
+  local.get $beam
+  f64.store offset=144
+ )
+ (func $assembly/runtimeCore/VesselState#get:draft (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=152
+ )
+ (func $assembly/runtimeCore/VesselState#set:draft (param $this i32) (param $draft f64)
+  local.get $this
+  local.get $draft
+  f64.store offset=152
+ )
+ (func $assembly/runtimeCore/VesselState#get:blockCoefficient (param $this i32) (result f64)
   local.get $this
   f64.load offset=168
  )
- (func $assembly/index/VesselState#get:rudderForceCoefficient (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:blockCoefficient (param $this i32) (param $blockCoefficient f64)
+  local.get $this
+  local.get $blockCoefficient
+  f64.store offset=168
+ )
+ (func $assembly/runtimeCore/VesselState#get:rudderForceCoefficient (param $this i32) (result f64)
   local.get $this
   f64.load offset=176
  )
- (func $assembly/index/VesselState#get:rudderStallAngle (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:rudderForceCoefficient (param $this i32) (param $rudderForceCoefficient f64)
+  local.get $this
+  local.get $rudderForceCoefficient
+  f64.store offset=176
+ )
+ (func $assembly/runtimeCore/VesselState#get:rudderStallAngle (param $this i32) (result f64)
   local.get $this
   f64.load offset=184
  )
- (func $assembly/index/VesselState#get:yawDamping (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:rudderStallAngle (param $this i32) (param $rudderStallAngle f64)
+  local.get $this
+  local.get $rudderStallAngle
+  f64.store offset=184
+ )
+ (func $assembly/runtimeCore/VesselState#get:rudderMaxAngle (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=192
+ )
+ (func $assembly/runtimeCore/VesselState#set:rudderMaxAngle (param $this i32) (param $rudderMaxAngle f64)
+  local.get $this
+  local.get $rudderMaxAngle
+  f64.store offset=192
+ )
+ (func $assembly/runtimeCore/VesselState#get:dragCoefficient (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=200
+ )
+ (func $assembly/runtimeCore/VesselState#set:dragCoefficient (param $this i32) (param $dragCoefficient f64)
+  local.get $this
+  local.get $dragCoefficient
+  f64.store offset=200
+ )
+ (func $assembly/runtimeCore/VesselState#get:yawDamping (param $this i32) (result f64)
   local.get $this
   f64.load offset=208
  )
- (func $assembly/index/VesselState#get:yawDampingQuad (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:yawDamping (param $this i32) (param $yawDamping f64)
+  local.get $this
+  local.get $yawDamping
+  f64.store offset=208
+ )
+ (func $assembly/runtimeCore/VesselState#get:yawDampingQuad (param $this i32) (result f64)
   local.get $this
   f64.load offset=216
  )
- (func $assembly/index/VesselState#get:swayDamping (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:yawDampingQuad (param $this i32) (param $yawDampingQuad f64)
+  local.get $this
+  local.get $yawDampingQuad
+  f64.store offset=216
+ )
+ (func $assembly/runtimeCore/VesselState#get:swayDamping (param $this i32) (result f64)
   local.get $this
   f64.load offset=224
  )
- (func $assembly/index/VesselState#get:maxThrust (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:swayDamping (param $this i32) (param $swayDamping f64)
+  local.get $this
+  local.get $swayDamping
+  f64.store offset=224
+ )
+ (func $assembly/runtimeCore/VesselState#get:maxThrust (param $this i32) (result f64)
   local.get $this
   f64.load offset=232
  )
- (func $assembly/index/VesselState#get:maxSpeed (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:maxThrust (param $this i32) (param $maxThrust f64)
+  local.get $this
+  local.get $maxThrust
+  f64.store offset=232
+ )
+ (func $assembly/runtimeCore/VesselState#get:maxSpeed (param $this i32) (result f64)
   local.get $this
   f64.load offset=240
  )
- (func $assembly/index/VesselState#get:rollDamping (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:maxSpeed (param $this i32) (param $maxSpeed f64)
+  local.get $this
+  local.get $maxSpeed
+  f64.store offset=240
+ )
+ (func $assembly/runtimeCore/VesselState#get:rollDamping (param $this i32) (result f64)
   local.get $this
   f64.load offset=248
  )
- (func $assembly/index/VesselState#get:pitchDamping (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:rollDamping (param $this i32) (param $rollDamping f64)
+  local.get $this
+  local.get $rollDamping
+  f64.store offset=248
+ )
+ (func $assembly/runtimeCore/VesselState#get:pitchDamping (param $this i32) (result f64)
   local.get $this
   f64.load offset=256
  )
- (func $assembly/index/VesselState#get:heaveStiffness (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:pitchDamping (param $this i32) (param $pitchDamping f64)
+  local.get $this
+  local.get $pitchDamping
+  f64.store offset=256
+ )
+ (func $assembly/runtimeCore/VesselState#get:heaveStiffness (param $this i32) (result f64)
   local.get $this
   f64.load offset=264
  )
- (func $assembly/index/VesselState#get:heaveDamping (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:heaveStiffness (param $this i32) (param $heaveStiffness f64)
+  local.get $this
+  local.get $heaveStiffness
+  f64.store offset=264
+ )
+ (func $assembly/runtimeCore/VesselState#get:heaveDamping (param $this i32) (result f64)
   local.get $this
   f64.load offset=272
  )
- (func $assembly/index/VesselState#get:rudderArea (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:heaveDamping (param $this i32) (param $heaveDamping f64)
+  local.get $this
+  local.get $heaveDamping
+  f64.store offset=272
+ )
+ (func $assembly/runtimeCore/VesselState#get:rudderArea (param $this i32) (result f64)
   local.get $this
   f64.load offset=280
  )
- (func $assembly/index/VesselState#get:rudderArm (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:rudderArea (param $this i32) (param $rudderArea f64)
+  local.get $this
+  local.get $rudderArea
+  f64.store offset=280
+ )
+ (func $assembly/runtimeCore/VesselState#get:rudderArm (param $this i32) (result f64)
   local.get $this
   f64.load offset=288
  )
- (func $assembly/index/VesselState#get:rudderLiftSlope (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:rudderArm (param $this i32) (param $rudderArm f64)
+  local.get $this
+  local.get $rudderArm
+  f64.store offset=288
+ )
+ (func $assembly/runtimeCore/VesselState#get:rudderLiftSlope (param $this i32) (result f64)
   local.get $this
   f64.load offset=296
  )
- (func $assembly/index/VesselState#get:propWashFactor (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:rudderLiftSlope (param $this i32) (param $rudderLiftSlope f64)
+  local.get $this
+  local.get $rudderLiftSlope
+  f64.store offset=296
+ )
+ (func $assembly/runtimeCore/VesselState#get:propWashFactor (param $this i32) (result f64)
   local.get $this
   f64.load offset=304
  )
- (func $assembly/index/VesselState#get:engineTimeConstant (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:propWashFactor (param $this i32) (param $propWashFactor f64)
+  local.get $this
+  local.get $propWashFactor
+  f64.store offset=304
+ )
+ (func $assembly/runtimeCore/VesselState#get:engineTimeConstant (param $this i32) (result f64)
   local.get $this
   f64.load offset=312
  )
- (func $assembly/index/VesselState#get:rudderRateLimit (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:engineTimeConstant (param $this i32) (param $engineTimeConstant f64)
+  local.get $this
+  local.get $engineTimeConstant
+  f64.store offset=312
+ )
+ (func $assembly/runtimeCore/VesselState#get:rudderRateLimit (param $this i32) (result f64)
   local.get $this
   f64.load offset=320
  )
- (func $assembly/index/VesselState#get:addedMassX (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:rudderRateLimit (param $this i32) (param $rudderRateLimit f64)
+  local.get $this
+  local.get $rudderRateLimit
+  f64.store offset=320
+ )
+ (func $assembly/runtimeCore/VesselState#get:addedMassX (param $this i32) (result f64)
   local.get $this
   f64.load offset=328
  )
- (func $assembly/index/VesselState#get:addedMassY (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:addedMassX (param $this i32) (param $addedMassX f64)
+  local.get $this
+  local.get $addedMassX
+  f64.store offset=328
+ )
+ (func $assembly/runtimeCore/VesselState#get:addedMassY (param $this i32) (result f64)
   local.get $this
   f64.load offset=336
  )
- (func $assembly/index/VesselState#get:addedMassYaw (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:addedMassY (param $this i32) (param $addedMassY f64)
+  local.get $this
+  local.get $addedMassY
+  f64.store offset=336
+ )
+ (func $assembly/runtimeCore/VesselState#get:addedMassYaw (param $this i32) (result f64)
   local.get $this
   f64.load offset=344
  )
- (func $assembly/index/VesselState#get:hullYv (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:addedMassYaw (param $this i32) (param $addedMassYaw f64)
+  local.get $this
+  local.get $addedMassYaw
+  f64.store offset=344
+ )
+ (func $assembly/runtimeCore/VesselState#get:hullYv (param $this i32) (result f64)
   local.get $this
   f64.load offset=352
  )
- (func $assembly/index/VesselState#get:hullYr (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:hullYv (param $this i32) (param $hullYv f64)
+  local.get $this
+  local.get $hullYv
+  f64.store offset=352
+ )
+ (func $assembly/runtimeCore/VesselState#get:hullYr (param $this i32) (result f64)
   local.get $this
   f64.load offset=360
  )
- (func $assembly/index/VesselState#get:hullNv (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:hullYr (param $this i32) (param $hullYr f64)
+  local.get $this
+  local.get $hullYr
+  f64.store offset=360
+ )
+ (func $assembly/runtimeCore/VesselState#get:hullNv (param $this i32) (result f64)
   local.get $this
   f64.load offset=368
  )
- (func $assembly/index/VesselState#get:hullNr (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:hullNv (param $this i32) (param $hullNv f64)
+  local.get $this
+  local.get $hullNv
+  f64.store offset=368
+ )
+ (func $assembly/runtimeCore/VesselState#get:hullNr (param $this i32) (result f64)
   local.get $this
   f64.load offset=376
  )
- (func $assembly/index/VesselState#get:cdSurge (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:hullNr (param $this i32) (param $hullNr f64)
+  local.get $this
+  local.get $hullNr
+  f64.store offset=376
+ )
+ (func $assembly/runtimeCore/VesselState#get:cdSurge (param $this i32) (result f64)
   local.get $this
   f64.load offset=384
  )
- (func $assembly/index/VesselState#get:cdSway (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:cdSurge (param $this i32) (param $cdSurge f64)
+  local.get $this
+  local.get $cdSurge
+  f64.store offset=384
+ )
+ (func $assembly/runtimeCore/VesselState#get:cdSway (param $this i32) (result f64)
   local.get $this
   f64.load offset=392
  )
- (func $assembly/index/VesselState#get:cdYaw (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:cdSway (param $this i32) (param $cdSway f64)
+  local.get $this
+  local.get $cdSway
+  f64.store offset=392
+ )
+ (func $assembly/runtimeCore/VesselState#get:cdYaw (param $this i32) (result f64)
   local.get $this
   f64.load offset=400
  )
- (func $assembly/index/VesselState#get:shallowWaterFactor (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:cdYaw (param $this i32) (param $cdYaw f64)
+  local.get $this
+  local.get $cdYaw
+  f64.store offset=400
+ )
+ (func $assembly/runtimeCore/VesselState#get:shallowWaterFactor (param $this i32) (result f64)
   local.get $this
   f64.load offset=408
  )
- (func $assembly/index/VesselState#get:shallowWaterYawFactor (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:shallowWaterFactor (param $this i32) (param $shallowWaterFactor f64)
+  local.get $this
+  local.get $shallowWaterFactor
+  f64.store offset=408
+ )
+ (func $assembly/runtimeCore/VesselState#get:shallowWaterYawFactor (param $this i32) (result f64)
   local.get $this
   f64.load offset=416
  )
- (func $assembly/index/VesselState#get:shallowWaterRudderFactor (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:shallowWaterYawFactor (param $this i32) (param $shallowWaterYawFactor f64)
+  local.get $this
+  local.get $shallowWaterYawFactor
+  f64.store offset=416
+ )
+ (func $assembly/runtimeCore/VesselState#get:shallowWaterRudderFactor (param $this i32) (result f64)
   local.get $this
   f64.load offset=424
  )
- (func $assembly/index/VesselState#get:rudderAngle (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#set:shallowWaterRudderFactor (param $this i32) (param $shallowWaterRudderFactor f64)
+  local.get $this
+  local.get $shallowWaterRudderFactor
+  f64.store offset=424
+ )
+ (func $assembly/runtimeCore/VesselState#get:rudderCommand (param $this i32) (result f64)
+  local.get $this
+  f64.load offset=120
+ )
+ (func $assembly/runtimeCore/clampSigned (param $value f64) (param $limit f64) (result f64)
+  local.get $value
+  local.get $limit
+  f64.gt
+  if
+   local.get $limit
+   return
+  end
+  local.get $value
+  local.get $limit
+  f64.neg
+  f64.lt
+  if
+   local.get $limit
+   f64.neg
+   return
+  end
+  local.get $value
+  return
+ )
+ (func $assembly/runtimeCore/VesselState#set:rudderCommand (param $this i32) (param $rudderCommand f64)
+  local.get $this
+  local.get $rudderCommand
+  f64.store offset=120
+ )
+ (func $assembly/runtimeCore/VesselState#get:rudderAngle (param $this i32) (result f64)
   local.get $this
   f64.load offset=112
  )
- (func $assembly/index/setVesselParams (param $vesselPtr i32) (param $modelId i32) (param $paramsPtr i32) (param $paramsLen i32)
+ (func $assembly/runtimeCore/VesselState#set:rudderAngle (param $this i32) (param $rudderAngle f64)
+  local.get $this
+  local.get $rudderAngle
+  f64.store offset=112
+ )
+ (func $assembly/vesselParams/setVesselParams (param $vesselPtr i32) (param $modelId i32) (param $paramsPtr i32) (param $paramsLen i32)
   (local $vessel i32)
   (local $params i32)
   (local $len i32)
@@ -1870,11 +1230,11 @@
   (local $shallowWaterYawFactor f64)
   (local $shallowWaterRudderFactor f64)
   local.get $vesselPtr
-  call $assembly/index/ensureVessel
+  call $assembly/runtimeCore/ensureVessel
   local.set $vessel
   local.get $vessel
   local.get $modelId
-  call $assembly/index/VesselState#set:modelId
+  call $assembly/runtimeCore/VesselState#set:modelId
   local.get $paramsPtr
   i32.const 0
   i32.eq
@@ -1900,17 +1260,17 @@
   end
   local.set $len
   local.get $modelId
-  global.get $assembly/index/MODEL_DISPLACEMENT
+  global.get $assembly/runtimeCore/MODEL_DISPLACEMENT
   i32.ne
   if
    return
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_MASS
+  global.get $assembly/runtimeCore/PARAM_MASS
   local.get $vessel
-  call $assembly/index/VesselState#get:mass
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:mass
+  call $assembly/runtimeCore/readParam
   local.set $mass
   local.get $mass
   f64.const 0
@@ -1918,14 +1278,14 @@
   if
    local.get $vessel
    local.get $mass
-   call $assembly/index/VesselState#set:mass
+   call $assembly/runtimeCore/VesselState#set:mass
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_LENGTH
+  global.get $assembly/runtimeCore/PARAM_LENGTH
   local.get $vessel
-  call $assembly/index/VesselState#get:length
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:length
+  call $assembly/runtimeCore/readParam
   local.set $length
   local.get $length
   f64.const 0
@@ -1933,14 +1293,14 @@
   if
    local.get $vessel
    local.get $length
-   call $assembly/index/VesselState#set:length
+   call $assembly/runtimeCore/VesselState#set:length
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_BEAM
+  global.get $assembly/runtimeCore/PARAM_BEAM
   local.get $vessel
-  call $assembly/index/VesselState#get:beam
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:beam
+  call $assembly/runtimeCore/readParam
   local.set $beam
   local.get $beam
   f64.const 0
@@ -1948,14 +1308,14 @@
   if
    local.get $vessel
    local.get $beam
-   call $assembly/index/VesselState#set:beam
+   call $assembly/runtimeCore/VesselState#set:beam
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_DRAFT
+  global.get $assembly/runtimeCore/PARAM_DRAFT
   local.get $vessel
-  call $assembly/index/VesselState#get:draft
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:draft
+  call $assembly/runtimeCore/readParam
   local.set $draft
   local.get $draft
   f64.const 0
@@ -1963,14 +1323,14 @@
   if
    local.get $vessel
    local.get $draft
-   call $assembly/index/VesselState#set:draft
+   call $assembly/runtimeCore/VesselState#set:draft
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_BLOCK_COEFFICIENT
+  global.get $assembly/runtimeCore/PARAM_BLOCK_COEFFICIENT
   local.get $vessel
-  call $assembly/index/VesselState#get:blockCoefficient
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:blockCoefficient
+  call $assembly/runtimeCore/readParam
   local.set $blockCoefficient
   local.get $blockCoefficient
   f64.const 0
@@ -1978,14 +1338,14 @@
   if
    local.get $vessel
    local.get $blockCoefficient
-   call $assembly/index/VesselState#set:blockCoefficient
+   call $assembly/runtimeCore/VesselState#set:blockCoefficient
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_RUDDER_FORCE_COEFFICIENT
+  global.get $assembly/runtimeCore/PARAM_RUDDER_FORCE_COEFFICIENT
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderForceCoefficient
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:rudderForceCoefficient
+  call $assembly/runtimeCore/readParam
   local.set $rudderForceCoefficient
   local.get $rudderForceCoefficient
   f64.const 0
@@ -1993,14 +1353,14 @@
   if
    local.get $vessel
    local.get $rudderForceCoefficient
-   call $assembly/index/VesselState#set:rudderForceCoefficient
+   call $assembly/runtimeCore/VesselState#set:rudderForceCoefficient
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_RUDDER_STALL_ANGLE
+  global.get $assembly/runtimeCore/PARAM_RUDDER_STALL_ANGLE
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderStallAngle
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:rudderStallAngle
+  call $assembly/runtimeCore/readParam
   local.set $rudderStallAngle
   local.get $rudderStallAngle
   f64.const 0
@@ -2008,14 +1368,14 @@
   if
    local.get $vessel
    local.get $rudderStallAngle
-   call $assembly/index/VesselState#set:rudderStallAngle
+   call $assembly/runtimeCore/VesselState#set:rudderStallAngle
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_RUDDER_MAX_ANGLE
+  global.get $assembly/runtimeCore/PARAM_RUDDER_MAX_ANGLE
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderMaxAngle
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:rudderMaxAngle
+  call $assembly/runtimeCore/readParam
   local.set $rudderMaxAngle
   local.get $rudderMaxAngle
   f64.const 0
@@ -2023,14 +1383,14 @@
   if
    local.get $vessel
    local.get $rudderMaxAngle
-   call $assembly/index/VesselState#set:rudderMaxAngle
+   call $assembly/runtimeCore/VesselState#set:rudderMaxAngle
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_DRAG_COEFFICIENT
+  global.get $assembly/runtimeCore/PARAM_DRAG_COEFFICIENT
   local.get $vessel
-  call $assembly/index/VesselState#get:dragCoefficient
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:dragCoefficient
+  call $assembly/runtimeCore/readParam
   local.set $dragCoefficient
   local.get $dragCoefficient
   f64.const 0
@@ -2038,14 +1398,14 @@
   if
    local.get $vessel
    local.get $dragCoefficient
-   call $assembly/index/VesselState#set:dragCoefficient
+   call $assembly/runtimeCore/VesselState#set:dragCoefficient
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_YAW_DAMPING
+  global.get $assembly/runtimeCore/PARAM_YAW_DAMPING
   local.get $vessel
-  call $assembly/index/VesselState#get:yawDamping
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:yawDamping
+  call $assembly/runtimeCore/readParam
   local.set $yawDamping
   local.get $yawDamping
   f64.const 0
@@ -2053,14 +1413,14 @@
   if
    local.get $vessel
    local.get $yawDamping
-   call $assembly/index/VesselState#set:yawDamping
+   call $assembly/runtimeCore/VesselState#set:yawDamping
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_YAW_DAMPING_QUAD
+  global.get $assembly/runtimeCore/PARAM_YAW_DAMPING_QUAD
   local.get $vessel
-  call $assembly/index/VesselState#get:yawDampingQuad
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:yawDampingQuad
+  call $assembly/runtimeCore/readParam
   local.set $yawDampingQuad
   local.get $yawDampingQuad
   f64.const 0
@@ -2068,14 +1428,14 @@
   if
    local.get $vessel
    local.get $yawDampingQuad
-   call $assembly/index/VesselState#set:yawDampingQuad
+   call $assembly/runtimeCore/VesselState#set:yawDampingQuad
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_SWAY_DAMPING
+  global.get $assembly/runtimeCore/PARAM_SWAY_DAMPING
   local.get $vessel
-  call $assembly/index/VesselState#get:swayDamping
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:swayDamping
+  call $assembly/runtimeCore/readParam
   local.set $swayDamping
   local.get $swayDamping
   f64.const 0
@@ -2083,14 +1443,14 @@
   if
    local.get $vessel
    local.get $swayDamping
-   call $assembly/index/VesselState#set:swayDamping
+   call $assembly/runtimeCore/VesselState#set:swayDamping
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_MAX_THRUST
+  global.get $assembly/runtimeCore/PARAM_MAX_THRUST
   local.get $vessel
-  call $assembly/index/VesselState#get:maxThrust
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:maxThrust
+  call $assembly/runtimeCore/readParam
   local.set $maxThrust
   local.get $maxThrust
   f64.const 0
@@ -2098,14 +1458,14 @@
   if
    local.get $vessel
    local.get $maxThrust
-   call $assembly/index/VesselState#set:maxThrust
+   call $assembly/runtimeCore/VesselState#set:maxThrust
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_MAX_SPEED
+  global.get $assembly/runtimeCore/PARAM_MAX_SPEED
   local.get $vessel
-  call $assembly/index/VesselState#get:maxSpeed
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:maxSpeed
+  call $assembly/runtimeCore/readParam
   local.set $maxSpeed
   local.get $maxSpeed
   f64.const 0
@@ -2113,14 +1473,14 @@
   if
    local.get $vessel
    local.get $maxSpeed
-   call $assembly/index/VesselState#set:maxSpeed
+   call $assembly/runtimeCore/VesselState#set:maxSpeed
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_ROLL_DAMPING
+  global.get $assembly/runtimeCore/PARAM_ROLL_DAMPING
   local.get $vessel
-  call $assembly/index/VesselState#get:rollDamping
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:rollDamping
+  call $assembly/runtimeCore/readParam
   local.set $rollDamping
   local.get $rollDamping
   f64.const 0
@@ -2128,14 +1488,14 @@
   if
    local.get $vessel
    local.get $rollDamping
-   call $assembly/index/VesselState#set:rollDamping
+   call $assembly/runtimeCore/VesselState#set:rollDamping
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_PITCH_DAMPING
+  global.get $assembly/runtimeCore/PARAM_PITCH_DAMPING
   local.get $vessel
-  call $assembly/index/VesselState#get:pitchDamping
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:pitchDamping
+  call $assembly/runtimeCore/readParam
   local.set $pitchDamping
   local.get $pitchDamping
   f64.const 0
@@ -2143,14 +1503,14 @@
   if
    local.get $vessel
    local.get $pitchDamping
-   call $assembly/index/VesselState#set:pitchDamping
+   call $assembly/runtimeCore/VesselState#set:pitchDamping
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_HEAVE_STIFFNESS
+  global.get $assembly/runtimeCore/PARAM_HEAVE_STIFFNESS
   local.get $vessel
-  call $assembly/index/VesselState#get:heaveStiffness
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:heaveStiffness
+  call $assembly/runtimeCore/readParam
   local.set $heaveStiffness
   local.get $heaveStiffness
   f64.const 0
@@ -2158,14 +1518,14 @@
   if
    local.get $vessel
    local.get $heaveStiffness
-   call $assembly/index/VesselState#set:heaveStiffness
+   call $assembly/runtimeCore/VesselState#set:heaveStiffness
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_HEAVE_DAMPING
+  global.get $assembly/runtimeCore/PARAM_HEAVE_DAMPING
   local.get $vessel
-  call $assembly/index/VesselState#get:heaveDamping
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:heaveDamping
+  call $assembly/runtimeCore/readParam
   local.set $heaveDamping
   local.get $heaveDamping
   f64.const 0
@@ -2173,14 +1533,14 @@
   if
    local.get $vessel
    local.get $heaveDamping
-   call $assembly/index/VesselState#set:heaveDamping
+   call $assembly/runtimeCore/VesselState#set:heaveDamping
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_RUDDER_AREA
+  global.get $assembly/runtimeCore/PARAM_RUDDER_AREA
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderArea
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:rudderArea
+  call $assembly/runtimeCore/readParam
   local.set $rudderArea
   local.get $rudderArea
   f64.const 0
@@ -2188,14 +1548,14 @@
   if
    local.get $vessel
    local.get $rudderArea
-   call $assembly/index/VesselState#set:rudderArea
+   call $assembly/runtimeCore/VesselState#set:rudderArea
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_RUDDER_ARM
+  global.get $assembly/runtimeCore/PARAM_RUDDER_ARM
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderArm
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:rudderArm
+  call $assembly/runtimeCore/readParam
   local.set $rudderArm
   local.get $rudderArm
   f64.const 0
@@ -2203,14 +1563,14 @@
   if
    local.get $vessel
    local.get $rudderArm
-   call $assembly/index/VesselState#set:rudderArm
+   call $assembly/runtimeCore/VesselState#set:rudderArm
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_RUDDER_LIFT_SLOPE
+  global.get $assembly/runtimeCore/PARAM_RUDDER_LIFT_SLOPE
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderLiftSlope
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:rudderLiftSlope
+  call $assembly/runtimeCore/readParam
   local.set $rudderLiftSlope
   local.get $rudderLiftSlope
   f64.const 0
@@ -2218,14 +1578,14 @@
   if
    local.get $vessel
    local.get $rudderLiftSlope
-   call $assembly/index/VesselState#set:rudderLiftSlope
+   call $assembly/runtimeCore/VesselState#set:rudderLiftSlope
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_PROP_WASH
+  global.get $assembly/runtimeCore/PARAM_PROP_WASH
   local.get $vessel
-  call $assembly/index/VesselState#get:propWashFactor
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:propWashFactor
+  call $assembly/runtimeCore/readParam
   local.set $propWashFactor
   local.get $propWashFactor
   f64.const 0
@@ -2233,14 +1593,14 @@
   if
    local.get $vessel
    local.get $propWashFactor
-   call $assembly/index/VesselState#set:propWashFactor
+   call $assembly/runtimeCore/VesselState#set:propWashFactor
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_ENGINE_TIME_CONSTANT
+  global.get $assembly/runtimeCore/PARAM_ENGINE_TIME_CONSTANT
   local.get $vessel
-  call $assembly/index/VesselState#get:engineTimeConstant
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:engineTimeConstant
+  call $assembly/runtimeCore/readParam
   local.set $engineTimeConstant
   local.get $engineTimeConstant
   f64.const 0
@@ -2248,14 +1608,14 @@
   if
    local.get $vessel
    local.get $engineTimeConstant
-   call $assembly/index/VesselState#set:engineTimeConstant
+   call $assembly/runtimeCore/VesselState#set:engineTimeConstant
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_RUDDER_RATE
+  global.get $assembly/runtimeCore/PARAM_RUDDER_RATE
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderRateLimit
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:rudderRateLimit
+  call $assembly/runtimeCore/readParam
   local.set $rudderRateLimit
   local.get $rudderRateLimit
   f64.const 0
@@ -2263,14 +1623,14 @@
   if
    local.get $vessel
    local.get $rudderRateLimit
-   call $assembly/index/VesselState#set:rudderRateLimit
+   call $assembly/runtimeCore/VesselState#set:rudderRateLimit
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_ADDED_MASS_X
+  global.get $assembly/runtimeCore/PARAM_ADDED_MASS_X
   local.get $vessel
-  call $assembly/index/VesselState#get:addedMassX
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:addedMassX
+  call $assembly/runtimeCore/readParam
   local.set $addedMassX
   local.get $addedMassX
   f64.const 0
@@ -2278,14 +1638,14 @@
   if
    local.get $vessel
    local.get $addedMassX
-   call $assembly/index/VesselState#set:addedMassX
+   call $assembly/runtimeCore/VesselState#set:addedMassX
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_ADDED_MASS_Y
+  global.get $assembly/runtimeCore/PARAM_ADDED_MASS_Y
   local.get $vessel
-  call $assembly/index/VesselState#get:addedMassY
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:addedMassY
+  call $assembly/runtimeCore/readParam
   local.set $addedMassY
   local.get $addedMassY
   f64.const 0
@@ -2293,14 +1653,14 @@
   if
    local.get $vessel
    local.get $addedMassY
-   call $assembly/index/VesselState#set:addedMassY
+   call $assembly/runtimeCore/VesselState#set:addedMassY
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_ADDED_MASS_YAW
+  global.get $assembly/runtimeCore/PARAM_ADDED_MASS_YAW
   local.get $vessel
-  call $assembly/index/VesselState#get:addedMassYaw
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:addedMassYaw
+  call $assembly/runtimeCore/readParam
   local.set $addedMassYaw
   local.get $addedMassYaw
   f64.const 0
@@ -2308,46 +1668,46 @@
   if
    local.get $vessel
    local.get $addedMassYaw
-   call $assembly/index/VesselState#set:addedMassYaw
+   call $assembly/runtimeCore/VesselState#set:addedMassYaw
   end
   local.get $vessel
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_HULL_YV
+  global.get $assembly/runtimeCore/PARAM_HULL_YV
   local.get $vessel
-  call $assembly/index/VesselState#get:hullYv
-  call $assembly/index/readParam
-  call $assembly/index/VesselState#set:hullYv
-  local.get $vessel
-  local.get $params
-  local.get $len
-  global.get $assembly/index/PARAM_HULL_YR
-  local.get $vessel
-  call $assembly/index/VesselState#get:hullYr
-  call $assembly/index/readParam
-  call $assembly/index/VesselState#set:hullYr
+  call $assembly/runtimeCore/VesselState#get:hullYv
+  call $assembly/runtimeCore/readParam
+  call $assembly/runtimeCore/VesselState#set:hullYv
   local.get $vessel
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_HULL_NV
+  global.get $assembly/runtimeCore/PARAM_HULL_YR
   local.get $vessel
-  call $assembly/index/VesselState#get:hullNv
-  call $assembly/index/readParam
-  call $assembly/index/VesselState#set:hullNv
+  call $assembly/runtimeCore/VesselState#get:hullYr
+  call $assembly/runtimeCore/readParam
+  call $assembly/runtimeCore/VesselState#set:hullYr
   local.get $vessel
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_HULL_NR
+  global.get $assembly/runtimeCore/PARAM_HULL_NV
   local.get $vessel
-  call $assembly/index/VesselState#get:hullNr
-  call $assembly/index/readParam
-  call $assembly/index/VesselState#set:hullNr
+  call $assembly/runtimeCore/VesselState#get:hullNv
+  call $assembly/runtimeCore/readParam
+  call $assembly/runtimeCore/VesselState#set:hullNv
+  local.get $vessel
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_CD_SURGE
+  global.get $assembly/runtimeCore/PARAM_HULL_NR
   local.get $vessel
-  call $assembly/index/VesselState#get:cdSurge
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:hullNr
+  call $assembly/runtimeCore/readParam
+  call $assembly/runtimeCore/VesselState#set:hullNr
+  local.get $params
+  local.get $len
+  global.get $assembly/runtimeCore/PARAM_CD_SURGE
+  local.get $vessel
+  call $assembly/runtimeCore/VesselState#get:cdSurge
+  call $assembly/runtimeCore/readParam
   local.set $cdSurge
   local.get $cdSurge
   f64.const 0
@@ -2355,14 +1715,14 @@
   if
    local.get $vessel
    local.get $cdSurge
-   call $assembly/index/VesselState#set:cdSurge
+   call $assembly/runtimeCore/VesselState#set:cdSurge
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_CD_SWAY
+  global.get $assembly/runtimeCore/PARAM_CD_SWAY
   local.get $vessel
-  call $assembly/index/VesselState#get:cdSway
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:cdSway
+  call $assembly/runtimeCore/readParam
   local.set $cdSway
   local.get $cdSway
   f64.const 0
@@ -2370,14 +1730,14 @@
   if
    local.get $vessel
    local.get $cdSway
-   call $assembly/index/VesselState#set:cdSway
+   call $assembly/runtimeCore/VesselState#set:cdSway
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_CD_YAW
+  global.get $assembly/runtimeCore/PARAM_CD_YAW
   local.get $vessel
-  call $assembly/index/VesselState#get:cdYaw
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:cdYaw
+  call $assembly/runtimeCore/readParam
   local.set $cdYaw
   local.get $cdYaw
   f64.const 0
@@ -2385,14 +1745,14 @@
   if
    local.get $vessel
    local.get $cdYaw
-   call $assembly/index/VesselState#set:cdYaw
+   call $assembly/runtimeCore/VesselState#set:cdYaw
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_SHALLOW_WATER_FACTOR
+  global.get $assembly/runtimeCore/PARAM_SHALLOW_WATER_FACTOR
   local.get $vessel
-  call $assembly/index/VesselState#get:shallowWaterFactor
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:shallowWaterFactor
+  call $assembly/runtimeCore/readParam
   local.set $shallowWaterFactor
   local.get $shallowWaterFactor
   f64.const 0
@@ -2400,14 +1760,14 @@
   if
    local.get $vessel
    local.get $shallowWaterFactor
-   call $assembly/index/VesselState#set:shallowWaterFactor
+   call $assembly/runtimeCore/VesselState#set:shallowWaterFactor
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_SHALLOW_WATER_YAW_FACTOR
+  global.get $assembly/runtimeCore/PARAM_SHALLOW_WATER_YAW_FACTOR
   local.get $vessel
-  call $assembly/index/VesselState#get:shallowWaterYawFactor
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:shallowWaterYawFactor
+  call $assembly/runtimeCore/readParam
   local.set $shallowWaterYawFactor
   local.get $shallowWaterYawFactor
   f64.const 0
@@ -2415,14 +1775,14 @@
   if
    local.get $vessel
    local.get $shallowWaterYawFactor
-   call $assembly/index/VesselState#set:shallowWaterYawFactor
+   call $assembly/runtimeCore/VesselState#set:shallowWaterYawFactor
   end
   local.get $params
   local.get $len
-  global.get $assembly/index/PARAM_SHALLOW_WATER_RUDDER_FACTOR
+  global.get $assembly/runtimeCore/PARAM_SHALLOW_WATER_RUDDER_FACTOR
   local.get $vessel
-  call $assembly/index/VesselState#get:shallowWaterRudderFactor
-  call $assembly/index/readParam
+  call $assembly/runtimeCore/VesselState#get:shallowWaterRudderFactor
+  call $assembly/runtimeCore/readParam
   local.set $shallowWaterRudderFactor
   local.get $shallowWaterRudderFactor
   f64.const 0
@@ -2430,188 +1790,994 @@
   if
    local.get $vessel
    local.get $shallowWaterRudderFactor
-   call $assembly/index/VesselState#set:shallowWaterRudderFactor
+   call $assembly/runtimeCore/VesselState#set:shallowWaterRudderFactor
   end
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderCommand
+  call $assembly/runtimeCore/VesselState#get:rudderCommand
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderMaxAngle
-  call $assembly/index/clampSigned
-  call $assembly/index/VesselState#set:rudderCommand
+  call $assembly/runtimeCore/VesselState#get:rudderMaxAngle
+  call $assembly/runtimeCore/clampSigned
+  call $assembly/runtimeCore/VesselState#set:rudderCommand
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderAngle
+  call $assembly/runtimeCore/VesselState#get:rudderAngle
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderMaxAngle
-  call $assembly/index/clampSigned
-  call $assembly/index/VesselState#set:rudderAngle
+  call $assembly/runtimeCore/VesselState#get:rudderMaxAngle
+  call $assembly/runtimeCore/clampSigned
+  call $assembly/runtimeCore/VesselState#set:rudderAngle
  )
- (func $assembly/index/getEnvironmentBufferPtr (result i32)
-  global.get $assembly/index/environmentBuffer
+ (func $assembly/runtimeCore/getGlobalVessel (result i32)
+  global.get $assembly/runtimeCore/globalVessel
   return
  )
- (func $assembly/index/getEnvironmentBufferCapacity (result i32)
-  global.get $assembly/index/ENVIRONMENT_BUFFER_CAPACITY
+ (func $assembly/runtimeCore/VesselState#set:x (param $this i32) (param $x f64)
+  local.get $this
+  local.get $x
+  f64.store
+ )
+ (func $assembly/runtimeCore/VesselState#set:y (param $this i32) (param $y f64)
+  local.get $this
+  local.get $y
+  f64.store offset=8
+ )
+ (func $assembly/runtimeCore/VesselState#set:z (param $this i32) (param $z f64)
+  local.get $this
+  local.get $z
+  f64.store offset=16
+ )
+ (func $assembly/runtimeCore/VesselState#set:psi (param $this i32) (param $psi f64)
+  local.get $this
+  local.get $psi
+  f64.store offset=40
+ )
+ (func $assembly/runtimeCore/VesselState#set:rollAngle (param $this i32) (param $rollAngle f64)
+  local.get $this
+  local.get $rollAngle
+  f64.store offset=24
+ )
+ (func $assembly/runtimeCore/VesselState#set:pitchAngle (param $this i32) (param $pitchAngle f64)
+  local.get $this
+  local.get $pitchAngle
+  f64.store offset=32
+ )
+ (func $assembly/runtimeCore/VesselState#set:u (param $this i32) (param $u f64)
+  local.get $this
+  local.get $u
+  f64.store offset=48
+ )
+ (func $assembly/runtimeCore/VesselState#set:v (param $this i32) (param $v f64)
+  local.get $this
+  local.get $v
+  f64.store offset=56
+ )
+ (func $assembly/runtimeCore/VesselState#set:w (param $this i32) (param $w f64)
+  local.get $this
+  local.get $w
+  f64.store offset=64
+ )
+ (func $assembly/runtimeCore/VesselState#set:r (param $this i32) (param $r f64)
+  local.get $this
+  local.get $r
+  f64.store offset=72
+ )
+ (func $assembly/runtimeCore/VesselState#set:p (param $this i32) (param $p f64)
+  local.get $this
+  local.get $p
+  f64.store offset=80
+ )
+ (func $assembly/runtimeCore/VesselState#set:q (param $this i32) (param $q f64)
+  local.get $this
+  local.get $q
+  f64.store offset=88
+ )
+ (func $assembly/runtimeCore/VesselState#set:throttle (param $this i32) (param $throttle f64)
+  local.get $this
+  local.get $throttle
+  f64.store offset=96
+ )
+ (func $assembly/runtimeCore/VesselState#set:throttleCommand (param $this i32) (param $throttleCommand f64)
+  local.get $this
+  local.get $throttleCommand
+  f64.store offset=104
+ )
+ (func $assembly/runtimeCore/VesselState#set:ballast (param $this i32) (param $ballast f64)
+  local.get $this
+  local.get $ballast
+  f64.store offset=160
+ )
+ (func $assembly/runtimeCore/VesselState#set:waveAmplitude (param $this i32) (param $waveAmplitude f64)
+  local.get $this
+  local.get $waveAmplitude
+  f64.store offset=432
+ )
+ (func $assembly/runtimeCore/VesselState#set:waveLength (param $this i32) (param $waveLength f64)
+  local.get $this
+  local.get $waveLength
+  f64.store offset=440
+ )
+ (func $assembly/runtimeCore/VesselState#set:waveDirection (param $this i32) (param $waveDirection f64)
+  local.get $this
+  local.get $waveDirection
+  f64.store offset=448
+ )
+ (func $assembly/runtimeCore/VesselState#set:waveSteepness (param $this i32) (param $waveSteepness f64)
+  local.get $this
+  local.get $waveSteepness
+  f64.store offset=456
+ )
+ (func $assembly/runtimeCore/VesselState#set:waveTime (param $this i32) (param $waveTime f64)
+  local.get $this
+  local.get $waveTime
+  f64.store offset=464
+ )
+ (func $assembly/runtimeCore/VesselState#set:fuelLevel (param $this i32) (param $fuelLevel f64)
+  local.get $this
+  local.get $fuelLevel
+  f64.store offset=472
+ )
+ (func $assembly/runtimeCore/VesselState#set:fuelConsumptionRate (param $this i32) (param $fuelConsumptionRate f64)
+  local.get $this
+  local.get $fuelConsumptionRate
+  f64.store offset=480
+ )
+ (func $assembly/runtimeCore/VesselState#set:lastFuelConsumption (param $this i32) (param $lastFuelConsumption f64)
+  local.get $this
+  local.get $lastFuelConsumption
+  f64.store offset=488
+ )
+ (func $assembly/runtimeCore/VesselState#constructor (param $this i32) (param $x f64) (param $y f64) (param $z f64) (param $psi f64) (param $roll f64) (param $pitch f64) (param $u f64) (param $v f64) (param $w f64) (param $r f64) (param $p f64) (param $q f64) (param $throttle f64) (param $rudderAngle f64) (param $mass f64) (param $length f64) (param $beam f64) (param $draft f64) (param $blockCoefficient f64) (param $rudderForceCoefficient f64) (param $rudderStallAngle f64) (param $rudderMaxAngle f64) (param $dragCoefficient f64) (param $yawDamping f64) (param $yawDampingQuad f64) (param $swayDamping f64) (param $maxThrust f64) (param $maxSpeed f64) (param $rollDamping f64) (param $pitchDamping f64) (param $heaveStiffness f64) (param $heaveDamping f64) (result i32)
+  (local $initialThrottle f64)
+  (local $value1 f64)
+  (local $value2 f64)
+  (local $baseCd f64)
+  local.get $this
+  i32.eqz
+  if
+   i32.const 500
+   i32.const 4
+   call $~lib/rt/stub/__new
+   local.set $this
+  end
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:x
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:y
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:z
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:rollAngle
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:pitchAngle
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:psi
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:u
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:v
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:w
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:r
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:p
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:q
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:throttle
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:throttleCommand
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:rudderAngle
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:rudderCommand
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:mass
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:length
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:beam
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:draft
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:ballast
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:blockCoefficient
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:rudderForceCoefficient
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:rudderStallAngle
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:rudderMaxAngle
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:dragCoefficient
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:yawDamping
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:yawDampingQuad
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:swayDamping
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:maxThrust
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:maxSpeed
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:rollDamping
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:pitchDamping
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:heaveStiffness
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:heaveDamping
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:rudderArea
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:rudderArm
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:rudderLiftSlope
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:propWashFactor
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:engineTimeConstant
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:rudderRateLimit
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:addedMassX
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:addedMassY
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:addedMassYaw
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:hullYv
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:hullYr
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:hullNv
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:hullNr
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:cdSurge
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:cdSway
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:cdYaw
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:shallowWaterFactor
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:shallowWaterYawFactor
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:shallowWaterRudderFactor
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:waveAmplitude
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:waveLength
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:waveDirection
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:waveSteepness
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:waveTime
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:fuelLevel
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:fuelConsumptionRate
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:lastFuelConsumption
+  local.get $this
+  i32.const 0
+  call $assembly/runtimeCore/VesselState#set:modelId
+  local.get $this
+  local.get $x
+  call $assembly/runtimeCore/VesselState#set:x
+  local.get $this
+  local.get $y
+  call $assembly/runtimeCore/VesselState#set:y
+  local.get $this
+  local.get $z
+  call $assembly/runtimeCore/VesselState#set:z
+  local.get $this
+  local.get $psi
+  call $assembly/runtimeCore/VesselState#set:psi
+  local.get $this
+  local.get $roll
+  call $assembly/runtimeCore/VesselState#set:rollAngle
+  local.get $this
+  local.get $pitch
+  call $assembly/runtimeCore/VesselState#set:pitchAngle
+  local.get $this
+  local.get $u
+  call $assembly/runtimeCore/VesselState#set:u
+  local.get $this
+  local.get $v
+  call $assembly/runtimeCore/VesselState#set:v
+  local.get $this
+  local.get $w
+  call $assembly/runtimeCore/VesselState#set:w
+  local.get $this
+  local.get $r
+  call $assembly/runtimeCore/VesselState#set:r
+  local.get $this
+  local.get $p
+  call $assembly/runtimeCore/VesselState#set:p
+  local.get $this
+  local.get $q
+  call $assembly/runtimeCore/VesselState#set:q
+  local.get $throttle
+  f64.const 1
+  call $assembly/runtimeCore/clampSigned
+  local.set $initialThrottle
+  local.get $this
+  local.get $initialThrottle
+  call $assembly/runtimeCore/VesselState#set:throttle
+  local.get $this
+  local.get $initialThrottle
+  call $assembly/runtimeCore/VesselState#set:throttleCommand
+  local.get $this
+  local.get $mass
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $mass
+  else
+   global.get $assembly/runtimeCore/DEFAULT_MASS
+  end
+  call $assembly/runtimeCore/VesselState#set:mass
+  local.get $this
+  local.get $length
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $length
+  else
+   global.get $assembly/runtimeCore/DEFAULT_LENGTH
+  end
+  call $assembly/runtimeCore/VesselState#set:length
+  local.get $this
+  local.get $beam
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $beam
+  else
+   global.get $assembly/runtimeCore/DEFAULT_BEAM
+  end
+  call $assembly/runtimeCore/VesselState#set:beam
+  local.get $this
+  local.get $draft
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $draft
+  else
+   global.get $assembly/runtimeCore/DEFAULT_DRAFT
+  end
+  call $assembly/runtimeCore/VesselState#set:draft
+  local.get $this
+  f64.const 0.5
+  call $assembly/runtimeCore/VesselState#set:ballast
+  local.get $this
+  local.get $blockCoefficient
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $blockCoefficient
+  else
+   global.get $assembly/runtimeCore/DEFAULT_BLOCK_COEFFICIENT
+  end
+  call $assembly/runtimeCore/VesselState#set:blockCoefficient
+  local.get $this
+  local.get $rudderForceCoefficient
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $rudderForceCoefficient
+  else
+   global.get $assembly/runtimeCore/DEFAULT_RUDDER_FORCE_COEFFICIENT
+  end
+  call $assembly/runtimeCore/VesselState#set:rudderForceCoefficient
+  local.get $this
+  local.get $rudderStallAngle
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $rudderStallAngle
+  else
+   global.get $assembly/runtimeCore/DEFAULT_RUDDER_STALL_ANGLE
+  end
+  call $assembly/runtimeCore/VesselState#set:rudderStallAngle
+  local.get $this
+  local.get $rudderMaxAngle
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $rudderMaxAngle
+  else
+   global.get $assembly/runtimeCore/DEFAULT_RUDDER_MAX_ANGLE
+  end
+  call $assembly/runtimeCore/VesselState#set:rudderMaxAngle
+  local.get $this
+  local.get $rudderAngle
+  local.get $this
+  call $assembly/runtimeCore/VesselState#get:rudderMaxAngle
+  call $assembly/runtimeCore/clampSigned
+  call $assembly/runtimeCore/VesselState#set:rudderCommand
+  local.get $this
+  local.get $this
+  call $assembly/runtimeCore/VesselState#get:rudderCommand
+  call $assembly/runtimeCore/VesselState#set:rudderAngle
+  local.get $this
+  local.get $dragCoefficient
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $dragCoefficient
+  else
+   global.get $assembly/runtimeCore/DEFAULT_DRAG_COEFFICIENT
+  end
+  call $assembly/runtimeCore/VesselState#set:dragCoefficient
+  local.get $this
+  local.get $yawDamping
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $yawDamping
+  else
+   global.get $assembly/runtimeCore/DEFAULT_YAW_DAMPING
+  end
+  call $assembly/runtimeCore/VesselState#set:yawDamping
+  local.get $this
+  local.get $yawDampingQuad
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $yawDampingQuad
+  else
+   global.get $assembly/runtimeCore/DEFAULT_YAW_DAMPING_QUAD
+  end
+  call $assembly/runtimeCore/VesselState#set:yawDampingQuad
+  local.get $this
+  local.get $swayDamping
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $swayDamping
+  else
+   global.get $assembly/runtimeCore/DEFAULT_SWAY_DAMPING
+  end
+  call $assembly/runtimeCore/VesselState#set:swayDamping
+  local.get $this
+  local.get $maxThrust
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $maxThrust
+  else
+   global.get $assembly/runtimeCore/DEFAULT_MAX_THRUST
+  end
+  call $assembly/runtimeCore/VesselState#set:maxThrust
+  local.get $this
+  local.get $maxSpeed
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $maxSpeed
+  else
+   global.get $assembly/runtimeCore/DEFAULT_MAX_SPEED
+  end
+  call $assembly/runtimeCore/VesselState#set:maxSpeed
+  local.get $this
+  local.get $rollDamping
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $rollDamping
+  else
+   global.get $assembly/runtimeCore/DEFAULT_ROLL_DAMPING
+  end
+  call $assembly/runtimeCore/VesselState#set:rollDamping
+  local.get $this
+  local.get $pitchDamping
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $pitchDamping
+  else
+   global.get $assembly/runtimeCore/DEFAULT_PITCH_DAMPING
+  end
+  call $assembly/runtimeCore/VesselState#set:pitchDamping
+  local.get $this
+  local.get $heaveStiffness
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $heaveStiffness
+  else
+   global.get $assembly/runtimeCore/DEFAULT_HEAVE_STIFFNESS
+  end
+  call $assembly/runtimeCore/VesselState#set:heaveStiffness
+  local.get $this
+  local.get $heaveDamping
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $heaveDamping
+  else
+   global.get $assembly/runtimeCore/DEFAULT_HEAVE_DAMPING
+  end
+  call $assembly/runtimeCore/VesselState#set:heaveDamping
+  local.get $this
+  block $~lib/math/NativeMath.max|inlined.0 (result f64)
+   f64.const 0.1
+   local.set $value1
+   global.get $assembly/runtimeCore/DEFAULT_RUDDER_AREA_RATIO
+   local.get $this
+   call $assembly/runtimeCore/VesselState#get:length
+   f64.mul
+   local.get $this
+   call $assembly/runtimeCore/VesselState#get:draft
+   f64.mul
+   local.set $value2
+   local.get $value1
+   local.get $value2
+   f64.max
+   br $~lib/math/NativeMath.max|inlined.0
+  end
+  call $assembly/runtimeCore/VesselState#set:rudderArea
+  local.get $this
+  global.get $assembly/runtimeCore/DEFAULT_RUDDER_ARM_RATIO
+  local.get $this
+  call $assembly/runtimeCore/VesselState#get:length
+  f64.mul
+  call $assembly/runtimeCore/VesselState#set:rudderArm
+  local.get $this
+  global.get $assembly/runtimeCore/DEFAULT_RUDDER_LIFT_SLOPE
+  call $assembly/runtimeCore/VesselState#set:rudderLiftSlope
+  local.get $this
+  global.get $assembly/runtimeCore/DEFAULT_PROP_WASH
+  call $assembly/runtimeCore/VesselState#set:propWashFactor
+  local.get $this
+  global.get $assembly/runtimeCore/DEFAULT_ENGINE_TIME_CONSTANT
+  call $assembly/runtimeCore/VesselState#set:engineTimeConstant
+  local.get $this
+  global.get $assembly/runtimeCore/DEFAULT_RUDDER_RATE
+  call $assembly/runtimeCore/VesselState#set:rudderRateLimit
+  local.get $this
+  local.get $this
+  call $assembly/runtimeCore/VesselState#get:mass
+  global.get $assembly/runtimeCore/DEFAULT_ADDED_MASS_X_COEFF
+  f64.mul
+  call $assembly/runtimeCore/VesselState#set:addedMassX
+  local.get $this
+  local.get $this
+  call $assembly/runtimeCore/VesselState#get:mass
+  global.get $assembly/runtimeCore/DEFAULT_ADDED_MASS_Y_COEFF
+  f64.mul
+  call $assembly/runtimeCore/VesselState#set:addedMassY
+  local.get $this
+  local.get $this
+  call $assembly/runtimeCore/VesselState#get:mass
+  local.get $this
+  call $assembly/runtimeCore/VesselState#get:length
+  f64.mul
+  local.get $this
+  call $assembly/runtimeCore/VesselState#get:length
+  f64.mul
+  f64.const 0.1
+  f64.mul
+  global.get $assembly/runtimeCore/DEFAULT_ADDED_MASS_YAW_COEFF
+  f64.mul
+  call $assembly/runtimeCore/VesselState#set:addedMassYaw
+  local.get $this
+  global.get $assembly/runtimeCore/DEFAULT_HULL_YV
+  call $assembly/runtimeCore/VesselState#set:hullYv
+  local.get $this
+  global.get $assembly/runtimeCore/DEFAULT_HULL_YR
+  call $assembly/runtimeCore/VesselState#set:hullYr
+  local.get $this
+  global.get $assembly/runtimeCore/DEFAULT_HULL_NV
+  call $assembly/runtimeCore/VesselState#set:hullNv
+  local.get $this
+  global.get $assembly/runtimeCore/DEFAULT_HULL_NR
+  call $assembly/runtimeCore/VesselState#set:hullNr
+  local.get $this
+  call $assembly/runtimeCore/VesselState#get:dragCoefficient
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $this
+   call $assembly/runtimeCore/VesselState#get:dragCoefficient
+  else
+   global.get $assembly/runtimeCore/DEFAULT_DRAG_COEFFICIENT
+  end
+  local.set $baseCd
+  local.get $this
+  local.get $baseCd
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $baseCd
+  else
+   global.get $assembly/runtimeCore/DEFAULT_CD_SURGE
+  end
+  call $assembly/runtimeCore/VesselState#set:cdSurge
+  local.get $this
+  local.get $baseCd
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $baseCd
+   f64.const 1.2
+   f64.mul
+  else
+   global.get $assembly/runtimeCore/DEFAULT_CD_SWAY
+  end
+  call $assembly/runtimeCore/VesselState#set:cdSway
+  local.get $this
+  local.get $baseCd
+  f64.const 0
+  f64.gt
+  if (result f64)
+   local.get $baseCd
+   f64.const 0.3
+   f64.mul
+  else
+   global.get $assembly/runtimeCore/DEFAULT_CD_YAW
+  end
+  call $assembly/runtimeCore/VesselState#set:cdYaw
+  local.get $this
+  global.get $assembly/runtimeCore/DEFAULT_SHALLOW_WATER_FACTOR
+  call $assembly/runtimeCore/VesselState#set:shallowWaterFactor
+  local.get $this
+  global.get $assembly/runtimeCore/DEFAULT_SHALLOW_WATER_YAW_FACTOR
+  call $assembly/runtimeCore/VesselState#set:shallowWaterYawFactor
+  local.get $this
+  global.get $assembly/runtimeCore/DEFAULT_SHALLOW_WATER_RUDDER_FACTOR
+  call $assembly/runtimeCore/VesselState#set:shallowWaterRudderFactor
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:waveAmplitude
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:waveLength
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:waveDirection
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:waveSteepness
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:waveTime
+  local.get $this
+  f64.const 1
+  call $assembly/runtimeCore/VesselState#set:fuelLevel
+  local.get $this
+  global.get $assembly/runtimeCore/DEFAULT_FUEL_CONSUMPTION_RATE
+  call $assembly/runtimeCore/VesselState#set:fuelConsumptionRate
+  local.get $this
+  f64.const 0
+  call $assembly/runtimeCore/VesselState#set:lastFuelConsumption
+  local.get $this
+  global.get $assembly/runtimeCore/MODEL_DISPLACEMENT
+  call $assembly/runtimeCore/VesselState#set:modelId
+  local.get $this
+ )
+ (func $assembly/runtimeCore/clamp01 (param $value f64) (result f64)
+  local.get $value
+  f64.const 0
+  f64.lt
+  if
+   f64.const 0
+   return
+  end
+  local.get $value
+  f64.const 1
+  f64.gt
+  if
+   f64.const 1
+   return
+  end
+  local.get $value
   return
  )
- (func $assembly/index/EnvironmentState#get:windSpeed (param $this i32) (result f64)
-  local.get $this
-  f64.load
+ (func $assembly/runtimeCore/setGlobalVessel (param $next i32)
+  local.get $next
+  global.set $assembly/runtimeCore/globalVessel
  )
- (func $assembly/index/EnvironmentState#get:windDirection (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=8
- )
- (func $assembly/index/EnvironmentState#get:currentSpeed (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=16
- )
- (func $assembly/index/EnvironmentState#get:currentDirection (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=24
- )
- (func $assembly/index/EnvironmentState#get:waveHeight (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=32
- )
- (func $assembly/index/EnvironmentState#get:waveLength (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=40
- )
- (func $assembly/index/EnvironmentState#get:waveDirection (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=48
- )
- (func $assembly/index/EnvironmentState#get:waveSteepness (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=56
- )
- (func $assembly/index/EnvironmentState#get:waterDepth (param $this i32) (result f64)
-  local.get $this
-  f64.load offset=64
- )
- (func $assembly/index/setEnvironment (param $paramsPtr i32) (param $paramsLen i32)
-  (local $params i32)
-  (local $len i32)
-  local.get $paramsPtr
+ (func $assembly/simulation/createVessel (param $x f64) (param $y f64) (param $z f64) (param $psi f64) (param $phi f64) (param $theta f64) (param $u f64) (param $v f64) (param $w f64) (param $r f64) (param $p f64) (param $q f64) (param $throttle f64) (param $rudderAngle f64) (param $mass f64) (param $length f64) (param $beam f64) (param $draft f64) (param $blockCoefficient f64) (param $rudderForceCoefficient f64) (param $rudderStallAngle f64) (param $rudderMaxAngle f64) (param $dragCoefficient f64) (param $yawDamping f64) (param $yawDampingQuad f64) (param $swayDamping f64) (param $maxThrust f64) (param $maxSpeed f64) (param $rollDamping f64) (param $pitchDamping f64) (param $heaveStiffness f64) (param $heaveDamping f64) (result i32)
+  call $assembly/runtimeCore/getGlobalVessel
   i32.const 0
   i32.eq
-  if (result i32)
-   i32.const 1
-  else
-   local.get $paramsLen
+  if
    i32.const 0
-   i32.le_s
+   local.get $x
+   local.get $y
+   local.get $z
+   local.get $psi
+   local.get $phi
+   local.get $theta
+   local.get $u
+   local.get $v
+   local.get $w
+   local.get $r
+   local.get $p
+   local.get $q
+   local.get $throttle
+   call $assembly/runtimeCore/clamp01
+   local.get $rudderAngle
+   local.get $mass
+   local.get $length
+   local.get $beam
+   local.get $draft
+   local.get $blockCoefficient
+   local.get $rudderForceCoefficient
+   local.get $rudderStallAngle
+   local.get $rudderMaxAngle
+   local.get $dragCoefficient
+   local.get $yawDamping
+   local.get $yawDampingQuad
+   local.get $swayDamping
+   local.get $maxThrust
+   local.get $maxSpeed
+   local.get $rollDamping
+   local.get $pitchDamping
+   local.get $heaveStiffness
+   local.get $heaveDamping
+   call $assembly/runtimeCore/VesselState#constructor
+   call $assembly/runtimeCore/setGlobalVessel
   end
+  call $assembly/runtimeCore/getGlobalVessel
+  return
+ )
+ (func $assembly/simulation/createVessel@varargs (param $x f64) (param $y f64) (param $z f64) (param $psi f64) (param $phi f64) (param $theta f64) (param $u f64) (param $v f64) (param $w f64) (param $r f64) (param $p f64) (param $q f64) (param $throttle f64) (param $rudderAngle f64) (param $mass f64) (param $length f64) (param $beam f64) (param $draft f64) (param $blockCoefficient f64) (param $rudderForceCoefficient f64) (param $rudderStallAngle f64) (param $rudderMaxAngle f64) (param $dragCoefficient f64) (param $yawDamping f64) (param $yawDampingQuad f64) (param $swayDamping f64) (param $maxThrust f64) (param $maxSpeed f64) (param $rollDamping f64) (param $pitchDamping f64) (param $heaveStiffness f64) (param $heaveDamping f64) (result i32)
+  block $14of14
+   block $13of14
+    block $12of14
+     block $11of14
+      block $10of14
+       block $9of14
+        block $8of14
+         block $7of14
+          block $6of14
+           block $5of14
+            block $4of14
+             block $3of14
+              block $2of14
+               block $1of14
+                block $0of14
+                 block $outOfRange
+                  global.get $~argumentsLength
+                  i32.const 18
+                  i32.sub
+                  br_table $0of14 $1of14 $2of14 $3of14 $4of14 $5of14 $6of14 $7of14 $8of14 $9of14 $10of14 $11of14 $12of14 $13of14 $14of14 $outOfRange
+                 end
+                 unreachable
+                end
+                global.get $assembly/runtimeCore/DEFAULT_BLOCK_COEFFICIENT
+                local.set $blockCoefficient
+               end
+               global.get $assembly/runtimeCore/DEFAULT_RUDDER_FORCE_COEFFICIENT
+               local.set $rudderForceCoefficient
+              end
+              global.get $assembly/runtimeCore/DEFAULT_RUDDER_STALL_ANGLE
+              local.set $rudderStallAngle
+             end
+             global.get $assembly/runtimeCore/DEFAULT_RUDDER_MAX_ANGLE
+             local.set $rudderMaxAngle
+            end
+            global.get $assembly/runtimeCore/DEFAULT_DRAG_COEFFICIENT
+            local.set $dragCoefficient
+           end
+           global.get $assembly/runtimeCore/DEFAULT_YAW_DAMPING
+           local.set $yawDamping
+          end
+          global.get $assembly/runtimeCore/DEFAULT_YAW_DAMPING_QUAD
+          local.set $yawDampingQuad
+         end
+         global.get $assembly/runtimeCore/DEFAULT_SWAY_DAMPING
+         local.set $swayDamping
+        end
+        global.get $assembly/runtimeCore/DEFAULT_MAX_THRUST
+        local.set $maxThrust
+       end
+       global.get $assembly/runtimeCore/DEFAULT_MAX_SPEED
+       local.set $maxSpeed
+      end
+      global.get $assembly/runtimeCore/DEFAULT_ROLL_DAMPING
+      local.set $rollDamping
+     end
+     global.get $assembly/runtimeCore/DEFAULT_PITCH_DAMPING
+     local.set $pitchDamping
+    end
+    global.get $assembly/runtimeCore/DEFAULT_HEAVE_STIFFNESS
+    local.set $heaveStiffness
+   end
+   global.get $assembly/runtimeCore/DEFAULT_HEAVE_DAMPING
+   local.set $heaveDamping
+  end
+  local.get $x
+  local.get $y
+  local.get $z
+  local.get $psi
+  local.get $phi
+  local.get $theta
+  local.get $u
+  local.get $v
+  local.get $w
+  local.get $r
+  local.get $p
+  local.get $q
+  local.get $throttle
+  local.get $rudderAngle
+  local.get $mass
+  local.get $length
+  local.get $beam
+  local.get $draft
+  local.get $blockCoefficient
+  local.get $rudderForceCoefficient
+  local.get $rudderStallAngle
+  local.get $rudderMaxAngle
+  local.get $dragCoefficient
+  local.get $yawDamping
+  local.get $yawDampingQuad
+  local.get $swayDamping
+  local.get $maxThrust
+  local.get $maxSpeed
+  local.get $rollDamping
+  local.get $pitchDamping
+  local.get $heaveStiffness
+  local.get $heaveDamping
+  call $assembly/simulation/createVessel
+ )
+ (func $assembly/simulation/destroyVessel (param $_vesselPtr i32)
+  i32.const 0
+  call $assembly/runtimeCore/setGlobalVessel
+ )
+ (func $assembly/simulation/setBallast (param $vesselPtr i32) (param $level f64)
+  (local $vessel i32)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  local.set $vessel
+  local.get $vessel
+  local.get $level
+  call $assembly/runtimeCore/clamp01
+  call $assembly/runtimeCore/VesselState#set:ballast
+ )
+ (func $assembly/simulation/setRudderAngle (param $vesselPtr i32) (param $angle f64)
+  (local $vessel i32)
+  (local $clamped f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  local.set $vessel
+  local.get $angle
+  local.get $angle
+  f64.sub
+  f64.const 0
+  f64.eq
+  i32.eqz
   if
    return
   end
-  local.get $paramsPtr
-  local.set $params
-  local.get $paramsLen
-  i32.const 0
-  i32.gt_s
-  if (result i32)
-   local.get $paramsLen
-  else
-   i32.const 0
+  local.get $angle
+  local.set $clamped
+  local.get $clamped
+  local.get $vessel
+  call $assembly/runtimeCore/VesselState#get:rudderMaxAngle
+  f64.gt
+  if
+   local.get $vessel
+   call $assembly/runtimeCore/VesselState#get:rudderMaxAngle
+   local.set $clamped
   end
-  local.set $len
-  global.get $assembly/index/globalEnvironment
-  local.get $params
-  local.get $len
-  global.get $assembly/index/ENV_WIND_SPEED
-  global.get $assembly/index/globalEnvironment
-  call $assembly/index/EnvironmentState#get:windSpeed
-  call $assembly/index/readParam
-  call $assembly/index/EnvironmentState#set:windSpeed
-  global.get $assembly/index/globalEnvironment
-  local.get $params
-  local.get $len
-  global.get $assembly/index/ENV_WIND_DIRECTION
-  global.get $assembly/index/globalEnvironment
-  call $assembly/index/EnvironmentState#get:windDirection
-  call $assembly/index/readParam
-  call $assembly/index/EnvironmentState#set:windDirection
-  global.get $assembly/index/globalEnvironment
-  local.get $params
-  local.get $len
-  global.get $assembly/index/ENV_CURRENT_SPEED
-  global.get $assembly/index/globalEnvironment
-  call $assembly/index/EnvironmentState#get:currentSpeed
-  call $assembly/index/readParam
-  call $assembly/index/EnvironmentState#set:currentSpeed
-  global.get $assembly/index/globalEnvironment
-  local.get $params
-  local.get $len
-  global.get $assembly/index/ENV_CURRENT_DIRECTION
-  global.get $assembly/index/globalEnvironment
-  call $assembly/index/EnvironmentState#get:currentDirection
-  call $assembly/index/readParam
-  call $assembly/index/EnvironmentState#set:currentDirection
-  global.get $assembly/index/globalEnvironment
-  local.get $params
-  local.get $len
-  global.get $assembly/index/ENV_WAVE_HEIGHT
-  global.get $assembly/index/globalEnvironment
-  call $assembly/index/EnvironmentState#get:waveHeight
-  call $assembly/index/readParam
-  call $assembly/index/EnvironmentState#set:waveHeight
-  global.get $assembly/index/globalEnvironment
-  local.get $params
-  local.get $len
-  global.get $assembly/index/ENV_WAVE_LENGTH
-  global.get $assembly/index/globalEnvironment
-  call $assembly/index/EnvironmentState#get:waveLength
-  call $assembly/index/readParam
-  call $assembly/index/EnvironmentState#set:waveLength
-  global.get $assembly/index/globalEnvironment
-  local.get $params
-  local.get $len
-  global.get $assembly/index/ENV_WAVE_DIRECTION
-  global.get $assembly/index/globalEnvironment
-  call $assembly/index/EnvironmentState#get:waveDirection
-  call $assembly/index/readParam
-  call $assembly/index/EnvironmentState#set:waveDirection
-  global.get $assembly/index/globalEnvironment
-  local.get $params
-  local.get $len
-  global.get $assembly/index/ENV_WAVE_STEEPNESS
-  global.get $assembly/index/globalEnvironment
-  call $assembly/index/EnvironmentState#get:waveSteepness
-  call $assembly/index/readParam
-  call $assembly/index/EnvironmentState#set:waveSteepness
-  global.get $assembly/index/globalEnvironment
-  local.get $params
-  local.get $len
-  global.get $assembly/index/ENV_WATER_DEPTH
-  global.get $assembly/index/globalEnvironment
-  call $assembly/index/EnvironmentState#get:waterDepth
-  call $assembly/index/readParam
-  call $assembly/index/EnvironmentState#set:waterDepth
+  local.get $clamped
+  local.get $vessel
+  call $assembly/runtimeCore/VesselState#get:rudderMaxAngle
+  f64.neg
+  f64.lt
+  if
+   local.get $vessel
+   call $assembly/runtimeCore/VesselState#get:rudderMaxAngle
+   f64.neg
+   local.set $clamped
+  end
+  local.get $vessel
+  local.get $clamped
+  call $assembly/runtimeCore/VesselState#set:rudderCommand
  )
- (func $assembly/index/VesselState#get:ballast (param $this i32) (result f64)
+ (func $assembly/simulation/setThrottle (param $vesselPtr i32) (param $throttle f64)
+  (local $vessel i32)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  local.set $vessel
+  local.get $vessel
+  local.get $throttle
+  f64.const 1
+  call $assembly/runtimeCore/clampSigned
+  call $assembly/runtimeCore/VesselState#set:throttleCommand
+ )
+ (func $assembly/runtimeCore/VesselState#get:ballast (param $this i32) (result f64)
   local.get $this
   f64.load offset=160
  )
- (func $assembly/index/VesselState#get:throttleCommand (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:throttleCommand (param $this i32) (result f64)
   local.get $this
   f64.load offset=104
  )
- (func $assembly/index/VesselState#get:throttle (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:throttle (param $this i32) (result f64)
   local.get $this
   f64.load offset=96
  )
- (func $assembly/index/VesselState#get:fuelLevel (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:fuelLevel (param $this i32) (result f64)
   local.get $this
   f64.load offset=472
  )
- (func $assembly/index/VesselState#get:fuelConsumptionRate (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:fuelConsumptionRate (param $this i32) (result f64)
   local.get $this
   f64.load offset=480
  )
- (func $assembly/index/VesselState#get:psi (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:psi (param $this i32) (result f64)
   local.get $this
   f64.load offset=40
  )
@@ -2679,7 +2845,7 @@
   i64.const 63
   i64.and
   local.set $shift
-  i32.const 384
+  i32.const 400
   local.get $offset
   i64.const 6
   i64.shr_s
@@ -4156,11 +4322,11 @@
   end
   return
  )
- (func $assembly/index/VesselState#get:u (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:u (param $this i32) (result f64)
   local.get $this
   f64.load offset=48
  )
- (func $assembly/index/VesselState#get:v (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:v (param $this i32) (result f64)
   local.get $this
   f64.load offset=56
  )
@@ -4729,43 +4895,43 @@
   end
   unreachable
  )
- (func $assembly/index/VesselState#get:r (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:r (param $this i32) (result f64)
   local.get $this
   f64.load offset=72
  )
- (func $assembly/index/VesselState#get:waveTime (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:waveTime (param $this i32) (result f64)
   local.get $this
   f64.load offset=464
  )
- (func $assembly/index/VesselState#get:x (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:x (param $this i32) (result f64)
   local.get $this
   f64.load
  )
- (func $assembly/index/VesselState#get:y (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:y (param $this i32) (result f64)
   local.get $this
   f64.load offset=8
  )
- (func $assembly/index/VesselState#get:z (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:z (param $this i32) (result f64)
   local.get $this
   f64.load offset=16
  )
- (func $assembly/index/VesselState#get:w (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:w (param $this i32) (result f64)
   local.get $this
   f64.load offset=64
  )
- (func $assembly/index/VesselState#get:rollAngle (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:rollAngle (param $this i32) (result f64)
   local.get $this
   f64.load offset=24
  )
- (func $assembly/index/VesselState#get:pitchAngle (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:pitchAngle (param $this i32) (result f64)
   local.get $this
   f64.load offset=32
  )
- (func $assembly/index/VesselState#get:p (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:p (param $this i32) (result f64)
   local.get $this
   f64.load offset=80
  )
- (func $assembly/index/VesselState#get:q (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:q (param $this i32) (result f64)
   local.get $this
   f64.load offset=88
  )
@@ -5024,29 +5190,29 @@
   f64.reinterpret_i64
   return
  )
- (func $assembly/index/normalizeAngle (param $angle f64) (result f64)
-  (local $a f64)
+ (func $assembly/runtimeCore/normalizeAngle (param $angle f64) (result f64)
+  (local $normalized f64)
   local.get $angle
   f64.const 2
   global.get $~lib/math/NativeMath.PI
   f64.mul
   call $~lib/math/NativeMath.mod
-  local.set $a
-  local.get $a
+  local.set $normalized
+  local.get $normalized
   f64.const 0
   f64.lt
   if
-   local.get $a
+   local.get $normalized
    f64.const 2
    global.get $~lib/math/NativeMath.PI
    f64.mul
    f64.add
-   local.set $a
+   local.set $normalized
   end
-  local.get $a
+  local.get $normalized
   return
  )
- (func $assembly/index/updateVesselState (param $vesselPtr i32) (param $dt f64) (param $windSpeed f64) (param $windDirection f64) (param $currentSpeed f64) (param $currentDirection f64) (param $waveHeight f64) (param $waveLength f64) (param $waveDirection f64) (param $waveSteepness f64) (result i32)
+ (func $assembly/simulation/updateVesselState (param $vesselPtr i32) (param $dt f64) (param $windSpeed f64) (param $windDirection f64) (param $currentSpeed f64) (param $currentDirection f64) (param $waveHeight f64) (param $waveLength f64) (param $waveDirection f64) (param $waveSteepness f64) (result i32)
   (local $vessel i32)
   (local $safeDt f64)
   (local $ballastFactor f64)
@@ -5171,7 +5337,7 @@
   (local $worldU f64)
   (local $worldV f64)
   local.get $vesselPtr
-  call $assembly/index/ensureVessel
+  call $assembly/runtimeCore/ensureVessel
   local.set $vessel
   local.get $dt
   f64.const 0
@@ -5190,11 +5356,11 @@
   end
   local.set $safeDt
   local.get $vessel
-  call $assembly/index/VesselState#get:ballast
-  call $assembly/index/clamp01
+  call $assembly/runtimeCore/VesselState#get:ballast
+  call $assembly/runtimeCore/clamp01
   local.set $ballastFactor
   local.get $vessel
-  call $assembly/index/VesselState#get:mass
+  call $assembly/runtimeCore/VesselState#get:mass
   f64.const 0.9
   local.get $ballastFactor
   f64.const 0.4
@@ -5203,53 +5369,53 @@
   f64.mul
   local.set $effectiveMass
   local.get $vessel
-  call $assembly/index/VesselState#get:throttleCommand
+  call $assembly/runtimeCore/VesselState#get:throttleCommand
   f64.const 1
-  call $assembly/index/clampSigned
+  call $assembly/runtimeCore/clampSigned
   local.set $throttleCommand
   local.get $vessel
-  call $assembly/index/VesselState#get:engineTimeConstant
+  call $assembly/runtimeCore/VesselState#get:engineTimeConstant
   f64.const 0.05
   f64.gt
   if (result f64)
    local.get $vessel
-   call $assembly/index/VesselState#get:engineTimeConstant
+   call $assembly/runtimeCore/VesselState#get:engineTimeConstant
   else
    f64.const 0.05
   end
   local.set $engineTau
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:throttle
+  call $assembly/runtimeCore/VesselState#get:throttle
   local.get $throttleCommand
   local.get $vessel
-  call $assembly/index/VesselState#get:throttle
+  call $assembly/runtimeCore/VesselState#get:throttle
   f64.sub
   local.get $engineTau
   f64.div
   local.get $safeDt
   f64.mul
   f64.add
-  call $assembly/index/VesselState#set:throttle
+  call $assembly/runtimeCore/VesselState#set:throttle
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:throttle
+  call $assembly/runtimeCore/VesselState#get:throttle
   f64.const 1
-  call $assembly/index/clampSigned
-  call $assembly/index/VesselState#set:throttle
+  call $assembly/runtimeCore/clampSigned
+  call $assembly/runtimeCore/VesselState#set:throttle
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderCommand
+  call $assembly/runtimeCore/VesselState#get:rudderCommand
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderAngle
+  call $assembly/runtimeCore/VesselState#get:rudderAngle
   f64.sub
   local.set $rudderDelta
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderRateLimit
+  call $assembly/runtimeCore/VesselState#get:rudderRateLimit
   f64.const 0
   f64.gt
   if (result f64)
    local.get $vessel
-   call $assembly/index/VesselState#get:rudderRateLimit
+   call $assembly/runtimeCore/VesselState#get:rudderRateLimit
    local.get $safeDt
    f64.mul
   else
@@ -5274,12 +5440,12 @@
   if
    local.get $vessel
    local.get $vessel
-   call $assembly/index/VesselState#get:rudderCommand
-   call $assembly/index/VesselState#set:rudderAngle
+   call $assembly/runtimeCore/VesselState#get:rudderCommand
+   call $assembly/runtimeCore/VesselState#set:rudderAngle
   else
    local.get $vessel
    local.get $vessel
-   call $assembly/index/VesselState#get:rudderAngle
+   call $assembly/runtimeCore/VesselState#get:rudderAngle
    local.get $rudderDelta
    f64.const 0
    f64.gt
@@ -5290,23 +5456,23 @@
     f64.neg
    end
    f64.add
-   call $assembly/index/VesselState#set:rudderAngle
+   call $assembly/runtimeCore/VesselState#set:rudderAngle
   end
   local.get $vessel
-  call $assembly/index/VesselState#get:fuelLevel
+  call $assembly/runtimeCore/VesselState#get:fuelLevel
   f64.const 0
   f64.gt
   local.set $hasFuel
   local.get $hasFuel
   if (result f64)
    local.get $vessel
-   call $assembly/index/VesselState#get:throttle
+   call $assembly/runtimeCore/VesselState#get:throttle
   else
    f64.const 0
   end
   local.set $throttle
   local.get $vessel
-  call $assembly/index/VesselState#get:maxThrust
+  call $assembly/runtimeCore/VesselState#get:maxThrust
   local.get $throttle
   f64.mul
   local.set $thrust
@@ -5318,18 +5484,18 @@
    br $~lib/math/NativeMath.abs|inlined.2
   end
   local.get $vessel
-  call $assembly/index/VesselState#get:fuelConsumptionRate
+  call $assembly/runtimeCore/VesselState#get:fuelConsumptionRate
   f64.mul
   local.get $safeDt
   f64.mul
   local.set $fuelBurn
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:fuelLevel
+  call $assembly/runtimeCore/VesselState#get:fuelLevel
   local.get $fuelBurn
   f64.sub
-  call $assembly/index/clamp01
-  call $assembly/index/VesselState#set:fuelLevel
+  call $assembly/runtimeCore/clamp01
+  call $assembly/runtimeCore/VesselState#set:fuelLevel
   local.get $vessel
   local.get $safeDt
   f64.const 0
@@ -5343,10 +5509,10 @@
   else
    f64.const 0
   end
-  call $assembly/index/VesselState#set:lastFuelConsumption
+  call $assembly/runtimeCore/VesselState#set:lastFuelConsumption
   local.get $currentDirection
   local.get $vessel
-  call $assembly/index/VesselState#get:psi
+  call $assembly/runtimeCore/VesselState#get:psi
   f64.sub
   local.set $relCurrentDir
   local.get $currentSpeed
@@ -5360,17 +5526,17 @@
   f64.mul
   local.set $currentSway
   local.get $vessel
-  call $assembly/index/VesselState#get:u
+  call $assembly/runtimeCore/VesselState#get:u
   local.get $currentSurge
   f64.sub
   local.set $uRel
   local.get $vessel
-  call $assembly/index/VesselState#get:v
+  call $assembly/runtimeCore/VesselState#get:v
   local.get $currentSway
   f64.sub
   local.set $vRel
-  global.get $assembly/index/globalEnvironment
-  call $assembly/index/EnvironmentState#get:waterDepth
+  call $assembly/runtimeCore/getGlobalEnvironment
+  call $assembly/runtimeCore/EnvironmentState#get:waterDepth
   local.set $waterDepth
   local.get $waterDepth
   f64.const 0
@@ -5378,12 +5544,12 @@
   if (result f64)
    local.get $waterDepth
    local.get $vessel
-   call $assembly/index/VesselState#get:draft
+   call $assembly/runtimeCore/VesselState#get:draft
    f64.const 0.01
    f64.add
    f64.div
   else
-   global.get $assembly/index/SHALLOW_WATER_MAX_RATIO
+   global.get $assembly/runtimeCore/SHALLOW_WATER_MAX_RATIO
    f64.const 1
    f64.add
   end
@@ -5395,40 +5561,40 @@
   f64.gt
   if (result i32)
    local.get $depthRatio
-   global.get $assembly/index/SHALLOW_WATER_MAX_RATIO
+   global.get $assembly/runtimeCore/SHALLOW_WATER_MAX_RATIO
    f64.lt
   else
    i32.const 0
   end
   if
    local.get $depthRatio
-   global.get $assembly/index/SHALLOW_WATER_MIN_RATIO
+   global.get $assembly/runtimeCore/SHALLOW_WATER_MIN_RATIO
    f64.lt
    if (result f64)
-    global.get $assembly/index/SHALLOW_WATER_MIN_RATIO
+    global.get $assembly/runtimeCore/SHALLOW_WATER_MIN_RATIO
    else
     local.get $depthRatio
    end
    local.set $clampedRatio
-   global.get $assembly/index/SHALLOW_WATER_MAX_RATIO
+   global.get $assembly/runtimeCore/SHALLOW_WATER_MAX_RATIO
    local.get $clampedRatio
    f64.sub
-   global.get $assembly/index/SHALLOW_WATER_MAX_RATIO
-   global.get $assembly/index/SHALLOW_WATER_MIN_RATIO
+   global.get $assembly/runtimeCore/SHALLOW_WATER_MAX_RATIO
+   global.get $assembly/runtimeCore/SHALLOW_WATER_MIN_RATIO
    f64.sub
    f64.div
    local.set $shallowT
   end
   f64.const 1
   local.get $vessel
-  call $assembly/index/VesselState#get:shallowWaterFactor
+  call $assembly/runtimeCore/VesselState#get:shallowWaterFactor
   local.get $shallowT
   f64.mul
   f64.add
   local.set $shallowFactor
   f64.const 1
   local.get $vessel
-  call $assembly/index/VesselState#get:shallowWaterYawFactor
+  call $assembly/runtimeCore/VesselState#get:shallowWaterYawFactor
   local.get $shallowT
   f64.mul
   f64.add
@@ -5436,7 +5602,7 @@
   f64.const 1
   f64.const 1
   local.get $vessel
-  call $assembly/index/VesselState#get:shallowWaterRudderFactor
+  call $assembly/runtimeCore/VesselState#get:shallowWaterRudderFactor
   f64.sub
   local.get $shallowT
   f64.mul
@@ -5444,7 +5610,7 @@
   local.set $shallowRudderFactor
   f64.const 0.7
   local.get $vessel
-  call $assembly/index/VesselState#get:blockCoefficient
+  call $assembly/runtimeCore/VesselState#get:blockCoefficient
   f64.const 0.6
   f64.mul
   f64.add
@@ -5453,9 +5619,9 @@
    f64.const 1
    local.set $value1
    local.get $vessel
-   call $assembly/index/VesselState#get:length
+   call $assembly/runtimeCore/VesselState#get:length
    local.get $vessel
-   call $assembly/index/VesselState#get:draft
+   call $assembly/runtimeCore/VesselState#get:draft
    f64.mul
    local.get $hullFactor
    f64.mul
@@ -5470,13 +5636,13 @@
    f64.const 1
    local.set $value1|41
    local.get $vessel
-   call $assembly/index/VesselState#get:beam
+   call $assembly/runtimeCore/VesselState#get:beam
    local.get $vessel
-   call $assembly/index/VesselState#get:draft
+   call $assembly/runtimeCore/VesselState#get:draft
    f64.mul
    f64.const 0.7
    local.get $vessel
-   call $assembly/index/VesselState#get:blockCoefficient
+   call $assembly/runtimeCore/VesselState#get:blockCoefficient
    f64.const 0.3
    f64.mul
    f64.add
@@ -5489,10 +5655,10 @@
   end
   local.set $areaY
   f64.const 0.5
-  global.get $assembly/index/WATER_DENSITY
+  global.get $assembly/runtimeCore/WATER_DENSITY
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:cdSurge
+  call $assembly/runtimeCore/VesselState#get:cdSurge
   f64.mul
   local.get $areaX
   f64.mul
@@ -5510,10 +5676,10 @@
   f64.mul
   local.set $dragSurge
   f64.const 0.5
-  global.get $assembly/index/WATER_DENSITY
+  global.get $assembly/runtimeCore/WATER_DENSITY
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:cdSway
+  call $assembly/runtimeCore/VesselState#get:cdSway
   f64.mul
   local.get $areaY
   f64.mul
@@ -5531,7 +5697,7 @@
   f64.mul
   local.set $dragSway
   local.get $vessel
-  call $assembly/index/VesselState#get:swayDamping
+  call $assembly/runtimeCore/VesselState#get:swayDamping
   local.get $vRel
   f64.mul
   local.set $swayLinear
@@ -5550,7 +5716,7 @@
   end
   local.set $flowSpeed
   local.get $vessel
-  call $assembly/index/VesselState#get:propWashFactor
+  call $assembly/runtimeCore/VesselState#get:propWashFactor
   f64.const 0
   f64.gt
   if (result f64)
@@ -5563,10 +5729,10 @@
      br $~lib/math/NativeMath.abs|inlined.5
     end
     f64.const 0.5
-    global.get $assembly/index/WATER_DENSITY
+    global.get $assembly/runtimeCore/WATER_DENSITY
     f64.mul
     local.get $vessel
-    call $assembly/index/VesselState#get:rudderArea
+    call $assembly/runtimeCore/VesselState#get:rudderArea
     f64.mul
     f64.const 1e-06
     f64.add
@@ -5577,7 +5743,7 @@
     br $~lib/math/NativeMath.sqrt|inlined.1
    end
    local.get $vessel
-   call $assembly/index/VesselState#get:propWashFactor
+   call $assembly/runtimeCore/VesselState#get:propWashFactor
    f64.mul
   else
    f64.const 0
@@ -5611,7 +5777,7 @@
   call $~lib/math/NativeMath.atan2
   local.set $inflowAngle
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderAngle
+  call $assembly/runtimeCore/VesselState#get:rudderAngle
   local.get $inflowAngle
   f64.sub
   local.set $alpha
@@ -5624,13 +5790,13 @@
   end
   local.set $absAlpha
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderStallAngle
+  call $assembly/runtimeCore/VesselState#get:rudderStallAngle
   f64.const 0
   f64.gt
   if (result f64)
    local.get $absAlpha
    local.get $vessel
-   call $assembly/index/VesselState#get:rudderStallAngle
+   call $assembly/runtimeCore/VesselState#get:rudderStallAngle
    f64.div
   else
    f64.const 1
@@ -5650,7 +5816,7 @@
   end
   local.set $stallFactor
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderLiftSlope
+  call $assembly/runtimeCore/VesselState#get:rudderLiftSlope
   local.get $alpha
   f64.mul
   block $~lib/math/NativeMath.max|inlined.4 (result f64)
@@ -5666,10 +5832,10 @@
   f64.mul
   local.set $liftCoeff
   f64.const 0.5
-  global.get $assembly/index/WATER_DENSITY
+  global.get $assembly/runtimeCore/WATER_DENSITY
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderArea
+  call $assembly/runtimeCore/VesselState#get:rudderArea
   f64.mul
   local.get $inflowSpeed
   f64.mul
@@ -5684,29 +5850,29 @@
   local.set $rudderSway
   local.get $rudderSway
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderArm
+  call $assembly/runtimeCore/VesselState#get:rudderArm
   f64.mul
   local.set $rudderMoment
   local.get $vessel
-  call $assembly/index/VesselState#get:hullYv
+  call $assembly/runtimeCore/VesselState#get:hullYv
   local.get $vRel
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:hullYr
+  call $assembly/runtimeCore/VesselState#get:hullYr
   local.get $vessel
-  call $assembly/index/VesselState#get:r
+  call $assembly/runtimeCore/VesselState#get:r
   f64.mul
   f64.add
   f64.neg
   local.set $hullSway
   local.get $vessel
-  call $assembly/index/VesselState#get:hullNv
+  call $assembly/runtimeCore/VesselState#get:hullNv
   local.get $vRel
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:hullNr
+  call $assembly/runtimeCore/VesselState#get:hullNr
   local.get $vessel
-  call $assembly/index/VesselState#get:r
+  call $assembly/runtimeCore/VesselState#get:r
   f64.mul
   f64.add
   f64.neg
@@ -5718,7 +5884,7 @@
   f64.mul
   local.get $windDirection
   local.get $vessel
-  call $assembly/index/VesselState#get:psi
+  call $assembly/runtimeCore/VesselState#get:psi
   f64.sub
   call $~lib/math/NativeMath.sin
   f64.mul
@@ -5730,7 +5896,7 @@
    local.set $value1|74
    local.get $mass
    local.get $vessel
-   call $assembly/index/VesselState#get:addedMassX
+   call $assembly/runtimeCore/VesselState#get:addedMassX
    f64.add
    local.set $value2|75
    local.get $value1|74
@@ -5744,7 +5910,7 @@
    local.set $value1|77
    local.get $mass
    local.get $vessel
-   call $assembly/index/VesselState#get:addedMassY
+   call $assembly/runtimeCore/VesselState#get:addedMassY
    f64.add
    local.set $value2|78
    local.get $value1|77
@@ -5758,15 +5924,15 @@
    local.set $value1|80
    local.get $mass
    local.get $vessel
-   call $assembly/index/VesselState#get:length
+   call $assembly/runtimeCore/VesselState#get:length
    f64.mul
    local.get $vessel
-   call $assembly/index/VesselState#get:length
+   call $assembly/runtimeCore/VesselState#get:length
    f64.mul
    f64.const 0.1
    f64.mul
    local.get $vessel
-   call $assembly/index/VesselState#get:addedMassYaw
+   call $assembly/runtimeCore/VesselState#get:addedMassYaw
    f64.add
    local.set $value2|81
    local.get $value1|80
@@ -5777,20 +5943,20 @@
   local.set $Izz
   local.get $mass
   local.get $vessel
-  call $assembly/index/VesselState#get:beam
+  call $assembly/runtimeCore/VesselState#get:beam
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:beam
+  call $assembly/runtimeCore/VesselState#get:beam
   f64.mul
   f64.const 0.08
   f64.mul
   local.set $Ixx
   local.get $mass
   local.get $vessel
-  call $assembly/index/VesselState#get:length
+  call $assembly/runtimeCore/VesselState#get:length
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:length
+  call $assembly/runtimeCore/VesselState#get:length
   f64.mul
   f64.const 0.08
   f64.mul
@@ -5814,21 +5980,21 @@
   local.get $windYaw
   f64.sub
   local.get $vessel
-  call $assembly/index/VesselState#get:yawDamping
+  call $assembly/runtimeCore/VesselState#get:yawDamping
   local.get $vessel
-  call $assembly/index/VesselState#get:r
+  call $assembly/runtimeCore/VesselState#get:r
   f64.mul
   local.get $shallowYawFactor
   f64.mul
   f64.sub
   local.get $vessel
-  call $assembly/index/VesselState#get:yawDampingQuad
+  call $assembly/runtimeCore/VesselState#get:yawDampingQuad
   local.get $vessel
-  call $assembly/index/VesselState#get:r
+  call $assembly/runtimeCore/VesselState#get:r
   f64.mul
   block $~lib/math/NativeMath.abs|inlined.7 (result f64)
    local.get $vessel
-   call $assembly/index/VesselState#get:r
+   call $assembly/runtimeCore/VesselState#get:r
    local.set $x|87
    local.get $x|87
    f64.abs
@@ -5843,9 +6009,9 @@
   local.get $massX
   f64.div
   local.get $vessel
-  call $assembly/index/VesselState#get:v
+  call $assembly/runtimeCore/VesselState#get:v
   local.get $vessel
-  call $assembly/index/VesselState#get:r
+  call $assembly/runtimeCore/VesselState#get:r
   f64.mul
   f64.add
   local.set $uDot
@@ -5853,9 +6019,9 @@
   local.get $massY
   f64.div
   local.get $vessel
-  call $assembly/index/VesselState#get:u
+  call $assembly/runtimeCore/VesselState#get:u
   local.get $vessel
-  call $assembly/index/VesselState#get:r
+  call $assembly/runtimeCore/VesselState#get:r
   f64.mul
   f64.sub
   local.set $vDot
@@ -5864,10 +6030,10 @@
   f64.div
   local.set $rDot
   block $~lib/math/NativeMath.min|inlined.0 (result f64)
-   global.get $assembly/index/MAX_WAVE_HEIGHT
+   global.get $assembly/runtimeCore/MAX_WAVE_HEIGHT
    local.set $value1|92
    local.get $windSpeed
-   global.get $assembly/index/WAVE_HEIGHT_PER_WIND
+   global.get $assembly/runtimeCore/WAVE_HEIGHT_PER_WIND
    f64.mul
    local.set $value2|93
    local.get $value1|92
@@ -5899,7 +6065,7 @@
     f64.const 20
     local.set $value1|97
     local.get $vessel
-    call $assembly/index/VesselState#get:length
+    call $assembly/runtimeCore/VesselState#get:length
     f64.const 2
     f64.mul
     local.set $value2|98
@@ -5926,7 +6092,7 @@
   f64.div
   local.set $k
   block $~lib/math/NativeMath.sqrt|inlined.3 (result f64)
-   global.get $assembly/index/GRAVITY
+   global.get $assembly/runtimeCore/GRAVITY
    local.get $k
    f64.mul
    local.set $x|102
@@ -5957,22 +6123,22 @@
   local.set $steep
   local.get $vessel
   local.get $waveAmp
-  call $assembly/index/VesselState#set:waveAmplitude
+  call $assembly/runtimeCore/VesselState#set:waveAmplitude
   local.get $vessel
   local.get $waveLen
-  call $assembly/index/VesselState#set:waveLength
+  call $assembly/runtimeCore/VesselState#set:waveLength
   local.get $vessel
   local.get $waveDir
-  call $assembly/index/VesselState#set:waveDirection
+  call $assembly/runtimeCore/VesselState#set:waveDirection
   local.get $vessel
   local.get $steep
-  call $assembly/index/VesselState#set:waveSteepness
+  call $assembly/runtimeCore/VesselState#set:waveSteepness
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:waveTime
+  call $assembly/runtimeCore/VesselState#get:waveTime
   local.get $safeDt
   f64.add
-  call $assembly/index/VesselState#set:waveTime
+  call $assembly/runtimeCore/VesselState#set:waveTime
   local.get $waveDir
   call $~lib/math/NativeMath.cos
   local.set $dirX
@@ -5982,17 +6148,17 @@
   local.get $k
   local.get $dirX
   local.get $vessel
-  call $assembly/index/VesselState#get:x
+  call $assembly/runtimeCore/VesselState#get:x
   f64.mul
   local.get $dirY
   local.get $vessel
-  call $assembly/index/VesselState#get:y
+  call $assembly/runtimeCore/VesselState#get:y
   f64.mul
   f64.add
   f64.mul
   local.get $omega
   local.get $vessel
-  call $assembly/index/VesselState#get:waveTime
+  call $assembly/runtimeCore/VesselState#get:waveTime
   f64.mul
   f64.sub
   local.set $phase
@@ -6019,15 +6185,15 @@
   f64.mul
   local.set $waveSlopeY
   local.get $effectiveMass
-  global.get $assembly/index/WATER_DENSITY
+  global.get $assembly/runtimeCore/WATER_DENSITY
   local.get $vessel
-  call $assembly/index/VesselState#get:length
+  call $assembly/runtimeCore/VesselState#get:length
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:beam
+  call $assembly/runtimeCore/VesselState#get:beam
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:blockCoefficient
+  call $assembly/runtimeCore/VesselState#get:blockCoefficient
   f64.mul
   f64.const 1e-06
   f64.add
@@ -6048,88 +6214,88 @@
   local.set $targetZ
   local.get $targetZ
   local.get $vessel
-  call $assembly/index/VesselState#get:z
+  call $assembly/runtimeCore/VesselState#get:z
   f64.sub
   local.get $vessel
-  call $assembly/index/VesselState#get:heaveStiffness
+  call $assembly/runtimeCore/VesselState#get:heaveStiffness
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:heaveDamping
+  call $assembly/runtimeCore/VesselState#get:heaveDamping
   local.get $vessel
-  call $assembly/index/VesselState#get:w
+  call $assembly/runtimeCore/VesselState#get:w
   f64.mul
   f64.sub
   local.set $heaveAccel
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:w
+  call $assembly/runtimeCore/VesselState#get:w
   local.get $heaveAccel
   local.get $safeDt
   f64.mul
   f64.add
-  call $assembly/index/VesselState#set:w
+  call $assembly/runtimeCore/VesselState#set:w
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:z
+  call $assembly/runtimeCore/VesselState#get:z
   local.get $vessel
-  call $assembly/index/VesselState#get:w
+  call $assembly/runtimeCore/VesselState#get:w
   local.get $safeDt
   f64.mul
   f64.add
-  call $assembly/index/VesselState#set:z
+  call $assembly/runtimeCore/VesselState#set:z
   local.get $waveSlopeY
   local.set $waveSlopeRoll
   local.get $waveSlopeX
   local.set $waveSlopePitch
   local.get $vessel
-  call $assembly/index/VesselState#get:beam
+  call $assembly/runtimeCore/VesselState#get:beam
   local.get $vessel
-  call $assembly/index/VesselState#get:beam
+  call $assembly/runtimeCore/VesselState#get:beam
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:blockCoefficient
+  call $assembly/runtimeCore/VesselState#get:blockCoefficient
   f64.mul
   f64.const 12
   local.get $vessel
-  call $assembly/index/VesselState#get:draft
+  call $assembly/runtimeCore/VesselState#get:draft
   f64.const 0.1
   f64.add
   f64.mul
   f64.div
   local.set $gmRoll
   local.get $vessel
-  call $assembly/index/VesselState#get:length
+  call $assembly/runtimeCore/VesselState#get:length
   local.get $vessel
-  call $assembly/index/VesselState#get:blockCoefficient
+  call $assembly/runtimeCore/VesselState#get:blockCoefficient
   f64.mul
   f64.const 12
   local.get $vessel
-  call $assembly/index/VesselState#get:draft
+  call $assembly/runtimeCore/VesselState#get:draft
   f64.const 0.1
   f64.add
   f64.mul
   f64.div
   local.set $gmPitch
-  global.get $assembly/index/GRAVITY
+  global.get $assembly/runtimeCore/GRAVITY
   f64.neg
   local.get $gmRoll
   f64.mul
   local.get $mass
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:rollAngle
+  call $assembly/runtimeCore/VesselState#get:rollAngle
   local.get $waveSlopeRoll
   f64.sub
   f64.mul
   local.set $rollRestoring
-  global.get $assembly/index/GRAVITY
+  global.get $assembly/runtimeCore/GRAVITY
   f64.neg
   local.get $gmPitch
   f64.mul
   local.get $mass
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:pitchAngle
+  call $assembly/runtimeCore/VesselState#get:pitchAngle
   local.get $waveSlopePitch
   f64.sub
   f64.mul
@@ -6138,9 +6304,9 @@
   local.get $Ixx
   f64.div
   local.get $vessel
-  call $assembly/index/VesselState#get:rollDamping
+  call $assembly/runtimeCore/VesselState#get:rollDamping
   local.get $vessel
-  call $assembly/index/VesselState#get:p
+  call $assembly/runtimeCore/VesselState#get:p
   f64.mul
   f64.sub
   local.set $pDot
@@ -6148,307 +6314,182 @@
   local.get $Iyy
   f64.div
   local.get $vessel
-  call $assembly/index/VesselState#get:pitchDamping
+  call $assembly/runtimeCore/VesselState#get:pitchDamping
   local.get $vessel
-  call $assembly/index/VesselState#get:q
+  call $assembly/runtimeCore/VesselState#get:q
   f64.mul
   f64.sub
   local.set $qDot
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:p
+  call $assembly/runtimeCore/VesselState#get:p
   local.get $pDot
   local.get $safeDt
   f64.mul
   f64.add
-  call $assembly/index/VesselState#set:p
+  call $assembly/runtimeCore/VesselState#set:p
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:q
+  call $assembly/runtimeCore/VesselState#get:q
   local.get $qDot
   local.get $safeDt
   f64.mul
   f64.add
-  call $assembly/index/VesselState#set:q
+  call $assembly/runtimeCore/VesselState#set:q
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:rollAngle
+  call $assembly/runtimeCore/VesselState#get:rollAngle
   local.get $vessel
-  call $assembly/index/VesselState#get:p
+  call $assembly/runtimeCore/VesselState#get:p
   local.get $safeDt
   f64.mul
   f64.add
-  call $assembly/index/VesselState#set:rollAngle
+  call $assembly/runtimeCore/VesselState#set:rollAngle
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:pitchAngle
+  call $assembly/runtimeCore/VesselState#get:pitchAngle
   local.get $vessel
-  call $assembly/index/VesselState#get:q
+  call $assembly/runtimeCore/VesselState#get:q
   local.get $safeDt
   f64.mul
   f64.add
-  call $assembly/index/VesselState#set:pitchAngle
+  call $assembly/runtimeCore/VesselState#set:pitchAngle
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:u
+  call $assembly/runtimeCore/VesselState#get:u
   local.get $uDot
   local.get $safeDt
   f64.mul
   f64.add
-  call $assembly/index/VesselState#set:u
+  call $assembly/runtimeCore/VesselState#set:u
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:v
+  call $assembly/runtimeCore/VesselState#get:v
   local.get $vDot
   local.get $safeDt
   f64.mul
   f64.add
-  call $assembly/index/VesselState#set:v
+  call $assembly/runtimeCore/VesselState#set:v
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:r
+  call $assembly/runtimeCore/VesselState#get:r
   local.get $rDot
   local.get $safeDt
   f64.mul
   f64.add
-  call $assembly/index/VesselState#set:r
+  call $assembly/runtimeCore/VesselState#set:r
   local.get $vessel
-  call $assembly/index/VesselState#get:maxSpeed
-  global.get $assembly/index/MAX_SPEED_MULTIPLIER
+  call $assembly/runtimeCore/VesselState#get:maxSpeed
+  global.get $assembly/runtimeCore/MAX_SPEED_MULTIPLIER
   f64.mul
   local.set $speedCap
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:u
+  call $assembly/runtimeCore/VesselState#get:u
   local.get $speedCap
-  call $assembly/index/clampSigned
-  call $assembly/index/VesselState#set:u
+  call $assembly/runtimeCore/clampSigned
+  call $assembly/runtimeCore/VesselState#set:u
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:v
+  call $assembly/runtimeCore/VesselState#get:v
   local.get $speedCap
   f64.const 0.6
   f64.mul
-  call $assembly/index/clampSigned
-  call $assembly/index/VesselState#set:v
+  call $assembly/runtimeCore/clampSigned
+  call $assembly/runtimeCore/VesselState#set:v
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:r
-  global.get $assembly/index/MAX_YAW_RATE
-  global.get $assembly/index/MAX_YAW_MULTIPLIER
+  call $assembly/runtimeCore/VesselState#get:r
+  global.get $assembly/runtimeCore/MAX_YAW_RATE
+  global.get $assembly/runtimeCore/MAX_YAW_MULTIPLIER
   f64.mul
-  call $assembly/index/clampSigned
-  call $assembly/index/VesselState#set:r
+  call $assembly/runtimeCore/clampSigned
+  call $assembly/runtimeCore/VesselState#set:r
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:psi
+  call $assembly/runtimeCore/VesselState#get:psi
   local.get $vessel
-  call $assembly/index/VesselState#get:r
+  call $assembly/runtimeCore/VesselState#get:r
   local.get $safeDt
   f64.mul
   f64.add
-  call $assembly/index/normalizeAngle
-  call $assembly/index/VesselState#set:psi
+  call $assembly/runtimeCore/normalizeAngle
+  call $assembly/runtimeCore/VesselState#set:psi
   local.get $vessel
-  call $assembly/index/VesselState#get:psi
+  call $assembly/runtimeCore/VesselState#get:psi
   call $~lib/math/NativeMath.cos
   local.set $cosPsi
   local.get $vessel
-  call $assembly/index/VesselState#get:psi
+  call $assembly/runtimeCore/VesselState#get:psi
   call $~lib/math/NativeMath.sin
   local.set $sinPsi
   local.get $vessel
-  call $assembly/index/VesselState#get:u
+  call $assembly/runtimeCore/VesselState#get:u
   local.get $cosPsi
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:v
+  call $assembly/runtimeCore/VesselState#get:v
   local.get $sinPsi
   f64.mul
   f64.sub
   local.set $worldU
   local.get $vessel
-  call $assembly/index/VesselState#get:u
+  call $assembly/runtimeCore/VesselState#get:u
   local.get $sinPsi
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:v
+  call $assembly/runtimeCore/VesselState#get:v
   local.get $cosPsi
   f64.mul
   f64.add
   local.set $worldV
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:x
+  call $assembly/runtimeCore/VesselState#get:x
   local.get $worldU
   local.get $safeDt
   f64.mul
   f64.add
-  call $assembly/index/VesselState#set:x
+  call $assembly/runtimeCore/VesselState#set:x
   local.get $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:y
+  call $assembly/runtimeCore/VesselState#get:y
   local.get $worldV
   local.get $safeDt
   f64.mul
   f64.add
-  call $assembly/index/VesselState#set:y
+  call $assembly/runtimeCore/VesselState#set:y
   local.get $vesselPtr
   return
  )
- (func $assembly/index/setThrottle (param $vesselPtr i32) (param $throttle f64)
+ (func $assembly/getters/getVesselBallastLevel (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:ballast
+  return
+ )
+ (func $assembly/getters/getVesselCenterOfGravityY (param $vesselPtr i32) (result f64)
   (local $vessel i32)
   local.get $vesselPtr
-  call $assembly/index/ensureVessel
+  call $assembly/runtimeCore/ensureVessel
   local.set $vessel
   local.get $vessel
-  local.get $throttle
-  f64.const 1
-  call $assembly/index/clampSigned
-  call $assembly/index/VesselState#set:throttleCommand
- )
- (func $assembly/index/setRudderAngle (param $vesselPtr i32) (param $angle f64)
-  (local $vessel i32)
-  (local $clamped f64)
-  local.get $vesselPtr
-  call $assembly/index/ensureVessel
-  local.set $vessel
-  local.get $angle
-  local.get $angle
-  f64.sub
-  f64.const 0
-  f64.eq
-  i32.eqz
-  if
-   return
-  end
-  local.get $angle
-  local.set $clamped
-  local.get $clamped
+  call $assembly/runtimeCore/VesselState#get:draft
+  f64.const 0.4
   local.get $vessel
-  call $assembly/index/VesselState#get:rudderMaxAngle
-  f64.gt
-  if
-   local.get $vessel
-   call $assembly/index/VesselState#get:rudderMaxAngle
-   local.set $clamped
-  end
-  local.get $clamped
-  local.get $vessel
-  call $assembly/index/VesselState#get:rudderMaxAngle
-  f64.neg
-  f64.lt
-  if
-   local.get $vessel
-   call $assembly/index/VesselState#get:rudderMaxAngle
-   f64.neg
-   local.set $clamped
-  end
-  local.get $vessel
-  local.get $clamped
-  call $assembly/index/VesselState#set:rudderCommand
- )
- (func $assembly/index/setBallast (param $vesselPtr i32) (param $_level f64)
-  (local $vessel i32)
-  local.get $vesselPtr
-  call $assembly/index/ensureVessel
-  local.set $vessel
-  local.get $vessel
-  local.get $_level
-  call $assembly/index/clamp01
-  call $assembly/index/VesselState#set:ballast
- )
- (func $assembly/index/getVesselX (param $vesselPtr i32) (result f64)
-  local.get $vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:x
+  call $assembly/runtimeCore/VesselState#get:ballast
+  f64.const 0.2
+  f64.mul
+  f64.add
+  f64.mul
   return
  )
- (func $assembly/index/getVesselY (param $vesselPtr i32) (result f64)
-  local.get $vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:y
-  return
- )
- (func $assembly/index/getVesselZ (param $vesselPtr i32) (result f64)
-  local.get $vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:z
-  return
- )
- (func $assembly/index/getVesselHeading (param $vesselPtr i32) (result f64)
-  local.get $vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:psi
-  return
- )
- (func $assembly/index/getVesselSpeed (param $vesselPtr i32) (result f64)
-  (local $vessel i32)
-  (local $x f64)
-  local.get $vesselPtr
-  call $assembly/index/ensureVessel
-  local.set $vessel
-  block $~lib/math/NativeMath.sqrt|inlined.4 (result f64)
-   local.get $vessel
-   call $assembly/index/VesselState#get:u
-   local.get $vessel
-   call $assembly/index/VesselState#get:u
-   f64.mul
-   local.get $vessel
-   call $assembly/index/VesselState#get:v
-   local.get $vessel
-   call $assembly/index/VesselState#get:v
-   f64.mul
-   f64.add
-   local.set $x
-   local.get $x
-   f64.sqrt
-   br $~lib/math/NativeMath.sqrt|inlined.4
-  end
-  return
- )
- (func $assembly/index/getVesselSurgeVelocity (param $vesselPtr i32) (result f64)
-  local.get $vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:u
-  return
- )
- (func $assembly/index/getVesselSwayVelocity (param $vesselPtr i32) (result f64)
-  local.get $vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:v
-  return
- )
- (func $assembly/index/getVesselHeaveVelocity (param $vesselPtr i32) (result f64)
-  local.get $vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:w
-  return
- )
- (func $assembly/index/getVesselRollAngle (param $_vesselPtr i32) (result f64)
-  local.get $_vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:rollAngle
-  return
- )
- (func $assembly/index/getVesselPitchAngle (param $_vesselPtr i32) (result f64)
-  local.get $_vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:pitchAngle
-  return
- )
- (func $assembly/index/getVesselRudderAngle (param $vesselPtr i32) (result f64)
-  local.get $vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:rudderAngle
-  return
- )
- (func $assembly/index/getVesselEngineRPM (param $vesselPtr i32) (result f64)
+ (func $assembly/getters/getVesselEngineRPM (param $vesselPtr i32) (result f64)
   (local $x f64)
   block $~lib/math/NativeMath.abs|inlined.8 (result f64)
    local.get $vesselPtr
-   call $assembly/index/ensureVessel
-   call $assembly/index/VesselState#get:throttle
+   call $assembly/runtimeCore/ensureVessel
+   call $assembly/runtimeCore/VesselState#get:throttle
    local.set $x
    local.get $x
    f64.abs
@@ -6458,111 +6499,141 @@
   f64.mul
   return
  )
- (func $assembly/index/getVesselFuelLevel (param $_vesselPtr i32) (result f64)
-  local.get $_vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:fuelLevel
-  return
- )
- (func $assembly/index/VesselState#get:lastFuelConsumption (param $this i32) (result f64)
+ (func $assembly/runtimeCore/VesselState#get:lastFuelConsumption (param $this i32) (result f64)
   local.get $this
   f64.load offset=488
  )
- (func $assembly/index/getVesselFuelConsumption (param $_vesselPtr i32) (result f64)
-  local.get $_vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:lastFuelConsumption
+ (func $assembly/getters/getVesselFuelConsumption (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:lastFuelConsumption
   return
  )
- (func $assembly/index/getVesselGM (param $_vesselPtr i32) (result f64)
+ (func $assembly/getters/getVesselFuelLevel (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:fuelLevel
+  return
+ )
+ (func $assembly/getters/getVesselGM (param $vesselPtr i32) (result f64)
   (local $vessel i32)
-  local.get $_vesselPtr
-  call $assembly/index/ensureVessel
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
   local.set $vessel
   local.get $vessel
-  call $assembly/index/VesselState#get:beam
+  call $assembly/runtimeCore/VesselState#get:beam
   local.get $vessel
-  call $assembly/index/VesselState#get:blockCoefficient
+  call $assembly/runtimeCore/VesselState#get:blockCoefficient
   f64.mul
   local.get $vessel
-  call $assembly/index/VesselState#get:draft
+  call $assembly/runtimeCore/VesselState#get:draft
   f64.const 0.1
   f64.add
   f64.div
   return
  )
- (func $assembly/index/getVesselCenterOfGravityY (param $_vesselPtr i32) (result f64)
+ (func $assembly/getters/getVesselHeading (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:psi
+  return
+ )
+ (func $assembly/getters/getVesselHeaveVelocity (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:w
+  return
+ )
+ (func $assembly/getters/getVesselPitchAngle (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:pitchAngle
+  return
+ )
+ (func $assembly/getters/getVesselPitchRate (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:q
+  return
+ )
+ (func $assembly/getters/getVesselRollAngle (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:rollAngle
+  return
+ )
+ (func $assembly/getters/getVesselRollRate (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:p
+  return
+ )
+ (func $assembly/getters/getVesselRudderAngle (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:rudderAngle
+  return
+ )
+ (func $assembly/getters/getVesselSpeed (param $vesselPtr i32) (result f64)
   (local $vessel i32)
-  local.get $_vesselPtr
-  call $assembly/index/ensureVessel
+  (local $x f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
   local.set $vessel
-  local.get $vessel
-  call $assembly/index/VesselState#get:draft
-  f64.const 0.4
-  local.get $vessel
-  call $assembly/index/VesselState#get:ballast
-  f64.const 0.2
-  f64.mul
-  f64.add
-  f64.mul
-  return
- )
- (func $assembly/index/getVesselBallastLevel (param $vesselPtr i32) (result f64)
-  local.get $vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:ballast
-  return
- )
- (func $assembly/index/getVesselRollRate (param $_vesselPtr i32) (result f64)
-  local.get $_vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:p
-  return
- )
- (func $assembly/index/getVesselPitchRate (param $_vesselPtr i32) (result f64)
-  local.get $_vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:q
-  return
- )
- (func $assembly/index/getVesselYawRate (param $vesselPtr i32) (result f64)
-  local.get $vesselPtr
-  call $assembly/index/ensureVessel
-  call $assembly/index/VesselState#get:r
-  return
- )
- (func $assembly/index/calculateSeaState (param $windSpeed f64) (result f64)
-  (local $beaufort f64)
-  local.get $windSpeed
-  f64.const 1.5
-  f64.div
-  local.set $beaufort
-  local.get $beaufort
-  f64.const 0
-  f64.lt
-  if
-   f64.const 0
-   return
+  block $~lib/math/NativeMath.sqrt|inlined.4 (result f64)
+   local.get $vessel
+   call $assembly/runtimeCore/VesselState#get:u
+   local.get $vessel
+   call $assembly/runtimeCore/VesselState#get:u
+   f64.mul
+   local.get $vessel
+   call $assembly/runtimeCore/VesselState#get:v
+   local.get $vessel
+   call $assembly/runtimeCore/VesselState#get:v
+   f64.mul
+   f64.add
+   local.set $x
+   local.get $x
+   f64.sqrt
+   br $~lib/math/NativeMath.sqrt|inlined.4
   end
-  local.get $beaufort
-  f64.const 12
-  f64.gt
-  if
-   f64.const 12
-   return
-  end
-  local.get $beaufort
   return
  )
- (func $assembly/index/getWaveHeightForSeaState (param $seaState f64) (result f64)
-  local.get $seaState
-  f64.const 0.5
-  f64.mul
+ (func $assembly/getters/getVesselSurgeVelocity (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:u
   return
  )
- (func $assembly/index/resetGlobalVessel
-  i32.const 0
-  global.set $assembly/index/globalVessel
+ (func $assembly/getters/getVesselSwayVelocity (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:v
+  return
+ )
+ (func $assembly/getters/getVesselX (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:x
+  return
+ )
+ (func $assembly/getters/getVesselY (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:y
+  return
+ )
+ (func $assembly/getters/getVesselYawRate (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:r
+  return
+ )
+ (func $assembly/getters/getVesselZ (param $vesselPtr i32) (result f64)
+  local.get $vesselPtr
+  call $assembly/runtimeCore/ensureVessel
+  call $assembly/runtimeCore/VesselState#get:z
+  return
  )
  (func $~setArgumentsLength (param $0 i32)
   local.get $0

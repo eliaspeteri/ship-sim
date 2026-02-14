@@ -17,21 +17,21 @@ async function instantiate(module, imports = {}) {
   const { exports } = await WebAssembly.instantiate(module, adaptedImports);
   const memory = exports.memory || imports.env.memory;
   const adaptedExports = Object.setPrototypeOf({
-    createVessel(x, y, z, psi, _phi, _theta, u, v, w, r, _p, _q, throttle, rudderAngle, mass, length, beam, draft, blockCoefficient, rudderForceCoefficient, rudderStallAngle, rudderMaxAngle, dragCoefficient, yawDamping, yawDampingQuad, swayDamping, maxThrust, maxSpeed, rollDamping, pitchDamping, heaveStiffness, heaveDamping) {
-      // assembly/index/createVessel(f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?) => usize
-      exports.__setArgumentsLength(arguments.length);
-      return exports.createVessel(x, y, z, psi, _phi, _theta, u, v, w, r, _p, _q, throttle, rudderAngle, mass, length, beam, draft, blockCoefficient, rudderForceCoefficient, rudderStallAngle, rudderMaxAngle, dragCoefficient, yawDamping, yawDampingQuad, swayDamping, maxThrust, maxSpeed, rollDamping, pitchDamping, heaveStiffness, heaveDamping) >>> 0;
-    },
-    getVesselParamsBufferPtr() {
-      // assembly/index/getVesselParamsBufferPtr() => usize
-      return exports.getVesselParamsBufferPtr() >>> 0;
-    },
     getEnvironmentBufferPtr() {
-      // assembly/index/getEnvironmentBufferPtr() => usize
+      // assembly/runtimeCore/getEnvironmentBufferPtr() => usize
       return exports.getEnvironmentBufferPtr() >>> 0;
     },
+    getVesselParamsBufferPtr() {
+      // assembly/runtimeCore/getVesselParamsBufferPtr() => usize
+      return exports.getVesselParamsBufferPtr() >>> 0;
+    },
+    createVessel(x, y, z, psi, phi, theta, u, v, w, r, p, q, throttle, rudderAngle, mass, length, beam, draft, blockCoefficient, rudderForceCoefficient, rudderStallAngle, rudderMaxAngle, dragCoefficient, yawDamping, yawDampingQuad, swayDamping, maxThrust, maxSpeed, rollDamping, pitchDamping, heaveStiffness, heaveDamping) {
+      // assembly/simulation/createVessel(f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?, f64?) => usize
+      exports.__setArgumentsLength(arguments.length);
+      return exports.createVessel(x, y, z, psi, phi, theta, u, v, w, r, p, q, throttle, rudderAngle, mass, length, beam, draft, blockCoefficient, rudderForceCoefficient, rudderStallAngle, rudderMaxAngle, dragCoefficient, yawDamping, yawDampingQuad, swayDamping, maxThrust, maxSpeed, rollDamping, pitchDamping, heaveStiffness, heaveDamping) >>> 0;
+    },
     updateVesselState(vesselPtr, dt, windSpeed, windDirection, currentSpeed, currentDirection, waveHeight, waveLength, waveDirection, waveSteepness) {
-      // assembly/index/updateVesselState(usize, f64, f64, f64, f64, f64, f64, f64, f64, f64) => usize
+      // assembly/simulation/updateVesselState(usize, f64, f64, f64, f64, f64, f64, f64, f64, f64) => usize
       return exports.updateVesselState(vesselPtr, dt, windSpeed, windDirection, currentSpeed, currentDirection, waveHeight, waveLength, waveDirection, waveSteepness) >>> 0;
     },
   }, exports);
@@ -51,41 +51,43 @@ async function instantiate(module, imports = {}) {
 export const {
   memory,
   table,
+  getEnvironmentBufferCapacity,
+  getEnvironmentBufferPtr,
+  resetGlobalEnvironment,
+  resetGlobalVessel,
+  resetSimulationRuntime,
+  getVesselParamsBufferCapacity,
+  getVesselParamsBufferPtr,
+  calculateSeaState,
+  getWaveHeightForSeaState,
+  setEnvironment,
+  setVesselParams,
   createVessel,
   destroyVessel,
-  getVesselParamsBufferPtr,
-  getVesselParamsBufferCapacity,
-  setVesselParams,
-  getEnvironmentBufferPtr,
-  getEnvironmentBufferCapacity,
-  setEnvironment,
-  updateVesselState,
-  setThrottle,
-  setRudderAngle,
   setBallast,
-  getVesselX,
-  getVesselY,
-  getVesselZ,
+  setRudderAngle,
+  setThrottle,
+  updateVesselState,
+  getVesselBallastLevel,
+  getVesselCenterOfGravityY,
+  getVesselEngineRPM,
+  getVesselFuelConsumption,
+  getVesselFuelLevel,
+  getVesselGM,
   getVesselHeading,
+  getVesselHeaveVelocity,
+  getVesselPitchAngle,
+  getVesselPitchRate,
+  getVesselRollAngle,
+  getVesselRollRate,
+  getVesselRudderAngle,
   getVesselSpeed,
   getVesselSurgeVelocity,
   getVesselSwayVelocity,
-  getVesselHeaveVelocity,
-  getVesselRollAngle,
-  getVesselPitchAngle,
-  getVesselRudderAngle,
-  getVesselEngineRPM,
-  getVesselFuelLevel,
-  getVesselFuelConsumption,
-  getVesselGM,
-  getVesselCenterOfGravityY,
-  getVesselBallastLevel,
-  getVesselRollRate,
-  getVesselPitchRate,
+  getVesselX,
+  getVesselY,
   getVesselYawRate,
-  calculateSeaState,
-  getWaveHeightForSeaState,
-  resetGlobalVessel,
+  getVesselZ,
 } = await (async url => instantiate(
   await (async () => {
     const isNodeOrBun = typeof process != "undefined" && process.versions != null && (process.versions.node != null || process.versions.bun != null);

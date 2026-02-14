@@ -605,7 +605,7 @@ Completed: [ ]
 
 ### F1. Split `assembly/index.ts` by concern (`P1`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `assembly/index.ts`, new modules under `assembly/*` (params, environment, integration, getters)
 
