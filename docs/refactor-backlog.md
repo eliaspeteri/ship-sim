@@ -256,7 +256,7 @@ Acceptance:
 
 ### A6. Split `MarineRadio` UI state machine (`P2`)
 
-Completed: [ ]
+Completed: [x]
 
 Files: `src/components/radio/MarineRadio.tsx`
 

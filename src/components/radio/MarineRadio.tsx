@@ -1,69 +1,28 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { RotaryDial } from '../dials';
+import React, { useCallback, useMemo, useReducer } from 'react';
+import { MarineRadioView } from './MarineRadioView';
+import {
+  MARINE_CHANNELS,
+  MENU_OPTIONS,
+  createInitialState,
+  getDisplayMessage,
+  marineRadioReducer,
+} from './marineRadioState';
+import { useMarineRadioEffects } from './useMarineRadioEffects';
 
-/**
- * Interface representing a marine radio channel
- */
-interface RadioChannel {
-  /** Channel number */
-  number: number;
-  /** Frequency in MHz */
-  frequency: number;
-  /** Name/description of the channel's purpose */
-  name: string;
-  /** Whether it's an emergency channel */
-  isEmergency?: boolean;
-  /** Whether it's a duplex channel (different transmit/receive frequencies) */
-  isDuplex?: boolean;
-}
-
-/**
- * Interface for the MarineRadio component props
- */
 interface MarineRadioProps {
-  /** Width of the radio in pixels */
   width?: number;
-  /** Height of the radio in pixels */
   height?: number;
-  /** Initial power state */
   initialPower?: boolean;
-  /** Initial channel number */
   initialChannel?: number;
-  /** Optional callback when a distress call is sent */
   onDistressCall?: () => void;
-  /** Optional callback when channel changes */
   onChannelChange?: (channel: number, frequency: number) => void;
-  /** Optional position data to display (if available) */
   position?: {
     latitude: number;
     longitude: number;
   };
-  /** Whether the radio can be operated (disabled state) */
   disabled?: boolean;
 }
 
-// Standard marine VHF radio channels - ordered numerically
-const MARINE_CHANNELS: RadioChannel[] = [
-  { number: 6, frequency: 156.3, name: 'SAFETY' },
-  { number: 9, frequency: 156.45, name: 'CALLING' },
-  { number: 12, frequency: 156.6, name: 'PORT OPS' },
-  { number: 13, frequency: 156.65, name: 'BRIDGE' },
-  { number: 14, frequency: 156.7, name: 'PORT OPS' },
-  { number: 15, frequency: 156.75, name: 'SHIP-SHIP' },
-  { number: 16, frequency: 156.8, name: 'DISTRESS', isEmergency: true },
-  { number: 67, frequency: 156.375, name: 'BRIDGE' },
-  { number: 68, frequency: 156.425, name: 'SHIP-SHIP' },
-  { number: 69, frequency: 156.475, name: 'SHIP-SHORE' },
-  { number: 71, frequency: 156.575, name: 'SHIP-PORT' },
-  { number: 72, frequency: 156.625, name: 'SHIP-SHIP' },
-  { number: 73, frequency: 156.675, name: 'PORT OPS' },
-  { number: 74, frequency: 156.725, name: 'PORT OPS' },
-  { number: 77, frequency: 156.875, name: 'PORT OPS' },
-];
-
-/**
- * Marine VHF Radio component simulating a realistic shipboard radio with DSC capabilities
- */
 export function MarineRadio({
   width = 400,
   height = 200,
@@ -74,1218 +33,313 @@ export function MarineRadio({
   position,
   disabled = false,
 }: MarineRadioProps): React.ReactElement {
-  // Radio state
-  const [powerOn, setPowerOn] = useState<boolean>(initialPower);
-  const [volume, setVolume] = useState<number>(50);
-  const [squelch, setSquelch] = useState<number>(30);
-  const [currentChannelIndex, setCurrentChannelIndex] = useState<number>(
-    MARINE_CHANNELS.findIndex(ch => ch.number === initialChannel) || 0,
+  const [state, dispatch] = useReducer(
+    marineRadioReducer,
+    createInitialState(initialPower, initialChannel),
   );
-  const [transmitting, setTransmitting] = useState<boolean>(false);
-  const [highPower, setHighPower] = useState<boolean>(true);
-  const [receiving, setReceiving] = useState<boolean>(false);
-  const [receiveStrength, setReceiveStrength] = useState<number>(0);
-  const [menuOpen, setMenuOpen] = useState<boolean>(false);
-  const [menuOption, setMenuOption] = useState<number>(0);
-  const [directEntryMode, setDirectEntryMode] = useState<boolean>(false);
-  const [directEntryBuffer, setDirectEntryBuffer] = useState<string>('');
-  const [displayMessage, setDisplayMessage] = useState<string>('');
-  const [distressActive, setDistressActive] = useState<boolean>(false);
-  const [signalBars, setSignalBars] = useState<number>(0);
-  const [scanActive, setScanActive] = useState<boolean>(false);
-  const [dscActive, setDscActive] = useState<boolean>(false);
-  const [currentTime, setCurrentTime] = useState<Date>(new Date());
-  const [showPosition, setShowPosition] = useState<boolean>(false);
 
-  // Scanning state
-  const scanRef = useRef<NodeJS.Timeout | null>(null);
+  const currentChannel = MARINE_CHANNELS[state.currentChannelIndex];
+  useMarineRadioEffects(
+    {
+      state,
+      isEmergencyChannel: Boolean(currentChannel?.isEmergency),
+      channelCount: MARINE_CHANNELS.length,
+    },
+    dispatch,
+  );
 
-  // Current channel data
-  const currentChannel = MARINE_CHANNELS[currentChannelIndex];
+  const displayMessage = useMemo(
+    () => getDisplayMessage(state, currentChannel),
+    [currentChannel, state],
+  );
 
-  // Menu options
-  const menuOptions = [
-    'BACKLIGHT',
-    'CONTRAST',
-    'LOCAL/DIST',
-    'GPS/TIME',
-    'RADIO SETUP',
-    'DSC SETUP',
-  ];
-
-  // Calculate dimensions
-  const padding = 72; // Increased padding from 14 to 20
-  const displayHeight = height * 0.35;
-  const controlsHeight = height - displayHeight - padding * 2;
-
-  // Set current time
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  // Simulate occasional random reception when powered on
-  useEffect(() => {
-    if (!powerOn) {
-      setReceiving(false);
-      setReceiveStrength(0);
-      return;
-    }
-
-    const randomReception = () => {
-      // 15% chance of receiving when on a non-emergency channel
-      // 30% chance when on channel 16 (emergency channel)
-      const receiveChance = currentChannel.isEmergency ? 0.3 : 0.15;
-
-      if (Math.random() < receiveChance) {
-        setReceiving(true);
-        setReceiveStrength(40 + Math.random() * 60); // Random strength between 40-100
-
-        // Reception lasts 2-5 seconds
-        setTimeout(
-          () => {
-            setReceiving(false);
-            setReceiveStrength(0);
-          },
-          2000 + Math.random() * 3000,
-        );
-      }
-    };
-
-    const receptionInterval = setInterval(randomReception, 10000);
-    return () => clearInterval(receptionInterval);
-  }, [powerOn, currentChannel]);
-
-  // Handle channel scanning
-  useEffect(() => {
-    if (!powerOn || !scanActive) {
-      if (scanRef.current) {
-        clearInterval(scanRef.current);
-        scanRef.current = null;
-      }
-      return;
-    }
-
-    if (scanActive && !scanRef.current) {
-      scanRef.current = setInterval(() => {
-        // If receiving, pause scanning
-        if (receiving) return;
-
-        setCurrentChannelIndex(prev => (prev + 1) % MARINE_CHANNELS.length);
-      }, 2000);
-    }
-
-    return () => {
-      if (scanRef.current) {
-        clearInterval(scanRef.current);
-        scanRef.current = null;
-      }
-    };
-  }, [powerOn, scanActive, receiving]);
-
-  // Update signal strength bars based on receive strength
-  useEffect(() => {
-    if (powerOn && receiving) {
-      const bars = Math.max(1, Math.min(5, Math.ceil(receiveStrength / 20)));
-      setSignalBars(bars);
-    } else {
-      setSignalBars(0);
-    }
-  }, [powerOn, receiving, receiveStrength]);
-
-  // Update display message based on state
-  useEffect(() => {
-    if (!powerOn) {
-      setDisplayMessage('');
-      return;
-    }
-
-    if (transmitting) {
-      setDisplayMessage('TRANSMIT');
-    } else if (distressActive) {
-      setDisplayMessage('DISTRESS');
-    } else if (dscActive) {
-      setDisplayMessage('DSC CALL');
-    } else if (directEntryMode) {
-      setDisplayMessage(`CH: ${directEntryBuffer || '_'}`);
-    } else if (menuOpen) {
-      setDisplayMessage(menuOptions[menuOption]);
-    } else if (scanActive) {
-      setDisplayMessage(
-        `SCAN CH ${currentChannel.number.toString().padStart(2, '0')}`,
-      );
-    } else {
-      setDisplayMessage(
-        `CH ${currentChannel.number.toString().padStart(2, '0')}`,
-      );
-    }
-  }, [
-    powerOn,
-    transmitting,
-    distressActive,
-    dscActive,
-    directEntryMode,
-    directEntryBuffer,
-    menuOpen,
-    menuOption,
-    scanActive,
-    currentChannel,
-    menuOptions,
-  ]);
-
-  // Toggle visibility of position data when GPS/TIME menu option is selected and confirmed
-  useEffect(() => {
-    if (menuOpen && menuOptions[menuOption] === 'GPS/TIME') {
-      // This is where menu option selection would be implemented
-    }
-  }, [menuOpen, menuOption, menuOptions]);
-
-  // Handle power button click
   const handlePowerToggle = useCallback(() => {
     if (disabled) return;
+    dispatch({ type: 'togglePower' });
+  }, [disabled]);
 
-    setPowerOn(prev => !prev);
-    if (transmitting) setTransmitting(false);
-    if (distressActive) setDistressActive(false);
-    if (scanActive) setScanActive(false);
-    if (dscActive) setDscActive(false);
-    if (menuOpen) setMenuOpen(false);
-    if (directEntryMode) {
-      setDirectEntryMode(false);
-      setDirectEntryBuffer('');
-    }
-  }, [
-    disabled,
-    transmitting,
-    distressActive,
-    scanActive,
-    dscActive,
-    menuOpen,
-    directEntryMode,
-  ]);
-
-  // Handle volume dial change
   const handleVolumeChange = useCallback(
     (dialValue: number) => {
-      if (!powerOn || disabled) return;
-      setVolume(dialValue);
+      if (!state.powerOn || disabled) return;
+      dispatch({ type: 'setVolume', value: dialValue });
     },
-    [powerOn, disabled],
+    [disabled, state.powerOn],
   );
 
-  // Handle squelch dial change
   const handleSquelchChange = useCallback(
     (dialValue: number) => {
-      if (!powerOn || disabled) return;
-      setSquelch(dialValue);
+      if (!state.powerOn || disabled) return;
+      dispatch({ type: 'setSquelch', value: dialValue });
     },
-    [powerOn, disabled],
+    [disabled, state.powerOn],
   );
 
-  // Handle channel selection from the dial
+  const stopScan = useCallback(() => {
+    if (state.scanActive) {
+      dispatch({ type: 'setScanActive', value: false });
+    }
+  }, [state.scanActive]);
+
+  const setChannelByNumber = useCallback(
+    (channelNumber: number, frequency: number) => {
+      const index = MARINE_CHANNELS.findIndex(ch => ch.number === channelNumber);
+      if (index < 0) return;
+      dispatch({ type: 'setChannelIndex', index });
+      onChannelChange?.(channelNumber, frequency);
+      stopScan();
+    },
+    [onChannelChange, stopScan],
+  );
+
   const handleChannelDialChange = useCallback(
     (dialValue: number) => {
-      if (!powerOn || disabled || transmitting || distressActive) return;
-
-      // Map 0-100 dial to channel indices
-      const channelsCount = MARINE_CHANNELS.length;
-      const newIndex = Math.floor((dialValue / 100) * (channelsCount - 1));
-
-      if (newIndex !== currentChannelIndex) {
-        setCurrentChannelIndex(newIndex);
-
-        if (onChannelChange) {
-          const channel = MARINE_CHANNELS[newIndex];
-          onChannelChange(channel.number, channel.frequency);
-        }
-
-        // Cancel scanning if manually changing channels
-        if (scanActive) setScanActive(false);
+      if (!state.powerOn || disabled || state.transmitting || state.distressActive) {
+        return;
       }
+      const maxIndex = MARINE_CHANNELS.length - 1;
+      const nextIndex = Math.floor((dialValue / 100) * maxIndex);
+      if (nextIndex === state.currentChannelIndex) return;
+
+      const channel = MARINE_CHANNELS[nextIndex];
+      dispatch({ type: 'setChannelIndex', index: nextIndex });
+      onChannelChange?.(channel.number, channel.frequency);
+      stopScan();
     },
     [
-      powerOn,
       disabled,
-      transmitting,
-      distressActive,
-      currentChannelIndex,
       onChannelChange,
-      scanActive,
+      state.currentChannelIndex,
+      state.distressActive,
+      state.powerOn,
+      state.transmitting,
+      stopScan,
     ],
   );
 
-  // Go directly to channel 16 (emergency)
   const handleChannel16 = useCallback(() => {
-    if (!powerOn || disabled || transmitting) return;
+    if (!state.powerOn || disabled || state.transmitting) return;
+    setChannelByNumber(16, 156.8);
+  }, [disabled, setChannelByNumber, state.powerOn, state.transmitting]);
 
-    const ch16Index = MARINE_CHANNELS.findIndex(ch => ch.number === 16);
-    if (ch16Index >= 0) {
-      setCurrentChannelIndex(ch16Index);
-
-      if (onChannelChange) {
-        onChannelChange(16, 156.8);
-      }
-
-      // Stop scanning
-      if (scanActive) setScanActive(false);
-    }
-  }, [powerOn, disabled, transmitting, onChannelChange, scanActive]);
-
-  // Go to channel 9 (alternate calling)
   const handleChannel9 = useCallback(() => {
-    if (!powerOn || disabled || transmitting) return;
+    if (!state.powerOn || disabled || state.transmitting) return;
+    setChannelByNumber(9, 156.45);
+  }, [disabled, setChannelByNumber, state.powerOn, state.transmitting]);
 
-    const ch9Index = MARINE_CHANNELS.findIndex(ch => ch.number === 9);
-    if (ch9Index >= 0) {
-      setCurrentChannelIndex(ch9Index);
-
-      if (onChannelChange) {
-        onChannelChange(9, 156.45);
-      }
-
-      // Stop scanning
-      if (scanActive) setScanActive(false);
-    }
-  }, [powerOn, disabled, transmitting, onChannelChange, scanActive]);
-
-  // Handle SCAN button
   const handleScan = useCallback(() => {
-    if (!powerOn || disabled || transmitting || directEntryMode || menuOpen)
+    if (
+      !state.powerOn ||
+      disabled ||
+      state.transmitting ||
+      state.directEntryMode ||
+      state.menuOpen
+    ) {
       return;
+    }
+    dispatch({ type: 'setScanActive', value: !state.scanActive });
+  }, [
+    disabled,
+    state.directEntryMode,
+    state.menuOpen,
+    state.powerOn,
+    state.scanActive,
+    state.transmitting,
+  ]);
 
-    setScanActive(prev => !prev);
-  }, [powerOn, disabled, transmitting, directEntryMode, menuOpen]);
-
-  // Handle hi/lo power toggle
   const handleHiLoPower = useCallback(() => {
-    if (!powerOn || disabled || transmitting) return;
+    if (!state.powerOn || disabled || state.transmitting) return;
+    dispatch({ type: 'setHighPower', value: !state.highPower });
+  }, [disabled, state.highPower, state.powerOn, state.transmitting]);
 
-    setHighPower(prev => !prev);
-  }, [powerOn, disabled, transmitting]);
-
-  // Handle distress button
   const handleDistress = useCallback(() => {
-    if (!powerOn || disabled) return;
+    if (!state.powerOn || disabled) return;
+    setChannelByNumber(16, 156.8);
+    dispatch({ type: 'setDistressActive', value: true });
+    onDistressCall?.();
+    setTimeout(() => {
+      dispatch({ type: 'setDistressActive', value: false });
+    }, 5000);
+  }, [disabled, onDistressCall, setChannelByNumber, state.powerOn]);
 
-    // Go to channel 16
-    const ch16Index = MARINE_CHANNELS.findIndex(ch => ch.number === 16);
-    if (ch16Index >= 0) {
-      setCurrentChannelIndex(ch16Index);
-      setDistressActive(true);
+  const handleDsc = useCallback(() => {
+    if (!state.powerOn || disabled || state.transmitting) return;
+    dispatch({ type: 'setDscActive', value: !state.dscActive });
+  }, [disabled, state.dscActive, state.powerOn, state.transmitting]);
 
-      if (onChannelChange) {
-        onChannelChange(16, 156.8);
-      }
-
-      // Notify parent component about distress call
-      if (onDistressCall) {
-        onDistressCall();
-      }
-
-      // Auto-cancel the distress call after 5 seconds
-      setTimeout(() => {
-        setDistressActive(false);
-      }, 5000);
-
-      // Stop scanning
-      if (scanActive) setScanActive(false);
-    }
-  }, [powerOn, disabled, onChannelChange, onDistressCall, scanActive]);
-
-  // Handle DSC button
-  const handleDSC = useCallback(() => {
-    if (!powerOn || disabled || transmitting) return;
-
-    setDscActive(prev => !prev);
-  }, [powerOn, disabled, transmitting]);
-
-  // Handle CLEAR button
   const handleClear = useCallback(() => {
-    if (!powerOn || disabled) return;
+    if (!state.powerOn || disabled) return;
 
-    // Clear specific states in priority order
-    if (directEntryMode) {
-      setDirectEntryMode(false);
-      setDirectEntryBuffer('');
-    } else if (menuOpen) {
-      setMenuOpen(false);
-    } else if (dscActive) {
-      setDscActive(false);
-    } else if (distressActive) {
-      setDistressActive(false);
-    } else {
-      // Toggle position view when no other actions to clear
-      setShowPosition(prev => !prev);
+    if (state.directEntryMode) {
+      dispatch({ type: 'setDirectEntry', mode: false, buffer: '' });
+      return;
     }
-  }, [powerOn, disabled, directEntryMode, menuOpen, dscActive, distressActive]);
+    if (state.menuOpen) {
+      dispatch({ type: 'setMenuOpen', value: false });
+      return;
+    }
+    if (state.dscActive) {
+      dispatch({ type: 'setDscActive', value: false });
+      return;
+    }
+    if (state.distressActive) {
+      dispatch({ type: 'setDistressActive', value: false });
+      return;
+    }
 
-  // Handle MENU button
+    dispatch({ type: 'toggleShowPosition' });
+  }, [
+    disabled,
+    state.directEntryMode,
+    state.distressActive,
+    state.dscActive,
+    state.menuOpen,
+    state.powerOn,
+  ]);
+
   const handleMenu = useCallback(() => {
-    if (!powerOn || disabled || transmitting) return;
+    if (!state.powerOn || disabled || state.transmitting) return;
 
-    if (!menuOpen) {
-      setMenuOpen(true);
-      setMenuOption(0);
-    } else {
-      // If already in menu, cycle through options
-      setMenuOption(prev => (prev + 1) % menuOptions.length);
+    if (!state.menuOpen) {
+      dispatch({ type: 'setMenuOpen', value: true });
+      dispatch({ type: 'setMenuOption', value: 0 });
+      return;
     }
-  }, [powerOn, disabled, transmitting, menuOpen, menuOptions.length]);
 
-  // Handle menu option selection (simulated for demo)
+    dispatch({
+      type: 'setMenuOption',
+      value: (state.menuOption + 1) % MENU_OPTIONS.length,
+    });
+  }, [
+    disabled,
+    state.menuOpen,
+    state.menuOption,
+    state.powerOn,
+    state.transmitting,
+  ]);
+
   const handleMenuSelect = useCallback(() => {
-    if (!powerOn || disabled || transmitting || !menuOpen) return;
-
-    // Simple demo functionality for menu options
-    if (menuOptions[menuOption] === 'GPS/TIME') {
-      setShowPosition(prev => !prev);
+    if (!state.powerOn || disabled || state.transmitting || !state.menuOpen) {
+      return;
     }
+    if (MENU_OPTIONS[state.menuOption] === 'GPS/TIME') {
+      dispatch({ type: 'toggleShowPosition' });
+    }
+    dispatch({ type: 'setMenuOpen', value: false });
+  }, [
+    disabled,
+    state.menuOpen,
+    state.menuOption,
+    state.powerOn,
+    state.transmitting,
+  ]);
 
-    // Exit menu after selection
-    setMenuOpen(false);
-  }, [powerOn, disabled, transmitting, menuOpen, menuOption, menuOptions]);
-
-  // Handle transmit button
   const handleTransmitPress = useCallback(() => {
-    if (!powerOn || disabled) return;
+    if (!state.powerOn || disabled) return;
+    dispatch({ type: 'setTransmitting', value: true });
+  }, [disabled, state.powerOn]);
 
-    setTransmitting(true);
-  }, [powerOn, disabled]);
-
-  // Handle transmit button release
   const handleTransmitRelease = useCallback(() => {
-    if (!powerOn || disabled || !transmitting) return;
+    if (!state.powerOn || disabled || !state.transmitting) return;
+    dispatch({ type: 'setTransmitting', value: false });
+  }, [disabled, state.powerOn, state.transmitting]);
 
-    setTransmitting(false);
-  }, [powerOn, disabled, transmitting]);
-
-  // Handle numeric keypad input
   const handleKeypadInput = useCallback(
     (digit: number) => {
-      if (!powerOn || disabled || transmitting) return;
+      if (!state.powerOn || disabled || state.transmitting) return;
 
-      if (!directEntryMode) {
-        setDirectEntryMode(true);
-        setDirectEntryBuffer(digit.toString());
+      if (!state.directEntryMode) {
+        dispatch({ type: 'setDirectEntry', mode: true, buffer: `${digit}` });
         return;
       }
 
-      // Append digit if less than 2 digits
-      if (directEntryBuffer.length < 2) {
-        setDirectEntryBuffer(prev => `${prev}${digit}`);
+      if (state.directEntryBuffer.length < 2) {
+        dispatch({
+          type: 'setDirectEntryBuffer',
+          buffer: `${state.directEntryBuffer}${digit}`,
+        });
       }
 
-      // If we have 2 digits, attempt to change channel
-      if (directEntryBuffer.length !== 1) {
-        return;
-      }
+      if (state.directEntryBuffer.length !== 1) return;
 
-      const channelNum = parseInt(`${directEntryBuffer}${digit}`, 10);
+      const channelNum = parseInt(`${state.directEntryBuffer}${digit}`, 10);
       const channelIndex = MARINE_CHANNELS.findIndex(
         ch => ch.number === channelNum,
       );
 
       if (channelIndex < 0) {
-        // Invalid channel, clear input
         setTimeout(() => {
-          setDirectEntryBuffer('');
-          setDirectEntryMode(false);
+          dispatch({ type: 'setDirectEntry', mode: false, buffer: '' });
         }, 1000);
         return;
       }
 
-      // Valid channel, switch to it
-      setCurrentChannelIndex(channelIndex);
-      setDirectEntryMode(false);
-      setDirectEntryBuffer('');
-
-      if (onChannelChange) {
-        const channel = MARINE_CHANNELS[channelIndex];
-        onChannelChange(channel.number, channel.frequency);
-      }
-
-      // Stop scanning
-      if (scanActive) setScanActive(false);
+      const channel = MARINE_CHANNELS[channelIndex];
+      dispatch({ type: 'setChannelIndex', index: channelIndex });
+      dispatch({ type: 'setDirectEntry', mode: false, buffer: '' });
+      onChannelChange?.(channel.number, channel.frequency);
+      stopScan();
     },
     [
-      powerOn,
       disabled,
-      transmitting,
-      directEntryMode,
-      directEntryBuffer,
       onChannelChange,
-      scanActive,
+      state.directEntryBuffer,
+      state.directEntryMode,
+      state.powerOn,
+      state.transmitting,
+      stopScan,
     ],
   );
 
-  // Format position for display
-  const formatPosition = useCallback(
-    (coord: number, isLat: boolean): string => {
-      const abs = Math.abs(coord);
-      const degrees = Math.floor(abs);
-      const minutes = ((abs - degrees) * 60).toFixed(3);
-      const direction = isLat
-        ? coord >= 0
-          ? 'N'
-          : 'S'
-        : coord >= 0
-          ? 'E'
-          : 'W';
+  const formatPosition = useCallback((coord: number, isLat: boolean): string => {
+    const abs = Math.abs(coord);
+    const degrees = Math.floor(abs);
+    const minutes = ((abs - degrees) * 60).toFixed(3);
+    const direction = isLat ? (coord >= 0 ? 'N' : 'S') : coord >= 0 ? 'E' : 'W';
+    return `${degrees.toString().padStart(2, '0')}°${minutes.padStart(6, '0')}'${direction}`;
+  }, []);
 
-      return `${degrees.toString().padStart(2, '0')}°${minutes.padStart(6, '0')}'${direction}`;
-    },
-    [],
-  );
-
-  // Calculate the normalized value for the channel dial (0-100)
   const channelDialValue =
-    (currentChannelIndex / (MARINE_CHANNELS.length - 1)) * 100;
-  const containerStyle: React.CSSProperties = {
-    width: `${width}px`,
-    height: `${height + 20}px`,
-    backgroundColor: '#1a1a1a',
-    borderRadius: '8px',
-    padding: `${padding - 40}px 12px ${padding}px 12px`,
-    display: 'flex',
-    flexDirection: 'column',
-    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.4)',
-    opacity: disabled ? 0.7 : 1,
-    position: 'relative',
-    overflow: 'hidden',
-    boxSizing: 'border-box',
-  };
-  const ventStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: '6px',
-    left: '10px',
-    width: '60px',
-    height: '12px',
-    display: 'flex',
-    gap: '3px',
-  };
-  const displayPanelStyle: React.CSSProperties = {
-    height: `${displayHeight}px`,
-    backgroundColor: powerOn ? '#f7941d' : '#442700',
-    borderRadius: '4px',
-    padding: '32px',
-    marginBottom: '10px',
-    position: 'relative',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    transition: 'background-color 0.2s ease',
-    overflow: 'hidden',
-    color: '#000',
-  };
-  const mainDisplayRowStyle: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    height: '40%',
-  };
-  const channelStatusStyle: React.CSSProperties = {
-    fontFamily: 'monospace',
-    fontWeight: 'bold',
-    fontSize: powerOn
-      ? `${displayHeight * 0.36}px`
-      : `${displayHeight * 0.2}px`,
-    letterSpacing: '0.5px',
-    display: 'flex',
-    alignItems: 'center',
-  };
-  const signalStrengthStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'flex-end',
-    gap: '2px',
-    height: '100%',
-    marginLeft: '8px',
-  };
-  const secondaryRowStyle: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginTop: '6px',
-    fontFamily: 'monospace',
-    fontSize: `${displayHeight * 0.2}px`,
-  };
-  const controlsPanelStyle: React.CSSProperties = {
-    display: 'flex',
-    flexGrow: 1,
-    alignItems: 'flex-start',
-    gap: '12px',
-    paddingBottom: '10px',
-  };
-  const leftControlsStyle: React.CSSProperties = {
-    width: '80px',
-    height: '80%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '8px',
-  };
-  const pttButtonStyle: React.CSSProperties = {
-    width: '80px',
-    height: `${controlsHeight * 0.9}px`,
-    backgroundColor: '#333',
-    borderRadius: '8px',
-    border: transmitting ? '2px solid #f44' : '2px solid #555',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    padding: '32px',
-    cursor: !powerOn || disabled ? 'not-allowed' : 'pointer',
-    boxShadow: transmitting ? '0 0 8px rgba(255, 68, 68, 0.6)' : 'none',
-    opacity: !powerOn || disabled ? 0.6 : 1,
-  };
-  const volumeWrapperStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  };
+    (state.currentChannelIndex / (MARINE_CHANNELS.length - 1)) * 100;
 
   return (
-    <div style={containerStyle}>
-      {/* Ventilation grill (top left) */}
-      <div style={ventStyle}>
-        {[...Array(5)].map((_, i) => (
-          <div
-            key={`vent-${i}`}
-            style={{
-              width: '8px',
-              height: '12px',
-              backgroundColor: '#111',
-              borderRadius: '1px',
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Display Panel */}
-      <div style={displayPanelStyle}>
-        {/* Main Display Row - Channel & Status */}
-        <div style={mainDisplayRowStyle}>
-          {/* Channel/Status Display */}
-          <div style={channelStatusStyle}>
-            {powerOn ? displayMessage : ''}
-
-            {/* Emergency Indicator */}
-            {powerOn && currentChannel.isEmergency && !distressActive && (
-              <span
-                style={{
-                  fontSize: `${displayHeight * 0.2}px`,
-                  backgroundColor: 'red',
-                  padding: '0px 4px',
-                  borderRadius: '2px',
-                  marginLeft: '8px',
-                  color: '#FFF',
-                }}
-              >
-                EMERGENCY
-              </span>
-            )}
-
-            {/* Distress Active Indicator */}
-            {powerOn && distressActive && (
-              <span
-                style={{
-                  fontSize: `${displayHeight * 0.2}px`,
-                  backgroundColor: 'red',
-                  padding: '0px 4px',
-                  borderRadius: '2px',
-                  marginLeft: '8px',
-                  color: '#FFF',
-                  animation: 'blink 1s infinite',
-                }}
-              >
-                DISTRESS ACTIVE
-              </span>
-            )}
-
-            {/* Transmit Power Indicator */}
-            {powerOn && !menuOpen && !directEntryMode && !distressActive && (
-              <span
-                style={{
-                  marginLeft: 'auto',
-                  fontSize: `${displayHeight * 0.2}px`,
-                }}
-              >
-                {highPower ? 'HI' : 'LO'}
-              </span>
-            )}
-          </div>
-
-          {/* Signal Strength Indicator */}
-          <div style={signalStrengthStyle}>
-            {[1, 2, 3, 4, 5].map(bar => (
-              <div
-                key={`bar-${bar}`}
-                style={{
-                  width: '4px',
-                  backgroundColor:
-                    powerOn && bar <= signalBars ? '#000' : '#885000',
-                  height: `${bar * 16}%`,
-                  borderRadius: '1px',
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Secondary Display Row - Always visible with Frequency & Position/Time */}
-        <div style={secondaryRowStyle}>
-          {powerOn && (
-            <>
-              <div>
-                {currentChannel.frequency.toFixed(3)} MHz
-                <span
-                  style={{
-                    marginLeft: '5px',
-                    fontSize: `${displayHeight * 0.15}px`,
-                  }}
-                >
-                  {currentChannel.name}
-                </span>
-              </div>
-              <div>
-                {position && showPosition ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      fontSize: '9px',
-                      lineHeight: '1.2',
-                    }}
-                  >
-                    <div>{`${formatPosition(position.latitude, true)}`}</div>
-                    <div>{`${formatPosition(position.longitude, false)}`}</div>
-                  </div>
-                ) : (
-                  `${currentTime.toTimeString().substring(0, 5)}`
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Controls Panel */}
-      <div style={controlsPanelStyle}>
-        {/* Left Controls - PTT Mic and Volume */}
-        <div style={leftControlsStyle}>
-          {/* PTT Button with Mic appearance */}
-          <button
-            onMouseDown={handleTransmitPress}
-            onMouseUp={handleTransmitRelease}
-            onMouseLeave={handleTransmitRelease}
-            onTouchStart={handleTransmitPress}
-            onTouchEnd={handleTransmitRelease}
-            disabled={!powerOn || disabled}
-            style={pttButtonStyle}
-          >
-            {/* Speaker holes */}
-            {/*             <div
-              style={{
-                width: '100%',
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'space-around',
-                marginBottom: 'auto',
-              }}
-            >
-              {[...Array(15)].map((_, i) => (
-                <div
-                  key={`hole-${i}`}
-                  style={{
-                    width: '6px',
-                    height: '6px',
-                    backgroundColor: '#222',
-                    borderRadius: '50%',
-                    margin: '2px',
-                  }}
-                />
-              ))}
-            </div> */}
-
-            {/* PTT text */}
-            <div
-              style={{
-                width: '24px',
-                height: '24px',
-                backgroundColor: transmitting ? '#f44' : '#444',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '8px',
-                fontWeight: 'bold',
-                color: '#fff',
-              }}
-            >
-              PTT
-            </div>
-          </button>
-
-          {/* Volume Control Dial */}
-          <div style={volumeWrapperStyle}>
-            <div
-              style={{
-                fontSize: '9px',
-                color: '#aaa',
-                textAlign: 'center',
-                marginBottom: '2px',
-              }}
-            >
-              VOLUME
-            </div>
-            <RotaryDial
-              value={volume}
-              onChange={handleVolumeChange}
-              min={0}
-              max={100}
-              size={55}
-              activeColor={powerOn ? '#22c55e' : '#4B5563'}
-              disabled={!powerOn || disabled}
-              showValue={false}
-              numTicks={0}
-            />
-          </div>
-        </div>
-
-        {/* Center Controls - Main Buttons Area */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            flexGrow: 1,
-            height: '100%',
-          }}
-        >
-          {/* Top Row Buttons */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-              justifyContent: 'center',
-            }}
-          >
-            {/* DISTRESS Button */}
-            <button
-              onClick={handleDistress}
-              disabled={!powerOn || disabled}
-              style={{
-                width: '70px',
-                height: '26px',
-                backgroundColor: '#f44',
-                borderRadius: '4px',
-                border: 'none',
-                color: '#fff',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                cursor: !powerOn || disabled ? 'not-allowed' : 'pointer',
-                opacity: !powerOn || disabled ? 0.6 : 1,
-                boxShadow: distressActive ? '0 0 10px #f44' : 'none',
-              }}
-            >
-              DISTRESS
-            </button>
-
-            {/* DSC Button */}
-            <button
-              onClick={handleDSC}
-              disabled={!powerOn || disabled || transmitting}
-              style={{
-                width: '50px',
-                height: '26px',
-                backgroundColor: dscActive ? '#5bc0de' : '#1F2937',
-                borderRadius: '4px',
-                border: 'none',
-                color: '#fff',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                cursor:
-                  !powerOn || disabled || transmitting
-                    ? 'not-allowed'
-                    : 'pointer',
-                opacity: !powerOn || disabled || transmitting ? 0.6 : 1,
-              }}
-            >
-              DSC
-            </button>
-
-            {/* PWR Button */}
-            <button
-              onClick={handlePowerToggle}
-              disabled={disabled}
-              style={{
-                width: '50px',
-                height: '26px',
-                backgroundColor: powerOn ? '#22c55e' : '#4B5563',
-                borderRadius: '4px',
-                border: 'none',
-                color: '#fff',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                cursor: disabled ? 'not-allowed' : 'pointer',
-              }}
-            >
-              PWR
-            </button>
-          </div>
-
-          {/* Middle Row Buttons */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-              justifyContent: 'center',
-            }}
-          >
-            {/* 16/9 Button */}
-            <button
-              onClick={handleChannel16}
-              onDoubleClick={handleChannel9}
-              disabled={!powerOn || disabled || transmitting}
-              style={{
-                width: '50px',
-                height: '26px',
-                backgroundColor:
-                  currentChannel.number === 16 || currentChannel.number === 9
-                    ? '#22c55e'
-                    : '#1F2937',
-                borderRadius: '4px',
-                border: 'none',
-                color: '#fff',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                cursor:
-                  !powerOn || disabled || transmitting
-                    ? 'not-allowed'
-                    : 'pointer',
-                opacity: !powerOn || disabled || transmitting ? 0.6 : 1,
-              }}
-            >
-              16/9
-            </button>
-
-            {/* HI/LO Button */}
-            <button
-              onClick={handleHiLoPower}
-              disabled={!powerOn || disabled || transmitting}
-              style={{
-                width: '50px',
-                height: '26px',
-                backgroundColor: !highPower ? '#5bc0de' : '#1F2937',
-                borderRadius: '4px',
-                border: 'none',
-                color: '#fff',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                cursor:
-                  !powerOn || disabled || transmitting
-                    ? 'not-allowed'
-                    : 'pointer',
-                opacity: !powerOn || disabled || transmitting ? 0.6 : 1,
-              }}
-            >
-              HI/LO
-            </button>
-
-            {/* SCAN Button */}
-            <button
-              onClick={handleScan}
-              disabled={
-                !powerOn ||
-                disabled ||
-                transmitting ||
-                directEntryMode ||
-                menuOpen
-              }
-              style={{
-                width: '50px',
-                height: '26px',
-                backgroundColor: scanActive ? '#5bc0de' : '#1F2937',
-                borderRadius: '4px',
-                border: 'none',
-                color: '#fff',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                cursor:
-                  !powerOn ||
-                  disabled ||
-                  transmitting ||
-                  directEntryMode ||
-                  menuOpen
-                    ? 'not-allowed'
-                    : 'pointer',
-                opacity:
-                  !powerOn ||
-                  disabled ||
-                  transmitting ||
-                  directEntryMode ||
-                  menuOpen
-                    ? 0.6
-                    : 1,
-              }}
-            >
-              SCAN
-            </button>
-          </div>
-
-          {/* Bottom Row Buttons */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-              justifyContent: 'center',
-            }}
-          >
-            {/* CLEAR Button */}
-            <button
-              onClick={handleClear}
-              disabled={!powerOn || disabled}
-              style={{
-                width: '50px',
-                height: '26px',
-                backgroundColor: '#1F2937',
-                borderRadius: '4px',
-                border: 'none',
-                color: '#fff',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                cursor: !powerOn || disabled ? 'not-allowed' : 'pointer',
-                opacity: !powerOn || disabled ? 0.6 : 1,
-              }}
-            >
-              CLEAR
-            </button>
-
-            {/* MENU Button */}
-            <button
-              onClick={handleMenu}
-              onDoubleClick={handleMenuSelect}
-              disabled={!powerOn || disabled || transmitting}
-              style={{
-                width: '50px',
-                height: '26px',
-                backgroundColor: menuOpen ? '#5bc0de' : '#1F2937',
-                borderRadius: '4px',
-                border: 'none',
-                color: '#fff',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                cursor:
-                  !powerOn || disabled || transmitting
-                    ? 'not-allowed'
-                    : 'pointer',
-                opacity: !powerOn || disabled || transmitting ? 0.6 : 1,
-              }}
-            >
-              MENU
-            </button>
-          </div>
-
-          {/* Channel Selector Keypad in a 3x4 grid */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '4px',
-              justifyContent: 'center',
-              marginTop: 'auto',
-              width: '90%',
-              marginLeft: 'auto',
-              marginRight: 'auto',
-            }}
-          >
-            {/* First row: 1, 2, 3 */}
-            {[1, 2, 3].map(digit => (
-              <button
-                key={`digit-${digit}`}
-                onClick={() => handleKeypadInput(digit)}
-                disabled={!powerOn || disabled || transmitting}
-                style={{
-                  height: '22px',
-                  backgroundColor: '#1F2937',
-                  borderRadius: '3px',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  cursor:
-                    !powerOn || disabled || transmitting
-                      ? 'not-allowed'
-                      : 'pointer',
-                  opacity: !powerOn || disabled || transmitting ? 0.6 : 1,
-                }}
-              >
-                {digit}
-              </button>
-            ))}
-
-            {/* Second row: 4, 5, 6 */}
-            {[4, 5, 6].map(digit => (
-              <button
-                key={`digit-${digit}`}
-                onClick={() => handleKeypadInput(digit)}
-                disabled={!powerOn || disabled || transmitting}
-                style={{
-                  height: '22px',
-                  backgroundColor: '#1F2937',
-                  borderRadius: '3px',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  cursor:
-                    !powerOn || disabled || transmitting
-                      ? 'not-allowed'
-                      : 'pointer',
-                  opacity: !powerOn || disabled || transmitting ? 0.6 : 1,
-                }}
-              >
-                {digit}
-              </button>
-            ))}
-
-            {/* Third row: 7, 8, 9 */}
-            {[7, 8, 9].map(digit => (
-              <button
-                key={`digit-${digit}`}
-                onClick={() => handleKeypadInput(digit)}
-                disabled={!powerOn || disabled || transmitting}
-                style={{
-                  height: '22px',
-                  backgroundColor: '#1F2937',
-                  borderRadius: '3px',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  cursor:
-                    !powerOn || disabled || transmitting
-                      ? 'not-allowed'
-                      : 'pointer',
-                  opacity: !powerOn || disabled || transmitting ? 0.6 : 1,
-                }}
-              >
-                {digit}
-              </button>
-            ))}
-
-            {/* Fourth row: 0 (centered across) */}
-            <div style={{ gridColumn: '1 / span 3' }}>
-              <button
-                onClick={() => handleKeypadInput(0)}
-                disabled={!powerOn || disabled || transmitting}
-                style={{
-                  width: '100%',
-                  height: '22px',
-                  backgroundColor: '#1F2937',
-                  borderRadius: '3px',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  cursor:
-                    !powerOn || disabled || transmitting
-                      ? 'not-allowed'
-                      : 'pointer',
-                  opacity: !powerOn || disabled || transmitting ? 0.6 : 1,
-                }}
-              >
-                0
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Controls - Channel Dial & Squelch */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '8px',
-            width: '80px',
-            height: '80%',
-          }}
-        >
-          {/* Squelch Control */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}
-          >
-            <div
-              style={{
-                fontSize: '9px',
-                color: '#aaa',
-                textAlign: 'center',
-                marginBottom: '2px',
-              }}
-            >
-              SQUELCH
-            </div>
-            <RotaryDial
-              value={squelch}
-              onChange={handleSquelchChange}
-              min={0}
-              max={100}
-              size={55}
-              activeColor={powerOn ? '#22c55e' : '#4B5563'}
-              disabled={!powerOn || disabled}
-              showValue={false}
-              numTicks={0}
-            />
-          </div>
-
-          {/* Channel Select Dial */}
-          <div
-            style={{
-              marginTop: 'auto',
-            }}
-          >
-            <div
-              style={{
-                fontSize: '9px',
-                color: '#aaa',
-                textAlign: 'center',
-                marginBottom: '2px',
-              }}
-            >
-              SELECT
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                marginTop: '4px',
-              }}
-            >
-              <RotaryDial
-                value={channelDialValue}
-                onChange={handleChannelDialChange}
-                min={0}
-                max={100}
-                size={70}
-                activeColor={powerOn ? '#22c55e' : '#4B5563'}
-                disabled={
-                  !powerOn || disabled || transmitting || distressActive
-                }
-                showValue={false}
-                numTicks={0}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <MarineRadioView
+      width={width}
+      height={height}
+      disabled={disabled}
+      powerOn={state.powerOn}
+      transmitting={state.transmitting}
+      distressActive={state.distressActive}
+      dscActive={state.dscActive}
+      scanActive={state.scanActive}
+      menuOpen={state.menuOpen}
+      directEntryMode={state.directEntryMode}
+      highPower={state.highPower}
+      signalBars={state.signalBars}
+      volume={state.volume}
+      squelch={state.squelch}
+      channelDialValue={channelDialValue}
+      displayMessage={displayMessage}
+      currentChannel={currentChannel}
+      currentTime={state.currentTime}
+      showPosition={state.showPosition}
+      position={position}
+      formatPosition={formatPosition}
+      onPowerToggle={handlePowerToggle}
+      onDistress={handleDistress}
+      onDsc={handleDsc}
+      onChannel16={handleChannel16}
+      onChannel9={handleChannel9}
+      onHiLoPower={handleHiLoPower}
+      onScan={handleScan}
+      onClear={handleClear}
+      onMenu={handleMenu}
+      onMenuSelect={handleMenuSelect}
+      onTransmitPress={handleTransmitPress}
+      onTransmitRelease={handleTransmitRelease}
+      onKeypadInput={handleKeypadInput}
+      onVolumeChange={handleVolumeChange}
+      onSquelchChange={handleSquelchChange}
+      onChannelDialChange={handleChannelDialChange}
+    />
   );
 }
