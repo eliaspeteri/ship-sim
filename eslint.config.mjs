@@ -232,6 +232,16 @@ export default [
     },
   },
 
+  // Ratchet strict async/condition safety in backend/core utility code first.
+  {
+    files: ['src/server/**/*.{ts,tsx}', 'src/lib/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      '@typescript-eslint/no-unnecessary-condition': 'warn',
+    },
+  },
+
   // Type-aware linting is expensive; scope it to TS files.
   {
     files: ['**/*.{ts,tsx}'],
