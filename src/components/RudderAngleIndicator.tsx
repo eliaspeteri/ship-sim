@@ -1,4 +1,5 @@
-import React, { JSX } from 'react';
+import type { JSX } from 'react';
+import React from 'react';
 import { RUDDER_STALL_ANGLE_DEG } from '../constants/vessel';
 
 /**

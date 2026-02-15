@@ -1,5 +1,5 @@
 import useStore from '../store';
-import { VesselSnapshot } from '../types/vessel.types';
+import type { VesselSnapshot } from '../types/vessel.types';
 
 interface VesselListProps {
   vessels: Record<string, VesselSnapshot>;

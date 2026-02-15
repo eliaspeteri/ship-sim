@@ -1,5 +1,5 @@
 import React from 'react';
-import { EconomyContext } from '../economyContexts';
+import type { EconomyContext } from '../economyContexts';
 
 type EconomySidebarProps = {
   contexts: EconomyContext[];

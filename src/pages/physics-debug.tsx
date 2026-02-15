@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import type { GetServerSideProps, NextPage } from 'next';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Environment, OrbitControls, Sky } from '@react-three/drei';
-import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import fs from 'fs';
 import path from 'path';
@@ -19,15 +19,14 @@ import Ship from '../components/Ship';
 import { TelegraphLever } from '../components/TelegraphLever';
 import { HelmControl } from '../components/HelmControl';
 import { ControlLever } from '../components/ControlLever';
-import { DEFAULT_HYDRO } from '../constants/vessel';
-import { RUDDER_MAX_ANGLE_RAD } from '../constants/vessel';
+import { DEFAULT_HYDRO, RUDDER_MAX_ANGLE_RAD } from '../constants/vessel';
 import {
   RUDDER_STEP,
   THROTTLE_MAX,
   THROTTLE_MIN,
   THROTTLE_STEP,
 } from '../features/sim/constants';
-import { ShipType } from '../types/vessel.types';
+import type { ShipType } from '../types/vessel.types';
 import type { VesselPhysicsConfig } from '../types/physics.types';
 import { xyToLatLon, latLonToXY } from '../lib/geo';
 
@@ -83,8 +82,7 @@ const ui = {
   canvasWrap: 'absolute inset-0',
   panel:
     'absolute bottom-4 left-4 z-10 max-h-[calc(100vh-32px)] w-[min(420px,calc(100vw-32px))] overflow-auto rounded-[10px] border border-[rgba(138,168,203,0.3)] bg-[rgba(9,18,30,0.84)] p-3 text-[#d4e6fb] backdrop-blur-md',
-  title:
-    'mb-2 text-sm uppercase tracking-[0.06em] text-[#8fc5ff]',
+  title: 'mb-2 text-sm uppercase tracking-[0.06em] text-[#8fc5ff]',
   hint: 'mb-2.5 text-xs leading-[1.4] text-[#a7bfd8]',
   status: 'mb-2.5 text-xs',
   statusReady: 'text-[#8ae0b6]',
@@ -100,8 +98,7 @@ const ui = {
   button:
     'mt-2.5 w-full cursor-pointer rounded-lg border border-[rgba(138,168,203,0.45)] bg-[rgba(12,34,56,0.95)] px-2.5 py-2 text-[13px] text-[#e7f1ff] hover:border-[#6db4ff]',
   monitorSection: 'mt-3',
-  sectionTitle:
-    'mb-2 text-xs uppercase tracking-[0.04em] text-[#8fc5ff]',
+  sectionTitle: 'mb-2 text-xs uppercase tracking-[0.04em] text-[#8fc5ff]',
   monitorGrid: 'grid grid-cols-2 gap-2',
   monitorCard:
     'rounded-lg border border-[rgba(138,168,203,0.24)] bg-[rgba(6,11,19,0.55)] p-2',
@@ -639,21 +636,15 @@ const PhysicsDebugPage: NextPage<PhysicsDebugPageProps> & {
           <div className={ui.monitorGrid}>
             <div className={ui.monitorCard}>
               <div className={ui.monitorLabel}>Speed</div>
-              <div className={ui.monitorValue}>
-                {speedKts.toFixed(2)} kts
-              </div>
+              <div className={ui.monitorValue}>{speedKts.toFixed(2)} kts</div>
             </div>
             <div className={ui.monitorCard}>
               <div className={ui.monitorLabel}>Heading</div>
-              <div className={ui.monitorValue}>
-                {headingDeg.toFixed(1)} deg
-              </div>
+              <div className={ui.monitorValue}>{headingDeg.toFixed(1)} deg</div>
             </div>
             <div className={ui.monitorCard}>
               <div className={ui.monitorLabel}>Rudder</div>
-              <div className={ui.monitorValue}>
-                {rudderDeg.toFixed(1)} deg
-              </div>
+              <div className={ui.monitorValue}>{rudderDeg.toFixed(1)} deg</div>
             </div>
             <div className={ui.monitorCard}>
               <div className={ui.monitorLabel}>Ballast</div>

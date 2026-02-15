@@ -1,5 +1,5 @@
 import type { VesselPhysicsConfig } from './physics.types';
-import { ShipType } from './vessel.types';
+import type { ShipType } from './vessel.types';
 
 export type VesselCatalogEntry = {
   id: string;

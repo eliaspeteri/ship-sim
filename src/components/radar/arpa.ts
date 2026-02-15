@@ -1,4 +1,4 @@
-import { RadarTarget } from './types';
+import type { RadarTarget } from './types';
 
 /**
  * ARPA Target Type - extends basic radar target with additional tracking data

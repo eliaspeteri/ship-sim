@@ -7,7 +7,7 @@
 
 // Import our custom loader
 import { loadWasmModule } from './customWasmLoader';
-import { WasmModule } from '../types/wasm';
+import type { WasmModule } from '../types/wasm';
 import { WasmBridge } from './wasmBridge';
 import useStore from '../store';
 

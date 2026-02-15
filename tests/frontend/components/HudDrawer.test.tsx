@@ -231,14 +231,13 @@ const createStoreState = (): HudStoreState => ({
 
 let storeState: HudStoreState = createStoreState();
 
-const useStoreMock = jest.fn(
+const storeMock = jest.fn(
   <Selected,>(selector: (state: HudStoreState) => Selected) =>
     selector(storeState),
 );
 
-(
-  useStoreMock as typeof useStoreMock & { getState: () => HudStoreState }
-).getState = () => storeState;
+(storeMock as typeof storeMock & { getState: () => HudStoreState }).getState =
+  () => storeState;
 
 const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
   const url = String(input);
@@ -289,8 +288,7 @@ const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
 
 jest.mock('../../../src/store', () => ({
   __esModule: true,
-  default: (selector: (state: HudStoreState) => unknown) =>
-    useStoreMock(selector),
+  default: (selector: (state: HudStoreState) => unknown) => storeMock(selector),
 }));
 
 jest.mock('../../../src/simulation', () => ({

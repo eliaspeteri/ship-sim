@@ -1,6 +1,6 @@
 import React from 'react';
 import EconomySectionCard from '../components/EconomySectionCard';
-import { CareerStatus } from '../types';
+import type { CareerStatus } from '../types';
 
 type CareersSectionProps = {
   careers: CareerStatus[];

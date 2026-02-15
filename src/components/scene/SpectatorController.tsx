@@ -1,6 +1,6 @@
 import React from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 
 export function SpectatorController({

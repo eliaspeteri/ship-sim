@@ -1,5 +1,5 @@
 import { bboxAroundLatLon } from '../../../lib/geo';
-import { EditorWorkArea } from '../types';
+import type { EditorWorkArea } from '../types';
 
 export type OverlayTileKey = {
   z: number;

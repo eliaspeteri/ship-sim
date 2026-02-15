@@ -1,6 +1,6 @@
 import React from 'react';
 import { applyFailureControlLimits } from '../../../lib/failureControls';
-import { VesselControls, VesselState } from '../../../types/vessel.types';
+import type { VesselControls, VesselState } from '../../../types/vessel.types';
 import { clampRudderAngle } from '../../../constants/vessel';
 
 export type HudControlUpdate = {

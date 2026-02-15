@@ -14,7 +14,7 @@ import { prisma } from '../lib/prisma';
 import { recordMetric, serverMetrics } from './metrics';
 import { clearLogs, getLogs, recordLog } from './observability';
 import { seedDefaultMissions } from './missions';
-import { Rules } from '../types/rules.types';
+import type { Rules } from '../types/rules.types';
 import {
   CAREERS,
   getExamDefinitions,

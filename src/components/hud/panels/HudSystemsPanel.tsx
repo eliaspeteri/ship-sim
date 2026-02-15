@@ -21,8 +21,8 @@ import {
   TEMPERATURE_DECIMALS,
   VOLTAGE_DECIMALS,
 } from '../constants';
-import { DamageState } from '../../../lib/damage';
-import { VesselState } from '../../../types/vessel.types';
+import type { DamageState } from '../../../lib/damage';
+import type { VesselState } from '../../../types/vessel.types';
 
 export function HudSystemsPanel({
   engineRunning,

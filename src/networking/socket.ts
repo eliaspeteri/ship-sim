@@ -1,10 +1,8 @@
 import io from 'socket.io-client';
-import {
-  createDefaultSocketStoreAdapter,
-  SocketStoreAdapter,
-} from './adapters/socketStoreAdapter';
-import { SimpleVesselState } from '../types/vessel.types';
-import { ClientConnectOpts, ClientSocket } from './socket/types';
+import type { SocketStoreAdapter } from './adapters/socketStoreAdapter';
+import { createDefaultSocketStoreAdapter } from './adapters/socketStoreAdapter';
+import type { SimpleVesselState } from '../types/vessel.types';
+import type { ClientConnectOpts, ClientSocket } from './socket/types';
 import {
   attemptReconnect,
   clearReconnectTimer,
@@ -22,11 +20,11 @@ import {
   sendControlUpdate,
   sendVesselUpdate,
 } from './socket/outboundCommands';
+import type { SimulationHandlerState } from './socket/simulationHandlers';
 import {
   handleEnvironmentUpdate,
   handleSimulationUpdate,
   handleVesselTeleport,
-  SimulationHandlerState,
 } from './socket/simulationHandlers';
 import { registerSocketHandlers } from './socket/registerHandlers';
 

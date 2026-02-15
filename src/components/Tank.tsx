@@ -1,4 +1,5 @@
-import React, { JSX } from 'react';
+import type { JSX } from 'react';
+import React from 'react';
 
 /**
  * Tank component that renders a fuel gauge dial with a needle indicating the current level

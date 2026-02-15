@@ -1,5 +1,5 @@
 import React from 'react';
-import { EditorLayer, EditorWorkArea } from '../types';
+import type { EditorLayer, EditorWorkArea } from '../types';
 import EditorLayerList from './EditorLayerList';
 import EditorWorkAreaEditor from './EditorWorkAreaEditor';
 

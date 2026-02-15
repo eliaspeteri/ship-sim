@@ -112,7 +112,8 @@ export function registerVesselJoinHandler({
     const currentVessel = currentVesselId
       ? findVesselInSpace(currentVesselId, spaceId)
       : null;
-    const isSwitching = !!currentVessel && currentVessel.id !== target.id;
+    const isSwitching =
+      currentVessel !== null && currentVessel.id !== target.id;
     const rulesType = rules.type || RulesetType.CASUAL;
     const switchRestricted =
       rulesType === RulesetType.REALISM || rulesType === RulesetType.EXAM;

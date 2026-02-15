@@ -1,4 +1,4 @@
-import { EcdisBuoy, EcdisRoutePoint } from './types';
+import type { EcdisBuoy, EcdisRoutePoint } from './types';
 
 export const mockCoastline: Array<[number, number]> = [
   [24.93, 60.16],

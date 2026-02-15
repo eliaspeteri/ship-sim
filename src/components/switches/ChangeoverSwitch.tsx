@@ -63,12 +63,6 @@ export function ChangeoverSwitch(
     dragSensitivity = 200,
   } = props;
 
-  // Safety check - we need at least 2 positions
-  if (positions.length < 2) {
-    console.warn('ChangeoverSwitch requires at least 2 positions');
-    return <></>;
-  }
-
   // Calculate dimensions
   const radius = size / 2;
   const handleSize = size * 0.4;
@@ -77,8 +71,11 @@ export function ChangeoverSwitch(
   const positionRadius = (switchBaseSize / 2) * 0.7;
 
   // Map position values to numeric indices for drag calculations
-  const positionIndex = positions.findIndex(p => p.value === position);
-  const positionCount = positions.length;
+  const positionIndex = Math.max(
+    0,
+    positions.findIndex(p => p.value === position),
+  );
+  const positionCount = Math.max(positions.length, 2);
 
   const indexToNormalized = (index: number): number => {
     return positionCount <= 1 ? 0 : index / (positionCount - 1);
@@ -101,12 +98,14 @@ export function ChangeoverSwitch(
       // Snap to the next position only when passing the midpoint between positions
       const floatIndex = value * (positionCount - 1);
       const snappedIndex = Math.round(floatIndex);
+      const targetPosition = positions[snappedIndex];
       if (
         snappedIndex !== lastSnappedIndexRef.current &&
-        !positions[snappedIndex].disabled
+        targetPosition &&
+        !targetPosition.disabled
       ) {
         lastSnappedIndexRef.current = snappedIndex;
-        onPositionChange(positions[snappedIndex].value);
+        onPositionChange(targetPosition.value);
       }
     },
     dragAxis: 'horizontal',
@@ -318,7 +317,7 @@ export function ChangeoverSwitch(
   return (
     <div style={containerStyles}>
       {label && <div style={getLabelStyles()}>{label}</div>}
-      {renderSwitch()}
+      {positions.length < 2 ? null : renderSwitch()}
     </div>
   );
 }

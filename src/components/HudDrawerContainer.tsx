@@ -1,17 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { getSimulationLoop } from '../simulation';
 import { socketManager } from '../networking/socket';
-import {
+import type {
   AISTarget,
   ARPASettings,
   ARPATarget,
-  DEFAULT_ARPA_SETTINGS,
   EBL,
   GuardZone,
   RadarSettings,
   RadarTarget,
   VRM,
 } from './radar';
+import { DEFAULT_ARPA_SETTINGS } from './radar';
 import {
   courseFromWorldVelocity,
   distanceMeters,
@@ -108,11 +108,9 @@ import {
   formatKnotsValue,
   toDegrees,
 } from './hud/format';
-import { EconomyPort, HudTab } from './hud/types';
-import {
-  HudControlUpdate,
-  useHudControlsSync,
-} from '../features/sim/hooks/useHudControlsSync';
+import type { EconomyPort, HudTab } from './hud/types';
+import type { HudControlUpdate } from '../features/sim/hooks/useHudControlsSync';
+import { useHudControlsSync } from '../features/sim/hooks/useHudControlsSync';
 import { useHudFleetData } from '../features/sim/hooks/useHudFleetData';
 import { useHudMissionData } from '../features/sim/hooks/useHudMissionData';
 import { useHudStoreSnapshot } from '../features/sim/hooks/useHudStoreSnapshot';

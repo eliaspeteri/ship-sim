@@ -1,6 +1,6 @@
 import React from 'react';
 import EconomySectionCard from '../components/EconomySectionCard';
-import { Reputation } from '../types';
+import type { Reputation } from '../types';
 
 type ReputationSectionProps = {
   reputation: Reputation[];

@@ -1,6 +1,6 @@
 import { getSimulationLoop } from '../../simulation/simulationLoop';
 import type { DeepPartial } from '../../types/utility';
-import { ShipType, VesselState } from '../../types/vessel.types';
+import type { ShipType, VesselState } from '../../types/vessel.types';
 import { applyFailureControlLimits } from '../../lib/failureControls';
 import { defaultVesselState, hydrodynamicsForType } from '../defaults';
 import type { SimulationState, StoreGet, StoreSet } from '../types';

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
+import type {
   EBL,
   GuardZone,
   RadarEnvironment,
@@ -8,13 +8,8 @@ import {
   VRM,
   AISTarget,
 } from './types';
-import {
-  ARPASettings,
-  ARPATarget,
-  DEFAULT_ARPA_SETTINGS,
-  OwnShipData,
-  processRadarTargets,
-} from './arpa';
+import type { ARPASettings, ARPATarget, OwnShipData } from './arpa';
+import { DEFAULT_ARPA_SETTINGS, processRadarTargets } from './arpa';
 import { renderRadarFrame } from './render';
 import { RadarView } from './RadarView';
 import { RadarControlsPanel } from './RadarControlsPanel';

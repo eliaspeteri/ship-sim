@@ -1,7 +1,8 @@
 import React from 'react';
 import { useRouter } from 'next/router';
-import { EditorLayer, EditorPack, EditorWorkArea } from './types';
-import { TOOL_DEFS, ToolId } from './editorTools';
+import type { EditorLayer, EditorPack, EditorWorkArea } from './types';
+import type { ToolId } from './editorTools';
+import { TOOL_DEFS } from './editorTools';
 import EditorBottomBar from './components/EditorBottomBar';
 import EditorInspectorPanel from './components/EditorInspectorPanel';
 import EditorToolsPanel from './components/EditorToolsPanel';

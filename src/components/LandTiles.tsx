@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { useThree } from '@react-three/fiber';
-import * as THREE from 'three';
+import type * as THREE from 'three';
 
 import { xyToLatLon } from '../lib/geo'; // adjust alias if needed
 import { fetchLandTileMesh } from '../lib/tiles/mvtLandMesh';

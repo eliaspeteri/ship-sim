@@ -39,12 +39,13 @@ const Precipitation: React.FC<PrecipitationProps> = ({
   area = 1000,
   inCanvas = true, // Default to true for backward compatibility
 }) => {
-  // If type is 'none', don't render anything
-  if (type === 'none' || intensity <= 0) {
-    return null;
-  }
+  const isDisabled = type === 'none' || intensity <= 0;
 
   const particlesRef = useRef<THREE.Points>(null);
+  const seeded = (index: number, salt: number): number => {
+    const x = Math.sin(index * 12.9898 + salt * 78.233) * 43758.5453;
+    return x - Math.floor(x);
+  };
 
   // Calculate particles count based on intensity and type
   const particleCount = useMemo(() => {
@@ -116,14 +117,14 @@ const Precipitation: React.FC<PrecipitationProps> = ({
       // Different distribution strategies based on precipitation type
       if (type === 'fog') {
         // Fog particles distributed more evenly, with limited height variation
-        particlePositions[i3] = Math.random() * area - halfArea; // x
-        particlePositions[i3 + 1] = Math.random() * 20; // y - low to the ground
-        particlePositions[i3 + 2] = Math.random() * area - halfArea; // z
+        particlePositions[i3] = seeded(i, 1) * area - halfArea; // x
+        particlePositions[i3 + 1] = seeded(i, 2) * 20; // y - low to the ground
+        particlePositions[i3 + 2] = seeded(i, 3) * area - halfArea; // z
       } else {
         // Rain and snow distributed across the full area and height
-        particlePositions[i3] = Math.random() * area - halfArea; // x
-        particlePositions[i3 + 1] = Math.random() * 200; // y - up to 200 units high
-        particlePositions[i3 + 2] = Math.random() * area - halfArea; // z
+        particlePositions[i3] = seeded(i, 4) * area - halfArea; // x
+        particlePositions[i3 + 1] = seeded(i, 5) * 200; // y - up to 200 units high
+        particlePositions[i3 + 2] = seeded(i, 6) * area - halfArea; // z
       }
     }
 
@@ -227,62 +228,59 @@ const Precipitation: React.FC<PrecipitationProps> = ({
     positionAttribute.needsUpdate = true;
   };
 
-  // Only use useFrame when inside a Canvas component
-  if (inCanvas) {
-    // Animation using useFrame (only works inside Canvas)
-    useFrame((_, delta) => {
+  // Animation in Canvas.
+  useFrame((_, delta) => {
+    if (!inCanvas || isDisabled) return;
+    animateParticles(delta);
+  });
+
+  // Fallback animation outside Canvas.
+  useEffect(() => {
+    if (inCanvas || isDisabled) return;
+    let animationFrameId: number;
+    let lastTime = 0;
+
+    const animate = (time: number) => {
+      if (lastTime === 0) lastTime = time;
+      const delta = (time - lastTime) / 1000;
+      lastTime = time;
       animateParticles(delta);
-    });
-  } else {
-    // Use useEffect for animation when outside Canvas
-    useEffect(() => {
-      let animationFrameId: number;
-      let lastTime = 0;
-
-      const animate = (time: number) => {
-        if (lastTime === 0) lastTime = time;
-        const delta = (time - lastTime) / 1000; // Convert to seconds
-        lastTime = time;
-
-        animateParticles(delta);
-        animationFrameId = requestAnimationFrame(animate);
-      };
-
       animationFrameId = requestAnimationFrame(animate);
+    };
 
-      return () => {
-        cancelAnimationFrame(animationFrameId);
-      };
-    }, []);
+    animationFrameId = requestAnimationFrame(animate);
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [inCanvas, isDisabled, particleCount, fallSpeed, type, intensity, area]);
+
+  const lineGeometry = useMemo(() => {
+    if (type !== 'rain') return null;
+    const geo = new THREE.BufferGeometry();
+    const vertices: number[] = [];
+
+    for (let i = 0; i < particleCount; i++) {
+      const i3 = i * 3;
+      vertices.push(
+        particlePositions[i3],
+        particlePositions[i3 + 1],
+        particlePositions[i3 + 2],
+        particlePositions[i3],
+        particlePositions[i3 + 1] - 1.0 - intensity * 2,
+        particlePositions[i3 + 2],
+      );
+    }
+
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    return geo;
+  }, [type, particleCount, particlePositions, intensity]);
+
+  if (isDisabled) {
+    return null;
   }
 
   // Return different primitives based on precipitation type
   if (type === 'rain') {
-    // Create rain streaks with lines
-    const lineGeometry = useMemo(() => {
-      const geo = new THREE.BufferGeometry();
-      const vertices: number[] = [];
-
-      // Create short lines for rain
-      for (let i = 0; i < particleCount; i++) {
-        const i3 = i * 3;
-        vertices.push(
-          particlePositions[i3],
-          particlePositions[i3 + 1],
-          particlePositions[i3 + 2],
-          particlePositions[i3],
-          particlePositions[i3 + 1] - 1.0 - intensity * 2,
-          particlePositions[i3 + 2],
-        );
-      }
-
-      geo.setAttribute(
-        'position',
-        new THREE.Float32BufferAttribute(vertices, 3),
-      );
-      return geo;
-    }, [particleCount, particlePositions, intensity]);
-
     return (
       <group
         position={
@@ -291,7 +289,7 @@ const Precipitation: React.FC<PrecipitationProps> = ({
       >
         <lineSegments
           ref={particlesRef}
-          geometry={lineGeometry}
+          geometry={lineGeometry ?? undefined}
           attach={material}
         />
       </group>

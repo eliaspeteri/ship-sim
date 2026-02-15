@@ -1,4 +1,4 @@
-import io from 'socket.io-client';
+import type io from 'socket.io-client';
 import type * as SocketIOClient from 'socket.io-client';
 
 export type ClientSocket = ReturnType<typeof io> & {

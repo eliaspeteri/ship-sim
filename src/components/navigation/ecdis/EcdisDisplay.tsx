@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { EcdisSidebar } from './EcdisSidebar';
 import { mockBuoys, mockCoastline, mockRoute } from './mockData';
 import { drawEcdisScene } from './scene';
-import { EcdisDisplayProps } from './types';
+import type { EcdisDisplayProps } from './types';
 
 export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
   shipPosition,

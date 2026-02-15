@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { latLonToXY, worldFromShip } from './math';
-import { EcdisAisTarget, EcdisBuoy, EcdisRoutePoint } from './types';
+import type { EcdisAisTarget, EcdisBuoy, EcdisRoutePoint } from './types';
 
 type LatLonCenter = { latitude: number; longitude: number };
 

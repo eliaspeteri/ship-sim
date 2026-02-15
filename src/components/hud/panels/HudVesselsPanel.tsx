@@ -2,8 +2,8 @@ import React from 'react';
 import { hudStyles as styles } from '../hudStyles';
 import { DEFAULT_SPACE_ID, FLEET_COORD_DECIMALS } from '../constants';
 import { formatDistance } from '../format';
-import { EconomyPort, FleetVessel } from '../types';
-import { SimpleVesselState } from '../../../types/vessel.types';
+import type { EconomyPort, FleetVessel } from '../types';
+import type { SimpleVesselState } from '../../../types/vessel.types';
 
 export function HudVesselsPanel({
   fleetLoading,

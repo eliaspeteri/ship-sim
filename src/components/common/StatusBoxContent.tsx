@@ -1,5 +1,5 @@
 import React from 'react';
-import { BoxDefinition, ValueLine } from './StatusPanelTypes';
+import type { BoxDefinition, ValueLine } from './StatusPanelTypes';
 
 interface StatusBoxContentProps {
   box: BoxDefinition;

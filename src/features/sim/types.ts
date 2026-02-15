@@ -1,4 +1,4 @@
-import { Rules } from '../../types/rules.types';
+import type { Rules } from '../../types/rules.types';
 
 export type SpaceSummary = {
   id: string;

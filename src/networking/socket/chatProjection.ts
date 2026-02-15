@@ -1,4 +1,7 @@
-import { ChatHistoryResponse, ChatMessageData } from '../../types/socket.types';
+import type {
+  ChatHistoryResponse,
+  ChatMessageData,
+} from '../../types/socket.types';
 
 export type NormalizedChatHistory = {
   channel: string;

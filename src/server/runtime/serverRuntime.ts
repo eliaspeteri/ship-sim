@@ -7,33 +7,28 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import apiRoutes from '../api';
 import jwt from 'jsonwebtoken';
-import {
-  applyWeatherPattern,
-  getWeatherPattern,
-  WeatherPattern,
-} from '../weatherSystem';
-import { Role, expandRoles, permissionsForRoles } from '../roles';
-import {
+import type { WeatherPattern } from '../weatherSystem';
+import { applyWeatherPattern, getWeatherPattern } from '../weatherSystem';
+import type { Role } from '../roles';
+import { expandRoles, permissionsForRoles } from '../roles';
+import type {
   ChatMessageData,
   ClientToServerEvents,
   InterServerEvents,
   ServerToClientEvents,
   SocketData,
 } from '../../types/socket.types';
-import {
+import type {
   SimpleVesselState,
   VesselControls,
   VesselPose,
   VesselState,
   VesselVelocity,
 } from '../../types/vessel.types';
-import { EnvironmentState } from '../../types/environment.types';
+import type { EnvironmentState } from '../../types/environment.types';
 import type { DeepPartial } from '../../types/utility';
-import {
-  getDefaultRules,
-  mapToRulesetType,
-  Rules,
-} from '../../types/rules.types';
+import type { Rules } from '../../types/rules.types';
+import { getDefaultRules, mapToRulesetType } from '../../types/rules.types';
 import {
   ensurePosition,
   mergePosition,
@@ -67,8 +62,10 @@ import {
 import { recordLog } from '../observability';
 import { loadSeamarks } from '../seamarks';
 import { computeTideState } from '../../lib/tides';
-import { updateFailureState, FailureState } from '../failureModel';
-import { DamageState, DEFAULT_DAMAGE_STATE } from '../../lib/damage';
+import type { FailureState } from '../failureModel';
+import { updateFailureState } from '../failureModel';
+import type { DamageState } from '../../lib/damage';
+import { DEFAULT_DAMAGE_STATE } from '../../lib/damage';
 import {
   applyCollisionDamage,
   applyFailureWear,

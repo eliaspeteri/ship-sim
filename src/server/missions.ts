@@ -8,7 +8,8 @@ import {
   applyEconomyAdjustmentWithRevenueShare,
   ECONOMY_PORTS,
 } from './economy';
-import { bumpReputation, addCareerExperience, CareerKey } from './careers';
+import type { CareerKey } from './careers';
+import { bumpReputation, addCareerExperience } from './careers';
 
 type MissionSeed = Omit<
   MissionDefinition,

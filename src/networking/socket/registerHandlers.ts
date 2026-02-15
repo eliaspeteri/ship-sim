@@ -1,9 +1,9 @@
-import * as GeoJSON from 'geojson';
-import { AccountState } from '../../store';
-import { SocketStoreState } from '../adapters/socketStoreAdapter';
-import { EnvironmentState } from '../../types/environment.types';
-import { MissionAssignmentData } from '../../types/mission.types';
-import {
+import type * as GeoJSON from 'geojson';
+import type { AccountState } from '../../store';
+import type { SocketStoreState } from '../adapters/socketStoreAdapter';
+import type { EnvironmentState } from '../../types/environment.types';
+import type { MissionAssignmentData } from '../../types/mission.types';
+import type {
   ChatHistoryResponse,
   ChatMessageData,
   SimulationUpdateData,
@@ -19,7 +19,7 @@ import {
   normalizeChatHistoryPayload,
   normalizeChatMessage,
 } from './chatProjection';
-import { ClientSocket } from './types';
+import type { ClientSocket } from './types';
 
 type RegisterHandlersParams = {
   socket: ClientSocket;

@@ -10,12 +10,12 @@ import {
   XP_DECIMALS,
 } from '../constants';
 import { formatTransactionReason } from '../format';
-import { EconomyTransaction } from '../types';
-import {
+import type { EconomyTransaction } from '../types';
+import type {
   MissionAssignmentData,
   MissionDefinition,
 } from '../../../types/mission.types';
-import { AccountState } from '../../../store';
+import type { AccountState } from '../../../store';
 
 export function HudMissionsPanel({
   account,

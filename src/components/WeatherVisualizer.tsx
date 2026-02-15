@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import useStore from '../store';
-import { WasmBridge } from '../lib/wasmBridge';
+import type { WasmBridge } from '../lib/wasmBridge';
 import { loadWasm } from '../lib/wasmLoader';
-import { EnvironmentState } from '../types/environment.types';
+import type { EnvironmentState } from '../types/environment.types';
 
 interface WeatherVisualizerProps {
   className?: string;

@@ -20,7 +20,7 @@ import MissionsSection from '../features/economy/sections/MissionsSection';
 import CareersSection from '../features/economy/sections/CareersSection';
 import LicensesSection from '../features/economy/sections/LicensesSection';
 import ReputationSection from '../features/economy/sections/ReputationSection';
-import {
+import type {
   CargoLot,
   CareerStatus,
   EconomyDashboard,

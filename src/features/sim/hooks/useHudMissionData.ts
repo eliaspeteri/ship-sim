@@ -1,7 +1,7 @@
 import React from 'react';
-import { AccountState } from '../../../store';
-import { MissionAssignmentData } from '../../../types/mission.types';
-import { EconomyTransaction, HudTab } from '../../../components/hud/types';
+import type { AccountState } from '../../../store';
+import type { MissionAssignmentData } from '../../../types/mission.types';
+import type { EconomyTransaction, HudTab } from '../../../components/hud/types';
 
 type NoticeState = { type: 'info' | 'error'; message: string } | null;
 

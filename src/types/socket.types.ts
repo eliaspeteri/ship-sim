@@ -1,14 +1,14 @@
-import { EnvironmentState } from './environment.types';
-import {
+import type { EnvironmentState } from './environment.types';
+import type {
   SimpleVesselState,
   VesselControls,
   VesselPose,
   VesselVelocity,
+  CrewStation,
 } from './vessel.types';
-import { AuthenticatedUser } from '../server/middleware/authentication';
+import type { AuthenticatedUser } from '../server/middleware/authentication';
 import type { Role } from '../server/roles';
-import type { CrewStation } from './vessel.types';
-import * as GeoJSON from 'geojson';
+import type * as GeoJSON from 'geojson';
 import type { MissionAssignmentData } from './mission.types';
 
 type ControlUpdate = Partial<Pick<VesselControls, 'throttle' | 'rudderAngle'>>;

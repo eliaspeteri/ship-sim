@@ -1,4 +1,4 @@
-import { EditorLayer, EditorPack } from './types';
+import type { EditorLayer, EditorPack } from './types';
 
 export const editorPacks: EditorPack[] = [
   {

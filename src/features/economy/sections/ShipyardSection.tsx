@@ -1,6 +1,6 @@
 import React from 'react';
 import EconomySectionCard from '../components/EconomySectionCard';
-import { VesselCatalogEntry } from '../types';
+import type { VesselCatalogEntry } from '../types';
 
 type ShipyardSectionProps = {
   catalog: VesselCatalogEntry[];

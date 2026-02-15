@@ -1,6 +1,6 @@
 import React from 'react';
-import { Session } from 'next-auth';
-import { NextRouter } from 'next/router';
+import type { Session } from 'next-auth';
+import type { NextRouter } from 'next/router';
 import { socketManager } from '../../../networking/socket';
 import { initializeSimulation, startSimulation } from '../../../simulation';
 import useStore from '../../../store';

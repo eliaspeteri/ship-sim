@@ -1,10 +1,11 @@
 import React from 'react';
 import { useGLTF } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import * as THREE from 'three';
-import * as GeoJSON from 'geojson';
+import type * as THREE from 'three';
+import type * as GeoJSON from 'geojson';
 import useStore from '../../store';
-import { deriveWaveState, getGerstnerSample, WaveState } from '../../lib/waves';
+import type { WaveState } from '../../lib/waves';
+import { deriveWaveState, getGerstnerSample } from '../../lib/waves';
 import { latLonToXY } from '../../lib/geo';
 
 export function getSeamarkModelPath(

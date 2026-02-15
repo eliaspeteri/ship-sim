@@ -1,4 +1,5 @@
-import React, { JSX } from 'react';
+import type { JSX } from 'react';
+import React from 'react';
 
 interface BarometerProps {
   pressureHpa: number; // Current pressure in hectopascals

@@ -3,7 +3,7 @@
 import React from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import useStore from '../store';
 import Ship from './Ship';
@@ -128,9 +128,11 @@ export default function Scene({ vesselPosition, mode }: SceneProps) {
 
   const lighting = useLightingConfig(envTime);
 
-  const shouldRenderSelf = !isSpectator && !!currentVesselId;
+  const shouldRenderSelf = !isSpectator && Boolean(currentVesselId);
   const shouldRenderSpectatorSelf =
-    isSpectator && !!currentVesselId && !(currentVesselId in otherVessels);
+    isSpectator &&
+    currentVesselId !== null &&
+    !(currentVesselId in otherVessels);
 
   const waveState = React.useMemo(
     () => deriveWaveState(environment),

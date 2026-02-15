@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import EconomySectionCard from '../components/EconomySectionCard';
-import { Exam, License } from '../types';
+import type { Exam, License } from '../types';
 
 type LicensesSectionProps = {
   licenses: License[];

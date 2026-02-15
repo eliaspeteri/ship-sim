@@ -5,7 +5,7 @@ import {
   getSeamarkModelPath,
 } from '../../../../src/components/scene/Seamarks';
 
-const useStoreMock = jest.fn();
+const storeMock = jest.fn();
 const useGLTFMock = jest.fn((..._args: unknown[]) => ({
   scene: { clone: () => ({}) },
 }));
@@ -13,7 +13,7 @@ const useFrameMock = jest.fn();
 
 jest.mock('../../../../src/store', () => ({
   __esModule: true,
-  default: (selector: (state: unknown) => unknown) => useStoreMock(selector),
+  default: (selector: (state: unknown) => unknown) => storeMock(selector),
 }));
 
 jest.mock('@react-three/drei', () => ({
@@ -45,7 +45,7 @@ jest.mock('../../../../src/lib/geo', () => ({
 
 describe('Seamarks', () => {
   beforeEach(() => {
-    useStoreMock.mockReset();
+    storeMock.mockReset();
     useGLTFMock.mockClear();
     useFrameMock.mockClear();
   });
@@ -125,7 +125,7 @@ describe('Seamarks', () => {
       },
       environment: { wind: { speed: 5 }, waves: { height: 1 } },
     };
-    useStoreMock.mockImplementation((selector: (s: unknown) => unknown) =>
+    storeMock.mockImplementation((selector: (s: unknown) => unknown) =>
       selector(state),
     );
 

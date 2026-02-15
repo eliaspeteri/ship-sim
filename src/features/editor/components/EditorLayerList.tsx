@@ -1,5 +1,5 @@
 import React from 'react';
-import { EditorLayer } from '../types';
+import type { EditorLayer } from '../types';
 
 type EditorLayerListProps = {
   layers: EditorLayer[];

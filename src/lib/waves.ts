@@ -1,4 +1,4 @@
-import { EnvironmentState } from '../types/environment.types';
+import type { EnvironmentState } from '../types/environment.types';
 
 export type WaveState = {
   amplitude: number;

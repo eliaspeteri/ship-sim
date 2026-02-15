@@ -1,5 +1,6 @@
 import React from 'react';
-import { ThreeEvent, useThree } from '@react-three/fiber';
+import type { ThreeEvent } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
 export function AdminDragLayer({

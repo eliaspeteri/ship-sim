@@ -1,4 +1,4 @@
-import { VesselState } from '../../../types/vessel.types';
+import type { VesselState } from '../../../types/vessel.types';
 
 export type EcdisRoutePoint = { latitude: number; longitude: number };
 

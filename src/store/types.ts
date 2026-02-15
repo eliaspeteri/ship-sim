@@ -1,4 +1,4 @@
-import * as GeoJSON from 'geojson';
+import type * as GeoJSON from 'geojson';
 import type { Role } from '../server/roles';
 import type { EnvironmentState } from '../types/environment.types';
 import type { EventLogEntry } from '../types/events.types';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { EBL, RadarSettings, VRM, GuardZone } from './types';
+import type { EBL, RadarSettings, VRM, GuardZone } from './types';
 import { PushButton } from '../PushButton';
 import { ChangeoverSwitch } from '../switches';
 import { RotaryDial } from '../dials';

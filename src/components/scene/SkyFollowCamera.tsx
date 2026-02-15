@@ -1,7 +1,7 @@
 import React from 'react';
 import { Sky } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import * as THREE from 'three';
+import type * as THREE from 'three';
 
 export function SkyFollowCamera(
   props: React.ComponentProps<typeof Sky> & { enabled?: boolean },

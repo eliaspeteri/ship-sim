@@ -1,8 +1,6 @@
 import React from 'react';
-import {
-  ConningDisplay,
-  ConningDisplayData,
-} from '../../bridge/ConningDisplay';
+import type { ConningDisplayData } from '../../bridge/ConningDisplay';
+import { ConningDisplay } from '../../bridge/ConningDisplay';
 import { hudStyles as styles } from '../hudStyles';
 
 export function HudConningPanel({

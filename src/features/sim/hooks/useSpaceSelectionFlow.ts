@@ -1,19 +1,16 @@
 import React from 'react';
-import { NextRouter } from 'next/router';
+import type { NextRouter } from 'next/router';
 import { socketManager } from '../../../networking/socket';
 import { getApiBase } from '../../../lib/api';
-import {
-  getDefaultRules,
-  mapToRulesetType,
-  Rules,
-} from '../../../types/rules.types';
-import { ChatMessageData } from '../../../types/socket.types';
+import type { Rules } from '../../../types/rules.types';
+import { getDefaultRules, mapToRulesetType } from '../../../types/rules.types';
+import type { ChatMessageData } from '../../../types/socket.types';
 import {
   DEFAULT_SPACE_ID,
   STORAGE_SPACE_KEY,
   STORAGE_SPACE_SELECTED_KEY,
 } from '../constants';
-import { SpaceFlow, SpaceSummary } from '../types';
+import type { SpaceFlow, SpaceSummary } from '../types';
 
 type UseSpaceSelectionFlowParams = {
   router: NextRouter;

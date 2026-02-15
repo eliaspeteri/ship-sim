@@ -2,9 +2,9 @@
  * Authorization Middleware
  * Provides role-based access control for API routes and socket connections
  */
-import { Request, Response, NextFunction } from 'express';
-import { Socket } from 'socket.io';
-import { AuthenticatedUser } from './authentication';
+import type { Request, Response, NextFunction } from 'express';
+import type { Socket } from 'socket.io';
+import type { AuthenticatedUser } from './authentication';
 
 /**
  * Interface for requests with attached user auth data

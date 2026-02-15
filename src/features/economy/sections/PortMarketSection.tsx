@@ -1,6 +1,6 @@
 import React from 'react';
 import EconomySectionCard from '../components/EconomySectionCard';
-import { CargoLot, EconomyDashboard, PassengerContract } from '../types';
+import type { CargoLot, EconomyDashboard, PassengerContract } from '../types';
 
 type PortMarketSectionProps = {
   dashboard: EconomyDashboard;

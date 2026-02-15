@@ -1,5 +1,5 @@
 import React from 'react';
-import { StatusPanelSchema } from './StatusPanelTypes';
+import type { StatusPanelSchema } from './StatusPanelTypes';
 import { StatusBoxContent } from './StatusBoxContent';
 
 interface RightStatusPanelProps {

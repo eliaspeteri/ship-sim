@@ -2,11 +2,66 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF, Detailed } from '@react-three/drei';
 import * as THREE from 'three';
-import {
-  getCompositeWaveSample,
-  getGerstnerSample,
-  WaveState,
-} from '../lib/waves';
+import type { WaveState } from '../lib/waves';
+import { getCompositeWaveSample, getGerstnerSample } from '../lib/waves';
+
+function ShipModel({ modelPath }: { modelPath: string }): React.ReactElement {
+  const model = useGLTF(modelPath);
+  const [modelLoaded, setModelLoaded] = useState(false);
+
+  useEffect(() => {
+    setModelLoaded(true);
+    model.scene.traverse(child => {
+      const mat = (child as THREE.Mesh).material;
+      if (!mat) return;
+      const collected: THREE.Material[] = [];
+      const collect = (m: THREE.Material | THREE.Material[]) =>
+        Array.isArray(m) ? m.forEach(collect) : collected.push(m);
+      collect(mat);
+      collected.forEach(m => {
+        if ('envMapIntensity' in m) {
+          if (m instanceof THREE.MeshStandardMaterial) {
+            m.envMapIntensity = 1;
+          }
+          m.needsUpdate = true;
+        }
+      });
+    });
+
+    return () => {
+      model.scene.traverse((child: THREE.Object3D) => {
+        if (child instanceof THREE.Mesh) {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            const mats = Array.isArray(child.material)
+              ? child.material
+              : [child.material];
+            mats.forEach((m: THREE.Material) => m.dispose());
+          }
+        }
+      });
+    };
+  }, [model]);
+
+  if (!modelLoaded) return <></>;
+
+  return (
+    <Detailed distances={[0, 50, 300]}>
+      <primitive
+        object={model.scene.clone()}
+        scale={[1, 1, 1]}
+        castShadow
+        receiveShadow
+      />
+      <primitive
+        object={model.scene.clone()}
+        scale={[1, 1, 1]}
+        castShadow
+        receiveShadow
+      />
+    </Detailed>
+  );
+}
 
 interface ShipProps {
   vesselId?: string;
@@ -54,46 +109,6 @@ const Ship: React.FC<ShipProps> = ({
   onSelect,
 }) => {
   const shipRef = useRef<THREE.Group>(null);
-  const [modelLoaded, setModelLoaded] = useState(false);
-  const resolvedModelPath = modelPath;
-  const model = resolvedModelPath ? useGLTF(resolvedModelPath) : null;
-  useEffect(() => {
-    if (model) {
-      setModelLoaded(true);
-      model.scene.traverse(child => {
-        const mat = (child as THREE.Mesh).material;
-        if (!mat) return;
-        const collected: THREE.Material[] = [];
-        const collect = (m: THREE.Material | THREE.Material[]) =>
-          Array.isArray(m) ? m.forEach(collect) : collected.push(m);
-        collect(mat);
-        collected.forEach(m => {
-          if ('envMapIntensity' in m) {
-            if (m instanceof THREE.MeshStandardMaterial) {
-              m.envMapIntensity = 1;
-            }
-            m.needsUpdate = true;
-          }
-        });
-      });
-    }
-
-    return () => {
-      if (model?.scene) {
-        model.scene.traverse((child: THREE.Object3D) => {
-          if (child instanceof THREE.Mesh) {
-            if (child.geometry) child.geometry.dispose();
-            if (child.material) {
-              const mats = Array.isArray(child.material)
-                ? child.material
-                : [child.material];
-              mats.forEach((m: THREE.Material) => m.dispose());
-            }
-          }
-        });
-      }
-    };
-  }, [model]);
 
   useFrame(({ camera }) => {
     const obj = shipRef.current;
@@ -162,22 +177,7 @@ const Ship: React.FC<ShipProps> = ({
         onSelect(vesselId);
       }}
     >
-      {modelLoaded && model?.scene && (
-        <Detailed distances={[0, 50, 300]}>
-          <primitive
-            object={model.scene.clone()}
-            scale={[1, 1, 1]}
-            castShadow
-            receiveShadow
-          />
-          <primitive
-            object={model.scene.clone()}
-            scale={[1, 1, 1]}
-            castShadow
-            receiveShadow
-          />
-        </Detailed>
-      )}
+      {modelPath ? <ShipModel modelPath={modelPath} /> : null}
     </group>
   );
 };

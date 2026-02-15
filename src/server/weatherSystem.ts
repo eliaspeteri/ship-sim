@@ -4,8 +4,8 @@
  */
 
 import { currentUtcTimeOfDay, getEnvironmentForSpace } from '.';
-import { EnvironmentState } from '../types/environment.types';
-import { GlobalState } from './socketHandlers/context';
+import type { EnvironmentState } from '../types/environment.types';
+import type { GlobalState } from './socketHandlers/context';
 
 // Weather pattern definitions
 export interface WeatherPattern {

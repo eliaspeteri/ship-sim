@@ -1,4 +1,5 @@
-import React, { JSX } from 'react';
+import type { JSX } from 'react';
+import React from 'react';
 
 interface InclinometerProps {
   roll: number; // Roll angle in degrees (-ve for Port, +ve for Starboard)

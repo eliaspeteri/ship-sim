@@ -8,7 +8,8 @@ import useStore from '../store';
 import { socketManager } from '../networking/socket';
 import { MAX_CREW } from '../constants/vessel';
 import { positionToXY } from '../lib/position';
-import { getScenarios, ScenarioDefinition } from '../lib/scenarios';
+import type { ScenarioDefinition } from '../lib/scenarios';
+import { getScenarios } from '../lib/scenarios';
 import { getApiBase } from '../lib/api';
 import { bboxAroundLatLon, setGeoOrigin } from '../lib/geo';
 import {
@@ -56,7 +57,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
   const setSeamarks = useStore(state => state.setSeamarks);
 
   const sessionRole = (session?.user as { role?: string } | undefined)?.role;
-  const isAuthed = status === 'authenticated' && !!session;
+  const isAuthed = status === 'authenticated' && Boolean(session);
   const canEnterPlayerMode =
     sessionRole === 'admin' ||
     sessionRole === 'player' ||
@@ -270,7 +271,7 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     heading: vessel.orientation.heading || 0,
   };
 
-  const showHelmControl = !!userId && crewIds.includes(userId);
+  const showHelmControl = userId !== null && crewIds.includes(userId);
   const helmLabel =
     vessel.helm?.userId === userId
       ? 'Release Helm'

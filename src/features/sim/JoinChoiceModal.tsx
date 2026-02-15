@@ -1,6 +1,6 @@
 import React from 'react';
 import { simStyles as styles } from './simStyles';
-import { ScenarioDefinition } from '../../lib/scenarios';
+import type { ScenarioDefinition } from '../../lib/scenarios';
 
 type Port = { name: string; position: { lat: number; lon: number } };
 

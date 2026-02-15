@@ -1,11 +1,11 @@
 import { ensurePosition } from '../../lib/position';
-import { SocketStoreState } from '../adapters/socketStoreAdapter';
-import { EnvironmentState } from '../../types/environment.types';
-import {
+import type { SocketStoreState } from '../adapters/socketStoreAdapter';
+import type { EnvironmentState } from '../../types/environment.types';
+import type {
   SimulationUpdateData,
   VesselTeleportData,
 } from '../../types/socket.types';
-import { SimpleVesselState } from '../../types/vessel.types';
+import type { SimpleVesselState } from '../../types/vessel.types';
 import {
   hasMoreFromSimulationCount,
   hasVesselChanged,

@@ -17,15 +17,16 @@ jest.mock(
   '../../../../../src/features/editor/components/EditorRenderer',
   () => {
     const ReactLocal = require('react');
+    const MockEditorRenderer = (props: EditorRendererProps) => {
+      mockEditorRenderer(props);
+      ReactLocal.useEffect(() => {
+        props.onHeadingChange?.(123.4);
+      }, [props.onHeadingChange]);
+      return <div data-testid="editor-renderer" />;
+    };
     return {
       __esModule: true,
-      default: (props: EditorRendererProps) => {
-        mockEditorRenderer(props);
-        ReactLocal.useEffect(() => {
-          props.onHeadingChange?.(123.4);
-        }, [props.onHeadingChange]);
-        return <div data-testid="editor-renderer" />;
-      },
+      default: MockEditorRenderer,
     };
   },
 );

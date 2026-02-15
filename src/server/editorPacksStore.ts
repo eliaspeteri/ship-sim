@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { EditorWorkArea } from '../features/editor/types';
+import type { EditorWorkArea } from '../features/editor/types';
 
 type PackStatus = 'draft' | 'submitted' | 'published';
 type PackRole = 'owner' | 'editor' | 'viewer';

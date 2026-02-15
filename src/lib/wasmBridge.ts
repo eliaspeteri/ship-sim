@@ -1,4 +1,4 @@
-import { WasmModule } from '../types/wasm';
+import type { WasmModule } from '../types/wasm';
 
 export type CreateVesselInput = {
   position: { x: number; y: number; z: number };

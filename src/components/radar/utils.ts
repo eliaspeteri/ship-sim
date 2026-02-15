@@ -1,4 +1,4 @@
-import { RadarBand, RadarEnvironment, RadarTarget } from './types';
+import type { RadarBand, RadarEnvironment, RadarTarget } from './types';
 
 // Convert polar coordinates (distance, bearing) to Cartesian (x, y)
 export const polarToCartesian = (

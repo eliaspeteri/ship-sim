@@ -1,6 +1,6 @@
 import React from 'react';
 import EconomySectionCard from '../components/EconomySectionCard';
-import { EconomyDashboard } from '../types';
+import type { EconomyDashboard } from '../types';
 
 type InsuranceSectionProps = {
   dashboard: EconomyDashboard;

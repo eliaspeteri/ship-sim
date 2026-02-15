@@ -1,7 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { getToken } from 'next-auth/jwt';
-import { expandRoles, permissionsForRoles, Role, Permission } from '../roles';
+import type { Role, Permission } from '../roles';
+import { expandRoles, permissionsForRoles } from '../roles';
 
 export interface AuthenticatedUser {
   userId: string;

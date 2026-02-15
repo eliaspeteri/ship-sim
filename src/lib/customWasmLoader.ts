@@ -1,4 +1,4 @@
-import { WasmModule } from '../types/wasm';
+import type { WasmModule } from '../types/wasm';
 
 let wasmInstance: WasmModule | null = null;
 const textDecoder = new globalThis.TextDecoder('utf-16le');

@@ -1,6 +1,6 @@
 import useStore from '../store';
 import { loadWasm } from '../lib/wasmLoader';
-import { CreateVesselInput, WasmBridge } from '../lib/wasmBridge';
+import type { CreateVesselInput, WasmBridge } from '../lib/wasmBridge';
 import type { VesselState } from '../types/vessel.types';
 import type { DeepPartial } from '../types/utility';
 import { safe } from '../lib/safe';
@@ -180,14 +180,14 @@ export class SimulationLoop {
         lat: position.lat,
         lon: position.lon,
       });
-      const isRestoring = !!(
+      const isRestoring = Boolean(
         initialX ||
-        initialY ||
-        position?.z ||
-        initialSurge ||
-        initialSway ||
-        initialHeave ||
-        initialThrottle
+          initialY ||
+          position?.z ||
+          initialSurge ||
+          initialSway ||
+          initialHeave ||
+          initialThrottle,
       );
       const surge = isRestoring ? initialSurge : 0;
       const sway = isRestoring ? initialSway : 0;

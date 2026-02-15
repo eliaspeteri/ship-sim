@@ -1,16 +1,16 @@
-import { Server } from 'socket.io';
+import type { Server } from 'socket.io';
+import type { VesselRecord } from '.';
 import {
   economyLedger,
   getRulesForSpace,
   io as serverIo,
   persistVesselToDb,
   syncUserSocketsEconomy,
-  VesselRecord,
 } from '.';
 import { distanceMeters, positionFromXY } from '../lib/position';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { VesselPose } from '../types/vessel.types';
+import type { VesselPose } from '../types/vessel.types';
 
 // --- Economy charging model (tunable knobs) ---
 // Treat these as "design constants" you can tweak without changing behavior shape.

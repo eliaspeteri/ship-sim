@@ -1,4 +1,4 @@
-import { OverlayTileKey } from './overlayStreaming';
+import type { OverlayTileKey } from './overlayStreaming';
 
 export type CompilationInput = {
   packId: string;

@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import EconomySectionCard from '../components/EconomySectionCard';
-import { EconomyDashboard } from '../types';
+import type { EconomyDashboard } from '../types';
 
 type MissionsSectionProps = {
   dashboard: EconomyDashboard;

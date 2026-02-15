@@ -1,19 +1,19 @@
 import React from 'react';
-import {
+import type {
   AISTarget,
   ARPASettings,
   ARPATarget,
   EBL,
   GuardZone,
-  RadarDisplay,
   RadarSettings,
   RadarTarget,
   VRM,
 } from '../../radar';
+import { RadarDisplay } from '../../radar';
 import { hudStyles as styles } from '../hudStyles';
 import { RADAR_DISPLAY_SIZE_PX } from '../constants';
-import { OwnShipData } from '../../radar/arpa';
-import { RadarEnvironment } from '../../radar/types';
+import type { OwnShipData } from '../../radar/arpa';
+import type { RadarEnvironment } from '../../radar/types';
 
 export function HudRadarPanel({
   radarSettings,
