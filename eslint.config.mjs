@@ -199,6 +199,12 @@ export default [
       // Type/import hygiene
       '@typescript-eslint/consistent-type-imports': 'warn',
       '@typescript-eslint/no-unnecessary-condition': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
+      '@typescript-eslint/switch-exhaustiveness-check': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/strict-boolean-expressions': 'off',
 
       // Module hygiene
       'import/no-cycle': 'warn',
@@ -239,6 +245,28 @@ export default [
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
       '@typescript-eslint/no-unnecessary-condition': 'warn',
+      '@typescript-eslint/ban-ts-comment': [
+        'warn',
+        {
+          'ts-expect-error': 'allow-with-description',
+          minimumDescriptionLength: 6,
+        },
+      ],
+      '@typescript-eslint/switch-exhaustiveness-check': 'warn',
+      '@typescript-eslint/no-unsafe-assignment': 'warn',
+      '@typescript-eslint/no-unsafe-member-access': 'warn',
+      '@typescript-eslint/no-unsafe-return': 'warn',
+      '@typescript-eslint/strict-boolean-expressions': [
+        'warn',
+        {
+          allowNullableBoolean: true,
+          allowNullableString: false,
+          allowNullableNumber: false,
+          allowNullableObject: true,
+          allowNumber: false,
+          allowString: false,
+        },
+      ],
     },
   },
 
