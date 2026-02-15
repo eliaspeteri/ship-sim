@@ -36,6 +36,9 @@ const compat = new FlatCompat({
 const pluginConfigs = compat.extends(
   'plugin:react/recommended',
   'plugin:@typescript-eslint/recommended',
+  'plugin:react-hooks/recommended',
+  'plugin:import/recommended',
+  'plugin:import/typescript',
   'prettier',
 );
 
@@ -175,6 +178,41 @@ export default [
       // Keep control flow and signatures readable by default.
       'max-depth': ['warn', 3],
       'max-params': ['warn', 3],
+      eqeqeq: ['error', 'always'],
+      'no-implicit-coercion': 'warn',
+      'react-hooks/immutability': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/globals': 'off',
+      'react-hooks/preserve-manual-memoization': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+      'import/no-unresolved': [
+        'error',
+        {
+          ignore: ['^geojson$', '^\\.\\./types/wasm$'],
+        },
+      ],
+
+      // Async safety
+      '@typescript-eslint/no-floating-promises': 'off',
+      '@typescript-eslint/no-misused-promises': 'off',
+
+      // Type/import hygiene
+      '@typescript-eslint/consistent-type-imports': 'warn',
+      '@typescript-eslint/no-unnecessary-condition': 'off',
+
+      // Module hygiene
+      'import/no-cycle': 'warn',
+      'import/no-unused-modules': 'off',
+
+      // Safer iteration semantics over plain for..in.
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector: 'ForInStatement',
+          message:
+            'Avoid for..in due to prototype-chain iteration risk; use Object.keys/Object.entries instead.',
+        },
+      ],
 
       // Tailwind-first guardrail: avoid new CSS module imports.
       'no-restricted-imports': [
@@ -191,6 +229,31 @@ export default [
     files: ['src/lib/wasmBridge.ts', 'src/lib/customWasmLoader.ts'],
     rules: {
       'max-params': 'off',
+    },
+  },
+
+  // Type-aware linting is expensive; scope it to TS files.
+  {
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: __dirname,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'warn',
+      '@typescript-eslint/no-misused-promises': 'warn',
+    },
+  },
+
+  // Playwright specs are not part of the TS project service graph.
+  {
+    files: ['tests/playwright/**/*.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+      },
     },
   },
 
@@ -234,6 +297,12 @@ export default [
       ],
       'max-depth': 'off',
       'max-params': 'off',
+      '@typescript-eslint/no-floating-promises': 'off',
+      '@typescript-eslint/no-misused-promises': 'off',
+      '@typescript-eslint/consistent-type-imports': 'off',
+      'import/no-cycle': 'off',
+      'no-implicit-coercion': 'off',
+      eqeqeq: 'off',
     },
     languageOptions: {
       globals: {
