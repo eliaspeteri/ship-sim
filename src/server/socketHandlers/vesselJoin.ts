@@ -42,8 +42,7 @@ export function registerVesselJoinHandler({
     const currentUserId = socket.data.userId || effectiveUserId;
     const currentUsername = socket.data.username || effectiveUsername;
     const rules = getRulesForSpace(spaceId) as { type?: RulesetType };
-    const rankEligible =
-      (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
+    const rankEligible = socket.data.rank >= spaceMeta.rankRequired;
     if (!isPlayerOrHigher()) {
       socket.emit('error', 'Not authorized to join a vessel');
       return;
@@ -51,7 +50,7 @@ export function registerVesselJoinHandler({
     if (!rankEligible) {
       socket.emit(
         'error',
-        `Rank ${spaceMeta.rankRequired ?? 1} required for this space`,
+        `Rank ${spaceMeta.rankRequired} required for this space`,
       );
       return;
     }
@@ -163,8 +162,7 @@ export function registerVesselJoinHandler({
     const currentUserId = socket.data.userId || effectiveUserId;
     const currentUsername = socket.data.username || effectiveUsername;
     const rules = getRulesForSpace(spaceId) as { type?: RulesetType };
-    const rankEligible =
-      (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
+    const rankEligible = socket.data.rank >= spaceMeta.rankRequired;
     if (!isPlayerOrHigher()) {
       socket.emit('error', 'Not authorized to create a vessel');
       return;
@@ -172,7 +170,7 @@ export function registerVesselJoinHandler({
     if (!rankEligible) {
       socket.emit(
         'error',
-        `Rank ${spaceMeta.rankRequired ?? 1} required for this space`,
+        `Rank ${spaceMeta.rankRequired} required for this space`,
       );
       return;
     }

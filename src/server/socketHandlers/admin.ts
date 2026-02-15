@@ -39,7 +39,7 @@ export function registerAdminHandlers({
       socket.emit('error', 'Not authorized to stop vessels');
       return;
     }
-    if (!data?.vesselId) {
+    if (!data.vesselId) {
       socket.emit('error', 'Missing vessel id');
       return;
     }
@@ -71,7 +71,7 @@ export function registerAdminHandlers({
       socket.emit('error', 'Not authorized to kick users');
       return;
     }
-    if (!data?.userId) {
+    if (!data.userId) {
       socket.emit('error', 'Missing user id for kick');
       return;
     }
@@ -96,7 +96,7 @@ export function registerAdminHandlers({
       socket.emit('error', 'Not authorized to remove vessels');
       return;
     }
-    if (!data?.vesselId) {
+    if (!data.vesselId) {
       socket.emit('error', 'Missing vessel id');
       return;
     }
@@ -127,7 +127,7 @@ export function registerAdminHandlers({
       socket.emit('error', 'Not authorized to move vessels');
       return;
     }
-    if (!data?.vesselId) {
+    if (!data.vesselId) {
       socket.emit('error', 'Missing vessel id');
       return;
     }
@@ -139,11 +139,10 @@ export function registerAdminHandlers({
     }
     const next = data.position;
     if (
-      !next ||
-      (next.lat === undefined &&
-        next.lon === undefined &&
-        next.x === undefined &&
-        next.y === undefined)
+      next.lat === undefined &&
+      next.lon === undefined &&
+      next.x === undefined &&
+      next.y === undefined
     ) {
       socket.emit('error', 'Missing position data');
       return;

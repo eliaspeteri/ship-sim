@@ -279,52 +279,47 @@ export async function updateMissionAssignments(params: {
       continue;
     }
 
-    if (progress.stage === 'delivery') {
-      const distance = distanceMeters(vessel.position, destPos);
-      if (distance <= MISSION_DELIVERY_RADIUS_M) {
-        const updated = await prisma.missionAssignment.update({
-          where: { id: assignment.id },
-          data: { status: 'completed', completedAt: new Date(), progress },
-        });
-        const profile = await applyEconomyAdjustmentWithRevenueShare({
-          userId: assignment.userId,
-          vesselId: assignment.vesselId,
-          deltaCredits: mission.rewardCredits,
-          deltaExperience: mission.rewardCredits,
-          reason: 'mission_reward',
-          meta: { missionId: mission.id, name: mission.name },
-        });
-        const careerKey =
-          mission.type === 'delivery' || mission.type === 'harbor-entry'
-            ? 'cargo'
-            : mission.type === 'towing'
-              ? 'tug'
-              : 'pilotage';
-        await addCareerExperience({
-          userId: assignment.userId,
-          careerId: careerKey as CareerKey,
-          experience: Math.round(mission.rewardCredits),
-        });
-        await maybeAwardNearbyPortReputation(
-          assignment.userId,
-          vessel.position,
-        );
-        const normalizedUpdated = toMissionAssignmentData(updated);
-        params.emitUpdate?.(assignment.userId, {
-          ...normalizedUpdated,
-          mission,
-        });
-        params.emitEconomyUpdate?.(assignment.userId, profile);
-        params.emitUpdate?.(assignment.userId, {
-          ...normalizedUpdated,
-          mission,
-          progress: {
-            ...progress,
-            awardedCredits: mission.rewardCredits,
-            newRank: profile.rank,
-          },
-        });
-      }
+    const distance = distanceMeters(vessel.position, destPos);
+    if (distance <= MISSION_DELIVERY_RADIUS_M) {
+      const updated = await prisma.missionAssignment.update({
+        where: { id: assignment.id },
+        data: { status: 'completed', completedAt: new Date(), progress },
+      });
+      const profile = await applyEconomyAdjustmentWithRevenueShare({
+        userId: assignment.userId,
+        vesselId: assignment.vesselId,
+        deltaCredits: mission.rewardCredits,
+        deltaExperience: mission.rewardCredits,
+        reason: 'mission_reward',
+        meta: { missionId: mission.id, name: mission.name },
+      });
+      const careerKey =
+        mission.type === 'harbor-entry'
+          ? 'cargo'
+          : mission.type === 'towing'
+            ? 'tug'
+            : 'pilotage';
+      await addCareerExperience({
+        userId: assignment.userId,
+        careerId: careerKey as CareerKey,
+        experience: Math.round(mission.rewardCredits),
+      });
+      await maybeAwardNearbyPortReputation(assignment.userId, vessel.position);
+      const normalizedUpdated = toMissionAssignmentData(updated);
+      params.emitUpdate?.(assignment.userId, {
+        ...normalizedUpdated,
+        mission,
+      });
+      params.emitEconomyUpdate?.(assignment.userId, profile);
+      params.emitUpdate?.(assignment.userId, {
+        ...normalizedUpdated,
+        mission,
+        progress: {
+          ...progress,
+          awardedCredits: mission.rewardCredits,
+          newRank: profile.rank,
+        },
+      });
     }
   }
 }

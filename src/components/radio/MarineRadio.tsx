@@ -82,7 +82,9 @@ export function MarineRadio({
 
   const setChannelByNumber = useCallback(
     (channelNumber: number, frequency: number) => {
-      const index = MARINE_CHANNELS.findIndex(ch => ch.number === channelNumber);
+      const index = MARINE_CHANNELS.findIndex(
+        ch => ch.number === channelNumber,
+      );
       if (index < 0) return;
       dispatch({ type: 'setChannelIndex', index });
       onChannelChange?.(channelNumber, frequency);
@@ -93,7 +95,12 @@ export function MarineRadio({
 
   const handleChannelDialChange = useCallback(
     (dialValue: number) => {
-      if (!state.powerOn || disabled || state.transmitting || state.distressActive) {
+      if (
+        !state.powerOn ||
+        disabled ||
+        state.transmitting ||
+        state.distressActive
+      ) {
         return;
       }
       const maxIndex = MARINE_CHANNELS.length - 1;
@@ -290,13 +297,22 @@ export function MarineRadio({
     ],
   );
 
-  const formatPosition = useCallback((coord: number, isLat: boolean): string => {
-    const abs = Math.abs(coord);
-    const degrees = Math.floor(abs);
-    const minutes = ((abs - degrees) * 60).toFixed(3);
-    const direction = isLat ? (coord >= 0 ? 'N' : 'S') : coord >= 0 ? 'E' : 'W';
-    return `${degrees.toString().padStart(2, '0')}°${minutes.padStart(6, '0')}'${direction}`;
-  }, []);
+  const formatPosition = useCallback(
+    (coord: number, isLat: boolean): string => {
+      const abs = Math.abs(coord);
+      const degrees = Math.floor(abs);
+      const minutes = ((abs - degrees) * 60).toFixed(3);
+      const direction = isLat
+        ? coord >= 0
+          ? 'N'
+          : 'S'
+        : coord >= 0
+          ? 'E'
+          : 'W';
+      return `${degrees.toString().padStart(2, '0')}°${minutes.padStart(6, '0')}'${direction}`;
+    },
+    [],
+  );
 
   const channelDialValue =
     (state.currentChannelIndex / (MARINE_CHANNELS.length - 1)) * 100;

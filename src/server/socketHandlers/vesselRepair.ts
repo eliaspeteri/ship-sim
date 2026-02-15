@@ -28,10 +28,7 @@ const applyInsuranceRepairPayout = async (params: {
   }
   const payout = Math.max(
     0,
-    Math.min(
-      params.repairCost - (policy.deductible ?? 0),
-      policy.coverage ?? 0,
-    ),
+    Math.min(params.repairCost - policy.deductible, policy.coverage),
   );
   if (payout <= 0) {
     return 0;
@@ -65,19 +62,19 @@ export function registerVesselRepairHandler({
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
     const vesselKey =
-      data?.vesselId ||
+      data.vesselId ||
       getVesselIdForUser(currentUserId, spaceId) ||
       currentUserId;
     const target = globalState.vessels.get(vesselKey);
     if (!target || (target.spaceId || defaultSpaceId) !== spaceId) {
-      callback?.({ ok: false, message: 'Vessel not found' });
+      callback({ ok: false, message: 'Vessel not found' });
       return;
     }
 
     const isCrew = target.crewIds.has(currentUserId);
     const isAdmin = hasAdminRole(socket);
     if (!isCrew && !isAdmin) {
-      callback?.({
+      callback({
         ok: false,
         message: 'Not authorized to repair this vessel',
       });
@@ -86,7 +83,7 @@ export function registerVesselRepairHandler({
 
     const speed = Math.hypot(target.velocity.surge, target.velocity.sway);
     if (speed > 0.2) {
-      callback?.({ ok: false, message: 'Stop the vessel before repairs' });
+      callback({ ok: false, message: 'Stop the vessel before repairs' });
       return;
     }
 
@@ -95,13 +92,13 @@ export function registerVesselRepairHandler({
     );
     const cost = computeRepairCost(damageState);
     if (cost <= 0) {
-      callback?.({ ok: true, message: 'No repairs needed' });
+      callback({ ok: true, message: 'No repairs needed' });
       return;
     }
 
     const chargeUserId = resolveChargeUserId(target);
     if (!chargeUserId) {
-      callback?.({ ok: false, message: 'Unable to bill repairs' });
+      callback({ ok: false, message: 'Unable to bill repairs' });
       return;
     }
 
@@ -139,10 +136,10 @@ export function registerVesselRepairHandler({
         partial: true,
         timestamp: Date.now(),
       });
-      callback?.({ ok: true, message: `Repairs complete (${cost} cr)` });
+      callback({ ok: true, message: `Repairs complete (${cost} cr)` });
     } catch (err) {
       console.error('Failed to repair vessel', err);
-      callback?.({ ok: false, message: 'Repair failed' });
+      callback({ ok: false, message: 'Repair failed' });
     }
   });
 }

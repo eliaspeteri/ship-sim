@@ -25,18 +25,24 @@ export const deriveWaveState = (
   environment: EnvironmentState,
   opts: { fallbackDirection?: number } = {},
 ): WaveState => {
-  const seaState = Math.max(0, Math.min(environment.seaState ?? 0, 12));
-  const windSpeed = environment.wind?.speed ?? 0;
+  const env = environment as Partial<EnvironmentState> & {
+    wind?: { speed?: number; direction?: number };
+  };
+  const seaState = Math.max(0, Math.min(environment.seaState, 12));
+  const windSpeed = typeof env.wind?.speed === 'number' ? env.wind.speed : 0;
   const waveHeight = clamp(0.2 + seaState * 0.5 + windSpeed * 0.05, 0, 8);
   const amplitude = waveHeight / 2;
   const wavelength =
     environment.waveLength ??
     clamp(30 + seaState * 35 + windSpeed * 4, 12, 600);
-  const direction =
-    environment.waveDirection ??
-    environment.wind?.direction ??
-    opts.fallbackDirection ??
-    0;
+  let direction = 0;
+  if (typeof environment.waveDirection === 'number') {
+    direction = environment.waveDirection;
+  } else if (typeof env.wind?.direction === 'number') {
+    direction = env.wind.direction;
+  } else if (typeof opts.fallbackDirection === 'number') {
+    direction = opts.fallbackDirection;
+  }
   const k = (2 * Math.PI) / Math.max(1, wavelength);
   const speed = Math.sqrt(9.81 / k);
   const omega = speed * k;

@@ -50,7 +50,7 @@ export const registerMissionRoutes = ({
         typeof req.query.spaceId === 'string'
           ? req.query.spaceId
           : DEFAULT_SPACE_ID;
-      const rank = user.rank ?? 1;
+      const rank = user.rank;
       try {
         const missions = (await prisma.mission.findMany({
           where: {
@@ -86,7 +86,7 @@ export const registerMissionRoutes = ({
           res.status(404).json({ error: 'Mission not found' });
           return;
         }
-        const rank = user.rank ?? 1;
+        const rank = user.rank;
         if (!user.roles.includes('admin') && rank < mission.requiredRank) {
           res.status(403).json({ error: 'Rank too low for this mission' });
           return;
@@ -154,7 +154,7 @@ export const registerMissionRoutes = ({
       res.status(404).json({ error: 'Scenario not found' });
       return;
     }
-    const rank = user.rank ?? 1;
+    const rank = user.rank;
     if (!user.roles.includes('admin') && rank < scenario.rankRequired) {
       res.status(403).json({ error: 'Rank too low for this scenario' });
       return;

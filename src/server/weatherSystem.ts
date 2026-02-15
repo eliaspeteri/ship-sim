@@ -46,7 +46,7 @@ export const applyWeatherPattern = (
     seaState: Math.round(pattern.seaState),
     waterDepth: pattern.waterDepth,
     visibility: pattern.visibility,
-    timeOfDay: pattern.timeOfDay ?? env.timeOfDay ?? currentUtcTimeOfDay(),
+    timeOfDay: pattern.timeOfDay ?? env.timeOfDay,
     precipitation: pattern.precipitation,
     precipitationIntensity: pattern.precipitationIntensity,
     tideHeight: env.tideHeight,
@@ -232,8 +232,8 @@ export function getWeatherByCoordinates(
 
 // Select a specific weather preset or random
 export function getWeatherPattern(pattern?: string): WeatherPattern {
-  if (pattern && weatherPresets[pattern]) {
-    return weatherPresets[pattern];
+  if (pattern) {
+    return weatherPresets[pattern] ?? generateRandomWeather();
   }
   return generateRandomWeather();
 }

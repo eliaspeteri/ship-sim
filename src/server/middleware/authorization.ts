@@ -135,7 +135,7 @@ export function requireSelfOrRole(
       return;
     }
 
-    const subjectId = req.params?.[paramKey];
+    const subjectId = req.params[paramKey];
     if (!subjectId) {
       res.status(400).json({
         error: 'Bad Request',
@@ -174,13 +174,10 @@ export function socketHasPermission(
   resource: string,
   action: string,
 ): boolean {
-  const userData = socket.data as AuthenticatedUser;
-
-  // No user data means no permission
+  const userData = socket.data as Partial<AuthenticatedUser> | undefined;
   if (!userData || !userData.permissions) {
     return false;
   }
-
   return hasPermission(userData.permissions, resource, action);
 }
 
@@ -195,13 +192,15 @@ export function createSocketPermissionMiddleware(
   action: string,
 ) {
   return (socket: Socket, next: (err?: Error) => void) => {
-    const userData = socket.data as AuthenticatedUser;
-
-    // If no user data or not authenticated, reject
+    const userData = socket.data as Partial<AuthenticatedUser> | undefined;
     if (!userData) {
       return next(new Error('Authentication required'));
     }
+    if (!userData.permissions) {
+      return next(new Error('Insufficient permissions'));
+    }
 
+    // If no user data or not authenticated, reject
     // Check if user has required permission
     if (hasPermission(userData.permissions, resource, action)) {
       return next();

@@ -34,8 +34,7 @@ const ui = {
     'cursor-pointer border-0 bg-transparent text-sm leading-none text-[rgba(210,224,230,0.8)]',
   grid: 'grid gap-1.5',
   row: 'flex justify-between gap-3',
-  label:
-    'text-[10px] uppercase tracking-[0.12em] text-[rgba(150,168,182,0.7)]',
+  label: 'text-[10px] uppercase tracking-[0.12em] text-[rgba(150,168,182,0.7)]',
   value: 'text-xs font-semibold text-[#eef7f8]',
   footer: 'mt-2.5 grid gap-2',
   link: 'text-xs text-[#7fd5e2] no-underline',
@@ -44,8 +43,7 @@ const ui = {
     'cursor-pointer rounded-lg border-0 px-2.5 py-1.5 text-[11px] font-semibold text-[#f1f7f8]',
   actionPrimary: 'bg-gradient-to-br from-[#1b9aaa] to-[#0f6d75]',
   actionDanger: 'bg-[rgba(120,36,32,0.85)]',
-  actionGhost:
-    'border border-[rgba(60,88,104,0.7)] bg-[rgba(30,50,68,0.7)]',
+  actionGhost: 'border border-[rgba(60,88,104,0.7)] bg-[rgba(30,50,68,0.7)]',
 };
 
 const VesselCallout: React.FC<VesselCalloutProps> = ({

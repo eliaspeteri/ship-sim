@@ -118,7 +118,7 @@ export const getPortCongestion = async () => {
   );
   return ports.map(port => {
     const cap = PORT_CAPACITY[port.size as keyof typeof PORT_CAPACITY];
-    const target = cap?.max ?? 10;
+    const target = cap.max;
     const cargo = Number(cargoMap.get(port.id) ?? 0);
     const pax = Number(paxMap.get(port.id) ?? 0);
     const load = cargo + pax * 1.5;
@@ -139,14 +139,13 @@ export const ensureCargoAvailability = async (now: number) => {
 
   for (const port of ECONOMY_PORTS) {
     const caps = PORT_CAPACITY[port.size as keyof typeof PORT_CAPACITY];
-    const target = caps?.min ?? 6;
+    const target = caps.min;
     const existing = await prisma.cargoLot.count({
       where: { portId: port.id, status: 'listed' },
     });
     const needed = Math.max(0, target - existing);
     if (needed === 0) continue;
-    const cargoTypes =
-      REGION_CARGO_TYPES[port.region] || REGION_CARGO_TYPES.default;
+    const cargoTypes = REGION_CARGO_TYPES[port.region];
     const createData = Array.from({ length: needed }).map(() => {
       const cargoType = pick(cargoTypes);
       const weightTons = buildCargoWeight(cargoType);
@@ -181,7 +180,7 @@ export const ensurePassengerAvailability = async (now: number) => {
   for (const port of ECONOMY_PORTS) {
     const caps =
       PASSENGER_CAPACITY[port.size as keyof typeof PASSENGER_CAPACITY];
-    const target = caps?.min ?? 4;
+    const target = caps.min;
     const existing = await prisma.passengerContract.count({
       where: { originPortId: port.id, status: 'listed' },
     });
@@ -242,7 +241,7 @@ export const sweepExpiredCargo = async (now: number) => {
         value: lot.value,
         rewardCredits: lot.rewardCredits || Math.round(lot.value * 1.1),
         weightTons: lot.weightTons,
-        liabilityRate: lot.liabilityRate ?? 0,
+        liabilityRate: lot.liabilityRate,
         status: 'listed',
         expiresAt: buildCargoExpiry(),
       },

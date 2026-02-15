@@ -153,10 +153,10 @@ export async function getEconomyProfile(
   } | null;
   if (!record) return { ...DEFAULT_ECONOMY };
   return {
-    rank: record.rank ?? DEFAULT_ECONOMY.rank,
-    experience: record.experience ?? DEFAULT_ECONOMY.experience,
-    credits: record.credits ?? DEFAULT_ECONOMY.credits,
-    safetyScore: record.safetyScore ?? DEFAULT_ECONOMY.safetyScore,
+    rank: record.rank,
+    experience: record.experience,
+    credits: record.credits,
+    safetyScore: record.safetyScore,
   };
 }
 
@@ -220,9 +220,7 @@ const msToIntervals = (dtMs: number) => dtMs / ECONOMY_CHARGE_INTERVAL_MS;
 
 // If you already have a knots helper elsewhere, use it. This is safe.
 const speedKnotsForVessel = (v: VesselRecord) => {
-  const speedMs = Math.sqrt(
-    (v.velocity.surge ?? 0) ** 2 + (v.velocity.sway ?? 0) ** 2,
-  );
+  const speedMs = Math.sqrt(v.velocity.surge ** 2 + v.velocity.sway ** 2);
   return speedMs * 1.94384; // m/s -> knots
 };
 
@@ -231,7 +229,7 @@ type VesselOpState = 'idle' | 'drifting' | 'underway';
 
 const classifyVesselOpState = (v: VesselRecord): VesselOpState => {
   const kts = speedKnotsForVessel(v);
-  const throttle = Math.abs(v.controls.throttle ?? 0);
+  const throttle = Math.abs(v.controls.throttle);
 
   if (kts < ECONOMY_IDLE_SPEED_KTS && throttle < ECONOMY_THROTTLE_EPS)
     return 'idle';
@@ -311,7 +309,7 @@ const applyCrewWages = async (
     where: { vesselId: vessel.id, status: 'active', releasedAt: null },
   });
   for (const contract of contracts) {
-    const wage = (contract.wageRate ?? 0) * intervals;
+    const wage = contract.wageRate * intervals;
     if (wage <= 0) continue;
     if (contract.userId !== chargeUserId) {
       const crewProfile = await applyEconomyAdjustment({
@@ -418,7 +416,7 @@ const applyInsurancePremiums = async (
     },
   });
   for (const policy of policies) {
-    if ((policy.premiumRate ?? 0) <= 0) continue;
+    if (policy.premiumRate <= 0) continue;
     const profile = await applyEconomyAdjustment({
       userId: vessel.ownerId,
       vesselId: vessel.id,
@@ -444,13 +442,13 @@ const applyLeaseCharges = async (
     where: { vesselId: vessel.id, status: 'active' },
   });
   if (!lease?.lesseeId) return;
-  const lastCharged =
-    lease.lastChargedAt?.getTime() || lease.startedAt?.getTime() || 0;
+  const startedAtMs = lease.startedAt?.getTime() ?? now;
+  const lastCharged = lease.lastChargedAt?.getTime() ?? startedAtMs;
   const dt = now - lastCharged;
   if (dt < LEASE_CHARGE_INTERVAL_MS) return;
   const intervals = Math.floor(dt / LEASE_CHARGE_INTERVAL_MS);
   if (intervals <= 0) return;
-  const charge = (lease.ratePerHour ?? 0) * intervals;
+  const charge = lease.ratePerHour * intervals;
   if (charge <= 0) return;
   const payerProfile = await applyEconomyAdjustment({
     userId: lease.lesseeId,
@@ -524,7 +522,7 @@ const applyCargoLiability = async (
     where: { vesselId: vessel.id, status: 'loaded' },
   });
   for (const lot of cargo) {
-    if ((lot.liabilityRate ?? 0) <= 0) continue;
+    if (lot.liabilityRate <= 0) continue;
     if (!lot.ownerId) continue;
     const cost = lot.value * lot.liabilityRate * intervals;
     if (cost <= 0) continue;
@@ -571,9 +569,7 @@ export const applyEconomyAdjustmentWithRevenueShare = async (
       reason: 'crew_share',
       meta: { source: adjustment.reason, vesselId: adjustment.vesselId },
     });
-    if (emitter) {
-      emitter.to(`user:${contract.userId}`).emit('economy:update', crewProfile);
-    }
+    emitter.to(`user:${contract.userId}`).emit('economy:update', crewProfile);
     void syncUserSocketsEconomy(contract.userId, crewProfile);
   }
   const lease = await prisma.vesselLease.findFirst({
@@ -585,10 +581,7 @@ export const applyEconomyAdjustmentWithRevenueShare = async (
   });
   if (lease && lease.ownerId !== adjustment.userId) {
     const remaining = Math.max(0, deltaCredits - totalShare);
-    const leaseShare = Math.min(
-      remaining,
-      deltaCredits * (lease.revenueShare ?? 0),
-    );
+    const leaseShare = Math.min(remaining, deltaCredits * lease.revenueShare);
     if (leaseShare > 0) {
       totalShare += leaseShare;
       const ownerProfile = await applyEconomyAdjustment({
@@ -598,11 +591,7 @@ export const applyEconomyAdjustmentWithRevenueShare = async (
         reason: 'lease_share',
         meta: { source: adjustment.reason, leaseId: lease.id },
       });
-      if (emitter) {
-        emitter
-          .to(`user:${lease.ownerId}`)
-          .emit('economy:update', ownerProfile);
-      }
+      emitter.to(`user:${lease.ownerId}`).emit('economy:update', ownerProfile);
       void syncUserSocketsEconomy(lease.ownerId, ownerProfile);
     }
   }
@@ -649,7 +638,7 @@ export const updateEconomyForVessel = async (
 
   // --- Determine op state ---
   const opState = classifyVesselOpState(vessel);
-  const throttle = vessel.controls.throttle ?? 0;
+  const throttle = vessel.controls.throttle;
   const usageFactor = Math.abs(throttle);
   const intervals = msToIntervals(dt);
   const stored = isVesselStored(vessel);
@@ -695,21 +684,17 @@ export const updateEconomyForVessel = async (
   // This clamps the charge to available credits, and can trigger auto-stop behavior.
   if (rawCost > 0) {
     // Fetch current credits once so we can clamp and optionally auto-stop.
-    const currentProfile = await getEconomyProfile(chargeUserId).catch(
-      () => null,
-    );
+    const currentProfile = await getEconomyProfile(chargeUserId);
 
     let costToCharge = rawCost;
 
-    if (ECONOMY_OVERDRAFT_GUARD && currentProfile) {
-      const available = currentProfile.credits ?? 0;
-      // Allow a tiny overdraft buffer if you want, or set 0 to never go negative.
-      const overdraftBuffer = 0;
-      costToCharge = Math.min(
-        costToCharge,
-        Math.max(0, available + overdraftBuffer),
-      );
-    }
+    const available = currentProfile.credits;
+    // Allow a tiny overdraft buffer if you want, or set 0 to never go negative.
+    const overdraftBuffer = 0;
+    costToCharge = Math.min(
+      costToCharge,
+      Math.max(0, available + overdraftBuffer),
+    );
 
     if (costToCharge > 0) {
       const profile = await applyEconomyAdjustment({
@@ -733,10 +718,10 @@ export const updateEconomyForVessel = async (
       // Safety valve: if they hit 0 credits, prevent runaway "offline burn"
       const rules = getRulesForSpace(vessel.spaceId || 'global');
       const shouldAutoStop =
-        rules.economy?.autoStopOnEmpty === true &&
-        (profile.credits ?? 0) <= 0 &&
+        rules.economy.autoStopOnEmpty === true &&
+        profile.credits <= 0 &&
         (vessel.mode === 'ai' || vessel.crewIds.size === 0) &&
-        (Math.abs(vessel.controls.throttle ?? 0) > 0 || opState !== 'idle');
+        (Math.abs(vessel.controls.throttle) > 0 || opState !== 'idle');
       if (shouldAutoStop) {
         // Force the vessel into a safe state (you can make AI bring to halt too)
         vessel.controls.throttle = 0;

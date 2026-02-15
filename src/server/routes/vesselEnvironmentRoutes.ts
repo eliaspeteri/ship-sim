@@ -103,7 +103,7 @@ const toVesselDetail = (vessel: NonNullable<VesselRow>) => ({
   ownerId: vessel.ownerId,
   mode: vessel.mode,
   desiredMode: vessel.desiredMode,
-  lastCrewAt: vessel.lastCrewAt?.getTime() ?? null,
+  lastCrewAt: vessel.lastCrewAt.getTime(),
   position: { lat: vessel.lat, lon: vessel.lon, z: vessel.z },
   orientation: {
     heading: vessel.heading,
@@ -118,8 +118,8 @@ const toVesselDetail = (vessel: NonNullable<VesselRow>) => ({
   controls: {
     throttle: vessel.throttle,
     rudderAngle: vessel.rudderAngle,
-    ballast: vessel.ballast ?? 0.5,
-    bowThruster: vessel.bowThruster ?? 0,
+    ballast: vessel.ballast,
+    bowThruster: vessel.bowThruster,
   },
   properties: {
     mass: vessel.mass,
@@ -127,8 +127,8 @@ const toVesselDetail = (vessel: NonNullable<VesselRow>) => ({
     beam: vessel.beam,
     draft: vessel.draft,
   },
-  yawRate: vessel.yawRate ?? 0,
-  lastUpdate: vessel.lastUpdate?.getTime() ?? null,
+  yawRate: vessel.yawRate,
+  lastUpdate: vessel.lastUpdate.getTime(),
   isAi: vessel.isAi,
 });
 
@@ -149,15 +149,15 @@ const toUnifiedVesselState = (vessel: NonNullable<VesselRow>): VesselState => ({
     heave: vessel.heave,
   },
   angularVelocity: {
-    yaw: vessel.yawRate ?? 0,
+    yaw: vessel.yawRate,
     roll: 0,
     pitch: 0,
   },
   controls: {
     throttle: vessel.throttle,
     rudderAngle: vessel.rudderAngle,
-    ballast: vessel.ballast ?? 0.5,
-    bowThruster: vessel.bowThruster ?? 0,
+    ballast: vessel.ballast,
+    bowThruster: vessel.bowThruster,
   },
   properties: {
     name: vessel.id,
@@ -250,7 +250,7 @@ export const registerVesselEnvironmentRoutes = ({
           ownerId: vessel.ownerId,
           mode: vessel.mode,
           isAi: vessel.isAi,
-          lastUpdate: vessel.lastUpdate?.getTime() ?? null,
+          lastUpdate: vessel.lastUpdate.getTime(),
           position: {
             lat: vessel.lat,
             lon: vessel.lon,
@@ -504,7 +504,7 @@ export const registerVesselEnvironmentRoutes = ({
         }
         const runAt = new Date(req.body?.runAt);
         const endAt = req.body?.endAt ? new Date(req.body.endAt) : null;
-        if (!runAt || Number.isNaN(runAt.getTime())) {
+        if (Number.isNaN(runAt.getTime())) {
           res.status(400).json({ error: 'runAt must be a valid date' });
           return;
         }

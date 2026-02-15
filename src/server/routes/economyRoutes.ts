@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import type { Router, RequestHandler, Request, Response } from 'express';
 import type { prisma as prismaClient } from '../../lib/prisma';
-import { positionFromLatLon, positionFromXY } from '../../lib/position';
+import { positionFromLatLon } from '../../lib/position';
 import {
   ECONOMY_PORTS,
   getEconomyProfile,
@@ -87,15 +87,15 @@ export const registerEconomyRoutes = ({
   }) => {
     const template = resolveVesselTemplate(templateId);
     const port = resolvePortById(portId);
-    const position = port?.position || positionFromXY({ x: 0, y: 0 });
+    const position = port.position;
     const now = new Date();
-    const storedAtValue = status === 'stored' ? (storedAt ?? now) : null;
+    const storedAtValue = status === 'stored' ? storedAt || now : null;
     return {
       id,
       spaceId,
       ownerId,
       status,
-      storagePortId: storagePortId ?? port?.id ?? null,
+      storagePortId: storagePortId ?? port.id,
       storedAt: storedAtValue,
       chartererId: chartererId ?? null,
       leaseeId: leaseeId ?? null,
@@ -103,9 +103,9 @@ export const registerEconomyRoutes = ({
       mode: 'ai',
       desiredMode: 'player',
       lastCrewAt: now,
-      lat: position.lat ?? 0,
-      lon: position.lon ?? 0,
-      z: position.z ?? 0,
+      lat: position.lat,
+      lon: position.lon,
+      z: position.z,
       heading: 0,
       roll: 0,
       pitch: 0,
@@ -179,9 +179,9 @@ export const registerEconomyRoutes = ({
         const profile = await getEconomyProfile(user.userId);
         const fleet = await loadUserFleet(user.userId);
         const activeVessel = fleet[0];
-        const currentPort = activeVessel
-          ? resolvePortForPosition(toVesselPosition(activeVessel))
-          : null;
+        const currentPort = resolvePortForPosition(
+          toVesselPosition(activeVessel),
+        );
         const congestion = await getPortCongestion();
         const congestionMap = new Map(
           congestion.map(item => [item.portId, item.congestion]),
@@ -497,9 +497,9 @@ export const registerEconomyRoutes = ({
               leaseeId: vessel.leaseeId ?? null,
               crewIds: new Set<string>(),
               crewNames: new Map<string, string>(),
-              mode: (vessel.mode as 'player' | 'ai') || 'ai',
-              desiredMode: (vessel.desiredMode as 'player' | 'ai') || 'player',
-              lastCrewAt: vessel.lastCrewAt?.getTime() || Date.now(),
+              mode: vessel.mode as 'player' | 'ai',
+              desiredMode: vessel.desiredMode as 'player' | 'ai',
+              lastCrewAt: vessel.lastCrewAt.getTime(),
               position: toVesselPosition(vessel),
               orientation: {
                 heading: vessel.heading,
@@ -520,8 +520,8 @@ export const registerEconomyRoutes = ({
               controls: {
                 throttle: vessel.throttle,
                 rudderAngle: vessel.rudderAngle,
-                ballast: vessel.ballast ?? 0.5,
-                bowThruster: vessel.bowThruster ?? 0,
+                ballast: vessel.ballast,
+                bowThruster: vessel.bowThruster,
               },
               lastUpdate: vessel.lastUpdate.getTime(),
             });
@@ -592,9 +592,9 @@ export const registerEconomyRoutes = ({
         leaseeId: vessel.leaseeId ?? null,
         crewIds: new Set<string>(),
         crewNames: new Map<string, string>(),
-        mode: (vessel.mode as 'player' | 'ai') || 'ai',
-        desiredMode: (vessel.desiredMode as 'player' | 'ai') || 'player',
-        lastCrewAt: vessel.lastCrewAt?.getTime() || Date.now(),
+        mode: vessel.mode as 'player' | 'ai',
+        desiredMode: vessel.desiredMode as 'player' | 'ai',
+        lastCrewAt: vessel.lastCrewAt.getTime(),
         position: toVesselPosition(vessel),
         orientation: {
           heading: vessel.heading,
@@ -615,13 +615,13 @@ export const registerEconomyRoutes = ({
         controls: {
           throttle: vessel.throttle,
           rudderAngle: vessel.rudderAngle,
-          ballast: vessel.ballast ?? 0.5,
-          bowThruster: vessel.bowThruster ?? 0,
+          ballast: vessel.ballast,
+          bowThruster: vessel.bowThruster,
         },
         lastUpdate: vessel.lastUpdate.getTime(),
       });
       const currentWeight = loaded._sum.weightTons ?? 0;
-      if (currentWeight + (cargo.weightTons ?? 0) > capacityTons) {
+      if (currentWeight + cargo.weightTons > capacityTons) {
         res.status(400).json({ error: 'Cargo exceeds vessel capacity' });
         return;
       }
@@ -709,9 +709,9 @@ export const registerEconomyRoutes = ({
             leaseeId: vessel.leaseeId ?? null,
             crewIds: new Set<string>(),
             crewNames: new Map<string, string>(),
-            mode: (vessel.mode as 'player' | 'ai') || 'ai',
-            desiredMode: (vessel.desiredMode as 'player' | 'ai') || 'player',
-            lastCrewAt: vessel.lastCrewAt?.getTime() || Date.now(),
+            mode: vessel.mode as 'player' | 'ai',
+            desiredMode: vessel.desiredMode as 'player' | 'ai',
+            lastCrewAt: vessel.lastCrewAt.getTime(),
             position: toVesselPosition(vessel),
             orientation: {
               heading: vessel.heading,
@@ -732,8 +732,8 @@ export const registerEconomyRoutes = ({
             controls: {
               throttle: vessel.throttle,
               rudderAngle: vessel.rudderAngle,
-              ballast: vessel.ballast ?? 0.5,
-              bowThruster: vessel.bowThruster ?? 0,
+              ballast: vessel.ballast,
+              bowThruster: vessel.bowThruster,
             },
             lastUpdate: vessel.lastUpdate.getTime(),
           });
@@ -799,9 +799,9 @@ export const registerEconomyRoutes = ({
         leaseeId: vessel.leaseeId ?? null,
         crewIds: new Set<string>(),
         crewNames: new Map<string, string>(),
-        mode: (vessel.mode as 'player' | 'ai') || 'ai',
-        desiredMode: (vessel.desiredMode as 'player' | 'ai') || 'player',
-        lastCrewAt: vessel.lastCrewAt?.getTime() || Date.now(),
+        mode: vessel.mode as 'player' | 'ai',
+        desiredMode: vessel.desiredMode as 'player' | 'ai',
+        lastCrewAt: vessel.lastCrewAt.getTime(),
         position: toVesselPosition(vessel),
         orientation: {
           heading: vessel.heading,
@@ -822,8 +822,8 @@ export const registerEconomyRoutes = ({
         controls: {
           throttle: vessel.throttle,
           rudderAngle: vessel.rudderAngle,
-          ballast: vessel.ballast ?? 0.5,
-          bowThruster: vessel.bowThruster ?? 0,
+          ballast: vessel.ballast,
+          bowThruster: vessel.bowThruster,
         },
         lastUpdate: vessel.lastUpdate.getTime(),
       });
@@ -890,7 +890,7 @@ export const registerEconomyRoutes = ({
         res.status(400).json({ error: 'Invalid loan amount' });
         return;
       }
-      const rank = user.rank ?? 1;
+      const rank = Number.isFinite(user.rank) ? user.rank : 1;
       const maxLoan = 5000 + rank * 2000;
       const existing = await prisma.loan.aggregate({
         where: { userId: user.userId, status: 'active' },

@@ -32,8 +32,8 @@ const getTokenFromRequest = (req: Request): string | undefined => {
     return header.slice('Bearer '.length).trim();
   }
   return (
-    req.cookies?.['next-auth.session-token'] ||
-    req.cookies?.['__Secure-next-auth.session-token']
+    req.cookies['next-auth.session-token'] ||
+    req.cookies['__Secure-next-auth.session-token']
   );
 };
 

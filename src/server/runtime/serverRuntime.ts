@@ -380,8 +380,8 @@ const applyCollisionDamageIfEnabled = (
 ) => {
   if (!damageEnabled) return;
   const relSpeed = Math.hypot(
-    (a.velocity.surge ?? 0) - (b.velocity.surge ?? 0),
-    (a.velocity.sway ?? 0) - (b.velocity.sway ?? 0),
+    a.velocity.surge - b.velocity.surge,
+    a.velocity.sway - b.velocity.sway,
   );
   const severity = Math.min(1, relSpeed / 6);
   a.damageState = applyCollisionDamage(
@@ -405,7 +405,7 @@ const applyColregsRules = async (spaceId: string, now: number) => {
       }
     | undefined;
   const realismRules = getRulesForSpace(spaceId);
-  const damageEnabled = realismRules.realism?.damage === true;
+  const damageEnabled = realismRules.realism.damage === true;
   if (!rules?.colregs) return;
   const vessels = Array.from(globalState.vessels.values()).filter(
     v => (v.spaceId || DEFAULT_SPACE_ID) === spaceId && v.mode === 'player',
@@ -559,9 +559,9 @@ export async function persistVesselToDb(
         leaseeId: vessel.leaseeId ?? null,
         templateId: vessel.templateId ?? null,
         mode: vessel.mode,
-        desiredMode: vessel.desiredMode || 'player',
-        lat: pos.lat ?? 0,
-        lon: pos.lon ?? 0,
+        desiredMode: vessel.desiredMode,
+        lat: pos.lat,
+        lon: pos.lon,
         z: pos.z,
         heading: vessel.orientation.heading,
         roll: vessel.orientation.roll,
@@ -572,7 +572,7 @@ export async function persistVesselToDb(
         yawRate: vessel.yawRate ?? 0,
         throttle: vessel.controls.throttle,
         rudderAngle: vessel.controls.rudderAngle,
-        ballast: vessel.controls.ballast ?? 0.5,
+        ballast: vessel.controls.ballast,
         bowThruster: vessel.controls.bowThruster ?? 0,
         mass: vessel.properties.mass,
         length: vessel.properties.length,
@@ -598,9 +598,9 @@ export async function persistVesselToDb(
         leaseeId: vessel.leaseeId ?? null,
         templateId: vessel.templateId ?? null,
         mode: vessel.mode,
-        desiredMode: vessel.desiredMode || 'player',
-        lat: pos.lat ?? 0,
-        lon: pos.lon ?? 0,
+        desiredMode: vessel.desiredMode,
+        lat: pos.lat,
+        lon: pos.lon,
         z: pos.z,
         heading: vessel.orientation.heading,
         roll: vessel.orientation.roll,
@@ -611,7 +611,7 @@ export async function persistVesselToDb(
         yawRate: vessel.yawRate ?? 0,
         throttle: vessel.controls.throttle,
         rudderAngle: vessel.controls.rudderAngle,
-        ballast: vessel.controls.ballast ?? 0.5,
+        ballast: vessel.controls.ballast,
         bowThruster: vessel.controls.bowThruster ?? 0,
         mass: vessel.properties.mass,
         length: vessel.properties.length,
@@ -688,8 +688,8 @@ const buildVesselRecordFromRow = (row: {
     engineUsername: null,
     radioUserId: null,
     radioUsername: null,
-    mode: (row.mode as VesselMode) || 'ai',
-    desiredMode: (row.desiredMode as VesselMode) || 'player',
+    mode: row.mode as VesselMode,
+    desiredMode: row.desiredMode as VesselMode,
     lastCrewAt: row.lastCrewAt?.getTime() || Date.now(),
     templateId: template.id,
     position: positionFromLatLon({ lat: row.lat, lon: row.lon, z: row.z }),
@@ -793,7 +793,7 @@ async function loadEnvironmentFromDb(spaceId = DEFAULT_SPACE_ID) {
       seaState: row.seaState,
       waterDepth: row.waterDepth ?? undefined,
       visibility: row.visibility ?? undefined,
-      timeOfDay: row.timeOfDay ?? currentUtcTimeOfDay(),
+      timeOfDay: row.timeOfDay,
       precipitation:
         (row.precipitation as EnvironmentState['precipitation']) || 'none',
       precipitationIntensity: row.precipitationIntensity ?? 0,
@@ -847,7 +847,7 @@ async function persistEnvironmentToDb(
         seaState: Math.round(env.seaState),
         waterDepth: env.waterDepth ?? null,
         visibility: env.visibility ?? null,
-        timeOfDay: env.timeOfDay ?? currentUtcTimeOfDay(),
+        timeOfDay: env.timeOfDay,
         precipitation: env.precipitation || 'none',
         precipitationIntensity: env.precipitationIntensity ?? 0,
       },
@@ -865,7 +865,7 @@ async function persistEnvironmentToDb(
         seaState: Math.round(env.seaState),
         waterDepth: env.waterDepth ?? null,
         visibility: env.visibility ?? null,
-        timeOfDay: env.timeOfDay ?? currentUtcTimeOfDay(),
+        timeOfDay: env.timeOfDay,
         precipitation: env.precipitation || 'none',
         precipitationIntensity: env.precipitationIntensity ?? 0,
       },
@@ -1258,7 +1258,7 @@ function ensureVesselForUser(
         `Reassigning user ${username} to their last vessel ${lastId}`,
       );
       // Restore desired mode; if player, add crew back
-      lastVessel.mode = lastVessel.desiredMode || 'player';
+      lastVessel.mode = lastVessel.desiredMode;
       if (lastVessel.mode === 'player') {
         lastVessel.crewIds.add(userId);
         lastVessel.crewNames.set(userId, username);
@@ -1284,7 +1284,7 @@ function ensureVesselForUser(
     console.info(
       `Reassigning user ${username} to existing crewed vessel ${existing.id}`,
     );
-    existing.mode = existing.desiredMode || existing.mode;
+    existing.mode = existing.desiredMode;
     if (existing.mode === 'player') {
       existing.crewIds.add(userId);
       existing.crewNames.set(userId, username);
@@ -1733,7 +1733,10 @@ io.use(async (socket, next) => {
         decoded.email ||
         `na_${Math.random().toString(36).slice(2, 8)}`;
       const username = decoded.name || decoded.email || 'NextAuthUser';
-      const baseRole: Role = (decoded.role as Role) || 'player';
+      const baseRole: Role =
+        decoded.role === 'admin' || decoded.role === 'spectator'
+          ? decoded.role
+          : 'player';
       const roles = expandRoles(
         Array.from(
           new Set([
@@ -1806,31 +1809,40 @@ io.use(async (socket, next) => {
 
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 io.on('connection', async socket => {
-  const { userId, username, roles, spaceId: socketSpaceId } = socket.data;
+  const socketData = socket.data as typeof socket.data & {
+    rank?: number;
+    credits?: number;
+    experience?: number;
+    safetyScore?: number;
+    roles?: Role[];
+  };
+  const { userId, username, spaceId: socketSpaceId } = socketData;
   const spaceId = socketSpaceId || DEFAULT_SPACE_ID;
   const effectiveUserId =
     userId || `guest_${Math.random().toString(36).substring(2, 9)}`;
   const effectiveUsername = username || 'Guest';
-  if (socket.data.rank === undefined && effectiveUserId) {
+  const rankFromSocket = socketData.rank;
+  if (typeof rankFromSocket !== 'number') {
     const account =
       (await getEconomyProfile(effectiveUserId).catch(() => null)) ||
       DEFAULT_ECONOMY_PROFILE;
-    socket.data.rank = account.rank;
-    socket.data.credits = account.credits;
-    socket.data.experience = account.experience;
-    socket.data.safetyScore = account.safetyScore;
+    socketData.rank = account.rank;
+    socketData.credits = account.credits;
+    socketData.experience = account.experience;
+    socketData.safetyScore = account.safetyScore;
   }
   if (!socket.data.spaceRole) {
     socket.data.spaceRole = await getSpaceRole(effectiveUserId, spaceId);
   }
   const spaceMeta = await getSpaceMeta(spaceId);
-  const roleSet = new Set(roles || []);
+  const roles: Role[] = socketData.roles ?? ['guest'];
+  const roleSet = new Set(roles);
   const isPlayerOrHigher = roleSet.has('player') || roleSet.has('admin');
   const isSpectatorOnly = roleSet.has('spectator') && !isPlayerOrHigher;
   const isGuest = !isPlayerOrHigher && !roleSet.has('spectator');
   const requestedMode = socket.data.mode || 'player';
   const autoJoin = !(socket.data.autoJoin === false);
-  const rankEligible = (socket.data.rank ?? 1) >= (spaceMeta.rankRequired ?? 1);
+  const rankEligible = socketData.rank >= spaceMeta.rankRequired;
   const wantsSpectator =
     requestedMode === 'spectator' ||
     !autoJoin ||
@@ -1875,7 +1887,7 @@ io.on('connection', async socket => {
   if (!rankEligible && isPlayerOrHigher) {
     socket.emit(
       'error',
-      `Rank ${socket.data.rank ?? 1} required to join ${spaceMeta.name}`,
+      `Rank ${socketData.rank} required to join ${spaceMeta.name}`,
     );
   }
 
@@ -1950,8 +1962,8 @@ io.on('connection', async socket => {
     effectiveUsername,
     roleSet,
     isPlayerOrHigher: () =>
-      (socket.data.roles || []).includes('player') ||
-      (socket.data.roles || []).includes('admin'),
+      socket.data.roles.includes('player') ||
+      socket.data.roles.includes('admin'),
     isSpectatorOnly,
     isGuest,
     spaceMeta: {
@@ -2062,13 +2074,11 @@ io.on('connection', async socket => {
       timestamp: Date.now(),
       self: {
         userId: effectiveUserId,
-        roles: roles || ['guest'],
-        rank: socket.data.rank ?? DEFAULT_ECONOMY_PROFILE.rank,
-        credits: socket.data.credits ?? DEFAULT_ECONOMY_PROFILE.credits,
-        experience:
-          socket.data.experience ?? DEFAULT_ECONOMY_PROFILE.experience,
-        safetyScore:
-          socket.data.safetyScore ?? DEFAULT_ECONOMY_PROFILE.safetyScore,
+        roles,
+        rank: socketData.rank,
+        credits: socketData.credits,
+        experience: socketData.experience,
+        safetyScore: socketData.safetyScore,
         spaceId,
         mode: (socket.data as { mode?: 'player' | 'spectator' }).mode,
         vesselId: vessel?.id || socket.data.vesselId,
@@ -2112,7 +2122,7 @@ io.on('connection', async socket => {
   socket.on('user:auth', async data => {
     const prevUserId = socket.data.userId || effectiveUserId;
     const prevUsername = socket.data.username || effectiveUsername;
-    const rawToken = data?.token || null;
+    const rawToken = data.token || null;
     const currentSpace = socket.data.spaceId || spaceId || DEFAULT_SPACE_ID;
 
     if (!rawToken || !NEXTAUTH_SECRET) {
@@ -2166,12 +2176,15 @@ io.on('connection', async socket => {
       const nextUserId =
         decoded.sub ||
         decoded.email ||
-        data?.userId ||
+        data.userId ||
         prevUserId ||
         `na_${Math.random().toString(36).slice(2, 8)}`;
       const nextUsername =
-        decoded.name || decoded.email || data?.username || prevUsername;
-      const baseRole: Role = (decoded.role as Role) || 'player';
+        decoded.name || decoded.email || data.username || prevUsername;
+      const baseRole: Role =
+        decoded.role === 'admin' || decoded.role === 'spectator'
+          ? decoded.role
+          : 'player';
       const roles = expandRoles(
         Array.from(
           new Set([
@@ -2354,7 +2367,7 @@ async function processEnvironmentEvents() {
       let env = currentEnv;
       if (event.pattern) {
         const pattern = getWeatherPattern(event.pattern);
-        pattern.timeOfDay = env.timeOfDay ?? currentUtcTimeOfDay();
+        pattern.timeOfDay = env.timeOfDay;
         env = applyWeatherPattern(spaceId, pattern, globalState);
       }
       if (event.payload) {
@@ -2401,7 +2414,7 @@ async function processEnvironmentEvents() {
         );
       } else {
         const pattern = getWeatherPattern();
-        pattern.timeOfDay = env.timeOfDay ?? currentUtcTimeOfDay();
+        pattern.timeOfDay = env.timeOfDay;
         env = applyWeatherPattern(spaceId, pattern, globalState);
       }
       io.to(`space:${spaceId}`).emit('environment:update', env);
@@ -2479,7 +2492,6 @@ function stopRuntimeLoops() {
 // Broadcast authoritative snapshots at a throttled rate (5Hz)
 let lastBroadcastAt = Date.now();
 const broadcastTick = async () => {
-  if (!io) return;
   const broadcastStart = Date.now();
   const now = Date.now();
   const drift = now - lastBroadcastAt;
@@ -2503,7 +2515,7 @@ const broadcastTick = async () => {
   const env = getEnvironmentForSpace(DEFAULT_SPACE_ID);
   if (weatherMode === 'auto') {
     const nextTime = currentUtcTimeOfDay();
-    if (Math.abs((env.timeOfDay ?? 0) - nextTime) > 1e-3) {
+    if (Math.abs(env.timeOfDay - nextTime) > 1e-3) {
       env.timeOfDay = nextTime;
       environmentChanged = true;
     }

@@ -6,15 +6,23 @@ export function registerClientLogHandler({
   defaultSpaceId,
 }: SocketHandlerContext) {
   socket.on('client:log', data => {
-    if (!data || typeof data.message !== 'string') return;
+    const meta = data.meta ?? {};
+
+    if (typeof data.message !== 'string') return;
     recordLog({
-      level: data.level || 'info',
-      source: data.source || 'client',
+      level: typeof data.level === 'string' ? data.level : 'info',
+      source: typeof data.source === 'string' ? data.source : 'client',
       message: data.message,
       meta: {
-        ...((data.meta as Record<string, unknown>) || {}),
-        userId: socket.data.userId || 'unknown',
-        spaceId: socket.data.spaceId || defaultSpaceId,
+        ...meta,
+        userId:
+          typeof socket.data.userId === 'string'
+            ? socket.data.userId
+            : 'unknown',
+        spaceId:
+          typeof socket.data.spaceId === 'string'
+            ? socket.data.spaceId
+            : defaultSpaceId,
       },
     });
   });

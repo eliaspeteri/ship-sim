@@ -17,7 +17,7 @@ export function registerVesselStorageHandler({
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
     const vesselId =
-      data?.vesselId ||
+      data.vesselId ||
       getVesselIdForUser(currentUserId, spaceId) ||
       currentUserId;
     const vessel = globalState.vessels.get(vesselId);
@@ -33,7 +33,7 @@ export function registerVesselStorageHandler({
       socket.emit('error', 'Not authorized to store this vessel');
       return;
     }
-    const action = data?.action === 'activate' ? 'activate' : 'store';
+    const action = data.action === 'activate' ? 'activate' : 'store';
     if (action === 'store') {
       const port = resolvePortForPosition(vessel.position);
       if (!port) {

@@ -13,12 +13,12 @@ export function registerEconomyHandlers({
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
     void (async () => {
-      const amount = Number(data?.amount);
+      const amount = Number(data.amount);
       if (!Number.isFinite(amount) || amount <= 0) {
         socket.emit('error', 'Invalid loan amount');
         return;
       }
-      const rank = socket.data.rank ?? 1;
+      const rank = socket.data.rank;
       const maxLoan = 5000 + rank * 2000;
       const existing = await prisma.loan.aggregate({
         where: { userId: currentUserId, status: 'active' },
@@ -30,11 +30,11 @@ export function registerEconomyHandlers({
         return;
       }
       const termDays =
-        Number.isFinite(data?.termDays) && Number(data.termDays) > 0
+        Number.isFinite(data.termDays) && Number(data.termDays) > 0
           ? Number(data.termDays)
           : 14;
       const interestRate =
-        Number.isFinite(data?.interestRate) && Number(data.interestRate) > 0
+        Number.isFinite(data.interestRate) && Number(data.interestRate) > 0
           ? Number(data.interestRate)
           : 0.08;
       const loan = await prisma.loan.create({
@@ -65,8 +65,8 @@ export function registerEconomyHandlers({
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
     void (async () => {
-      const loanId = data?.loanId;
-      const amount = Number(data?.amount);
+      const loanId = data.loanId;
+      const amount = Number(data.amount);
       if (!loanId || typeof loanId !== 'string') {
         socket.emit('error', 'Missing loan id');
         return;
@@ -116,7 +116,7 @@ export function registerEconomyHandlers({
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
     void (async () => {
-      const vesselId = data?.vesselId;
+      const vesselId = data.vesselId;
       if (!vesselId || typeof vesselId !== 'string') {
         socket.emit('error', 'Missing vessel id');
         return;
@@ -126,9 +126,9 @@ export function registerEconomyHandlers({
         socket.emit('error', 'Not authorized to insure this vessel');
         return;
       }
-      const coverage = Number(data?.coverage);
-      const deductible = Number(data?.deductible);
-      const premiumRate = Number(data?.premiumRate);
+      const coverage = Number(data.coverage);
+      const deductible = Number(data.deductible);
+      const premiumRate = Number(data.premiumRate);
       if (
         !Number.isFinite(coverage) ||
         coverage <= 0 ||
@@ -141,7 +141,7 @@ export function registerEconomyHandlers({
         return;
       }
       const termDays =
-        Number.isFinite(data?.termDays) && Number(data.termDays) > 0
+        Number.isFinite(data.termDays) && Number(data.termDays) > 0
           ? Number(data.termDays)
           : 30;
       const policy = await prisma.insurancePolicy.create({
@@ -149,7 +149,7 @@ export function registerEconomyHandlers({
           vesselId,
           ownerId: currentUserId,
           type:
-            data?.type === 'loss' || data?.type === 'salvage'
+            data.type === 'loss' || data.type === 'salvage'
               ? data.type
               : 'damage',
           coverage,
@@ -180,7 +180,7 @@ export function registerEconomyHandlers({
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
     void (async () => {
-      const policyId = data?.policyId;
+      const policyId = data.policyId;
       if (!policyId || typeof policyId !== 'string') {
         socket.emit('error', 'Missing policy id');
         return;

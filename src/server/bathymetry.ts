@@ -75,7 +75,7 @@ const addToIndex = (polyIndex: number, poly: PolygonRecord) => {
 const buildPolygon = (rings: Ring[], depth: number): PolygonRecord | null => {
   if (!rings.length) return null;
   const outer = rings[0];
-  if (!outer || outer.length < 3) return null;
+  if (outer.length < 3) return null;
   let minLat = Infinity;
   let maxLat = -Infinity;
   let minLon = Infinity;
@@ -171,7 +171,6 @@ export function getBathymetryDepth(
   let matched = false;
   for (const idx of candidates) {
     const poly = polygons[idx];
-    if (!poly) continue;
     if (pointInPolygon(lat, lon, poly)) {
       matched = true;
       depth = Math.min(depth, poly.depth);

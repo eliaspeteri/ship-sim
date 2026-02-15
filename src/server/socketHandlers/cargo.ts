@@ -13,33 +13,33 @@ export function registerCargoHandlers({
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
     void (async () => {
-      const value = Number(data?.value);
+      const value = Number(data.value);
       if (!Number.isFinite(value) || value <= 0) {
         socket.emit('error', 'Invalid cargo value');
         return;
       }
-      const weightTons = Number(data?.weightTons ?? 0);
+      const weightTons = Number(data.weightTons ?? 0);
       if (!Number.isFinite(weightTons) || weightTons < 0) {
         socket.emit('error', 'Invalid cargo weight');
         return;
       }
-      const rewardCredits = Number(data?.rewardCredits ?? value);
+      const rewardCredits = Number(data.rewardCredits ?? value);
       if (!Number.isFinite(rewardCredits) || rewardCredits <= 0) {
         socket.emit('error', 'Invalid cargo reward');
         return;
       }
       const vesselId =
-        data?.vesselId && typeof data.vesselId === 'string'
+        data.vesselId && typeof data.vesselId === 'string'
           ? data.vesselId
           : null;
       let portId =
-        data?.portId && typeof data.portId === 'string' ? data.portId : null;
+        data.portId && typeof data.portId === 'string' ? data.portId : null;
       let originPortId =
-        data?.originPortId && typeof data.originPortId === 'string'
+        data.originPortId && typeof data.originPortId === 'string'
           ? data.originPortId
           : null;
       const destinationPortId =
-        data?.destinationPortId && typeof data.destinationPortId === 'string'
+        data.destinationPortId && typeof data.destinationPortId === 'string'
           ? data.destinationPortId
           : null;
       if (vesselId) {
@@ -67,13 +67,13 @@ export function registerCargoHandlers({
         return;
       }
       const cargoType =
-        typeof data?.cargoType === 'string' ? data.cargoType : 'bulk';
+        typeof data.cargoType === 'string' ? data.cargoType : 'bulk';
       const expiresAt =
-        Number.isFinite(data?.expiresAt) && Number(data.expiresAt) > 0
+        Number.isFinite(data.expiresAt) && Number(data.expiresAt) > 0
           ? new Date(Number(data.expiresAt))
           : null;
       const liabilityRate =
-        data?.liabilityRate !== undefined ? Number(data.liabilityRate) : 0;
+        data.liabilityRate !== undefined ? Number(data.liabilityRate) : 0;
       await prisma.cargoLot.create({
         data: {
           ownerId: currentUserId,
@@ -83,7 +83,7 @@ export function registerCargoHandlers({
           originPortId,
           destinationPortId,
           description:
-            typeof data?.description === 'string' ? data.description : null,
+            typeof data.description === 'string' ? data.description : null,
           cargoType,
           value,
           rewardCredits,
@@ -106,8 +106,8 @@ export function registerCargoHandlers({
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
     void (async () => {
-      const cargoId = data?.cargoId;
-      const vesselId = data?.vesselId;
+      const cargoId = data.cargoId;
+      const vesselId = data.vesselId;
       if (!cargoId || !vesselId) {
         socket.emit('error', 'Missing cargo or vessel id');
         return;
@@ -143,7 +143,7 @@ export function registerCargoHandlers({
       });
       const currentWeight = loadedCargo._sum.weightTons ?? 0;
       const capacityTons = getVesselCargoCapacityTons(vessel);
-      if (currentWeight + (cargo.weightTons ?? 0) > capacityTons) {
+      if (currentWeight + cargo.weightTons > capacityTons) {
         socket.emit('error', 'Cargo exceeds vessel capacity');
         return;
       }
@@ -173,7 +173,7 @@ export function registerCargoHandlers({
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
     void (async () => {
-      const cargoId = data?.cargoId;
+      const cargoId = data.cargoId;
       if (!cargoId || typeof cargoId !== 'string') {
         socket.emit('error', 'Missing cargo id');
         return;

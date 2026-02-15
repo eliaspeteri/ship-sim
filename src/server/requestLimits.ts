@@ -9,7 +9,10 @@ export const COMPILE_LIMITS = {
   maxArtifacts: 2048,
   maxPayloadBytes: 256 * 1024,
   rateLimit: {
-    windowMs: parsePositiveInt(process.env.COMPILE_RATE_LIMIT_WINDOW_MS, 60_000),
+    windowMs: parsePositiveInt(
+      process.env.COMPILE_RATE_LIMIT_WINDOW_MS,
+      60_000,
+    ),
     max: parsePositiveInt(process.env.COMPILE_RATE_LIMIT_MAX, 20),
   },
 };

@@ -3,10 +3,10 @@ import type { SocketHandlerContext } from './context';
 
 export function registerSeamarksHandler({ socket }: SocketHandlerContext) {
   socket.on('seamarks:nearby', data => {
-    const lat = Number(data?.lat);
-    const lon = Number(data?.lon);
-    const radiusMeters = Number(data?.radiusMeters ?? 25_000);
-    const limit = Number(data?.limit ?? 5000);
+    const lat = Number(data.lat);
+    const lon = Number(data.lon);
+    const radiusMeters = Number(data.radiusMeters);
+    const limit = Number(data.limit ?? 5000);
 
     if (![lat, lon, radiusMeters].every(Number.isFinite)) return;
 

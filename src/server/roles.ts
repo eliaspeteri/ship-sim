@@ -51,7 +51,7 @@ export function permissionsForRoles(roles: Role[]): Permission[] {
   const permissions: Permission[] = [];
 
   for (const role of expanded) {
-    const perms = ROLE_PERMISSIONS[role] || [];
+    const perms = ROLE_PERMISSIONS[role];
     for (const perm of perms) {
       const key = `${perm.resource}:${perm.action}`;
       if (seen.has(key)) continue;

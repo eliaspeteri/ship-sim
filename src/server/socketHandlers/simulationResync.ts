@@ -22,7 +22,7 @@ export function registerSimulationResyncHandler({
         )
         .map(([id, v]) => [id, toSimpleVesselState(v)]),
     );
-    const roles = socket.data.roles || ['guest'];
+    const roles = socket.data.roles;
     socket.emit('simulation:update', {
       vessels: vesselsInSpace,
       environment: getEnvironmentForSpace(currentSpace),
@@ -31,10 +31,10 @@ export function registerSimulationResyncHandler({
       self: {
         userId: socket.data.userId || effectiveUserId,
         roles,
-        rank: socket.data.rank ?? 1,
-        credits: socket.data.credits ?? 0,
-        experience: socket.data.experience ?? 0,
-        safetyScore: socket.data.safetyScore ?? 1,
+        rank: socket.data.rank,
+        credits: socket.data.credits,
+        experience: socket.data.experience,
+        safetyScore: socket.data.safetyScore,
         spaceId: currentSpace,
         mode: socket.data.mode || 'spectator',
         vesselId: socket.data.vesselId,

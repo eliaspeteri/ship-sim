@@ -51,40 +51,40 @@ export type PhysicsPayload = {
 
 export const buildDisplacementParams = (vessel: VesselState) => {
   const params = vessel.physics?.params;
-  const hydro = vessel.hydrodynamics || DEFAULT_HYDRO;
+  const hydro = vessel.hydrodynamics;
   const properties = vessel.properties;
 
   const mass = getOverride(
     params,
     'mass',
-    toNumber(properties?.mass, DEFAULT_MASS),
+    toNumber(properties.mass, DEFAULT_MASS),
   );
   const length = getOverride(
     params,
     'length',
-    toNumber(properties?.length, DEFAULT_LENGTH),
+    toNumber(properties.length, DEFAULT_LENGTH),
   );
   const beam = getOverride(
     params,
     'beam',
-    toNumber(properties?.beam, DEFAULT_BEAM),
+    toNumber(properties.beam, DEFAULT_BEAM),
   );
   const draft = getOverride(
     params,
     'draft',
-    toNumber(properties?.draft, DEFAULT_DRAFT),
+    toNumber(properties.draft, DEFAULT_DRAFT),
   );
   const blockCoefficient = getOverride(
     params,
     'blockCoefficient',
-    toNumber(properties?.blockCoefficient, DEFAULT_BLOCK_COEFFICIENT),
+    toNumber(properties.blockCoefficient, DEFAULT_BLOCK_COEFFICIENT),
   );
   const maxSpeed = getOverride(
     params,
     'maxSpeed',
-    toNumber(properties?.maxSpeed, DEFAULT_MAX_SPEED_KNOTS) * MS_PER_KNOT,
+    toNumber(properties.maxSpeed, DEFAULT_MAX_SPEED_KNOTS) * MS_PER_KNOT,
   );
-  const baseCd = toNumber(hydro?.dragCoefficient, DEFAULT_CD_SURGE);
+  const baseCd = toNumber(hydro.dragCoefficient, DEFAULT_CD_SURGE);
 
   return {
     mass,
@@ -96,65 +96,65 @@ export const buildDisplacementParams = (vessel: VesselState) => {
       params,
       'rudderForceCoefficient',
       toNumber(
-        hydro?.rudderForceCoefficient,
+        hydro.rudderForceCoefficient,
         DEFAULT_HYDRO.rudderForceCoefficient,
       ),
     ),
     rudderStallAngle: getOverride(
       params,
       'rudderStallAngle',
-      toNumber(hydro?.rudderStallAngle, DEFAULT_HYDRO.rudderStallAngle),
+      toNumber(hydro.rudderStallAngle, DEFAULT_HYDRO.rudderStallAngle),
     ),
     rudderMaxAngle: getOverride(
       params,
       'rudderMaxAngle',
-      toNumber(hydro?.rudderMaxAngle, DEFAULT_HYDRO.rudderMaxAngle),
+      toNumber(hydro.rudderMaxAngle, DEFAULT_HYDRO.rudderMaxAngle),
     ),
     dragCoefficient: getOverride(
       params,
       'dragCoefficient',
-      toNumber(hydro?.dragCoefficient, DEFAULT_HYDRO.dragCoefficient),
+      toNumber(hydro.dragCoefficient, DEFAULT_HYDRO.dragCoefficient),
     ),
     yawDamping: getOverride(
       params,
       'yawDamping',
-      toNumber(hydro?.yawDamping, DEFAULT_HYDRO.yawDamping),
+      toNumber(hydro.yawDamping, DEFAULT_HYDRO.yawDamping),
     ),
     yawDampingQuad: getOverride(
       params,
       'yawDampingQuad',
-      toNumber(hydro?.yawDampingQuad, DEFAULT_HYDRO.yawDampingQuad),
+      toNumber(hydro.yawDampingQuad, DEFAULT_HYDRO.yawDampingQuad),
     ),
     swayDamping: getOverride(
       params,
       'swayDamping',
-      toNumber(hydro?.swayDamping, DEFAULT_HYDRO.swayDamping),
+      toNumber(hydro.swayDamping, DEFAULT_HYDRO.swayDamping),
     ),
     maxThrust: getOverride(
       params,
       'maxThrust',
-      toNumber(hydro?.maxThrust, DEFAULT_HYDRO.maxThrust),
+      toNumber(hydro.maxThrust, DEFAULT_HYDRO.maxThrust),
     ),
     maxSpeed,
     rollDamping: getOverride(
       params,
       'rollDamping',
-      toNumber(hydro?.rollDamping, DEFAULT_HYDRO.rollDamping),
+      toNumber(hydro.rollDamping, DEFAULT_HYDRO.rollDamping),
     ),
     pitchDamping: getOverride(
       params,
       'pitchDamping',
-      toNumber(hydro?.pitchDamping, DEFAULT_HYDRO.pitchDamping),
+      toNumber(hydro.pitchDamping, DEFAULT_HYDRO.pitchDamping),
     ),
     heaveStiffness: getOverride(
       params,
       'heaveStiffness',
-      toNumber(hydro?.heaveStiffness, DEFAULT_HYDRO.heaveStiffness),
+      toNumber(hydro.heaveStiffness, DEFAULT_HYDRO.heaveStiffness),
     ),
     heaveDamping: getOverride(
       params,
       'heaveDamping',
-      toNumber(hydro?.heaveDamping, DEFAULT_HYDRO.heaveDamping),
+      toNumber(hydro.heaveDamping, DEFAULT_HYDRO.heaveDamping),
     ),
     rudderArea: getOverride(
       params,
@@ -224,9 +224,7 @@ export const buildDisplacementParams = (vessel: VesselState) => {
 
 export const buildPhysicsPayload = (vessel: VesselState): PhysicsPayload => {
   const modelKey = vessel.physics?.model ?? 'displacement';
-  const modelId =
-    PHYSICS_MODEL_IDS[modelKey as keyof typeof PHYSICS_MODEL_IDS] ??
-    PHYSICS_MODEL_IDS.displacement;
+  const modelId = PHYSICS_MODEL_IDS[modelKey as keyof typeof PHYSICS_MODEL_IDS];
   const displacement = buildDisplacementParams(vessel);
 
   return {

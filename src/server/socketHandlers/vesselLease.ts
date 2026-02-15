@@ -12,7 +12,7 @@ export function registerVesselLeaseHandler({
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
     void (async () => {
-      const vesselId = data?.vesselId;
+      const vesselId = data.vesselId;
       if (!vesselId || typeof vesselId !== 'string') {
         socket.emit('error', 'Missing vessel id');
         return;
@@ -28,16 +28,16 @@ export function registerVesselLeaseHandler({
         socket.emit('error', 'Not authorized to lease this vessel');
         return;
       }
-      const ratePerHour = Number(data?.ratePerHour);
+      const ratePerHour = Number(data.ratePerHour);
       if (!Number.isFinite(ratePerHour) || ratePerHour <= 0) {
         socket.emit('error', 'Invalid lease rate');
         return;
       }
       const revenueShare =
-        data?.revenueShare !== undefined ? Number(data.revenueShare) : 0;
-      const leaseType = data?.type === 'lease' ? 'lease' : 'charter';
+        data.revenueShare !== undefined ? Number(data.revenueShare) : 0;
+      const leaseType = data.type === 'lease' ? 'lease' : 'charter';
       const endsAt =
-        data?.endsAt && Number.isFinite(data.endsAt)
+        data.endsAt && Number.isFinite(data.endsAt)
           ? new Date(Number(data.endsAt))
           : null;
       await prisma.vesselLease.create({
@@ -64,7 +64,7 @@ export function registerVesselLeaseHandler({
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
     void (async () => {
-      const leaseId = data?.leaseId;
+      const leaseId = data.leaseId;
       if (!leaseId || typeof leaseId !== 'string') {
         socket.emit('error', 'Missing lease id');
         return;

@@ -56,45 +56,35 @@ export function registerVesselUpdateHandler({
 
     const prevPosition = mergePosition(target.position);
     const prevUpdate = target.lastUpdate || Date.now();
-    if (data.position) {
-      target.position = mergePosition(target.position, data.position);
-    }
-    if (data.orientation) {
-      target.orientation = {
-        ...target.orientation,
-        ...data.orientation,
-        heading: clampHeading(data.orientation.heading),
-      };
-    }
-    if (data.velocity) {
-      target.velocity = data.velocity;
-    }
-    if (data.position) {
-      const dt = (Date.now() - prevUpdate) / 1000;
-      if (dt > 0.1) {
-        const nextPosition = mergePosition(target.position);
-        const dx = (nextPosition.x ?? 0) - (prevPosition.x ?? 0);
-        const dy = (nextPosition.y ?? 0) - (prevPosition.y ?? 0);
-        const world = { x: dx / dt, y: dy / dt };
-        const derivedSpeed = speedFromWorldVelocity(world);
-        const reportedSpeed = data.velocity
-          ? Math.hypot(data.velocity.surge, data.velocity.sway)
-          : 0;
-        if (
-          Number.isFinite(derivedSpeed) &&
-          derivedSpeed > 0.05 &&
-          reportedSpeed < 0.01
-        ) {
-          const derivedBody = bodyVelocityFromWorld(
-            target.orientation.heading,
-            world,
-          );
-          target.velocity = {
-            ...target.velocity,
-            ...derivedBody,
-            heave: data.velocity?.heave ?? target.velocity.heave,
-          };
-        }
+    target.position = mergePosition(target.position, data.position);
+    target.orientation = {
+      ...target.orientation,
+      ...data.orientation,
+      heading: clampHeading(data.orientation.heading),
+    };
+    target.velocity = data.velocity;
+    const dt = (Date.now() - prevUpdate) / 1000;
+    if (dt > 0.1) {
+      const nextPosition = mergePosition(target.position);
+      const dx = (nextPosition.x ?? 0) - (prevPosition.x ?? 0);
+      const dy = (nextPosition.y ?? 0) - (prevPosition.y ?? 0);
+      const world = { x: dx / dt, y: dy / dt };
+      const derivedSpeed = speedFromWorldVelocity(world);
+      const reportedSpeed = Math.hypot(data.velocity.surge, data.velocity.sway);
+      if (
+        Number.isFinite(derivedSpeed) &&
+        derivedSpeed > 0.05 &&
+        reportedSpeed < 0.01
+      ) {
+        const derivedBody = bodyVelocityFromWorld(
+          target.orientation.heading,
+          world,
+        );
+        target.velocity = {
+          ...target.velocity,
+          ...derivedBody,
+          heave: data.velocity.heave,
+        };
       }
     }
     if (data.angularVelocity && typeof data.angularVelocity.yaw === 'number') {

@@ -23,7 +23,7 @@ export function registerDisconnectHandler({
       return;
     }
 
-    const roles = socket.data.roles || [];
+    const roles = socket.data.roles;
     const isGuestNow =
       roles.includes('guest') &&
       !roles.some(
@@ -51,7 +51,7 @@ export function registerDisconnectHandler({
           vesselRecord.radioUsername = null;
         }
         if (vesselRecord.crewIds.size === 0) {
-          vesselRecord.mode = vesselRecord.desiredMode || 'player';
+          vesselRecord.mode = vesselRecord.desiredMode;
           vesselRecord.lastCrewAt = Date.now();
         }
       }

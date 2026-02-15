@@ -23,7 +23,7 @@ export function registerVesselSaleHandler(ctx: SocketHandlerContext) {
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
     void (async () => {
-      const vesselId = data?.vesselId;
+      const vesselId = data.vesselId;
       if (!vesselId || typeof vesselId !== 'string') {
         socket.emit('error', 'Missing vessel id');
         return;
@@ -39,7 +39,7 @@ export function registerVesselSaleHandler(ctx: SocketHandlerContext) {
         socket.emit('error', 'Not authorized to sell this vessel');
         return;
       }
-      const price = Number(data?.price);
+      const price = Number(data.price);
       if (!Number.isFinite(price) || price <= 0) {
         socket.emit('error', 'Invalid sale price');
         return;
@@ -49,13 +49,11 @@ export function registerVesselSaleHandler(ctx: SocketHandlerContext) {
         socket.emit('error', 'Vessel must be in port to list for sale');
         return;
       }
-      const type = data?.type === 'auction' ? 'auction' : 'sale';
+      const type = data.type === 'auction' ? 'auction' : 'sale';
       const reservePrice =
-        data?.reservePrice !== undefined
-          ? Number(data.reservePrice)
-          : undefined;
+        data.reservePrice !== undefined ? Number(data.reservePrice) : undefined;
       const endsAt =
-        data?.endsAt && Number.isFinite(data.endsAt)
+        data.endsAt && Number.isFinite(data.endsAt)
           ? new Date(Number(data.endsAt))
           : null;
       await prisma.vesselSale.create({
@@ -94,7 +92,7 @@ export function registerVesselSaleHandler(ctx: SocketHandlerContext) {
     const currentUserId = socket.data.userId || effectiveUserId;
     if (!currentUserId) return;
     void (async () => {
-      const saleId = data?.saleId;
+      const saleId = data.saleId;
       if (!saleId || typeof saleId !== 'string') {
         socket.emit('error', 'Missing sale id');
         return;

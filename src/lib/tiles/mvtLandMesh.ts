@@ -1,5 +1,6 @@
 import Pbf from 'pbf';
 import { VectorTile } from '@mapbox/vector-tile';
+import type { VectorTileFeature } from '@mapbox/vector-tile';
 import earcut from 'earcut';
 import * as THREE from 'three';
 import { latLonToXY } from '../../lib/geo'; // adjust if your path is different
@@ -63,12 +64,12 @@ async function fetchTerrainRgbTile(
     | globalThis.CanvasRenderingContext2D
     | null;
   if (!ctx) {
-    bitmap.close?.();
+    bitmap.close();
     return null;
   }
 
   ctx.drawImage(bitmap, 0, 0);
-  bitmap.close?.();
+  bitmap.close();
 
   const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
   return { data: img.data, width: img.width, height: img.height };
@@ -116,8 +117,14 @@ export async function fetchLandTileMesh(opts: {
   const ab = await r.arrayBuffer();
   const tile = new VectorTile(new Pbf(new Uint8Array(ab)));
 
-  const layer = tile.layers['land'];
-  if (!layer || layer.length === 0) return null;
+  const rawLayer = (tile.layers as Record<string, unknown>)['land'];
+  if (!rawLayer) return null;
+  const layer = rawLayer as {
+    length: number;
+    feature: (index: number) => VectorTileFeature;
+    extent: number;
+  };
+  if (layer.length === 0) return null;
 
   const terrain = useTerrain ? await fetchTerrainRgbTile(z, x, y) : null;
 
@@ -130,7 +137,7 @@ export async function fetchLandTileMesh(opts: {
   for (let i = 0; i < layer.length; i++) {
     const feat = layer.feature(i);
     const rings = feat.loadGeometry();
-    const extent = layer.extent ?? 4096;
+    const extent = layer.extent;
 
     for (const ring of rings) {
       if (ring.length < 3) continue;

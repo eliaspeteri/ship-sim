@@ -45,10 +45,10 @@ export const mergePosition = (
       z: current.z,
     });
   }
-  const z = update.z ?? current.z ?? 0;
+  const z = update.z ?? current.z;
   if (update.lat !== undefined || update.lon !== undefined) {
-    const lat = update.lat ?? current.lat ?? 0;
-    const lon = update.lon ?? current.lon ?? 0;
+    const lat = update.lat ?? current.lat;
+    const lon = update.lon ?? current.lon;
     return positionFromLatLon({ lat, lon, z });
   }
   if (update.x !== undefined || update.y !== undefined) {
@@ -57,8 +57,8 @@ export const mergePosition = (
     return positionFromXY({ x, y, z });
   }
   return positionFromLatLon({
-    lat: current.lat ?? 0,
-    lon: current.lon ?? 0,
+    lat: current.lat,
+    lon: current.lon,
     z,
   });
 };

@@ -263,7 +263,7 @@ export const registerCareersSpacesRoutes = ({
         res.status(404).json({ error: 'Exam not found' });
         return;
       }
-      const passed = score >= (exam.minScore ?? 70);
+      const passed = score >= exam.minScore;
       const attempt = await prisma.examAttempt.create({
         data: {
           examId: exam.id,

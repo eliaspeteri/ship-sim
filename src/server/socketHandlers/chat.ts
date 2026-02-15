@@ -74,10 +74,10 @@ export function registerChatHandlers({
     const currentVesselId = normalizeVesselId(
       getVesselIdForUser(socket.data.userId || effectiveUserId, spaceId),
     );
-    const channel = resolveChatChannel(data?.channel, currentVesselId, spaceId);
-    const before = typeof data?.before === 'number' ? data.before : undefined;
+    const channel = resolveChatChannel(data.channel, currentVesselId, spaceId);
+    const before = typeof data.before === 'number' ? data.before : undefined;
     const limit =
-      typeof data?.limit === 'number' && !Number.isNaN(data.limit)
+      typeof data.limit === 'number' && !Number.isNaN(data.limit)
         ? Math.min(Math.max(Math.floor(data.limit), 1), 50)
         : chatHistoryPageSize;
     try {
