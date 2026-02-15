@@ -271,7 +271,8 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
     heading: vessel.orientation.heading || 0,
   };
 
-  const showHelmControl = userId !== null && crewIds.includes(userId);
+  const showHelmControl =
+    typeof userId === 'string' && crewIds.includes(userId);
   const helmLabel =
     vessel.helm?.userId === userId
       ? 'Release Helm'
