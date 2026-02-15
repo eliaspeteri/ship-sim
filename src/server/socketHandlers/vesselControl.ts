@@ -17,8 +17,7 @@ export function registerVesselControlHandler({
 }: SocketHandlerContext) {
   const logControls = process.env.SIM_CONTROL_LOGS === 'true';
   socket.on('vessel:control', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    const currentUserId = effectiveUserId;
     if (!isPlayerOrHigher()) {
       socket.emit('error', 'Not authorized to control a vessel');
       return;
@@ -29,27 +28,31 @@ export function registerVesselControlHandler({
     }
 
     const vesselKey =
-      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
+      getVesselIdForUser(currentUserId, spaceId) ?? currentUserId;
     const vesselRecord = globalState.vessels.get(vesselKey);
-    if (!vesselRecord || (vesselRecord.spaceId || defaultSpaceId) !== spaceId) {
+    if (!vesselRecord || (vesselRecord.spaceId ?? defaultSpaceId) !== spaceId) {
       console.warn('No vessel for user, creating on control', currentUserId);
       ensureVesselForUser(currentUserId, effectiveUsername, spaceId);
     }
     const target = globalState.vessels.get(
-      getVesselIdForUser(currentUserId, spaceId) || currentUserId,
+      getVesselIdForUser(currentUserId, spaceId) ?? currentUserId,
     );
-    if (!target || (target.spaceId || defaultSpaceId) !== spaceId) return;
+    if (!target || (target.spaceId ?? defaultSpaceId) !== spaceId) return;
 
     const isHelm = target.helmUserId === currentUserId;
     const isEngine = target.engineUserId === currentUserId;
     const isAdmin = hasAdminRole(socket);
-    const engineAvailable = !target.engineUserId || isEngine || isAdmin;
+    const engineAvailable =
+      target.engineUserId === null ||
+      target.engineUserId.length === 0 ||
+      isEngine ||
+      isAdmin;
 
     if (data.rudderAngle !== undefined && !isHelm && !isAdmin) {
       socket.emit(
         'error',
-        target.helmUserId
-          ? `Helm held by ${target.helmUsername || target.helmUserId}`
+        target.helmUserId !== null && target.helmUserId.length > 0
+          ? `Helm held by ${target.helmUsername ?? target.helmUserId}`
           : 'Claim the helm to steer',
       );
       return;
@@ -70,8 +73,8 @@ export function registerVesselControlHandler({
       }
       socket.emit(
         'error',
-        target.engineUserId
-          ? `Engine station held by ${target.engineUsername || target.engineUserId}`
+        target.engineUserId !== null && target.engineUserId.length > 0
+          ? `Engine station held by ${target.engineUsername ?? target.engineUserId}`
           : 'Claim the engine station to adjust throttle/ballast',
       );
       return;

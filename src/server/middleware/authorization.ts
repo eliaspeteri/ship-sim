@@ -136,7 +136,7 @@ export function requireSelfOrRole(
     }
 
     const subjectId = req.params[paramKey];
-    if (!subjectId) {
+    if (subjectId.length === 0) {
       res.status(400).json({
         error: 'Bad Request',
         message: `Missing ${paramKey}`,

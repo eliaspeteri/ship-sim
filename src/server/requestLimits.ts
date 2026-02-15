@@ -1,5 +1,5 @@
 const parsePositiveInt = (value: string | undefined, fallback: number) => {
-  const next = Number.parseInt(value || '', 10);
+  const next = Number.parseInt(value ?? '', 10);
   return Number.isFinite(next) && next > 0 ? next : fallback;
 };
 

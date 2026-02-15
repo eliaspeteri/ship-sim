@@ -39,7 +39,7 @@ export function registerAdminHandlers({
       socket.emit('error', 'Not authorized to stop vessels');
       return;
     }
-    if (!data.vesselId) {
+    if (typeof data.vesselId !== 'string' || data.vesselId.length === 0) {
       socket.emit('error', 'Missing vessel id');
       return;
     }
@@ -71,13 +71,16 @@ export function registerAdminHandlers({
       socket.emit('error', 'Not authorized to kick users');
       return;
     }
-    if (!data.userId) {
+    if (typeof data.userId !== 'string' || data.userId.length === 0) {
       socket.emit('error', 'Missing user id for kick');
       return;
     }
     try {
       const sockets = await io.fetchSockets();
-      const reason = data.reason || 'Removed by admin';
+      const reason =
+        typeof data.reason === 'string' && data.reason.length > 0
+          ? data.reason
+          : 'Removed by admin';
       sockets.forEach(targetSocket => {
         if (targetSocket.data.userId === data.userId) {
           targetSocket.emit('error', reason);
@@ -96,7 +99,7 @@ export function registerAdminHandlers({
       socket.emit('error', 'Not authorized to remove vessels');
       return;
     }
-    if (!data.vesselId) {
+    if (typeof data.vesselId !== 'string' || data.vesselId.length === 0) {
       socket.emit('error', 'Missing vessel id');
       return;
     }
@@ -127,7 +130,7 @@ export function registerAdminHandlers({
       socket.emit('error', 'Not authorized to move vessels');
       return;
     }
-    if (!data.vesselId) {
+    if (typeof data.vesselId !== 'string' || data.vesselId.length === 0) {
       socket.emit('error', 'Missing vessel id');
       return;
     }

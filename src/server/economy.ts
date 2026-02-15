@@ -73,12 +73,12 @@ export const estimatePassengerCapacity = (length: number) =>
   Math.max(4, Math.round(length * 0.6));
 
 export const getVesselCargoCapacityTons = (vessel: VesselRecord) => {
-  const massKg = vessel.properties.mass || 1_000_000;
+  const massKg = vessel.properties.mass;
   return estimateCargoCapacityTons(massKg);
 };
 
 export const getVesselPassengerCapacity = (vessel: VesselRecord) => {
-  const length = vessel.properties.length || 120;
+  const length = vessel.properties.length;
   return estimatePassengerCapacity(length);
 };
 
@@ -197,7 +197,7 @@ export async function applyEconomyAdjustment(
     await prisma.economyTransaction.create({
       data: {
         userId: adjustment.userId,
-        vesselId: adjustment.vesselId || null,
+        vesselId: adjustment.vesselId ?? null,
         amount: adjustment.deltaCredits ?? 0,
         reason: adjustment.reason,
         meta: (adjustment.meta ?? undefined) as
@@ -239,14 +239,14 @@ const classifyVesselOpState = (v: VesselRecord): VesselOpState => {
 };
 
 const resolveChargeUserId = (vessel: VesselRecord) =>
-  vessel.chartererId || vessel.leaseeId || vessel.ownerId;
+  vessel.chartererId ?? vessel.leaseeId ?? vessel.ownerId;
 
 const isVesselStored = (vessel: VesselRecord) => vessel.status === 'stored';
 
 const ensureCrewContracts = async (vessel: VesselRecord) => {
-  if (!vessel.ownerId) return;
+  if (vessel.ownerId === null || vessel.ownerId.length === 0) return;
   const crewIds = Array.from(vessel.crewIds.values());
-  if (!crewIds.length) return;
+  if (crewIds.length === 0) return;
   const existing = await prisma.crewContract.findMany({
     where: {
       vesselId: vessel.id,
@@ -276,9 +276,9 @@ const lockCrewContractsForVoyage = async (
   vessel: VesselRecord,
   now: number,
 ) => {
-  if (!vessel.ownerId) return;
+  if (vessel.ownerId === null || vessel.ownerId.length === 0) return;
   const crewIds = Array.from(vessel.crewIds.values());
-  if (!crewIds.length) return;
+  if (crewIds.length === 0) return;
   await prisma.crewContract.updateMany({
     where: {
       vesselId: vessel.id,
@@ -302,9 +302,10 @@ const applyCrewWages = async (
   intervals: number,
   io: Server,
 ) => {
-  if (!vessel.ownerId || intervals <= 0) return;
+  if (vessel.ownerId === null || vessel.ownerId.length === 0 || intervals <= 0)
+    return;
   const chargeUserId = resolveChargeUserId(vessel);
-  if (!chargeUserId) return;
+  if (chargeUserId === null || chargeUserId.length === 0) return;
   const contracts = await prisma.crewContract.findMany({
     where: { vesselId: vessel.id, status: 'active', releasedAt: null },
   });
@@ -335,17 +336,17 @@ const applyCrewWages = async (
 };
 
 const applyLoanInterestForUser = async (userId: string, now: number) => {
-  const last = loanAccrualLedger.get(userId) || 0;
+  const last = loanAccrualLedger.get(userId) ?? 0;
   if (now - last < LOAN_ACCRUAL_INTERVAL_MS) return;
   loanAccrualLedger.set(userId, now);
   const loans = await prisma.loan.findMany({
     where: { userId, status: 'active' },
   });
-  if (!loans.length) return;
+  if (loans.length === 0) return;
   const yearMs = 365 * 24 * 60 * 60 * 1000;
   for (const loan of loans) {
     const lastAccrued =
-      loan.lastAccruedAt?.getTime() || loan.issuedAt.getTime();
+      loan.lastAccruedAt?.getTime() ?? loan.issuedAt.getTime();
     const dt = Math.max(0, now - lastAccrued);
     if (dt <= 0) continue;
     const interest = (loan.balance * loan.interestRate * dt) / yearMs;
@@ -363,8 +364,8 @@ const applyLoanInterestForUser = async (userId: string, now: number) => {
 };
 
 const enforceLoanRepossession = async (vessel: VesselRecord, now: number) => {
-  if (!vessel.ownerId) return;
-  const last = repossessionLedger.get(vessel.ownerId) || 0;
+  if (vessel.ownerId === null || vessel.ownerId.length === 0) return;
+  const last = repossessionLedger.get(vessel.ownerId) ?? 0;
   if (now - last < LOAN_ACCRUAL_INTERVAL_MS) return;
   const defaulted = await prisma.loan.findFirst({
     where: { userId: vessel.ownerId, status: 'defaulted' },
@@ -404,8 +405,8 @@ const applyInsurancePremiums = async (
   now: number,
   io: Server,
 ) => {
-  if (!vessel.ownerId) return;
-  const last = insuranceChargeLedger.get(vessel.id) || 0;
+  if (vessel.ownerId === null || vessel.ownerId.length === 0) return;
+  const last = insuranceChargeLedger.get(vessel.id) ?? 0;
   if (now - last < INSURANCE_PREMIUM_INTERVAL_MS) return;
   insuranceChargeLedger.set(vessel.id, now);
   const policies = await prisma.insurancePolicy.findMany({
@@ -441,7 +442,12 @@ const applyLeaseCharges = async (
   const lease = await prisma.vesselLease.findFirst({
     where: { vesselId: vessel.id, status: 'active' },
   });
-  if (!lease?.lesseeId) return;
+  if (
+    lease?.lesseeId === null ||
+    lease?.lesseeId === undefined ||
+    lease.lesseeId.length === 0
+  )
+    return;
   const startedAtMs = lease.startedAt?.getTime() ?? now;
   const lastCharged = lease.lastChargedAt?.getTime() ?? startedAtMs;
   const dt = now - lastCharged;
@@ -523,7 +529,7 @@ const applyCargoLiability = async (
   });
   for (const lot of cargo) {
     if (lot.liabilityRate <= 0) continue;
-    if (!lot.ownerId) continue;
+    if (lot.ownerId === null || lot.ownerId.length === 0) continue;
     const cost = lot.value * lot.liabilityRate * intervals;
     if (cost <= 0) continue;
     const profile = await applyEconomyAdjustment({
@@ -543,7 +549,12 @@ export const applyEconomyAdjustmentWithRevenueShare = async (
   io?: Server,
 ): Promise<EconomyProfile> => {
   const deltaCredits = adjustment.deltaCredits ?? 0;
-  if (!adjustment.vesselId || deltaCredits <= 0) {
+  if (
+    adjustment.vesselId === null ||
+    adjustment.vesselId === undefined ||
+    adjustment.vesselId.length === 0 ||
+    deltaCredits <= 0
+  ) {
     return applyEconomyAdjustment(adjustment);
   }
   const emitter = io ?? serverIo;
@@ -608,7 +619,7 @@ export const updateEconomyForVessel = async (
   io: Server,
 ) => {
   const chargeUserId = resolveChargeUserId(vessel);
-  if (!chargeUserId) return;
+  if (chargeUserId === null || chargeUserId.length === 0) return;
 
   // IMPORTANT: remove "player-only" billing; AI or offline still incurs costs if operating
   // (so we do NOT check vessel.mode here)
@@ -626,7 +637,7 @@ export const updateEconomyForVessel = async (
   }
   ledger.lastChargeAt = now;
 
-  if (vessel.ownerId) {
+  if (vessel.ownerId !== null && vessel.ownerId.length > 0) {
     await applyLoanInterestForUser(vessel.ownerId, now);
     await enforceLoanRepossession(vessel, now);
   }
@@ -716,7 +727,7 @@ export const updateEconomyForVessel = async (
       void syncUserSocketsEconomy(chargeUserId, profile);
 
       // Safety valve: if they hit 0 credits, prevent runaway "offline burn"
-      const rules = getRulesForSpace(vessel.spaceId || 'global');
+      const rules = getRulesForSpace(vessel.spaceId ?? 'global');
       const shouldAutoStop =
         rules.economy.autoStopOnEmpty === true &&
         profile.credits <= 0 &&

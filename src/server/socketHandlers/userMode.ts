@@ -18,7 +18,7 @@ const hasNearbyVessel = (params: {
 }) => {
   for (const vessel of params.vessels) {
     if (vessel.id === params.currentVesselId) continue;
-    if ((vessel.spaceId || params.defaultSpaceId) !== params.spaceId) continue;
+    if ((vessel.spaceId ?? params.defaultSpaceId) !== params.spaceId) continue;
     const distance = distanceMeters(params.currentPosition, vessel.position);
     if (distance <= SWITCH_NEARBY_METERS) {
       return true;
@@ -49,7 +49,7 @@ export function registerUserModeHandler({
   getRulesForSpace,
 }: SocketHandlerContext) {
   socket.on('user:mode', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
+    const currentUserId = effectiveUserId;
     const wantsPlayer = data.mode === 'player';
     const rankEligible = socket.data.rank >= spaceMeta.rankRequired;
 
@@ -67,14 +67,15 @@ export function registerUserModeHandler({
 
     if (data.mode === 'spectator') {
       const rules = getRulesForSpace(spaceId) as { type?: RulesetType };
-      const rulesType = rules.type || RulesetType.CASUAL;
+      const rulesType = rules.type ?? RulesetType.CASUAL;
       const switchRestricted =
         rulesType === RulesetType.REALISM || rulesType === RulesetType.EXAM;
       if (switchRestricted && !hasAdminRole(socket)) {
         const currentVesselId = getVesselIdForUser(currentUserId, spaceId);
-        const currentVessel = currentVesselId
-          ? globalState.vessels.get(currentVesselId)
-          : null;
+        const currentVessel =
+          currentVesselId !== undefined && currentVesselId.length > 0
+            ? globalState.vessels.get(currentVesselId)
+            : null;
         if (
           currentVessel &&
           !resolvePortForPosition(currentVessel.position) &&
@@ -100,12 +101,12 @@ export function registerUserModeHandler({
     }
 
     const targetId =
-      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
+      getVesselIdForUser(currentUserId, spaceId) ?? currentUserId;
     let target = globalState.vessels.get(targetId);
     if (!target && wantsPlayer) {
       target = ensureVesselForUser(currentUserId, effectiveUsername, spaceId);
     }
-    if (!target || (target.spaceId || defaultSpaceId) !== spaceId) return;
+    if (!target || (target.spaceId ?? defaultSpaceId) !== spaceId) return;
 
     target.crewIds.add(currentUserId);
     target.crewNames.set(currentUserId, effectiveUsername);

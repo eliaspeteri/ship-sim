@@ -28,13 +28,13 @@ declare global {
 
 const getTokenFromRequest = (req: Request): string | undefined => {
   const header = req.headers.authorization;
-  if (header && header.startsWith('Bearer ')) {
+  if (header !== undefined && header.startsWith('Bearer ')) {
     return header.slice('Bearer '.length).trim();
   }
-  return (
-    req.cookies['next-auth.session-token'] ||
-    req.cookies['__Secure-next-auth.session-token']
-  );
+  const cookies = req.cookies as Record<string, string | undefined>;
+  const regularCookie = cookies['next-auth.session-token'];
+  const secureCookie = cookies['__Secure-next-auth.session-token'];
+  return regularCookie ?? secureCookie;
 };
 
 const toAuthenticatedUser = (token: {
@@ -48,12 +48,12 @@ const toAuthenticatedUser = (token: {
   safetyScore?: number;
   spaceId?: string;
 }): AuthenticatedUser => {
-  const baseRole: Role = token.role || 'player';
+  const baseRole: Role = token.role ?? 'player';
   const roles = expandRoles([baseRole]);
   const permissions = permissionsForRoles(roles);
   return {
-    userId: token.sub || token.email || 'unknown',
-    username: token.name || token.email || 'Unknown',
+    userId: token.sub ?? token.email ?? 'unknown',
+    username: token.name ?? token.email ?? 'Unknown',
     roles,
     permissions,
     rank: token.rank ?? 1,
@@ -68,7 +68,7 @@ const decodeNextAuthToken = async (
   req: Request,
 ): Promise<AuthenticatedUser | null> => {
   const secret = process.env.NEXTAUTH_SECRET;
-  if (!secret) return null;
+  if (secret === undefined || secret.length === 0) return null;
 
   type NextAuthRequest = Parameters<typeof getToken>[0]['req'];
   const toNextAuthRequest = (request: Request): NextAuthRequest =>
@@ -92,7 +92,7 @@ const decodeNextAuthToken = async (
 
   // Fallback to legacy JWT verification
   const raw = getTokenFromRequest(req);
-  if (!raw) return null;
+  if (raw === undefined || raw.length === 0) return null;
   try {
     const decoded = jwt.verify(raw, secret) as {
       sub?: string;

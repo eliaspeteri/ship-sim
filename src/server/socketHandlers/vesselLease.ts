@@ -9,11 +9,10 @@ export function registerVesselLeaseHandler({
   persistVesselToDb,
 }: SocketHandlerContext) {
   socket.on('vessel:lease:create', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    const currentUserId = effectiveUserId;
     void (async () => {
       const vesselId = data.vesselId;
-      if (!vesselId || typeof vesselId !== 'string') {
+      if (typeof vesselId !== 'string' || vesselId.length === 0) {
         socket.emit('error', 'Missing vessel id');
         return;
       }
@@ -36,9 +35,10 @@ export function registerVesselLeaseHandler({
       const revenueShare =
         data.revenueShare !== undefined ? Number(data.revenueShare) : 0;
       const leaseType = data.type === 'lease' ? 'lease' : 'charter';
+      const endsAtMs = Number(data.endsAt);
       const endsAt =
-        data.endsAt && Number.isFinite(data.endsAt)
-          ? new Date(Number(data.endsAt))
+        data.endsAt !== undefined && Number.isFinite(endsAtMs)
+          ? new Date(endsAtMs)
           : null;
       await prisma.vesselLease.create({
         data: {
@@ -61,11 +61,10 @@ export function registerVesselLeaseHandler({
   });
 
   socket.on('vessel:lease:accept', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    const currentUserId = effectiveUserId;
     void (async () => {
       const leaseId = data.leaseId;
-      if (!leaseId || typeof leaseId !== 'string') {
+      if (typeof leaseId !== 'string' || leaseId.length === 0) {
         socket.emit('error', 'Missing lease id');
         return;
       }

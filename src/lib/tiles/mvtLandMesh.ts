@@ -118,7 +118,7 @@ export async function fetchLandTileMesh(opts: {
   const tile = new VectorTile(new Pbf(new Uint8Array(ab)));
 
   const rawLayer = (tile.layers as Record<string, unknown>)['land'];
-  if (!rawLayer) return null;
+  if (rawLayer === undefined) return null;
   const layer = rawLayer as {
     length: number;
     feature: (index: number) => VectorTileFeature;

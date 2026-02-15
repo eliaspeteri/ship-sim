@@ -59,14 +59,17 @@ export function registerVesselRepairHandler({
   defaultSpaceId,
 }: SocketHandlerContext) {
   socket.on('vessel:repair', async (data, callback) => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    const currentUserId = effectiveUserId;
+    const requestedVesselId =
+      typeof data.vesselId === 'string' && data.vesselId.length > 0
+        ? data.vesselId
+        : undefined;
     const vesselKey =
-      data.vesselId ||
-      getVesselIdForUser(currentUserId, spaceId) ||
+      requestedVesselId ??
+      getVesselIdForUser(currentUserId, spaceId) ??
       currentUserId;
     const target = globalState.vessels.get(vesselKey);
-    if (!target || (target.spaceId || defaultSpaceId) !== spaceId) {
+    if (!target || (target.spaceId ?? defaultSpaceId) !== spaceId) {
       callback({ ok: false, message: 'Vessel not found' });
       return;
     }
@@ -97,14 +100,10 @@ export function registerVesselRepairHandler({
     }
 
     const chargeUserId = resolveChargeUserId(target);
-    if (!chargeUserId) {
-      callback({ ok: false, message: 'Unable to bill repairs' });
-      return;
-    }
 
     try {
       let costToCharge = cost;
-      if (target.ownerId) {
+      if (target.ownerId !== null && target.ownerId.length > 0) {
         const payout = await applyInsuranceRepairPayout({
           vesselId: target.id,
           ownerId: target.ownerId,

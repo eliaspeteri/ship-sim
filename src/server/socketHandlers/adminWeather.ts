@@ -44,7 +44,7 @@ export function registerAdminWeatherHandler({
     }
 
     weather.setMode('manual');
-    if (data.pattern) {
+    if (typeof data.pattern === 'string' && data.pattern.length > 0) {
       const nextPattern = getWeatherPattern(data.pattern);
       const env = applyWeatherPattern(spaceId, nextPattern, globalState);
       weather.setTarget(nextPattern);

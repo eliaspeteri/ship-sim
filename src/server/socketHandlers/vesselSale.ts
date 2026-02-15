@@ -20,11 +20,10 @@ export function registerVesselSaleHandler(ctx: SocketHandlerContext) {
   } = ctx;
 
   socket.on('vessel:sale:create', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    const currentUserId = effectiveUserId;
     void (async () => {
       const vesselId = data.vesselId;
-      if (!vesselId || typeof vesselId !== 'string') {
+      if (typeof vesselId !== 'string' || vesselId.length === 0) {
         socket.emit('error', 'Missing vessel id');
         return;
       }
@@ -52,9 +51,10 @@ export function registerVesselSaleHandler(ctx: SocketHandlerContext) {
       const type = data.type === 'auction' ? 'auction' : 'sale';
       const reservePrice =
         data.reservePrice !== undefined ? Number(data.reservePrice) : undefined;
+      const endsAtMs = Number(data.endsAt);
       const endsAt =
-        data.endsAt && Number.isFinite(data.endsAt)
-          ? new Date(Number(data.endsAt))
+        data.endsAt !== undefined && Number.isFinite(endsAtMs)
+          ? new Date(endsAtMs)
           : null;
       await prisma.vesselSale.create({
         data: {
@@ -89,11 +89,10 @@ export function registerVesselSaleHandler(ctx: SocketHandlerContext) {
   });
 
   socket.on('vessel:sale:buy', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    const currentUserId = effectiveUserId;
     void (async () => {
       const saleId = data.saleId;
-      if (!saleId || typeof saleId !== 'string') {
+      if (typeof saleId !== 'string' || saleId.length === 0) {
         socket.emit('error', 'Missing sale id');
         return;
       }
@@ -104,7 +103,7 @@ export function registerVesselSaleHandler(ctx: SocketHandlerContext) {
         socket.emit('error', 'Sale not available');
         return;
       }
-      if (sale.reservePrice && sale.price < sale.reservePrice) {
+      if (sale.reservePrice !== null && sale.price < sale.reservePrice) {
         socket.emit('error', 'Sale reserve not met');
         return;
       }
@@ -130,7 +129,7 @@ export function registerVesselSaleHandler(ctx: SocketHandlerContext) {
         vessel.radioUsername = null;
         vessel.lastUpdate = Date.now();
         globalState.userLastVessel.set(
-          userSpaceKey(currentUserId, vessel.spaceId || defaultSpaceId),
+          userSpaceKey(currentUserId, vessel.spaceId ?? defaultSpaceId),
           vessel.id,
         );
         void persistVesselToDb(vessel, { force: true });
@@ -161,16 +160,14 @@ export function registerVesselSaleHandler(ctx: SocketHandlerContext) {
       });
       io.to(`user:${currentUserId}`).emit('economy:update', buyerNext);
       void syncUserSocketsEconomy(currentUserId, buyerNext);
-      if (sale.sellerId) {
-        const sellerNext = await applyEconomyAdjustment({
-          userId: sale.sellerId,
-          vesselId: sale.vesselId,
-          deltaCredits: sale.price,
-          reason: 'vessel_sale',
-        });
-        io.to(`user:${sale.sellerId}`).emit('economy:update', sellerNext);
-        void syncUserSocketsEconomy(sale.sellerId, sellerNext);
-      }
+      const sellerNext = await applyEconomyAdjustment({
+        userId: sale.sellerId,
+        vesselId: sale.vesselId,
+        deltaCredits: sale.price,
+        reason: 'vessel_sale',
+      });
+      io.to(`user:${sale.sellerId}`).emit('economy:update', sellerNext);
+      void syncUserSocketsEconomy(sale.sellerId, sellerNext);
     })().catch(err => {
       console.error('Failed to complete sale', err);
       socket.emit('error', 'Unable to complete sale');

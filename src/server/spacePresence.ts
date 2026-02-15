@@ -1,7 +1,7 @@
 const presenceBySpace = new Map<string, Map<string, number>>();
 
 const normalizeSpaceId = (spaceId?: string | null) =>
-  (spaceId || 'global').trim().toLowerCase();
+  (spaceId ?? 'global').trim().toLowerCase();
 
 export const addPresence = (spaceId: string, userId: string): void => {
   const key = normalizeSpaceId(spaceId);

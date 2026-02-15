@@ -13,13 +13,10 @@ export function registerSimulationResyncHandler({
   getRulesForSpace,
 }: SocketHandlerContext) {
   socket.on('simulation:resync', () => {
-    const currentSpace = socket.data.spaceId || spaceId || defaultSpaceId;
+    const currentSpace = socket.data.spaceId ?? spaceId;
     const vesselsInSpace = Object.fromEntries(
       Array.from(globalState.vessels.entries())
-        .filter(
-          ([, v]) =>
-            (v.spaceId || defaultSpaceId) === (currentSpace || defaultSpaceId),
-        )
+        .filter(([, v]) => (v.spaceId ?? defaultSpaceId) === currentSpace)
         .map(([id, v]) => [id, toSimpleVesselState(v)]),
     );
     const roles = socket.data.roles;
@@ -29,24 +26,27 @@ export function registerSimulationResyncHandler({
       timestamp: Date.now(),
       spaceId: currentSpace,
       self: {
-        userId: socket.data.userId || effectiveUserId,
+        userId: effectiveUserId,
         roles,
         rank: socket.data.rank,
         credits: socket.data.credits,
         experience: socket.data.experience,
         safetyScore: socket.data.safetyScore,
         spaceId: currentSpace,
-        mode: socket.data.mode || 'spectator',
+        mode: socket.data.mode ?? 'spectator',
         vesselId: socket.data.vesselId,
       },
       spaceInfo: {
         id: currentSpace,
-        name: spaceMeta.name || currentSpace,
+        name:
+          typeof spaceMeta.name === 'string' && spaceMeta.name.length > 0
+            ? spaceMeta.name
+            : currentSpace,
         visibility: spaceMeta.visibility,
         kind: spaceMeta.kind,
         rankRequired: spaceMeta.rankRequired,
         rules: getRulesForSpace(currentSpace),
-        role: socket.data.spaceRole || 'member',
+        role: socket.data.spaceRole ?? 'member',
       },
     });
   });

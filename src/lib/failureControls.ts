@@ -12,7 +12,7 @@ export const applyFailureControlLimits = (
   failureState?: FailureState,
   damageState?: DamageState,
 ): { throttle?: number; rudderAngle?: number; ballast?: number } => {
-  if (!failureState && !damageState) return controls;
+  if (failureState === undefined && damageState === undefined) return controls;
 
   const next = { ...controls };
 
@@ -24,7 +24,10 @@ export const applyFailureControlLimits = (
     next.rudderAngle = 0;
   }
 
-  if (failureState?.floodingLevel && failureState.floodingLevel > 0) {
+  if (
+    failureState?.floodingLevel !== undefined &&
+    failureState.floodingLevel > 0
+  ) {
     const cap = Math.max(0, 1 - failureState.floodingLevel * 0.8);
     if (next.throttle !== undefined) {
       next.throttle = Math.min(next.throttle, cap);

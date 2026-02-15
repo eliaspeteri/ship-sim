@@ -11,7 +11,7 @@ export async function recordAuthEvent(payload: AuthAuditEvent) {
   try {
     await prisma.authEvent.create({
       data: {
-        userId: payload.userId || null,
+        userId: payload.userId ?? null,
         event: payload.event,
         detail: (payload.detail ?? undefined) as
           | Prisma.InputJsonValue

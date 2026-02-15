@@ -14,14 +14,17 @@ export function registerVesselStorageHandler({
   defaultSpaceId,
 }: SocketHandlerContext) {
   socket.on('vessel:storage', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    const currentUserId = effectiveUserId;
+    const requestedVesselId =
+      typeof data.vesselId === 'string' && data.vesselId.length > 0
+        ? data.vesselId
+        : undefined;
     const vesselId =
-      data.vesselId ||
-      getVesselIdForUser(currentUserId, spaceId) ||
+      requestedVesselId ??
+      getVesselIdForUser(currentUserId, spaceId) ??
       currentUserId;
     const vessel = globalState.vessels.get(vesselId);
-    if (!vessel || (vessel.spaceId || defaultSpaceId) !== spaceId) {
+    if (!vessel || (vessel.spaceId ?? defaultSpaceId) !== spaceId) {
       socket.emit('error', 'Vessel not found');
       return;
     }

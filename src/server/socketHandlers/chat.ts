@@ -13,7 +13,6 @@ export function registerChatHandlers({
   getActiveMute,
   loadChatHistory,
   chatHistoryPageSize,
-  defaultSpaceId,
 }: SocketHandlerContext) {
   socket.on('chat:message', async data => {
     if (!socketHasPermission(socket, 'chat', 'send')) {
@@ -27,21 +26,31 @@ export function registerChatHandlers({
       spaceId,
     );
     if (mute) {
-      socket.emit('error', mute.reason || 'You are muted in this space');
+      socket.emit(
+        'error',
+        typeof mute.reason === 'string' && mute.reason.length > 0
+          ? mute.reason
+          : 'You are muted in this space',
+      );
       return;
     }
 
-    const message = (data.message || '').trim();
-    if (!message || message.length > 500) return;
+    const message = typeof data.message === 'string' ? data.message.trim() : '';
+    if (message.length === 0 || message.length > 500) return;
 
     const currentVesselId = normalizeVesselId(
-      getVesselIdForUser(socket.data.userId || effectiveUserId, spaceId),
+      getVesselIdForUser(effectiveUserId, spaceId),
     );
     const channel = resolveChatChannel(data.channel, currentVesselId, spaceId);
+    const username =
+      typeof socket.data.username === 'string' &&
+      socket.data.username.length > 0
+        ? socket.data.username
+        : 'Guest';
     const payload = {
       id: '',
-      userId: socket.data.userId || 'unknown',
-      username: socket.data.username || 'Guest',
+      userId: effectiveUserId,
+      username,
       message,
       timestamp: Date.now(),
       channel,
@@ -53,7 +62,7 @@ export function registerChatHandlers({
           userId: payload.userId,
           username: payload.username,
           message: payload.message,
-          spaceId: spaceId || defaultSpaceId,
+          spaceId,
           channel: payload.channel,
         },
       });
@@ -63,16 +72,15 @@ export function registerChatHandlers({
       console.warn('Failed to persist chat message', err);
     }
 
-    const room =
-      channel && channel.startsWith('space:')
-        ? channel
-        : `space:${spaceId}:global`;
+    const room = channel.startsWith('space:')
+      ? channel
+      : `space:${spaceId}:global`;
     io.to(room).emit('chat:message', payload);
   });
 
   socket.on('chat:history', async data => {
     const currentVesselId = normalizeVesselId(
-      getVesselIdForUser(socket.data.userId || effectiveUserId, spaceId),
+      getVesselIdForUser(effectiveUserId, spaceId),
     );
     const channel = resolveChatChannel(data.channel, currentVesselId, spaceId);
     const before = typeof data.before === 'number' ? data.before : undefined;
@@ -93,7 +101,7 @@ export function registerChatHandlers({
         channel,
         messages,
         hasMore,
-        reset: !before,
+        reset: before === undefined,
       });
     } catch (err) {
       console.warn('Failed to load chat history', err);
@@ -101,7 +109,7 @@ export function registerChatHandlers({
         channel,
         messages: [],
         hasMore: false,
-        reset: !before,
+        reset: before === undefined,
       });
     }
   });

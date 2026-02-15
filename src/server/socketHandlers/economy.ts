@@ -10,8 +10,7 @@ export function registerEconomyHandlers({
   syncUserSocketsEconomy,
 }: SocketHandlerContext) {
   socket.on('economy:loan:request', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    const currentUserId = effectiveUserId;
     void (async () => {
       const amount = Number(data.amount);
       if (!Number.isFinite(amount) || amount <= 0) {
@@ -62,12 +61,11 @@ export function registerEconomyHandlers({
   });
 
   socket.on('economy:loan:repay', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    const currentUserId = effectiveUserId;
     void (async () => {
       const loanId = data.loanId;
       const amount = Number(data.amount);
-      if (!loanId || typeof loanId !== 'string') {
+      if (typeof loanId !== 'string' || loanId.length === 0) {
         socket.emit('error', 'Missing loan id');
         return;
       }
@@ -113,11 +111,10 @@ export function registerEconomyHandlers({
   });
 
   socket.on('economy:insurance:purchase', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    const currentUserId = effectiveUserId;
     void (async () => {
       const vesselId = data.vesselId;
-      if (!vesselId || typeof vesselId !== 'string') {
+      if (typeof vesselId !== 'string' || vesselId.length === 0) {
         socket.emit('error', 'Missing vessel id');
         return;
       }
@@ -177,11 +174,10 @@ export function registerEconomyHandlers({
   });
 
   socket.on('economy:insurance:cancel', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    const currentUserId = effectiveUserId;
     void (async () => {
       const policyId = data.policyId;
-      if (!policyId || typeof policyId !== 'string') {
+      if (typeof policyId !== 'string' || policyId.length === 0) {
         socket.emit('error', 'Missing policy id');
         return;
       }

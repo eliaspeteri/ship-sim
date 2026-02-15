@@ -85,7 +85,9 @@ const seed = async () => {
   if (packs.size > 0) return;
   const now = new Date().toISOString();
   const basePack = (id: string, name: string, regionSummary: string) => {
-    const slug = slugify(name) || `pack-${Date.now()}`;
+    const slugCandidate = slugify(name);
+    const slug =
+      slugCandidate.length > 0 ? slugCandidate : `pack-${Date.now()}`;
     return {
       id,
       slug,
@@ -124,7 +126,7 @@ const ensureSeed = async () => {
 
 export const listPacks = async (userId?: string) => {
   const all = Array.from((await ensureSeed()).values());
-  if (!userId) return all;
+  if (userId === undefined || userId.length === 0) return all;
   return all.filter(pack =>
     pack.members.some(member => member.userId === userId),
   );
@@ -186,7 +188,9 @@ export const createPack = async (input: {
   if (await isDuplicateName(input.ownerId, input.name)) {
     return { error: 'Duplicate pack title' } as const;
   }
-  const slugBase = slugify(input.name) || `pack-${Date.now()}`;
+  const slugCandidate = slugify(input.name);
+  const slugBase =
+    slugCandidate.length > 0 ? slugCandidate : `pack-${Date.now()}`;
   const slug = await ensureUniqueSlug(input.ownerId, slugBase);
   const id = `pack-${Date.now()}`;
   const now = new Date().toISOString();

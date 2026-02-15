@@ -30,7 +30,7 @@ export const DEFAULT_REGISTRATION_ROLE: Role = 'player';
  * Expand a set of roles to include inherited roles from the hierarchy.
  */
 export function expandRoles(inputRoles: Role[]): Role[] {
-  if (!inputRoles.length) return ['guest'];
+  if (inputRoles.length === 0) return ['guest'];
   const highestIndex = Math.max(
     ...inputRoles.map(r => ROLE_ORDER.indexOf(r)).filter(i => i >= 0),
   );

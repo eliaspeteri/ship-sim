@@ -12,14 +12,13 @@ export function registerDisconnectHandler({
   activeUserSockets,
 }: SocketHandlerContext) {
   socket.on('disconnect', () => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    const currentUsername = socket.data.username || effectiveUsername;
+    const currentUserId = effectiveUserId;
+    const currentUsername = effectiveUsername;
     console.info(`Socket disconnected: ${currentUsername} (${currentUserId})`);
     setConnectedClients(io.engine.clientsCount);
 
-    const activeSocketId =
-      currentUserId && activeUserSockets.get(currentUserId);
-    if (activeSocketId && activeSocketId !== socket.id) {
+    const activeSocketId = activeUserSockets.get(currentUserId);
+    if (activeSocketId !== undefined && activeSocketId !== socket.id) {
       return;
     }
 
@@ -31,11 +30,11 @@ export function registerDisconnectHandler({
       );
 
     if (!isGuestNow) {
-      const vesselId =
-        currentUserId && getVesselIdForUser(currentUserId, spaceId);
-      const vesselRecord = vesselId
-        ? globalState.vessels.get(vesselId)
-        : undefined;
+      const vesselId = getVesselIdForUser(currentUserId, spaceId);
+      const vesselRecord =
+        vesselId !== undefined && vesselId.length > 0
+          ? globalState.vessels.get(vesselId)
+          : undefined;
       if (vesselRecord) {
         vesselRecord.crewIds.delete(currentUserId);
         if (vesselRecord.helmUserId === currentUserId) {
@@ -57,10 +56,8 @@ export function registerDisconnectHandler({
       }
     }
 
-    if (currentUserId) {
-      socket
-        .to(`space:${spaceId}`)
-        .emit('vessel:left', { userId: currentUserId });
-    }
+    socket
+      .to(`space:${spaceId}`)
+      .emit('vessel:left', { userId: currentUserId });
   });
 }

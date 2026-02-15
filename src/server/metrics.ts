@@ -45,7 +45,7 @@ export const serverMetrics: ServerMetrics = {
 
 export const recordMetric = (bucket: keyof ServerMetrics, ms: number) => {
   const target = serverMetrics[bucket];
-  if (!target || typeof target !== 'object' || !('count' in target)) return;
+  if (typeof target !== 'object' || !('count' in target)) return;
   const metric = target as MetricBucket;
   metric.lastMs = ms;
   metric.maxMs = Math.max(metric.maxMs, ms);

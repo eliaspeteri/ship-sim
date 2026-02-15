@@ -39,8 +39,8 @@ export function registerVesselJoinHandler({
   getRulesForSpace,
 }: SocketHandlerContext) {
   socket.on('vessel:join', async data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    const currentUsername = socket.data.username || effectiveUsername;
+    const currentUserId = effectiveUserId;
+    const currentUsername = effectiveUsername;
     const rules = getRulesForSpace(spaceId) as { type?: RulesetType };
     const rankEligible = socket.data.rank >= spaceMeta.rankRequired;
     if (!isPlayerOrHigher()) {
@@ -55,19 +55,22 @@ export function registerVesselJoinHandler({
       return;
     }
     const targetId =
-      typeof data?.vesselId === 'string' ? data.vesselId : undefined;
-    let target = targetId ? findVesselInSpace(targetId, spaceId) : null;
-    if (!target && targetId) {
+      typeof data.vesselId === 'string' && data.vesselId.length > 0
+        ? data.vesselId
+        : undefined;
+    const hasTargetId = targetId !== undefined && targetId.length > 0;
+    let target = hasTargetId ? findVesselInSpace(targetId, spaceId) : null;
+    if (!target && hasTargetId) {
       const existing = globalState.vessels.get(targetId);
-      if (existing && (existing.spaceId || defaultSpaceId) !== spaceId) {
+      if (existing && (existing.spaceId ?? defaultSpaceId) !== spaceId) {
         socket.emit(
           'error',
-          `Vessel is in space ${existing.spaceId || defaultSpaceId}`,
+          `Vessel is in space ${existing.spaceId ?? defaultSpaceId}`,
         );
         return;
       }
     }
-    if (!target && targetId) {
+    if (!target && hasTargetId) {
       const row = await prisma.vessel.findUnique({ where: { id: targetId } });
       if (!row) {
         socket.emit('error', 'Vessel not found');
@@ -82,10 +85,10 @@ export function registerVesselJoinHandler({
         return;
       }
       const hydrated = buildVesselRecordFromRow(row);
-      if ((hydrated.spaceId || defaultSpaceId) !== spaceId) {
+      if ((hydrated.spaceId ?? defaultSpaceId) !== spaceId) {
         socket.emit(
           'error',
-          `Vessel is in space ${hydrated.spaceId || defaultSpaceId}`,
+          `Vessel is in space ${hydrated.spaceId ?? defaultSpaceId}`,
         );
         return;
       }
@@ -108,12 +111,13 @@ export function registerVesselJoinHandler({
       return;
     }
     const currentVesselId = getVesselIdForUser(currentUserId, spaceId);
-    const currentVessel = currentVesselId
-      ? findVesselInSpace(currentVesselId, spaceId)
-      : null;
+    const currentVessel =
+      currentVesselId !== undefined && currentVesselId.length > 0
+        ? findVesselInSpace(currentVesselId, spaceId)
+        : null;
     const isSwitching =
       currentVessel !== null && currentVessel.id !== target.id;
-    const rulesType = rules.type || RulesetType.CASUAL;
+    const rulesType = rules.type ?? RulesetType.CASUAL;
     const switchRestricted =
       rulesType === RulesetType.REALISM || rulesType === RulesetType.EXAM;
     if (isSwitching && switchRestricted && !hasAdminRole(socket)) {
@@ -159,8 +163,8 @@ export function registerVesselJoinHandler({
   });
 
   socket.on('vessel:create', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    const currentUsername = socket.data.username || effectiveUsername;
+    const currentUserId = effectiveUserId;
+    const currentUsername = effectiveUsername;
     const rules = getRulesForSpace(spaceId) as { type?: RulesetType };
     const rankEligible = socket.data.rank >= spaceMeta.rankRequired;
     if (!isPlayerOrHigher()) {
@@ -175,10 +179,11 @@ export function registerVesselJoinHandler({
       return;
     }
     const currentVesselId = getVesselIdForUser(currentUserId, spaceId);
-    const currentVessel = currentVesselId
-      ? findVesselInSpace(currentVesselId, spaceId)
-      : null;
-    const rulesType = rules.type || RulesetType.CASUAL;
+    const currentVessel =
+      currentVesselId !== undefined && currentVesselId.length > 0
+        ? findVesselInSpace(currentVesselId, spaceId)
+        : null;
+    const rulesType = rules.type ?? RulesetType.CASUAL;
     const switchRestricted =
       rulesType === RulesetType.REALISM || rulesType === RulesetType.EXAM;
     if (currentVessel && switchRestricted && !hasAdminRole(socket)) {
@@ -214,7 +219,7 @@ export function registerVesselJoinHandler({
       const newVessel = createNewVesselForUser(
         currentUserId,
         currentUsername,
-        data || {},
+        data,
         spaceId,
       );
       globalState.vessels.set(newVessel.id, newVessel);

@@ -29,7 +29,7 @@ import { registerVesselEnvironmentRoutes } from './routes/vesselEnvironmentRoute
 import { createInMemoryUserSettingsStore } from './services/userSettingsStore';
 
 const router = express.Router();
-const DEFAULT_SPACE_ID = process.env.DEFAULT_SPACE_ID || 'global';
+const DEFAULT_SPACE_ID = process.env.DEFAULT_SPACE_ID ?? 'global';
 
 router.use(authenticateRequest);
 router.use((req, res, next) => {
@@ -51,7 +51,13 @@ const canManageSpace = async (
     where: { id: spaceId },
     select: { createdBy: true },
   });
-  if (space?.createdBy && space.createdBy === userId) return true;
+  if (
+    space?.createdBy !== null &&
+    space?.createdBy !== undefined &&
+    space.createdBy === userId
+  ) {
+    return true;
+  }
   const access = await prisma.spaceAccess.findUnique({
     where: { userId_spaceId: { userId, spaceId } },
     select: { role: true },
@@ -73,17 +79,18 @@ const serializeSpace = (space: {
   id: space.id,
   name: space.name,
   visibility: space.visibility,
-  inviteToken: space.inviteToken || undefined,
-  kind: space.kind || 'free',
+  inviteToken: space.inviteToken ?? undefined,
+  kind: space.kind ?? 'free',
   rankRequired: space.rankRequired ?? 1,
-  rulesetType: space.rulesetType || undefined,
+  rulesetType: space.rulesetType ?? undefined,
   rules:
-    space.rules &&
+    space.rules !== null &&
+    space.rules !== undefined &&
     typeof space.rules === 'object' &&
     !Array.isArray(space.rules)
       ? (space.rules as Rules)
       : null,
-  createdBy: space.createdBy || undefined,
+  createdBy: space.createdBy ?? undefined,
 });
 
 const userSettingsStore = createInMemoryUserSettingsStore();

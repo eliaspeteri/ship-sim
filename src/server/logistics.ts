@@ -103,7 +103,7 @@ export const getPortCongestion = async () => {
   const cargoMap = new Map(
     cargoCounts.map(
       (row: { portId?: string | null; _count: { _all: number } }) => [
-        row.portId || '',
+        row.portId ?? '',
         row._count._all,
       ],
     ),
@@ -111,7 +111,7 @@ export const getPortCongestion = async () => {
   const paxMap = new Map(
     paxCounts.map(
       (row: { originPortId?: string | null; _count: { _all: number } }) => [
-        row.originPortId || '',
+        row.originPortId ?? '',
         row._count._all,
       ],
     ),
@@ -221,7 +221,7 @@ export const sweepExpiredCargo = async (now: number) => {
       expiresAt: { lt: new Date(now) },
     },
   });
-  if (!expired.length) return;
+  if (expired.length === 0) return;
   await prisma.cargoLot.updateMany({
     where: {
       id: { in: expired.map((lot: { id: string }) => lot.id) },
@@ -229,17 +229,23 @@ export const sweepExpiredCargo = async (now: number) => {
     data: { status: 'expired' },
   });
   for (const lot of expired) {
-    if (!lot.originPortId) continue;
+    if (lot.originPortId === null || lot.originPortId.length === 0) continue;
     const destination = resolveDestination(lot.originPortId);
     await prisma.cargoLot.create({
       data: {
         portId: lot.originPortId,
         originPortId: lot.originPortId,
         destinationPortId: destination.id,
-        cargoType: lot.cargoType || 'bulk',
-        description: lot.description || 'rerouted cargo',
+        cargoType: lot.cargoType.length > 0 ? lot.cargoType : 'bulk',
+        description:
+          lot.description !== null && lot.description.length > 0
+            ? lot.description
+            : 'rerouted cargo',
         value: lot.value,
-        rewardCredits: lot.rewardCredits || Math.round(lot.value * 1.1),
+        rewardCredits:
+          lot.rewardCredits > 0
+            ? lot.rewardCredits
+            : Math.round(lot.value * 1.1),
         weightTons: lot.weightTons,
         liabilityRate: lot.liabilityRate,
         status: 'listed',
@@ -272,9 +278,16 @@ export const updateCargoDeliveries = async (params: {
   const cargo = await prisma.cargoLot.findMany({
     where: { status: 'loaded', vesselId: { not: null } },
   });
-  if (!cargo.length) return;
+  if (cargo.length === 0) return;
   for (const lot of cargo) {
-    if (!lot.vesselId || !lot.destinationPortId) continue;
+    if (
+      lot.vesselId === null ||
+      lot.vesselId.length === 0 ||
+      lot.destinationPortId === null ||
+      lot.destinationPortId.length === 0
+    ) {
+      continue;
+    }
     const vessel = params.vessels.get(lot.vesselId);
     if (!vessel) continue;
     const dest = portById.get(lot.destinationPortId);
@@ -285,11 +298,11 @@ export const updateCargoDeliveries = async (params: {
       where: { id: lot.id },
       data: { status: 'delivered', vesselId: null, portId: dest.id },
     });
-    if (lot.carrierId) {
+    if (lot.carrierId !== null && lot.carrierId.length > 0) {
       await applyEconomyAdjustmentWithRevenueShare({
         userId: lot.carrierId,
         vesselId: lot.vesselId,
-        deltaCredits: lot.rewardCredits || lot.value,
+        deltaCredits: lot.rewardCredits > 0 ? lot.rewardCredits : lot.value,
         reason: 'cargo_delivery',
         meta: { cargoId: lot.id, destination: dest.id },
       });
@@ -308,9 +321,9 @@ export const updatePassengerDeliveries = async (params: {
   const contracts = await prisma.passengerContract.findMany({
     where: { status: 'in_progress', vesselId: { not: null } },
   });
-  if (!contracts.length) return;
+  if (contracts.length === 0) return;
   for (const contract of contracts) {
-    if (!contract.vesselId) continue;
+    if (contract.vesselId === null || contract.vesselId.length === 0) continue;
     const vessel = params.vessels.get(contract.vesselId);
     if (!vessel) continue;
     const dest = portById.get(contract.destinationPortId);
@@ -321,7 +334,7 @@ export const updatePassengerDeliveries = async (params: {
       where: { id: contract.id },
       data: { status: 'completed', vesselId: null },
     });
-    if (contract.operatorId) {
+    if (contract.operatorId !== null && contract.operatorId.length > 0) {
       await applyEconomyAdjustmentWithRevenueShare({
         userId: contract.operatorId,
         vesselId: contract.vesselId,

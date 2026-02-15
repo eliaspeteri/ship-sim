@@ -10,8 +10,7 @@ export function registerCargoHandlers({
   hasAdminRole,
 }: SocketHandlerContext) {
   socket.on('cargo:create', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    const currentUserId = effectiveUserId;
     void (async () => {
       const value = Number(data.value);
       if (!Number.isFinite(value) || value <= 0) {
@@ -29,20 +28,23 @@ export function registerCargoHandlers({
         return;
       }
       const vesselId =
-        data.vesselId && typeof data.vesselId === 'string'
+        typeof data.vesselId === 'string' && data.vesselId.length > 0
           ? data.vesselId
           : null;
       let portId =
-        data.portId && typeof data.portId === 'string' ? data.portId : null;
+        typeof data.portId === 'string' && data.portId.length > 0
+          ? data.portId
+          : null;
       let originPortId =
-        data.originPortId && typeof data.originPortId === 'string'
+        typeof data.originPortId === 'string' && data.originPortId.length > 0
           ? data.originPortId
           : null;
       const destinationPortId =
-        data.destinationPortId && typeof data.destinationPortId === 'string'
+        typeof data.destinationPortId === 'string' &&
+        data.destinationPortId.length > 0
           ? data.destinationPortId
           : null;
-      if (vesselId) {
+      if (vesselId !== null && vesselId.length > 0) {
         const vessel = globalState.vessels.get(vesselId);
         if (!vessel) {
           socket.emit('error', 'Vessel not found');
@@ -62,7 +64,7 @@ export function registerCargoHandlers({
         portId = port.id;
         originPortId = port.id;
       }
-      if (!vesselId && !portId) {
+      if (vesselId === null && portId === null) {
         socket.emit('error', 'Missing port for cargo listing');
         return;
       }
@@ -77,7 +79,7 @@ export function registerCargoHandlers({
       await prisma.cargoLot.create({
         data: {
           ownerId: currentUserId,
-          carrierId: vesselId ? currentUserId : null,
+          carrierId: vesselId !== null ? currentUserId : null,
           vesselId,
           portId,
           originPortId,
@@ -93,7 +95,7 @@ export function registerCargoHandlers({
               ? liabilityRate
               : 0,
           expiresAt,
-          status: vesselId ? 'loaded' : 'listed',
+          status: vesselId !== null ? 'loaded' : 'listed',
         },
       });
     })().catch(err => {
@@ -103,19 +105,28 @@ export function registerCargoHandlers({
   });
 
   socket.on('cargo:assign', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    const currentUserId = effectiveUserId;
     void (async () => {
       const cargoId = data.cargoId;
       const vesselId = data.vesselId;
-      if (!cargoId || !vesselId) {
+      if (
+        typeof cargoId !== 'string' ||
+        cargoId.length === 0 ||
+        typeof vesselId !== 'string' ||
+        vesselId.length === 0
+      ) {
         socket.emit('error', 'Missing cargo or vessel id');
         return;
       }
       const cargo = await prisma.cargoLot.findUnique({
         where: { id: cargoId },
       });
-      if (!cargo || (cargo.ownerId && cargo.ownerId !== currentUserId)) {
+      if (
+        !cargo ||
+        (cargo.ownerId !== null &&
+          cargo.ownerId.length > 0 &&
+          cargo.ownerId !== currentUserId)
+      ) {
         socket.emit('error', 'Cargo not found');
         return;
       }
@@ -123,7 +134,7 @@ export function registerCargoHandlers({
         socket.emit('error', 'Cargo not available');
         return;
       }
-      if (cargo.expiresAt && cargo.expiresAt.getTime() < Date.now()) {
+      if (cargo.expiresAt !== null && cargo.expiresAt.getTime() < Date.now()) {
         socket.emit('error', 'Cargo offer expired');
         return;
       }
@@ -133,7 +144,12 @@ export function registerCargoHandlers({
         return;
       }
       const port = resolvePortForPosition(vessel.position);
-      if (!port || (cargo.portId && cargo.portId !== port.id)) {
+      if (
+        !port ||
+        (cargo.portId !== null &&
+          cargo.portId.length > 0 &&
+          cargo.portId !== port.id)
+      ) {
         socket.emit('error', 'Vessel must be in the cargo port');
         return;
       }
@@ -170,11 +186,10 @@ export function registerCargoHandlers({
   });
 
   socket.on('cargo:release', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    if (!currentUserId) return;
+    const currentUserId = effectiveUserId;
     void (async () => {
       const cargoId = data.cargoId;
-      if (!cargoId || typeof cargoId !== 'string') {
+      if (typeof cargoId !== 'string' || cargoId.length === 0) {
         socket.emit('error', 'Missing cargo id');
         return;
       }

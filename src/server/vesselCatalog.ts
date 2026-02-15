@@ -58,7 +58,7 @@ const normalizeCatalogEntries = (payload: unknown): VesselCatalogEntry[] => {
   if (Array.isArray(payload)) {
     return payload as VesselCatalogEntry[];
   }
-  if (payload && typeof payload === 'object') {
+  if (payload !== null && typeof payload === 'object') {
     const entries = (payload as { entries?: VesselCatalogEntry[] }).entries;
     if (Array.isArray(entries)) return entries;
   }
@@ -69,13 +69,14 @@ const mergePhysicsConfig = (
   base?: VesselPhysicsConfig,
   update?: VesselPhysicsConfig,
 ): VesselPhysicsConfig | undefined => {
-  if (!base && !update) return undefined;
+  if (base === undefined && update === undefined) return undefined;
   const merged = {
     ...base,
     ...update,
-    params: { ...(base?.params || {}), ...(update?.params || {}) },
+    params: { ...(base?.params ?? {}), ...(update?.params ?? {}) },
   };
-  if (!merged.model || merged.schemaVersion === undefined) return undefined;
+  if (merged.model === undefined || merged.schemaVersion === undefined)
+    return undefined;
   return merged as VesselPhysicsConfig;
 };
 
@@ -161,10 +162,10 @@ export const resolveVesselTemplate = (
   templateId?: string | null,
 ): VesselCatalogEntry => {
   const { entries, byId } = getVesselCatalog();
-  if (templateId && byId.has(templateId)) {
+  if (templateId !== null && templateId !== undefined && byId.has(templateId)) {
     return byId.get(templateId)!;
   }
-  return byId.get(DEFAULT_TEMPLATE_ID) || entries[0] || FALLBACK_ENTRY;
+  return byId.get(DEFAULT_TEMPLATE_ID) ?? entries[0];
 };
 
 export const buildHydrodynamics = (template: VesselCatalogEntry) => ({

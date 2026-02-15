@@ -111,7 +111,8 @@ export const updateFailureState = (
     state.engineFailure &&
     throttle < 0.05 &&
     speed < 0.2 &&
-    state.engineFailureAt &&
+    state.engineFailureAt !== null &&
+    state.engineFailureAt !== undefined &&
     input.nowMs - state.engineFailureAt > MIN_REPAIR_DELAY_MS
   ) {
     const chance = input.dt / ENGINE_REPAIR_MEAN_SEC;
@@ -126,7 +127,8 @@ export const updateFailureState = (
     state.steeringFailure &&
     throttle < 0.05 &&
     speed < 0.2 &&
-    state.steeringFailureAt &&
+    state.steeringFailureAt !== null &&
+    state.steeringFailureAt !== undefined &&
     input.nowMs - state.steeringFailureAt > MIN_REPAIR_DELAY_MS
   ) {
     const chance = input.dt / STEERING_REPAIR_MEAN_SEC;

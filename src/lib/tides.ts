@@ -39,7 +39,7 @@ const hashString = (value: string): number => {
 };
 
 const getTideSeed = (spaceId: string) => {
-  const seed = hashString(spaceId || 'global');
+  const seed = hashString(spaceId.length > 0 ? spaceId : 'global');
   const phase = (seed % 10_000) / 10_000;
   const amplitudeScale = 0.6 + ((seed >>> 8) % 1_000) / 1_000; // 0.6 - 1.6
   return { phase, amplitudeScale };
@@ -74,7 +74,12 @@ export const computeTideState = ({
   }
   range *= 2;
 
-  if (rangeOverride && rangeOverride > 0 && Number.isFinite(rangeOverride)) {
+  if (
+    rangeOverride !== null &&
+    rangeOverride !== undefined &&
+    rangeOverride > 0 &&
+    Number.isFinite(rangeOverride)
+  ) {
     const scale = range > 0 ? rangeOverride / range : 1;
     range = rangeOverride;
     return {

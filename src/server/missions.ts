@@ -59,7 +59,11 @@ const DEFAULT_MISSIONS: MissionSeed[] = [
 const normalizeMissionProgress = (
   progress: unknown,
 ): MissionAssignmentData['progress'] | null => {
-  if (!progress || typeof progress !== 'object' || Array.isArray(progress)) {
+  if (
+    progress === null ||
+    typeof progress !== 'object' ||
+    Array.isArray(progress)
+  ) {
     return null;
   }
   return progress as MissionAssignmentData['progress'];
@@ -106,11 +110,11 @@ const maybeAwardNearbyPortReputation = async (
         : closest;
     },
     {
-      id: ECONOMY_PORTS[0]?.id || 'unknown',
+      id: ECONOMY_PORTS[0]?.id ?? 'unknown',
       distance: Number.POSITIVE_INFINITY,
     },
   );
-  if (!nearestPort.id || nearestPort.distance >= 1500) {
+  if (nearestPort.id.length === 0 || nearestPort.distance >= 1500) {
     return;
   }
   await bumpReputation({
@@ -197,7 +201,7 @@ export async function assignMission(params: {
     data: {
       missionId: params.missionId,
       userId: params.userId,
-      vesselId: params.vesselId || null,
+      vesselId: params.vesselId ?? null,
       status: 'assigned',
       progress: { stage: 'pickup' },
     },
@@ -234,7 +238,7 @@ export async function updateMissionAssignments(params: {
     include: { mission: true },
   })) as unknown[];
 
-  if (!assignments.length) return;
+  if (assignments.length === 0) return;
 
   const normalizedAssignments = assignments.map(assignment =>
     toMissionAssignmentData(
@@ -244,12 +248,15 @@ export async function updateMissionAssignments(params: {
 
   for (const assignment of normalizedAssignments) {
     const mission = assignment.mission as MissionDefinition | undefined;
-    if (!mission) continue;
-    const vesselId = assignment.vesselId || undefined;
-    const vessel = vesselId ? params.vessels.get(vesselId) : undefined;
+    if (mission === undefined) continue;
+    const vesselId = assignment.vesselId ?? undefined;
+    const vessel =
+      vesselId !== undefined && vesselId.length > 0
+        ? params.vessels.get(vesselId)
+        : undefined;
     if (!vessel) continue;
 
-    const progress = (assignment.progress || {
+    const progress = (assignment.progress ?? {
       stage: 'pickup',
     }) as { stage: 'pickup' | 'delivery'; pickedUpAt?: number };
 

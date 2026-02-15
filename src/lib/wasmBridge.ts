@@ -156,7 +156,7 @@ export class WasmBridge {
 
     const capacity = this.wasmModule.getVesselParamsBufferCapacity();
     const ptr = this.wasmModule.getVesselParamsBufferPtr();
-    if (!ptr || capacity <= 0) return;
+    if (ptr <= 0 || capacity <= 0) return;
 
     const buffer = new Float64Array(
       this.wasmModule.memory.buffer,
@@ -184,7 +184,7 @@ export class WasmBridge {
 
     const capacity = this.wasmModule.getEnvironmentBufferCapacity();
     const ptr = this.wasmModule.getEnvironmentBufferPtr();
-    if (!ptr || capacity <= 0) return;
+    if (ptr <= 0 || capacity <= 0) return;
 
     const buffer = new Float64Array(
       this.wasmModule.memory.buffer,

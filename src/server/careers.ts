@@ -116,7 +116,7 @@ export const seedCareerDefinitions = async () => {
       id: exam.id,
       name: exam.name,
       description: exam.description,
-      scenarioId: exam.scenarioId || null,
+      scenarioId: exam.scenarioId ?? null,
       careerId: exam.careerId,
       licenseKey: exam.licenseKey,
       minScore: exam.minScore,
@@ -154,8 +154,9 @@ export const getExamDefinitions = () =>
   EXAMS.map(exam => ({
     ...exam,
     scenario:
-      exam.scenarioId &&
-      getScenarios().find(scenario => scenario.id === exam.scenarioId),
+      exam.scenarioId !== undefined
+        ? getScenarios().find(scenario => scenario.id === exam.scenarioId)
+        : undefined,
   }));
 
 export const addCareerExperience = async (params: {

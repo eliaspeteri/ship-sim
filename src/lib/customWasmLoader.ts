@@ -37,14 +37,14 @@ export async function loadWasmModule(): Promise<WasmModule> {
         let message = 'abort';
         let file = '';
         try {
-          if (msgPtr) {
+          if (msgPtr > 0) {
             const buffer = new Uint16Array(memory.buffer);
             const len = buffer[(msgPtr - 2) >>> 1];
             message = textDecoder.decode(
               new Uint8Array(memory.buffer, msgPtr, len << 1),
             );
           }
-          if (filePtr) {
+          if (filePtr > 0) {
             const buffer = new Uint16Array(memory.buffer);
             const len = buffer[(filePtr - 2) >>> 1];
             file = textDecoder.decode(

@@ -113,7 +113,10 @@ const appendCandidates = (params: {
     if (p.lon < params.bounds.west || p.lon > params.bounds.east) continue;
 
     const osmId = p.properties['osm_id'];
-    const dedupeKey = osmId ? `n:${String(osmId)}` : `${p.lat}:${p.lon}`;
+    const dedupeKey =
+      osmId !== null && osmId !== undefined
+        ? `n:${String(osmId)}`
+        : `${p.lat}:${p.lon}`;
     if (params.seen.has(dedupeKey)) continue;
     params.seen.add(dedupeKey);
 
@@ -171,7 +174,7 @@ export async function loadSeamarks() {
     try {
       const filePath = path.resolve(process.cwd(), 'data', 'seamarks.geojson');
       const raw = await fs.readFile(filePath, 'utf8');
-      if (!raw) throw new Error('Seamarks geojson file is empty');
+      if (raw.length === 0) throw new Error('Seamarks geojson file is empty');
 
       const data = JSON.parse(raw) as FeatureCollection;
 
@@ -186,7 +189,7 @@ export async function loadSeamarks() {
         if (lat < -90 || lat > 90) continue;
 
         // Optional: keep only buoy/beacon/light nodes if your geojson contains more
-        const t = String(f.properties['seamark:type'] || '');
+        const t = String(f.properties['seamark:type'] ?? '');
         if (!/^(buoy|beacon|light)_/.test(t)) continue;
 
         const rec: SeamarkPoint = { lat, lon, properties: f.properties };

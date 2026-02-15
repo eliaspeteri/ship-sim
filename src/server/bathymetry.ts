@@ -65,7 +65,7 @@ const addToIndex = (polyIndex: number, poly: PolygonRecord) => {
   for (let latIdx = minLatIdx; latIdx <= maxLatIdx; latIdx++) {
     for (let lonIdx = minLonIdx; lonIdx <= maxLonIdx; lonIdx++) {
       const key = `${latIdx}:${lonIdx}`;
-      const list = cellIndex.get(key) || [];
+      const list = cellIndex.get(key) ?? [];
       list.push(polyIndex);
       cellIndex.set(key, list);
     }
@@ -73,7 +73,7 @@ const addToIndex = (polyIndex: number, poly: PolygonRecord) => {
 };
 
 const buildPolygon = (rings: Ring[], depth: number): PolygonRecord | null => {
-  if (!rings.length) return null;
+  if (rings.length === 0) return null;
   const outer = rings[0];
   if (outer.length < 3) return null;
   let minLat = Infinity;
@@ -115,7 +115,7 @@ export async function loadBathymetry() {
           geometry?: { type?: string; coordinates?: unknown };
         }>;
       };
-      const features = data.features || [];
+      const features = data.features ?? [];
       polygons = [];
       cellIndex = new Map();
       features.forEach(feature => {
@@ -166,7 +166,7 @@ export function getBathymetryDepth(
   if (cached !== undefined) return cached;
 
   const cellKey = toKey(lat, lon);
-  const candidates = cellIndex.get(cellKey) || [];
+  const candidates = cellIndex.get(cellKey) ?? [];
   let depth = DEFAULT_OPEN_OCEAN_DEPTH;
   let matched = false;
   for (const idx of candidates) {

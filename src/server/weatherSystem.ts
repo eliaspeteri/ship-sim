@@ -53,7 +53,7 @@ export const applyWeatherPattern = (
     tideRange: env.tideRange,
     tidePhase: env.tidePhase,
     tideTrend: env.tideTrend,
-    name: pattern.name || 'Weather',
+    name: pattern.name.length > 0 ? pattern.name : 'Weather',
   };
   globalState.environmentBySpace.set(spaceId, next);
   return next;
@@ -232,7 +232,7 @@ export function getWeatherByCoordinates(
 
 // Select a specific weather preset or random
 export function getWeatherPattern(pattern?: string): WeatherPattern {
-  if (pattern) {
+  if (pattern !== undefined && pattern.length > 0) {
     return weatherPresets[pattern] ?? generateRandomWeather();
   }
   return generateRandomWeather();

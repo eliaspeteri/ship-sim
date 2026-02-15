@@ -15,12 +15,12 @@ export function registerStationHandlers({
   defaultSpaceId,
 }: SocketHandlerContext) {
   socket.on('vessel:helm', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    const currentUsername = socket.data.username || effectiveUsername;
+    const currentUserId = effectiveUserId;
+    const currentUsername = effectiveUsername;
     const vesselKey =
-      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
+      getVesselIdForUser(currentUserId, spaceId) ?? currentUserId;
     const vessel = globalState.vessels.get(vesselKey);
-    if (!vessel || (vessel.spaceId || defaultSpaceId) !== spaceId) return;
+    if (!vessel || (vessel.spaceId ?? defaultSpaceId) !== spaceId) return;
     if (!vessel.crewIds.has(currentUserId)) {
       socket.emit('error', 'You are not crew on this vessel');
       return;
@@ -34,7 +34,12 @@ export function registerStationHandlers({
       hasAdminRole(socket),
     );
     if (!result.ok) {
-      socket.emit('error', result.message || 'Unable to change helm');
+      socket.emit(
+        'error',
+        typeof result.message === 'string' && result.message.length > 0
+          ? result.message
+          : 'Unable to change helm',
+      );
       return;
     }
     vessel.lastUpdate = Date.now();
@@ -47,12 +52,12 @@ export function registerStationHandlers({
   });
 
   socket.on('vessel:station', data => {
-    const currentUserId = socket.data.userId || effectiveUserId;
-    const currentUsername = socket.data.username || effectiveUsername;
+    const currentUserId = effectiveUserId;
+    const currentUsername = effectiveUsername;
     const vesselKey =
-      getVesselIdForUser(currentUserId, spaceId) || currentUserId;
+      getVesselIdForUser(currentUserId, spaceId) ?? currentUserId;
     const vessel = globalState.vessels.get(vesselKey);
-    if (!vessel || (vessel.spaceId || defaultSpaceId) !== spaceId) return;
+    if (!vessel || (vessel.spaceId ?? defaultSpaceId) !== spaceId) return;
     if (!vessel.crewIds.has(currentUserId) && !hasAdminRole(socket)) {
       socket.emit('error', 'You are not crew on this vessel');
       return;
@@ -70,7 +75,12 @@ export function registerStationHandlers({
       hasAdminRole(socket),
     );
     if (!result.ok) {
-      socket.emit('error', result.message || 'Unable to change station');
+      socket.emit(
+        'error',
+        typeof result.message === 'string' && result.message.length > 0
+          ? result.message
+          : 'Unable to change station',
+      );
       return;
     }
     vessel.lastUpdate = Date.now();
