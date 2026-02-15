@@ -1835,7 +1835,7 @@ io.on('connection', async socket => {
     socket.data.spaceRole = await getSpaceRole(effectiveUserId, spaceId);
   }
   const spaceMeta = await getSpaceMeta(spaceId);
-  const roles: Role[] = socketData.roles ?? ['guest'];
+  const roles = socketData.roles;
   const roleSet = new Set(roles);
   const isPlayerOrHigher = roleSet.has('player') || roleSet.has('admin');
   const isSpectatorOnly = roleSet.has('spectator') && !isPlayerOrHigher;
