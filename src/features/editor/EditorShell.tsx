@@ -233,7 +233,9 @@ const EditorShell: React.FC<EditorShellProps> = ({ pack, layers }) => {
         <EditorBottomBar
           pack={pack}
           compileSummary={compileSummary}
-          onPublish={handlePublish}
+          onPublish={() => {
+            void handlePublish();
+          }}
         />
         <EditorToolsPanel
           tools={TOOL_DEFS}

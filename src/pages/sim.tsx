@@ -346,9 +346,15 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         setNewSpacePassword={setNewSpacePassword}
         spaceError={spaceError}
         setSpaceError={setSpaceError}
-        onJoinSpace={joinSpace}
-        onFetchSpaces={fetchSpaces}
-        onCreateSpace={createSpace}
+        onJoinSpace={(...args) => {
+          void joinSpace(...args);
+        }}
+        onFetchSpaces={options => {
+          void fetchSpaces(options);
+        }}
+        onCreateSpace={(...args) => {
+          void createSpace(...args);
+        }}
         onClose={() => setSpaceModalOpen(false)}
         onFlowChange={setSpaceFlow}
       />
@@ -414,7 +420,9 @@ const SimPage: React.FC & { fullBleedLayout?: boolean } = () => {
         scenarioLoadingId={scenarioLoadingId}
         scenarioError={scenarioError}
         accountRank={account.rank}
-        onStartScenario={startScenario}
+        onStartScenario={scenarioId => {
+          void startScenario(scenarioId);
+        }}
       />
     </div>
   );

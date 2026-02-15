@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import EventLog from '../../../src/components/EventLog';
+import EventLogComponent from '../../../src/components/EventLog';
 import useStore from '../../../src/store';
 
 const initialState = useStore.getState();
@@ -13,7 +13,7 @@ describe('EventLog', () => {
   it('shows empty state when there are no events', () => {
     useStore.setState({ eventLog: [] });
 
-    render(<EventLog />);
+    render(<EventLogComponent />);
 
     expect(screen.getByText('No events logged yet')).toBeInTheDocument();
     expect(screen.getByText('0 events')).toBeInTheDocument();
@@ -41,7 +41,7 @@ describe('EventLog', () => {
       ],
     });
 
-    const { container } = render(<EventLog />);
+    const { container } = render(<EventLogComponent />);
     const rows = container.querySelectorAll('tbody tr');
 
     expect(rows.length).toBe(2);

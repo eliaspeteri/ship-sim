@@ -33,7 +33,7 @@ export function WeatherVisualizer({ className = '' }: WeatherVisualizerProps) {
       }
     };
 
-    initWasmBridge();
+    void initWasmBridge();
 
     return () => {
       mounted = false;

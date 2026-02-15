@@ -100,7 +100,7 @@ function DisplacedGlobe() {
         vertexShader,
         fragmentShader,
       }),
-    [uniforms],
+    [fragmentShader, uniforms, vertexShader],
   );
 
   return (

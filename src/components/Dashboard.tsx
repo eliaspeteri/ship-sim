@@ -29,8 +29,7 @@ const ui = {
     'text-[10px] uppercase tracking-[0.12em] text-[rgba(150,170,180,0.7)]',
   compassWrap:
     'flex justify-center max-[900px]:landscape:origin-top max-[900px]:landscape:scale-[0.85]',
-  statGrid:
-    'grid grid-cols-2 gap-3 max-[900px]:landscape:gap-2',
+  statGrid: 'grid grid-cols-2 gap-3 max-[900px]:landscape:gap-2',
   statCard: 'rounded-[10px] bg-[rgba(16,28,42,0.7)] px-2.5 py-2',
   statLabel:
     'text-[11px] uppercase tracking-[0.14em] text-[rgba(160,179,192,0.7)]',
@@ -61,7 +60,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className = '' }) => {
       x: speed * Math.cos(direction),
       y: speed * Math.sin(direction),
     };
-  }, [environment.current?.direction, environment.current?.speed]);
+  }, [environment]);
   const worldVelocity = useMemo(() => {
     const base = worldVelocityFromBody(headingRad, velocity ?? {});
     return {

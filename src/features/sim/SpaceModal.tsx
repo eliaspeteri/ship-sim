@@ -221,16 +221,17 @@ export function SpaceModal({
                   {activeSpace?.inviteToken ? (
                     <button
                       className={`${styles.button} ${styles.buttonSecondary}`}
-                      onClick={async () => {
+                      onClick={() => {
                         const invite = activeSpace?.inviteToken;
-                        if (invite) {
-                          try {
-                            await navigator.clipboard.writeText(invite);
+                        if (!invite) return;
+                        void navigator.clipboard
+                          .writeText(invite)
+                          .then(() => {
                             setSpaceError(null);
-                          } catch {
+                          })
+                          .catch(() => {
                             setSpaceError('Failed to copy invite token');
-                          }
-                        }
+                          });
                       }}
                     >
                       Copy invite token

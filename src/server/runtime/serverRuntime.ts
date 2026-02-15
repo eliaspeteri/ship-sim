@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import http from 'http';
 import { URL } from 'url';
-import { Server } from 'socket.io';
+import { Server, type Socket } from 'socket.io';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import apiRoutes from '../api';
@@ -533,7 +533,7 @@ const getVesselIdForUser = (
   return stored || userId || undefined;
 };
 
-const getSpaceIdForSocket = (socket: import('socket.io').Socket): string =>
+const getSpaceIdForSocket = (socket: Socket): string =>
   socket.data.spaceId || DEFAULT_SPACE_ID;
 
 export async function persistVesselToDb(
@@ -1175,7 +1175,7 @@ function stepAIVessel(v: VesselRecord, dt: number) {
 const AI_STOP_DAMPING = 0.6;
 const AI_STOP_EPS = 0.01;
 
-const hasAdminRole = (socket: import('socket.io').Socket) =>
+const hasAdminRole = (socket: Socket) =>
   (socket.data.roles || []).includes('admin') ||
   (socket.data.permissions || []).some(
     (p: { resource: string; action: string }) =>
@@ -1430,17 +1430,17 @@ async function getActiveMute(
 }
 
 function updateSocketVesselRoom(
-  socket: import('socket.io').Socket,
+  socket: Socket,
   spaceId: string,
   vesselId?: string | null,
 ) {
   const current = socket.data.vesselId;
   if (current) {
-    socket.leave(`space:${spaceId}:vessel:${current}`);
+    void socket.leave(`space:${spaceId}:vessel:${current}`);
   }
   const normalized = vesselId ? vesselChannelId(vesselId) || vesselId : null;
   if (normalized) {
-    socket.join(`space:${spaceId}:vessel:${normalized}`);
+    void socket.join(`space:${spaceId}:vessel:${normalized}`);
     socket.data.vesselId = normalized;
   } else {
     socket.data.vesselId = undefined;
@@ -1666,6 +1666,7 @@ app.get('/vessels', (_req, res) => {
 app.use('/api', apiRoutes);
 
 // Create HTTP server
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
 const server = http.createServer(app);
 
 // Initialize Socket.IO
@@ -1688,6 +1689,7 @@ const io = new Server<
 });
 
 // Handle Socket.IO connections
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
 io.use(async (socket, next) => {
   const cookies = parseCookies(socket.handshake.headers.cookie as string);
   const cookieToken =
@@ -1802,6 +1804,7 @@ io.use(async (socket, next) => {
   next();
 });
 
+// eslint-disable-next-line @typescript-eslint/no-misused-promises
 io.on('connection', async socket => {
   const { userId, username, roles, spaceId: socketSpaceId } = socket.data;
   const spaceId = socketSpaceId || DEFAULT_SPACE_ID;
@@ -1876,9 +1879,9 @@ io.on('connection', async socket => {
     );
   }
 
-  socket.join(`space:${spaceId}`);
-  socket.join(`space:${spaceId}:global`);
-  socket.join(`user:${effectiveUserId}`);
+  void socket.join(`space:${spaceId}`);
+  void socket.join(`space:${spaceId}:global`);
+  void socket.join(`user:${effectiveUserId}`);
   updateSocketVesselRoom(socket, spaceId, vessel?.id);
 
   // Load and send environment for this space on connect
@@ -2116,7 +2119,7 @@ io.on('connection', async socket => {
       if (prevUserId) {
         detachUserFromCurrentVessel(prevUserId, currentSpace);
         updateSocketVesselRoom(socket, currentSpace, null);
-        socket.leave(`user:${prevUserId}`);
+        void socket.leave(`user:${prevUserId}`);
       }
       const guest = buildGuestIdentity();
       socket.data.userId = guest.userId;
@@ -2130,7 +2133,7 @@ io.on('connection', async socket => {
       socket.data.experience = guest.experience;
       socket.data.safetyScore = guest.safetyScore;
       socket.data.spaceRole = guest.spaceRole;
-      socket.join(`user:${guest.userId}`);
+      void socket.join(`user:${guest.userId}`);
       if (prevUserId && activeUserSockets.get(prevUserId) === socket.id) {
         activeUserSockets.delete(prevUserId);
       }
@@ -2196,7 +2199,7 @@ io.on('connection', async socket => {
       if (prevUserId && prevUserId !== nextUserId) {
         detachUserFromCurrentVessel(prevUserId, currentSpace);
         updateSocketVesselRoom(socket, currentSpace, null);
-        socket.leave(`user:${prevUserId}`);
+        void socket.leave(`user:${prevUserId}`);
       }
 
       socket.data.userId = nextUserId;
@@ -2208,7 +2211,7 @@ io.on('connection', async socket => {
       socket.data.experience = account.experience;
       socket.data.safetyScore = account.safetyScore;
       socket.data.spaceRole = spaceRole;
-      socket.join(`user:${nextUserId}`);
+      void socket.join(`user:${nextUserId}`);
 
       if (prevUserId && activeUserSockets.get(prevUserId) === socket.id) {
         activeUserSockets.delete(prevUserId);
@@ -2237,7 +2240,7 @@ io.on('connection', async socket => {
       if (prevUserId) {
         detachUserFromCurrentVessel(prevUserId, currentSpace);
         updateSocketVesselRoom(socket, currentSpace, null);
-        socket.leave(`user:${prevUserId}`);
+        void socket.leave(`user:${prevUserId}`);
       }
       const guest = buildGuestIdentity();
       socket.data.userId = guest.userId;
@@ -2251,7 +2254,7 @@ io.on('connection', async socket => {
       socket.data.experience = guest.experience;
       socket.data.safetyScore = guest.safetyScore;
       socket.data.spaceRole = guest.spaceRole;
-      socket.join(`user:${guest.userId}`);
+      void socket.join(`user:${guest.userId}`);
       if (prevUserId && activeUserSockets.get(prevUserId) === socket.id) {
         activeUserSockets.delete(prevUserId);
       }

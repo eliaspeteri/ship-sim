@@ -288,6 +288,7 @@ export function OceanPatch({
   }, [
     material,
     sunDirection,
+    wave,
     wave.amplitude,
     wave.k,
     wave.omega,

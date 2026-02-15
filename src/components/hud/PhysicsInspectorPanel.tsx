@@ -127,7 +127,7 @@ export function HudPhysicsInspectorPanel({
   const schemaVersion = vessel.physics?.schemaVersion ?? 1;
   const effectiveParams = React.useMemo(
     () => buildDisplacementParams(vessel),
-    [vessel.physics, vessel.properties, vessel.hydrodynamics],
+    [vessel],
   );
   const [localOverrides, setLocalOverrides] = React.useState<
     Record<string, string>

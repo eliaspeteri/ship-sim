@@ -46,7 +46,7 @@ const LoginPage: React.FC = () => {
   // Redirect authenticated users to sim
   React.useEffect(() => {
     if (session) {
-      router.replace('/sim');
+      void router.replace('/sim');
     }
   }, [session, router]);
 
@@ -103,7 +103,12 @@ const LoginPage: React.FC = () => {
           title="Ship Simulator"
           subtitle="Sign in to access the live bridge and crew tools."
         >
-          <form onSubmit={handleSubmit} className="grid gap-3.5">
+          <form
+            onSubmit={event => {
+              void handleSubmit(event);
+            }}
+            className="grid gap-3.5"
+          >
             <AuthField
               id="username"
               name="username"

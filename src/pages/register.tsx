@@ -74,7 +74,12 @@ const RegisterPage: React.FC = () => {
           title="Register"
           subtitle="Create your pilot profile and enter the simulator."
         >
-          <form onSubmit={handleSubmit} className="grid gap-3.5">
+          <form
+            onSubmit={event => {
+              void handleSubmit(event);
+            }}
+            className="grid gap-3.5"
+          >
             <AuthField
               id="username"
               name="username"

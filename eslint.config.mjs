@@ -257,6 +257,40 @@ export default [
     },
   },
 
+  // Legacy architecture: known cyclic graph across simulation/store/socket and server runtime modules.
+  // Keep rule enabled globally, but suppress in these hotspots until larger refactors land.
+  {
+    files: [
+      'src/lib/wasmLoader.ts',
+      'src/networking/adapters/socketStoreAdapter.ts',
+      'src/networking/socket.ts',
+      'src/networking/socket/simulationHandlers.ts',
+      'src/simulation/index.ts',
+      'src/simulation/simulationLoop.ts',
+      'src/store/index.ts',
+      'src/store/slices/vesselSlice.ts',
+      'src/server/api.ts',
+      'src/server/economy.ts',
+      'src/server/index.ts',
+      'src/server/logistics.ts',
+      'src/server/missions.ts',
+      'src/server/routes/economyRoutes.ts',
+      'src/server/runtime/serverRuntime.ts',
+      'src/server/socketHandlers/adminWeather.ts',
+      'src/server/socketHandlers/cargo.ts',
+      'src/server/socketHandlers/economy.ts',
+      'src/server/socketHandlers/userMode.ts',
+      'src/server/socketHandlers/vesselJoin.ts',
+      'src/server/socketHandlers/vesselRepair.ts',
+      'src/server/socketHandlers/vesselSale.ts',
+      'src/server/socketHandlers/vesselStorage.ts',
+      'src/server/weatherSystem.ts',
+    ],
+    rules: {
+      'import/no-cycle': 'off',
+    },
+  },
+
   // Enable DOM property checks only in convention-based, DOM-focused areas.
   {
     files: [

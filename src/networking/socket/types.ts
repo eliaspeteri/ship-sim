@@ -1,7 +1,7 @@
-import type io from 'socket.io-client';
+import type socketIoClient from 'socket.io-client';
 import type * as SocketIOClient from 'socket.io-client';
 
-export type ClientSocket = ReturnType<typeof io> & {
+export type ClientSocket = ReturnType<typeof socketIoClient> & {
   auth?: {
     token?: string | null;
     userId?: string | null;

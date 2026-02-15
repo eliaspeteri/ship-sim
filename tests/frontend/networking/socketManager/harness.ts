@@ -1,4 +1,4 @@
-import io from 'socket.io-client';
+import socketIoClient from 'socket.io-client';
 import useStore from '../../../../src/store';
 import { createSocketManager } from '../../../../src/networking/socket';
 import type { SimulationState } from '../../../../src/store/types';
@@ -142,7 +142,7 @@ export const setupSocketManager = (
   >(() => socket);
 
   const socketManager = createSocketManager({
-    ioClient: ioMock as unknown as typeof io,
+    ioClient: ioMock as unknown as typeof socketIoClient,
     storeAdapter: {
       getState: () => storeState,
     },

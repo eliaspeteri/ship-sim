@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 
@@ -173,60 +173,64 @@ const Precipitation: React.FC<PrecipitationProps> = ({
   }, [type, particleCount, area, intensity, particleColor, particleSize]);
 
   // Function to animate precipitation particles
-  const animateParticles = (delta: number) => {
-    if (!particlesRef.current || !particlesRef.current.geometry) return;
+  const animateParticles = useCallback(
+    (delta: number) => {
+      if (!particlesRef.current || !particlesRef.current.geometry) return;
 
-    const positionAttribute =
-      particlesRef.current.geometry.getAttribute('position');
+      const positionAttribute =
+        particlesRef.current.geometry.getAttribute('position');
 
-    if (!positionAttribute || !positionAttribute.array) return;
+      if (!positionAttribute || !positionAttribute.array) return;
 
-    for (let i = 0; i < particleCount; i++) {
-      const i3 = i * 3;
+      for (let i = 0; i < particleCount; i++) {
+        const i3 = i * 3;
 
-      // Update Y position (falling)
-      positionAttribute.array[i3 + 1] -= fallSpeed * delta;
+        // Update Y position (falling)
+        positionAttribute.array[i3 + 1] -= fallSpeed * delta;
 
-      // Add side movement for snow and rain (wind effect)
-      if (type !== 'fog') {
-        if (type === 'snow') {
-          // Snow has gentle side-to-side movement
+        // Add side movement for snow and rain (wind effect)
+        if (type !== 'fog') {
+          if (type === 'snow') {
+            // Snow has gentle side-to-side movement
+            positionAttribute.array[i3] +=
+              Math.sin(Date.now() * 0.001 + i) * 0.05 * intensity;
+          } else if (type === 'rain') {
+            // Rain falls straighter but has some wind effect
+            positionAttribute.array[i3] += 0.2 * intensity;
+          }
+        } else {
+          // Fog drifts slowly
           positionAttribute.array[i3] +=
-            Math.sin(Date.now() * 0.001 + i) * 0.05 * intensity;
-        } else if (type === 'rain') {
-          // Rain falls straighter but has some wind effect
-          positionAttribute.array[i3] += 0.2 * intensity;
+            Math.sin(Date.now() * 0.0002 + i) * 0.02;
+          positionAttribute.array[i3 + 2] +=
+            Math.cos(Date.now() * 0.0002 + i) * 0.02;
         }
-      } else {
-        // Fog drifts slowly
-        positionAttribute.array[i3] += Math.sin(Date.now() * 0.0002 + i) * 0.02;
-        positionAttribute.array[i3 + 2] +=
-          Math.cos(Date.now() * 0.0002 + i) * 0.02;
+
+        // Reset particles that fell below the ground
+        const xPos = positionAttribute.array[i3];
+        const yPos = positionAttribute.array[i3 + 1];
+        const zPos = positionAttribute.array[i3 + 2];
+        const halfArea = area / 2;
+
+        if (
+          yPos < 0 ||
+          xPos > halfArea ||
+          xPos < -halfArea ||
+          zPos > halfArea ||
+          zPos < -halfArea
+        ) {
+          // Respawn at the top with random x,z position
+          positionAttribute.array[i3] = Math.random() * area - halfArea;
+          positionAttribute.array[i3 + 1] =
+            type === 'fog' ? Math.random() * 20 : 200;
+          positionAttribute.array[i3 + 2] = Math.random() * area - halfArea;
+        }
       }
 
-      // Reset particles that fell below the ground
-      const xPos = positionAttribute.array[i3];
-      const yPos = positionAttribute.array[i3 + 1];
-      const zPos = positionAttribute.array[i3 + 2];
-      const halfArea = area / 2;
-
-      if (
-        yPos < 0 ||
-        xPos > halfArea ||
-        xPos < -halfArea ||
-        zPos > halfArea ||
-        zPos < -halfArea
-      ) {
-        // Respawn at the top with random x,z position
-        positionAttribute.array[i3] = Math.random() * area - halfArea;
-        positionAttribute.array[i3 + 1] =
-          type === 'fog' ? Math.random() * 20 : 200;
-        positionAttribute.array[i3 + 2] = Math.random() * area - halfArea;
-      }
-    }
-
-    positionAttribute.needsUpdate = true;
-  };
+      positionAttribute.needsUpdate = true;
+    },
+    [area, fallSpeed, intensity, particleCount, type],
+  );
 
   // Animation in Canvas.
   useFrame((_, delta) => {
@@ -252,7 +256,7 @@ const Precipitation: React.FC<PrecipitationProps> = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [inCanvas, isDisabled, particleCount, fallSpeed, type, intensity, area]);
+  }, [animateParticles, inCanvas, isDisabled]);
 
   const lineGeometry = useMemo(() => {
     if (type !== 'rain') return null;

@@ -363,7 +363,7 @@ export function HudDrawerContainer({ onOpenSpaces }: HudDrawerProps) {
       x: speed * Math.cos(direction),
       y: speed * Math.sin(direction),
     };
-  }, [environment.current?.direction, environment.current?.speed]);
+  }, [environment]);
   const toWorldVelocity = React.useCallback(
     (v: typeof vessel | (typeof otherVessels)[string]) => {
       const heading = v?.orientation?.heading ?? 0;
@@ -412,12 +412,7 @@ export function HudDrawerContainer({ onOpenSpaces }: HudDrawerProps) {
       speed: Number.isFinite(speedMs) ? speedMs * KNOTS_PER_MS : 0,
       course: Number.isFinite(stableCourse) ? stableCourse : headingCompass,
     };
-  }, [
-    toWorldVelocity,
-    vessel.orientation.heading,
-    vessel.position.lat,
-    vessel.position.lon,
-  ]);
+  }, [toWorldVelocity, vessel]);
 
   const radarEnvironment = useMemo(
     () => ({
@@ -617,17 +612,7 @@ export function HudDrawerContainer({ onOpenSpaces }: HudDrawerProps) {
     environment.wind.direction,
     environment.wind.speed,
     toWorldVelocity,
-    vessel.angularVelocity?.yaw,
-    vessel.controls.rudderAngle,
-    vessel.controls.throttle,
-    vessel.engineState?.oilPressure,
-    vessel.engineState?.rpm,
-    vessel.engineState?.temperature,
-    vessel.orientation.heading,
-    vessel.orientation.pitch,
-    vessel.orientation.roll,
-    vessel.position.lat,
-    vessel.position.lon,
+    vessel,
   ]);
 
   const alarmItems = useMemo(() => {
@@ -736,7 +721,13 @@ export function HudDrawerContainer({ onOpenSpaces }: HudDrawerProps) {
     });
 
     return targets;
-  }, [currentVesselId, projectedVessels, shortId]);
+  }, [
+    currentVesselId,
+    projectedVessels,
+    shortId,
+    vessel.position.lat,
+    vessel.position.lon,
+  ]);
 
   const selectedAdminTarget = useMemo(
     () => adminTargets.find(target => target.id === adminTargetId),
@@ -825,7 +816,6 @@ export function HudDrawerContainer({ onOpenSpaces }: HudDrawerProps) {
     ],
     [
       environment.seaState,
-      environment.timeOfDay,
       environment.waveHeight,
       environment.wind.direction,
       environment.wind.speed,
@@ -837,7 +827,6 @@ export function HudDrawerContainer({ onOpenSpaces }: HudDrawerProps) {
       vessel.controls.ballast,
       vessel.controls.rudderAngle,
       vessel.controls.throttle,
-      vessel.orientation.heading,
       vessel.position.lat,
       vessel.position.lon,
       vessel.velocity.surge,

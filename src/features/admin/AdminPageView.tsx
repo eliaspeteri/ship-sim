@@ -69,10 +69,10 @@ export const AdminPageView: React.FC = () => {
   useEffect(() => {
     if (status === 'loading') return;
     if (!session) {
-      router.replace('/login');
+      void router.replace('/login');
       return;
     }
-    if (!isAdmin) router.replace('/sim');
+    if (!isAdmin) void router.replace('/sim');
   }, [isAdmin, router, session, status]);
 
   const fetchMetrics = useCallback(async () => {
@@ -250,14 +250,16 @@ export const AdminPageView: React.FC = () => {
     const username = session?.user?.name || userId || 'Admin';
 
     if (socketToken) socketManager.setAuthToken(socketToken, userId, username);
-    if (!socketManager.isConnected()) socketManager.connect(apiBase);
+    if (!socketManager.isConnected()) {
+      void socketManager.connect(apiBase);
+    }
 
     let active = true;
     const unsubscribe = socketManager.subscribeConnectionStatus(connected => {
       if (active) setSocketConnected(connected);
     });
 
-    socketManager.waitForConnection().then(() => {
+    void socketManager.waitForConnection().then(() => {
       if (active) setSocketConnected(true);
     });
 

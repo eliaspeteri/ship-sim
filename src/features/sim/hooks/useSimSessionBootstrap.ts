@@ -90,7 +90,7 @@ export function useSimSessionBootstrap({
 
     let cancelled = false;
 
-    (async () => {
+    void (async () => {
       try {
         await socketManager.waitForSelfSnapshot();
       } catch {
@@ -123,7 +123,7 @@ export function useSimSessionBootstrap({
 
     let cancelled = false;
 
-    (async () => {
+    void (async () => {
       try {
         await socketManager.waitForConnection();
         if (cancelled) return;
@@ -215,9 +215,9 @@ export function useSimSessionBootstrap({
       }
     }
 
-    socketManager.connect(process.env.NEXT_PUBLIC_SOCKET_URL || '');
+    void socketManager.connect(process.env.NEXT_PUBLIC_SOCKET_URL || '');
 
-    (async () => {
+    void (async () => {
       try {
         await socketManager.waitForSelfSnapshot();
         if (cancelled) return;

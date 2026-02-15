@@ -1,10 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
-import createJiti from 'jiti';
+import jitiFactory from 'jiti';
 
 const __filename = fileURLToPath(import.meta.url);
-const jiti = createJiti(__filename);
+const jiti = jitiFactory(__filename);
 
 const { safe } = jiti('../../src/lib/safe.ts');
 

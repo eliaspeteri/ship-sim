@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useSession } from 'next-auth/react';
 import useStore from '../store';
 import { socketManager } from '../networking/socket';
@@ -73,7 +79,8 @@ const ui = {
     'flex items-center justify-between gap-3 rounded-[10px] border border-[rgba(30,52,74,0.7)] bg-[rgba(8,18,30,0.8)] px-2.5 py-2',
   scheduleMeta: 'text-xs text-[rgba(210,222,230,0.9)]',
   scheduleSub: 'text-[11px] text-[rgba(150,168,182,0.7)]',
-  scheduleForm: 'mt-2.5 grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 max-[900px]:grid-cols-1',
+  scheduleForm:
+    'mt-2.5 grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 max-[900px]:grid-cols-1',
   input:
     'rounded-[10px] border border-[rgba(50,72,92,0.7)] bg-[rgba(12,24,38,0.9)] px-2 py-1.5 text-xs text-[rgba(230,238,240,0.95)]',
   actionButton:
@@ -183,7 +190,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
     feedbackTimer.current = setTimeout(() => setFeedback(null), 3200);
   };
 
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     setEventsLoading(true);
     setEventsError(null);
     try {
@@ -205,7 +212,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
     } finally {
       setEventsLoading(false);
     }
-  };
+  }, [apiBase, spaceId]);
 
   const createEvent = async () => {
     if (!canManageWeather) {
@@ -288,7 +295,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
     if (!collapsed && canManageWeather) {
       void loadEvents();
     }
-  }, [collapsed, canManageWeather, spaceId]);
+  }, [collapsed, canManageWeather, loadEvents, spaceId]);
 
   const summaryLines = [
     `${(metrics.windSpeedMs * 1.94384).toFixed(1)} kt @ ${metrics.windDeg}°`,
@@ -318,9 +325,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
         </div>
         <div className={ui.headerMeta}>
           <div
-            className={`${ui.pill} ${
-              isConnected ? ui.pillOk : ui.pillWarn
-            }`}
+            className={`${ui.pill} ${isConnected ? ui.pillOk : ui.pillWarn}`}
           >
             <span className={ui.pillDot} />
             {isConnected ? 'Connected' : 'Offline'}
@@ -434,9 +439,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
             >
               Return to auto
             </button>
-            {feedback ? (
-              <div className={ui.feedback}>{feedback}</div>
-            ) : null}
+            {feedback ? <div className={ui.feedback}>{feedback}</div> : null}
           </div>
 
           <div className={ui.schedulePanel}>
@@ -447,9 +450,7 @@ const EnvironmentControls: React.FC<EnvironmentControlsProps> = ({
                   Schedule environment presets by local time
                 </div>
               </div>
-              <div className={`${ui.pill} ${ui.pillTag}`}>
-                {timeZoneLabel}
-              </div>
+              <div className={`${ui.pill} ${ui.pillTag}`}>{timeZoneLabel}</div>
             </div>
             {eventsLoading ? (
               <div className={ui.feedback}>Loading schedule…</div>

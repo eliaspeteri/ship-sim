@@ -67,7 +67,7 @@ export function LandTiles(props: {
 
   // “Query key” changes when camera target tile/zoom changes.
   // Using a small tick prevents effects from firing on every tiny camera move.
-  const [queryTick, setQueryTick] = useState(0);
+  const [_queryTick, setQueryTick] = useState(0);
   const lastQueryKeyRef = useRef<string>('');
 
   // Compute wanted tile set based on focusRef (meters) and camera distance
@@ -96,7 +96,7 @@ export function LandTiles(props: {
 
     return { z, cx, cy, keys };
     // queryTick forces recalculation at a controlled cadence
-  }, [camera, dynamicRadius, focusRef, maxRadius, queryTick, radius]);
+  }, [camera, dynamicRadius, focusRef, maxRadius, radius]);
 
   // Throttle updates: only bump queryTick when the (z,cx,cy) changes
   useEffect(() => {
@@ -212,7 +212,7 @@ export function LandTiles(props: {
     const wantSet = new Set(wantKeys);
 
     // Kick off loads for missing tiles
-    (async () => {
+    void (async () => {
       await Promise.all(wantKeys.map(k => ensureLoaded(k)));
       if (cancelled) return;
 

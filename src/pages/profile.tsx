@@ -57,23 +57,26 @@ const ProfilePage: React.FC = () => {
     confirmPassword: '',
   });
 
-  const profileSections = [
-    {
-      id: 'account',
-      label: 'Account',
-      description: 'Profile identity and contact info.',
-    },
-    {
-      id: 'security',
-      label: 'Security',
-      description: 'Password and access credentials.',
-    },
-    {
-      id: 'preferences',
-      label: 'Preferences',
-      description: 'Simulator and interface defaults.',
-    },
-  ];
+  const profileSections = useMemo(
+    () => [
+      {
+        id: 'account',
+        label: 'Account',
+        description: 'Profile identity and contact info.',
+      },
+      {
+        id: 'security',
+        label: 'Security',
+        description: 'Password and access credentials.',
+      },
+      {
+        id: 'preferences',
+        label: 'Preferences',
+        description: 'Simulator and interface defaults.',
+      },
+    ],
+    [],
+  );
 
   useEffect(() => {
     if (!userId || status !== 'authenticated') return;
@@ -248,7 +251,7 @@ const ProfilePage: React.FC = () => {
     if (profileSections.some(section => section.id === hash)) {
       setActiveSection(hash);
     }
-  }, []);
+  }, [profileSections]);
 
   useEffect(() => {
     setAccountForm({ username: sessionUsername, email: sessionEmail });
@@ -282,7 +285,9 @@ const ProfilePage: React.FC = () => {
           activeSection === 'preferences' ? (
             <button
               type="button"
-              onClick={handleSave}
+              onClick={() => {
+                void handleSave();
+              }}
               className="rounded-[10px] border-none bg-[linear-gradient(135deg,#1b9aaa,#0f6d75)] px-4 py-2 text-[12px] font-semibold text-[#f1f7f8]"
               disabled={saving}
             >
@@ -311,7 +316,9 @@ const ProfilePage: React.FC = () => {
               onChange={patch =>
                 setAccountForm(prev => ({ ...prev, ...patch }))
               }
-              onSave={handleAccountSave}
+              onSave={() => {
+                void handleAccountSave();
+              }}
               saving={accountSaving}
             />
           ) : null}
@@ -323,7 +330,9 @@ const ProfilePage: React.FC = () => {
               onChange={patch =>
                 setSecurityForm(prev => ({ ...prev, ...patch }))
               }
-              onSave={handlePasswordSave}
+              onSave={() => {
+                void handlePasswordSave();
+              }}
               saving={securitySaving}
             />
           ) : null}

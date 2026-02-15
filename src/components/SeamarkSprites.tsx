@@ -10,7 +10,8 @@ import { latLonToXY } from '../lib/geo';
  * - Per-feature attributes: phase and pattern id to vary flash timing.
  */
 export default function SeamarkSprites() {
-  const seamarks = useStore(s => s.seamarks.features) || [];
+  const seamarkFeatures = useStore(s => s.seamarks.features);
+  const seamarks = useMemo(() => seamarkFeatures ?? [], [seamarkFeatures]);
   const { camera } = useThree();
   const envTime = useStore(s => s.environment.timeOfDay);
   const geomRef = useRef<THREE.BufferGeometry | null>(null);

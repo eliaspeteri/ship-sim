@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import * as THREE from 'three';
 import { EcdisSidebar } from './EcdisSidebar';
 import { mockBuoys, mockCoastline, mockRoute } from './mockData';
@@ -51,7 +57,13 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
         : (shipPosition?.lon ?? center.longitude),
       heading: heading ?? 0,
     }),
-    [shipPosition, heading, center.latitude, center.longitude],
+    [
+      MOCK_OWN_SHIP_AT_VIEW_CENTER,
+      shipPosition,
+      heading,
+      center.latitude,
+      center.longitude,
+    ],
   );
 
   const panRef = useRef({ x: 0, y: 0 });
@@ -119,20 +131,23 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
     };
   }, []);
 
-  function screenToLatLon(clientX: number, clientY: number) {
-    const camera = cameraRef.current;
-    const renderer = rendererRef.current;
-    if (!camera || !renderer) return null;
-    const rect = renderer.domElement.getBoundingClientRect();
-    const localX = clientX - rect.left - rect.width / 2;
-    const localY = clientY - rect.top - rect.height / 2;
-    const worldX = localX / camera.zoom + camera.position.x;
-    const worldY = localY / camera.zoom + camera.position.y;
-    return {
-      latitude: center.latitude - worldY / scale,
-      longitude: worldX / scale + center.longitude,
-    };
-  }
+  const screenToLatLon = useCallback(
+    (clientX: number, clientY: number) => {
+      const camera = cameraRef.current;
+      const renderer = rendererRef.current;
+      if (!camera || !renderer) return null;
+      const rect = renderer.domElement.getBoundingClientRect();
+      const localX = clientX - rect.left - rect.width / 2;
+      const localY = clientY - rect.top - rect.height / 2;
+      const worldX = localX / camera.zoom + camera.position.x;
+      const worldY = localY / camera.zoom + camera.position.y;
+      return {
+        latitude: center.latitude - worldY / scale,
+        longitude: worldX / scale + center.longitude,
+      };
+    },
+    [center.latitude, center.longitude, scale],
+  );
 
   useEffect(() => {
     const renderer = rendererRef.current;
@@ -194,7 +209,7 @@ export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({
       canvas.removeEventListener('pointerleave', onPointerLeave);
       canvas.removeEventListener('wheel', onWheel);
     };
-  }, [center, scale]);
+  }, [center, scale, screenToLatLon]);
 
   useEffect(() => {
     const renderer = rendererRef.current;

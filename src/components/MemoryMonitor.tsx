@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 
 // Define the MemoryInfo interface which isn't in standard TypeScript definitions
 interface MemoryInfo {
@@ -45,27 +45,8 @@ export default function MemoryMonitor() {
     );
   };
 
-  useEffect(() => {
-    // Only run if Performance API with memory is available
-    if (!hasMemoryAPI()) return;
-
-    // Get initial stats
-    updateStats();
-
-    // Set up interval for regular updates
-    intervalRef.current = window.setInterval(() => {
-      updateStats();
-    }, 2000);
-
-    return () => {
-      if (intervalRef.current) {
-        window.clearInterval(intervalRef.current);
-      }
-    };
-  }, []);
-
   // Update memory stats
-  const updateStats = () => {
+  const updateStats = useCallback(() => {
     if (!hasMemoryAPI()) return;
 
     const memory = (window as unknown as ExtendedWindow).performance.memory;
@@ -95,7 +76,26 @@ export default function MemoryMonitor() {
     leakDetectionRef.current.lastReading = currentStats.usedJSHeapSize;
 
     setMemoryStats(currentStats);
-  };
+  }, []);
+
+  useEffect(() => {
+    // Only run if Performance API with memory is available
+    if (!hasMemoryAPI()) return;
+
+    // Get initial stats
+    updateStats();
+
+    // Set up interval for regular updates
+    intervalRef.current = window.setInterval(() => {
+      updateStats();
+    }, 2000);
+
+    return () => {
+      if (intervalRef.current) {
+        window.clearInterval(intervalRef.current);
+      }
+    };
+  }, [updateStats]);
 
   // Format bytes to human-readable format
   const formatBytes = (bytes: number) => {

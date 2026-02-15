@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useLeverDrag } from '../../hooks/useLeverDrag';
 
 /**
@@ -41,6 +41,11 @@ interface ChangeoverSwitchProps {
   dragSensitivity?: number;
 }
 
+const FALLBACK_POSITIONS: SwitchPosition[] = [
+  { value: '__fallback_0' },
+  { value: '__fallback_1' },
+];
+
 /**
  * A changeover switch component that supports 2-way, 3-way or multi-position configurations
  * Visual style resembles a rotary selector switch commonly found in industrial and marine equipment
@@ -48,7 +53,7 @@ interface ChangeoverSwitchProps {
  */
 export function ChangeoverSwitch(
   props: ChangeoverSwitchProps,
-): React.ReactElement {
+): React.ReactElement | null {
   const {
     position,
     onPositionChange,
@@ -63,6 +68,18 @@ export function ChangeoverSwitch(
     dragSensitivity = 200,
   } = props;
 
+  const hasValidPositions = positions.length >= 2;
+  if (!hasValidPositions) {
+    console.warn(
+      'ChangeoverSwitch requires at least two positions; received',
+      positions.length,
+    );
+  }
+  const effectivePositions = useMemo(
+    () => (hasValidPositions ? positions : FALLBACK_POSITIONS),
+    [hasValidPositions, positions],
+  );
+
   // Calculate dimensions
   const radius = size / 2;
   const handleSize = size * 0.4;
@@ -73,9 +90,9 @@ export function ChangeoverSwitch(
   // Map position values to numeric indices for drag calculations
   const positionIndex = Math.max(
     0,
-    positions.findIndex(p => p.value === position),
+    effectivePositions.findIndex(p => p.value === position),
   );
-  const positionCount = Math.max(positions.length, 2);
+  const positionCount = effectivePositions.length;
 
   const indexToNormalized = (index: number): number => {
     return positionCount <= 1 ? 0 : index / (positionCount - 1);
@@ -98,7 +115,7 @@ export function ChangeoverSwitch(
       // Snap to the next position only when passing the midpoint between positions
       const floatIndex = value * (positionCount - 1);
       const snappedIndex = Math.round(floatIndex);
-      const targetPosition = positions[snappedIndex];
+      const targetPosition = effectivePositions[snappedIndex];
       if (
         snappedIndex !== lastSnappedIndexRef.current &&
         targetPosition &&
@@ -113,27 +130,33 @@ export function ChangeoverSwitch(
   });
 
   // Calculate position angle based on number of positions
-  const getPositionAngle = (index: number): number => {
-    const positionCount = positions.length;
-    // Calculate the maximum angle range we want to use (less than 360 for better UX)
-    const maxAngleRange = positionCount > 2 ? 270 : 180;
-    // Calculate the angle between positions
-    const angleStep = maxAngleRange / (positionCount - 1);
-    // Calculate the starting angle to center the positions (start from top, 0 deg)
-    const startAngle = -maxAngleRange / 2;
-    // Return the angle for this position
-    return startAngle + index * angleStep;
-  };
+  const getPositionAngle = useCallback(
+    (index: number): number => {
+      const positionCount = effectivePositions.length;
+      // Calculate the maximum angle range we want to use (less than 360 for better UX)
+      const maxAngleRange = positionCount > 2 ? 270 : 180;
+      // Calculate the angle between positions
+      const angleStep = maxAngleRange / (positionCount - 1);
+      // Calculate the starting angle to center the positions (start from top, 0 deg)
+      const startAngle = -maxAngleRange / 2;
+      // Return the angle for this position
+      return startAngle + index * angleStep;
+    },
+    [effectivePositions.length],
+  );
 
   // Calculate position coordinates
-  const getPositionCoordinates = (angle: number): { x: number; y: number } => {
-    // Convert angle to radians
-    const radians = (angle * Math.PI) / 180;
-    // Calculate coordinates on the circle
-    const x = radius + positionRadius * Math.cos(radians - Math.PI / 2);
-    const y = radius + positionRadius * Math.sin(radians - Math.PI / 2);
-    return { x, y };
-  };
+  const getPositionCoordinates = useCallback(
+    (angle: number): { x: number; y: number } => {
+      // Convert angle to radians
+      const radians = (angle * Math.PI) / 180;
+      // Calculate coordinates on the circle
+      const x = radius + positionRadius * Math.cos(radians - Math.PI / 2);
+      const y = radius + positionRadius * Math.sin(radians - Math.PI / 2);
+      return { x, y };
+    },
+    [positionRadius, radius],
+  );
 
   // Calculate the handle rotation angle - smoothly follows drag, snaps on release
   const getCurrentAngle = (): number => {
@@ -165,7 +188,7 @@ export function ChangeoverSwitch(
 
   // Pre-compute position indicators and their coordinates
   const positionIndicators = useMemo(() => {
-    return positions.map((pos, index) => {
+    return effectivePositions.map((pos, index) => {
       const angle = getPositionAngle(index);
       const { x, y } = getPositionCoordinates(angle);
       const isActive = pos.value === position;
@@ -215,16 +238,19 @@ export function ChangeoverSwitch(
     });
   }, [
     position,
-    positions,
+    effectivePositions,
     indicatorSize,
     size,
     textColor,
     disabled,
     onPositionChange,
+    getPositionAngle,
+    getPositionCoordinates,
   ]);
 
   // Render the switch
   const renderSwitch = () => {
+    if (!hasValidPositions) return null;
     return (
       <svg
         width={size}
@@ -314,10 +340,14 @@ export function ChangeoverSwitch(
         : ('row' as const),
   };
 
+  if (!hasValidPositions) {
+    return null;
+  }
+
   return (
     <div style={containerStyles}>
       {label && <div style={getLabelStyles()}>{label}</div>}
-      {positions.length < 2 ? null : renderSwitch()}
+      {renderSwitch()}
     </div>
   );
 }

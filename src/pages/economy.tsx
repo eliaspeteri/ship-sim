@@ -432,7 +432,9 @@ const EconomyPage = () => {
             catalog={catalog}
             selectedPortName={selectedPortName}
             shopNotice={shopNotice}
-            onShipyardAction={handleShipyardAction}
+            onShipyardAction={(...args) => {
+              void handleShipyardAction(...args);
+            }}
           />
         );
       case 'fleet':
@@ -441,7 +443,9 @@ const EconomyPage = () => {
             dashboard={dashboard}
             selectedVesselId={selectedVesselId}
             onSelectVessel={handleSelectVessel}
-            onEndLease={handleEndLease}
+            onEndLease={leaseId => {
+              void handleEndLease(leaseId);
+            }}
           />
         );
       case 'finances':
@@ -458,8 +462,12 @@ const EconomyPage = () => {
             passengerMeta={passengerMeta}
             portNameById={portNameById}
             actionNotice={actionNotice}
-            onAssignCargo={handleAssignCargo}
-            onAcceptPassengers={handleAcceptPassengers}
+            onAssignCargo={(...args) => {
+              void handleAssignCargo(...args);
+            }}
+            onAcceptPassengers={(...args) => {
+              void handleAcceptPassengers(...args);
+            }}
           />
         );
       case 'loans':

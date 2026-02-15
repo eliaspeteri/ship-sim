@@ -284,91 +284,93 @@ const EditorPacksPage: React.FC & { fullBleedLayout?: boolean } = () => {
                 <button
                   type="button"
                   className="cursor-pointer rounded-full border border-transparent bg-editor-accent-gradient px-4 py-2 text-sm font-semibold text-editor-accent-text"
-                  onClick={async () => {
-                    const validationError = validateForm();
-                    if (validationError) {
-                      setFormError(validationError);
-                      return;
-                    }
-                    setLoading(true);
-                    setFormError(null);
-                    try {
-                      if (modalMode === 'create') {
-                        const res = await fetch('/api/editor/packs', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            name: formName.trim(),
-                            description: formDescription.trim(),
-                            regionSummary: formRegion.trim(),
-                            ownerId: userId,
-                            submitForReview: formSubmitForReview,
-                          }),
-                        });
-                        if (res.status === 409) {
-                          setFormError(
-                            'You already have a pack with that title.',
-                          );
-                          return;
-                        }
-                        if (!res.ok) {
-                          throw new Error(`Request failed: ${res.status}`);
-                        }
-                        const data = (await res.json()) as {
-                          pack?: EditorPack;
-                        };
-                        if (data?.pack) {
-                          setPacks(prev => [data.pack!, ...prev]);
-                          setModalMode(null);
-                          resetForm();
-                          void router.push(
-                            `/editor/${encodeURIComponent(
-                              userId,
-                            )}/packs/${encodeURIComponent(
-                              data.pack.slug || data.pack.id,
-                            )}`,
-                          );
-                        }
-                      } else if (activePack) {
-                        const res = await fetch(
-                          `/api/editor/packs/${activePack.id}`,
-                          {
-                            method: 'PATCH',
+                  onClick={() => {
+                    void (async () => {
+                      const validationError = validateForm();
+                      if (validationError) {
+                        setFormError(validationError);
+                        return;
+                      }
+                      setLoading(true);
+                      setFormError(null);
+                      try {
+                        if (modalMode === 'create') {
+                          const res = await fetch('/api/editor/packs', {
+                            method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                               name: formName.trim(),
                               description: formDescription.trim(),
                               regionSummary: formRegion.trim(),
+                              ownerId: userId,
                               submitForReview: formSubmitForReview,
                             }),
-                          },
-                        );
-                        if (res.status === 409) {
-                          setFormError(
-                            'You already have a pack with that title.',
+                          });
+                          if (res.status === 409) {
+                            setFormError(
+                              'You already have a pack with that title.',
+                            );
+                            return;
+                          }
+                          if (!res.ok) {
+                            throw new Error(`Request failed: ${res.status}`);
+                          }
+                          const data = (await res.json()) as {
+                            pack?: EditorPack;
+                          };
+                          if (data?.pack) {
+                            setPacks(prev => [data.pack!, ...prev]);
+                            setModalMode(null);
+                            resetForm();
+                            void router.push(
+                              `/editor/${encodeURIComponent(
+                                userId,
+                              )}/packs/${encodeURIComponent(
+                                data.pack.slug || data.pack.id,
+                              )}`,
+                            );
+                          }
+                        } else if (activePack) {
+                          const res = await fetch(
+                            `/api/editor/packs/${activePack.id}`,
+                            {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                name: formName.trim(),
+                                description: formDescription.trim(),
+                                regionSummary: formRegion.trim(),
+                                submitForReview: formSubmitForReview,
+                              }),
+                            },
                           );
-                          return;
+                          if (res.status === 409) {
+                            setFormError(
+                              'You already have a pack with that title.',
+                            );
+                            return;
+                          }
+                          if (!res.ok) {
+                            throw new Error(`Request failed: ${res.status}`);
+                          }
+                          const data = (await res.json()) as {
+                            pack?: EditorPack;
+                          };
+                          if (data?.pack) {
+                            setPacks(prev =>
+                              prev.map(item =>
+                                item.id === data.pack!.id ? data.pack! : item,
+                              ),
+                            );
+                            setModalMode(null);
+                          }
                         }
-                        if (!res.ok) {
-                          throw new Error(`Request failed: ${res.status}`);
-                        }
-                        const data = (await res.json()) as {
-                          pack?: EditorPack;
-                        };
-                        if (data?.pack) {
-                          setPacks(prev =>
-                            prev.map(item =>
-                              item.id === data.pack!.id ? data.pack! : item,
-                            ),
-                          );
-                          setModalMode(null);
-                        }
+                      } catch {
+                        setFormError('Unable to save pack.');
+                      } finally {
+                        setLoading(false);
                       }
-                    } catch {
-                      setFormError('Unable to save pack.');
-                    } finally {
-                      setLoading(false);
-                    }
+                    })();
                   }}
                 >
                   {modalMode === 'create' ? 'Create & Open' : 'Save'}
@@ -413,22 +415,24 @@ const EditorPacksPage: React.FC & { fullBleedLayout?: boolean } = () => {
               <button
                 type="button"
                 className="cursor-pointer rounded-full border border-transparent bg-[#B73636] px-4 py-2 text-sm font-semibold text-white"
-                onClick={async () => {
-                  try {
-                    const res = await fetch(
-                      `/api/editor/packs/${deleteTarget.id}`,
-                      { method: 'DELETE' },
-                    );
-                    if (!res.ok) {
-                      throw new Error(`Request failed: ${res.status}`);
+                onClick={() => {
+                  void (async () => {
+                    try {
+                      const res = await fetch(
+                        `/api/editor/packs/${deleteTarget.id}`,
+                        { method: 'DELETE' },
+                      );
+                      if (!res.ok) {
+                        throw new Error(`Request failed: ${res.status}`);
+                      }
+                      setPacks(prev =>
+                        prev.filter(item => item.id !== deleteTarget.id),
+                      );
+                      setDeleteTarget(null);
+                    } catch {
+                      setError('Unable to delete pack.');
                     }
-                    setPacks(prev =>
-                      prev.filter(item => item.id !== deleteTarget.id),
-                    );
-                    setDeleteTarget(null);
-                  } catch {
-                    setError('Unable to delete pack.');
-                  }
+                  })();
                 }}
               >
                 Delete

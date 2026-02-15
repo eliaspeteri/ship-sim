@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type {
   EBL,
   GuardZone,
@@ -149,18 +155,21 @@ export default function RadarDisplay({
   const guardZoneRef = useRef(guardZoneState);
   const arpaEnabledRef = useRef(arpaEnabledState);
   const aisTargetsRef = useRef(aisTargets);
-  const updateArpaTargets = (
-    updater: ARPATarget[] | ((prev: ARPATarget[]) => ARPATarget[]),
-  ) => {
-    const next =
-      typeof updater === 'function' ? updater(arpaTargetsRef.current) : updater;
-    arpaTargetsRef.current = next;
-    if (onArpaTargetsChange) {
-      onArpaTargetsChange(next);
-    } else {
-      setInternalArpaTargets(next);
-    }
-  };
+  const updateArpaTargets = useCallback(
+    (updater: ARPATarget[] | ((prev: ARPATarget[]) => ARPATarget[])) => {
+      const next =
+        typeof updater === 'function'
+          ? updater(arpaTargetsRef.current)
+          : updater;
+      arpaTargetsRef.current = next;
+      if (onArpaTargetsChange) {
+        onArpaTargetsChange(next);
+      } else {
+        setInternalArpaTargets(next);
+      }
+    },
+    [onArpaTargetsChange],
+  );
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -216,13 +225,45 @@ export default function RadarDisplay({
     canvas.width = size;
     canvas.height = size;
 
+    const drawRadarFrame = (sweepAngle: number) => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const currSettings = settingsRef.current;
+      const currEnvironment = environmentRef.current;
+      const currTargets = targetsRef.current;
+      const currArpaSettings = arpaSettingsRef.current;
+      const currArpaTargets = arpaTargetsRef.current;
+      const currEbl = eblRef.current;
+      const currVrm = vrmRef.current;
+      const currGuardZone = guardZoneRef.current;
+      const currArpaEnabled = arpaEnabledRef.current;
+      const currAisTargets = aisTargetsRef.current;
+
+      renderRadarFrame(ctx, {
+        size,
+        sweepAngle,
+        settings: currSettings,
+        environment: currEnvironment,
+        targets: currTargets,
+        aisTargets: currAisTargets,
+        arpaSettings: currArpaSettings,
+        arpaTargets: currArpaTargets,
+        arpaEnabled: currArpaEnabled,
+        ownShip: ownShipRef.current,
+        ebl: currEbl,
+        vrm: currVrm,
+        guardZone: currGuardZone,
+      });
+    };
+
     const animateRadar = () => {
       const nextSweepAngle = (sweepAngleRef.current + 1) % 360;
       sweepAngleRef.current = nextSweepAngle;
       if (radarSweepRef.current) {
         radarSweepRef.current.style.transform = `translateY(-50%) rotate(${nextSweepAngle}deg)`;
       }
-      drawRadar(nextSweepAngle);
+      drawRadarFrame(nextSweepAngle);
       animationFrameRef.current = requestAnimationFrame(animateRadar);
     };
 
@@ -259,42 +300,7 @@ export default function RadarDisplay({
     }, 2000);
 
     return () => clearInterval(intervalId);
-  }, [arpaEnabledState, selectedTargetId]);
-
-  const drawRadar = (sweepAngle: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const currSettings = settingsRef.current;
-    const currEnvironment = environmentRef.current;
-    const currTargets = targetsRef.current;
-    const currArpaSettings = arpaSettingsRef.current;
-    const currArpaTargets = arpaTargetsRef.current;
-    const currEbl = eblRef.current;
-    const currVrm = vrmRef.current;
-    const currGuardZone = guardZoneRef.current;
-    const currArpaEnabled = arpaEnabledRef.current;
-    const currAisTargets = aisTargetsRef.current;
-
-    renderRadarFrame(ctx, {
-      size,
-      sweepAngle,
-      settings: currSettings,
-      environment: currEnvironment,
-      targets: currTargets,
-      aisTargets: currAisTargets,
-      arpaSettings: currArpaSettings,
-      arpaTargets: currArpaTargets,
-      arpaEnabled: currArpaEnabled,
-      ownShip: ownShipRef.current,
-      ebl: currEbl,
-      vrm: currVrm,
-      guardZone: currGuardZone,
-    });
-  };
+  }, [arpaEnabledState, selectedTargetId, updateArpaTargets]);
 
   const {
     handleRangeChange,

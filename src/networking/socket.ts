@@ -1,4 +1,4 @@
-import io from 'socket.io-client';
+import socketIoClient from 'socket.io-client';
 import type { SocketStoreAdapter } from './adapters/socketStoreAdapter';
 import { createDefaultSocketStoreAdapter } from './adapters/socketStoreAdapter';
 import type { SimpleVesselState } from '../types/vessel.types';
@@ -40,12 +40,12 @@ type ConnectionState = {
 
 type SocketManagerDeps = {
   storeAdapter: SocketStoreAdapter;
-  ioClient: typeof io;
+  ioClient: typeof socketIoClient;
 };
 
 const createDefaultDeps = (): SocketManagerDeps => ({
   storeAdapter: createDefaultSocketStoreAdapter(),
-  ioClient: io,
+  ioClient: socketIoClient,
 });
 
 const createSocketUserId = (): string =>

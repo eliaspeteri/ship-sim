@@ -1,6 +1,5 @@
 /** @jest-environment node */
-import type { Request } from 'express';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { getToken } from 'next-auth/jwt';
 import {

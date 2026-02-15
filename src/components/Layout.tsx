@@ -84,7 +84,10 @@ const Layout: React.FC<LayoutProps> = ({
             </button>
           ) : null}
 
-          <Link href="/" className="flex items-center gap-[14px] text-inherit no-underline">
+          <Link
+            href="/"
+            className="flex items-center gap-[14px] text-inherit no-underline"
+          >
             <div className="grid h-11 w-11 place-items-center rounded-[14px] bg-[linear-gradient(135deg,#f4c96a,#3bb2a2)] text-[#0c1116] shadow-[0_12px_30px_rgba(23,92,104,0.35)]">
               <span className="text-sm font-bold tracking-[0.06em]">SS</span>
             </div>
@@ -231,7 +234,9 @@ const Layout: React.FC<LayoutProps> = ({
                 </span>
                 <button
                   type="button"
-                  onClick={handleLogout}
+                  onClick={() => {
+                    void handleLogout();
+                  }}
                   className="cursor-pointer rounded-[10px] bg-[rgba(19,35,48,0.9)] px-3.5 py-2 text-xs font-semibold text-[#dce8ec] transition-transform duration-200 hover:-translate-y-px"
                 >
                   Logout
@@ -254,7 +259,9 @@ const Layout: React.FC<LayoutProps> = ({
         {fullBleed ? (
           children
         ) : (
-          <div className="mx-auto max-w-[1080px] px-5 pb-12 pt-8">{children}</div>
+          <div className="mx-auto max-w-[1080px] px-5 pb-12 pt-8">
+            {children}
+          </div>
         )}
       </main>
       {!isAuthed && !isAuthPage ? (

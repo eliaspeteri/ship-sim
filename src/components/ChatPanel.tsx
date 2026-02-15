@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import useStore from '../store';
 import { socketManager } from '../networking/socket';
 
@@ -10,8 +16,7 @@ interface ChatPanelProps {
 const ui = {
   panel:
     'rounded-[18px] border border-[rgba(27,154,170,0.35)] bg-[rgba(10,20,34,0.85)] p-[14px] shadow-[0_18px_40px_rgba(2,8,18,0.45)]',
-  title:
-    'text-[11px] uppercase tracking-[0.2em] text-[rgba(160,179,192,0.7)]',
+  title: 'text-[11px] uppercase tracking-[0.2em] text-[rgba(160,179,192,0.7)]',
   list: 'mt-2.5 max-h-[220px] overflow-y-auto rounded-xl border border-[rgba(23,44,68,0.6)] bg-[rgba(6,12,18,0.6)] p-2.5',
   messageRow:
     'flex items-start gap-2.5 text-[13px] text-[rgba(226,236,240,0.9)] [&+&]:mt-2',
@@ -19,7 +24,8 @@ const ui = {
     'rounded-full bg-[rgba(50,70,90,0.6)] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-[rgba(230,238,240,0.85)]',
   sender: 'font-semibold text-[rgba(238,246,248,0.96)]',
   emptyState: 'text-xs text-[rgba(170,186,196,0.7)]',
-  inputRow: 'mt-2.5 grid grid-cols-[150px_1fr_auto] gap-2 max-[720px]:grid-cols-1',
+  inputRow:
+    'mt-2.5 grid grid-cols-[150px_1fr_auto] gap-2 max-[720px]:grid-cols-1',
   select:
     'rounded-[10px] border border-[rgba(40,60,80,0.6)] bg-[rgba(12,24,38,0.9)] px-2 py-1.5 text-xs text-[rgba(230,238,240,0.9)]',
   input:
@@ -78,7 +84,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     return map;
   }, [mergedChatMessages, channelsOfInterest]);
 
-  const loadOlderChat = () => {
+  const loadOlderChat = useCallback(() => {
     if (loadingHistory) return;
     setLoadingHistory(true);
     channelsOfInterest.forEach(chan => {
@@ -89,7 +95,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       }
     });
     setTimeout(() => setLoadingHistory(false), 250);
-  };
+  }, [chatHistoryMeta, channelsOfInterest, earliestByChannel, loadingHistory]);
 
   const chatListRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {

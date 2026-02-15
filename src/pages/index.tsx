@@ -7,8 +7,7 @@ const ui = {
     'pointer-events-none absolute inset-x-[-10%] top-[-20%] z-0 h-[60%] bg-[radial-gradient(60%_60%_at_20%_20%,rgba(36,176,168,0.28)_0%,rgba(10,20,34,0.1)_60%,transparent_100%),radial-gradient(50%_50%_at_80%_10%,rgba(195,167,107,0.24)_0%,transparent_70%)]',
   hero: 'relative z-[1] grid items-center gap-8 md:grid-cols-2',
   heroContent: 'flex flex-col gap-[18px]',
-  kicker:
-    'text-[11px] uppercase tracking-[0.4em] text-[rgba(195,167,107,0.9)]',
+  kicker: 'text-[11px] uppercase tracking-[0.4em] text-[rgba(195,167,107,0.9)]',
   title: 'text-[clamp(36px,6vw,64px)] font-bold leading-[1.05] text-[#f2f7f9]',
   lead: 'max-w-[540px] text-base leading-[1.7] text-[rgba(197,213,222,0.86)]',
   heroActions: 'flex flex-wrap gap-3',
@@ -22,8 +21,7 @@ const ui = {
   metaLabel:
     'text-[11px] uppercase tracking-[0.2em] text-[rgba(150,175,190,0.7)]',
   metaValue: 'mt-1.5 text-lg font-semibold text-[#f0f6f8]',
-  heroVisual:
-    'relative flex min-h-[320px] items-center justify-center',
+  heroVisual: 'relative flex min-h-[320px] items-center justify-center',
   heroGlow:
     'absolute h-[340px] w-[340px] rounded-full bg-[radial-gradient(circle,rgba(27,154,170,0.35),rgba(8,16,26,0.1)_70%)] blur-[10px] animate-pulse',
   heroPanel:
@@ -45,8 +43,7 @@ const ui = {
     'text-xs uppercase tracking-[0.2em] text-[rgba(195,167,107,0.7)]',
   featureTitle: 'mt-2.5 text-base font-semibold text-[#f2f7f9]',
   featureText: 'mt-2 text-[13px] leading-[1.6] text-[rgba(180,201,212,0.8)]',
-  cta:
-    'relative z-[1] flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[rgba(36,72,90,0.8)] bg-gradient-to-br from-[rgba(11,28,44,0.9)] to-[rgba(8,20,32,0.95)] p-5',
+  cta: 'relative z-[1] flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[rgba(36,72,90,0.8)] bg-gradient-to-br from-[rgba(11,28,44,0.9)] to-[rgba(8,20,32,0.95)] p-5',
   ctaText: 'text-base text-[rgba(220,233,238,0.9)]',
 };
 
@@ -71,14 +68,18 @@ const Home: React.FC = () => {
             <button
               type="button"
               className={ui.primaryButton}
-              onClick={() => router.push('/sim')}
+              onClick={() => {
+                void router.push('/sim');
+              }}
             >
               Launch simulator
             </button>
             <button
               type="button"
               className={ui.secondaryButton}
-              onClick={() => router.push('/globe')}
+              onClick={() => {
+                void router.push('/globe');
+              }}
             >
               Explore the map
             </button>
@@ -163,14 +164,18 @@ const Home: React.FC = () => {
           <button
             type="button"
             className={ui.primaryButton}
-            onClick={() => router.push('/sim')}
+            onClick={() => {
+              void router.push('/sim');
+            }}
           >
             Enter simulator
           </button>
           <button
             type="button"
             className={ui.secondaryButton}
-            onClick={() => router.push('/spaces')}
+            onClick={() => {
+              void router.push('/spaces');
+            }}
           >
             Manage spaces
           </button>
