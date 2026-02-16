@@ -100,6 +100,10 @@ export function registerVesselRepairHandler({
     }
 
     const chargeUserId = resolveChargeUserId(target);
+    if (typeof chargeUserId !== 'string' || chargeUserId.length === 0) {
+      callback({ ok: false, message: 'Unable to bill repairs' });
+      return;
+    }
 
     try {
       let costToCharge = cost;

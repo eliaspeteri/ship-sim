@@ -54,9 +54,10 @@ export function registerVesselJoinHandler({
       );
       return;
     }
+    const requestedVesselId = data?.vesselId;
     const targetId =
-      typeof data.vesselId === 'string' && data.vesselId.length > 0
-        ? data.vesselId
+      typeof requestedVesselId === 'string' && requestedVesselId.length > 0
+        ? requestedVesselId
         : undefined;
     const hasTargetId = targetId !== undefined && targetId.length > 0;
     let target = hasTargetId ? findVesselInSpace(targetId, spaceId) : null;

@@ -42,17 +42,20 @@ export function registerVesselControlHandler({
     const isHelm = target.helmUserId === currentUserId;
     const isEngine = target.engineUserId === currentUserId;
     const isAdmin = hasAdminRole(socket);
+    const engineHolder = target.engineUserId;
+    const helmHolder = target.helmUserId;
     const engineAvailable =
-      target.engineUserId === null ||
-      target.engineUserId.length === 0 ||
+      engineHolder === null ||
+      engineHolder === undefined ||
+      engineHolder.length === 0 ||
       isEngine ||
       isAdmin;
 
     if (data.rudderAngle !== undefined && !isHelm && !isAdmin) {
       socket.emit(
         'error',
-        target.helmUserId !== null && target.helmUserId.length > 0
-          ? `Helm held by ${target.helmUsername ?? target.helmUserId}`
+        helmHolder !== null && helmHolder !== undefined && helmHolder.length > 0
+          ? `Helm held by ${target.helmUsername ?? helmHolder}`
           : 'Claim the helm to steer',
       );
       return;
@@ -73,8 +76,8 @@ export function registerVesselControlHandler({
       }
       socket.emit(
         'error',
-        target.engineUserId !== null && target.engineUserId.length > 0
-          ? `Engine station held by ${target.engineUsername ?? target.engineUserId}`
+        engineHolder.length > 0
+          ? `Engine station held by ${target.engineUsername ?? engineHolder}`
           : 'Claim the engine station to adjust throttle/ballast',
       );
       return;
