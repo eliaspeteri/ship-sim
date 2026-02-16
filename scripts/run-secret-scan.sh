@@ -5,6 +5,13 @@ set -eu
 gitleaks_image="ghcr.io/gitleaks/gitleaks:latest"
 repo_root="$(pwd)"
 
+is_git_bash_windows() {
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 if upstream_ref=$(git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>/dev/null); then
   commit_range="${upstream_ref}..HEAD"
 else
@@ -14,11 +21,20 @@ fi
 
 if command -v docker >/dev/null 2>&1; then
   echo "Running gitleaks (docker) for commit range ${commit_range}"
-  docker run --rm \
-    -v "${repo_root}:/path" \
-    -w /path \
-    "${gitleaks_image}" \
-    git --no-banner --redact --log-opts="${commit_range}"
+  if is_git_bash_windows; then
+    repo_root="$(pwd -W)"
+    MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' docker run --rm \
+      -v "${repo_root}:/path" \
+      -w /path \
+      "${gitleaks_image}" \
+      git --no-banner --redact --log-opts="${commit_range}"
+  else
+    docker run --rm \
+      -v "${repo_root}:/path" \
+      -w /path \
+      "${gitleaks_image}" \
+      git --no-banner --redact --log-opts="${commit_range}"
+  fi
   exit 0
 fi
 
