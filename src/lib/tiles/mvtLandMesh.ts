@@ -15,7 +15,9 @@ type TerrainRgbTile = {
 
 type Raster2DContext = {
   drawImage: (image: ImageBitmap, dx: number, dy: number) => void;
-  getImageData: (...args: [sx: number, sy: number, sw: number, sh: number]) => ImageData;
+  getImageData: (
+    ...args: [sx: number, sy: number, sw: number, sh: number]
+  ) => ImageData;
 };
 
 const hasRaster2DContext = (value: unknown): value is Raster2DContext => {

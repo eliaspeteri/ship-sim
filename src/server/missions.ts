@@ -12,9 +12,6 @@ import type {
   MissionDefinition,
 } from '../types/mission.types';
 
-
-
-
 type MissionSeed = Omit<
   MissionDefinition,
   | 'id'

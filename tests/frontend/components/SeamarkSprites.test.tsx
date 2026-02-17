@@ -8,7 +8,6 @@ import useStore from '../../../src/store';
 
 import type { SimulationState } from '../../../src/store/types';
 
-
 jest.mock('@react-three/fiber', () => ({
   useThree: jest.fn(),
   useFrame: jest.fn(),

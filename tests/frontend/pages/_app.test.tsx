@@ -5,7 +5,6 @@ import MyApp from '../../../src/pages/_app';
 
 import type { AppProps } from 'next/app';
 
-
 const sessionProviderMock = jest.fn(
   ({ children }: { children: React.ReactNode }) => (
     <div data-testid="session-provider">{children}</div>

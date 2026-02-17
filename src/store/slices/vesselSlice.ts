@@ -7,7 +7,6 @@ import type { DeepPartial } from '../../types/utility';
 import type { ShipType, VesselState } from '../../types/vessel.types';
 import type { SimulationState, StoreGet, StoreSet } from '../types';
 
-
 type VesselSlice = Pick<
   SimulationState,
   | 'vessel'

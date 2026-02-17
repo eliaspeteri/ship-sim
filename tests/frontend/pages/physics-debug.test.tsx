@@ -7,7 +7,6 @@ import PhysicsDebugPage, {
 
 import type { GetServerSidePropsContext } from 'next';
 
-
 const initializeSimulationMock = jest.fn(() => Promise.resolve());
 const startSimulationMock = jest.fn();
 const stopSimulationMock = jest.fn();

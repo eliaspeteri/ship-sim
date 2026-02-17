@@ -4,7 +4,6 @@ import * as THREE from 'three';
 
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
-
 export function SpectatorController({
   mode,
   focusRef,

@@ -782,7 +782,7 @@ export const registerCareersSpacesRoutes = ({
         previousRulesetType: space.rulesetType,
         nextRulesetType:
           typeof updates.rulesetType === 'string'
-            ? (updates.rulesetType)
+            ? updates.rulesetType
             : updated.rulesetType,
         previousRules: normalizeRules(space.rules),
         nextRules:

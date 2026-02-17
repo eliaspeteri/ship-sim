@@ -11,7 +11,6 @@ import { getDefaultRules, mapToRulesetType } from '../../types/rules.types';
 
 import type { ManagedSpace } from './types';
 
-
 const rulesetLabels: Record<string, string> = {
   CASUAL: 'Casual',
   REALISM: 'Realism',

@@ -11,8 +11,6 @@ import type { EnvironmentState } from '../../types/environment.types';
 import type { AuthenticatedUser } from '../middleware/authentication';
 import type { Router, RequestHandler, Request, Response } from 'express';
 
-
-
 type PrismaClient = typeof prismaClient;
 type WeatherStateRow = Awaited<
   ReturnType<PrismaClient['weatherState']['findUnique']>
