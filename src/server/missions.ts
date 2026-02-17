@@ -1,15 +1,19 @@
-import { prisma } from '../lib/prisma';
-import { positionFromXY, distanceMeters } from '../lib/position';
-import type {
-  MissionAssignmentData,
-  MissionDefinition,
-} from '../types/mission.types';
+import { bumpReputation, addCareerExperience } from './careers';
 import {
   applyEconomyAdjustmentWithRevenueShare,
   ECONOMY_PORTS,
 } from './economy';
+import { positionFromXY, distanceMeters } from '../lib/position';
+import { prisma } from '../lib/prisma';
+
 import type { CareerKey } from './careers';
-import { bumpReputation, addCareerExperience } from './careers';
+import type {
+  MissionAssignmentData,
+  MissionDefinition,
+} from '../types/mission.types';
+
+
+
 
 type MissionSeed = Omit<
   MissionDefinition,
@@ -75,7 +79,7 @@ const toMissionAssignmentData = (assignment: {
   userId: string;
   vesselId?: string | null;
   status: string;
-  progress?: unknown | null;
+  progress?: unknown;
   startedAt?: Date | null;
   completedAt?: Date | null;
   mission?: MissionDefinition | null;
@@ -247,7 +251,7 @@ export async function updateMissionAssignments(params: {
   );
 
   for (const assignment of normalizedAssignments) {
-    const mission = assignment.mission as MissionDefinition | undefined;
+    const mission = assignment.mission;
     if (mission === undefined) continue;
     const vesselId = assignment.vesselId ?? undefined;
     const vessel =

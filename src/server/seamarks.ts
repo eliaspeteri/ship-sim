@@ -100,6 +100,11 @@ const addToIndex = (idx: number, lat: number, lon: number) => {
   cellIndex.set(key, list);
 };
 
+const toPrimitiveString = (value: unknown): string | undefined =>
+  typeof value === 'string' || typeof value === 'number'
+    ? String(value)
+    : undefined;
+
 const appendCandidates = (params: {
   candidates: number[];
   bounds: { south: number; north: number; west: number; east: number };
@@ -113,9 +118,10 @@ const appendCandidates = (params: {
     if (p.lon < params.bounds.west || p.lon > params.bounds.east) continue;
 
     const osmId = p.properties['osm_id'];
+    const normalizedOsmId = toPrimitiveString(osmId);
     const dedupeKey =
-      osmId !== null && osmId !== undefined
-        ? `n:${String(osmId)}`
+      normalizedOsmId !== undefined
+        ? `n:${normalizedOsmId}`
         : `${p.lat}:${p.lon}`;
     if (params.seen.has(dedupeKey)) continue;
     params.seen.add(dedupeKey);
@@ -189,7 +195,8 @@ export async function loadSeamarks() {
         if (lat < -90 || lat > 90) continue;
 
         // Optional: keep only buoy/beacon/light nodes if your geojson contains more
-        const t = String(f.properties['seamark:type'] ?? '');
+        const seamarkType = toPrimitiveString(f.properties['seamark:type']);
+        const t = seamarkType ?? '';
         if (!/^(buoy|beacon|light)_/.test(t)) continue;
 
         const rec: SeamarkPoint = { lat, lon, properties: f.properties };

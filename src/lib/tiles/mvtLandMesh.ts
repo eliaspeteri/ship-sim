@@ -1,14 +1,30 @@
-import Pbf from 'pbf';
 import { VectorTile } from '@mapbox/vector-tile';
-import type { VectorTileFeature } from '@mapbox/vector-tile';
 import earcut from 'earcut';
+import Pbf from 'pbf';
 import * as THREE from 'three';
+
 import { latLonToXY } from '../../lib/geo'; // adjust if your path is different
+
+import type { VectorTileFeature } from '@mapbox/vector-tile';
 
 type TerrainRgbTile = {
   data: Uint8ClampedArray;
   width: number;
   height: number;
+};
+
+type Raster2DContext = {
+  drawImage: (image: ImageBitmap, dx: number, dy: number) => void;
+  getImageData: (...args: [sx: number, sy: number, sw: number, sh: number]) => ImageData;
+};
+
+const hasRaster2DContext = (value: unknown): value is Raster2DContext => {
+  if (typeof value !== 'object' || value === null) return false;
+  const record = value as { drawImage?: unknown; getImageData?: unknown };
+  return (
+    typeof record.drawImage === 'function' &&
+    typeof record.getImageData === 'function'
+  );
 };
 
 function tile2lon(x: number, z: number) {
@@ -59,14 +75,12 @@ async function fetchTerrainRgbTile(
   canvas.width = bitmap.width;
   canvas.height = bitmap.height;
 
-  const ctx = canvas.getContext('2d') as
-    | globalThis.OffscreenCanvasRenderingContext2D
-    | globalThis.CanvasRenderingContext2D
-    | null;
-  if (!ctx) {
+  const maybeCtx = canvas.getContext('2d');
+  if (!hasRaster2DContext(maybeCtx)) {
     bitmap.close();
     return null;
   }
+  const ctx = maybeCtx;
 
   ctx.drawImage(bitmap, 0, 0);
   bitmap.close();

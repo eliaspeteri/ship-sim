@@ -63,7 +63,16 @@ export async function loadWasmModule(): Promise<WasmModule> {
 
   const module = await WebAssembly.compile(buffer);
   const instance = await WebAssembly.instantiate(module, imports);
-  const exports = instance.exports as WebAssembly.Exports;
+  const exports = instance.exports;
+  const updateVesselStateExport = exports.updateVesselState;
+  const createVesselExport = exports.createVessel;
+
+  if (typeof updateVesselStateExport !== 'function') {
+    throw new Error('WASM export updateVesselState is missing or invalid');
+  }
+  if (typeof createVesselExport !== 'function') {
+    throw new Error('WASM export createVessel is missing or invalid');
+  }
 
   const setArgs = (len: number) => {
     const maybeSetter = (
@@ -90,7 +99,18 @@ export async function loadWasmModule(): Promise<WasmModule> {
       waveSteepness: number,
     ) => {
       setArgs(10);
-      return (exports.updateVesselState as CallableFunction)(
+      return (updateVesselStateExport as (
+        vesselPtr: number,
+        dt: number,
+        windSpeed: number,
+        windDirection: number,
+        currentSpeed: number,
+        currentDirection: number,
+        waveHeight: number,
+        waveLength: number,
+        waveDirection: number,
+        waveSteepness: number,
+      ) => number)(
         vesselPtr,
         dt,
         windSpeed,
@@ -101,7 +121,7 @@ export async function loadWasmModule(): Promise<WasmModule> {
         waveLength,
         waveDirection,
         waveSteepness,
-      ) as number;
+      );
     },
     createVessel: (
       x: number,
@@ -138,7 +158,40 @@ export async function loadWasmModule(): Promise<WasmModule> {
       heaveDamping: number,
     ) => {
       setArgs(32);
-      return (exports.createVessel as CallableFunction)(
+      return (createVesselExport as (
+        x: number,
+        y: number,
+        z: number,
+        heading: number,
+        roll: number,
+        pitch: number,
+        surge: number,
+        sway: number,
+        heave: number,
+        yawRate: number,
+        rollRate: number,
+        pitchRate: number,
+        throttle: number,
+        rudderAngle: number,
+        mass: number,
+        length: number,
+        beam: number,
+        draft: number,
+        blockCoefficient: number,
+        rudderForceCoefficient: number,
+        rudderStallAngle: number,
+        rudderMaxAngle: number,
+        dragCoefficient: number,
+        yawDamping: number,
+        yawDampingQuad: number,
+        swayDamping: number,
+        maxThrust: number,
+        maxSpeed: number,
+        rollDamping: number,
+        pitchDamping: number,
+        heaveStiffness: number,
+        heaveDamping: number,
+      ) => number)(
         x,
         y,
         z,
@@ -171,7 +224,7 @@ export async function loadWasmModule(): Promise<WasmModule> {
         pitchDamping,
         heaveStiffness,
         heaveDamping,
-      ) as number;
+      );
     },
     getVesselParamsBufferPtr: exports.getVesselParamsBufferPtr as
       | (() => number)

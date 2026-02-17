@@ -49,7 +49,9 @@ const loadFromDisk = async () => {
       const raw = await fs.readFile(artifactsFile, 'utf8');
       const data = JSON.parse(raw) as StoredArtifact[];
       data.forEach(artifact => {
-        const packMap = packArtifacts.get(artifact.packId) ?? new Map();
+        const packMap =
+          packArtifacts.get(artifact.packId) ??
+          new Map<string, StoredArtifact>();
         packMap.set(
           artifactKey(artifact.tile, artifact.layerId, artifact.lod),
           artifact,
@@ -133,7 +135,8 @@ export const storeArtifacts = async (
   const storedAt = new Date().toISOString();
 
   await runQueuedWrite(async () => {
-    const packMap = packArtifacts.get(packId) ?? new Map();
+    const packMap =
+      packArtifacts.get(packId) ?? new Map<string, StoredArtifact>();
     artifacts.forEach(artifact => {
       const key = artifactKey(artifact.tile, artifact.layerId, artifact.lod);
       packMap.set(key, { ...artifact, packId, storedAt });

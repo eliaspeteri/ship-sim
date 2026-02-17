@@ -1,11 +1,14 @@
-import type { Router, Request, Response, RequestHandler } from 'express';
-import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
+
 import { Prisma } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+
+import { buildRulesetAuditEntry } from '../../lib/rulesetAudit';
+
+import type { prisma as prismaClient } from '../../lib/prisma';
 import type { Rules } from '../../types/rules.types';
 import type { AuthenticatedUser } from '../middleware/authentication';
-import type { prisma as prismaClient } from '../../lib/prisma';
-import { buildRulesetAuditEntry } from '../../lib/rulesetAudit';
+import type { Router, Request, Response, RequestHandler } from 'express';
 
 type PrismaClient = typeof prismaClient;
 
@@ -223,7 +226,7 @@ export const registerCareersSpacesRoutes = ({
   seedDefaultMissions,
   recordLog,
 }: RegisterCareersSpacesRoutesDeps) => {
-  router.get('/careers', requireAuth, async (_req, res) => {
+  router.get('/careers', requireAuth, (_req, res) => {
     res.json({ careers: CAREERS });
   });
 
@@ -314,7 +317,7 @@ export const registerCareersSpacesRoutes = ({
     }
   });
 
-  router.get('/exams', requireAuth, async (_req, res) => {
+  router.get('/exams', requireAuth, (_req, res) => {
     res.json({ exams: getExamDefinitions() });
   });
 
@@ -779,7 +782,7 @@ export const registerCareersSpacesRoutes = ({
         previousRulesetType: space.rulesetType,
         nextRulesetType:
           typeof updates.rulesetType === 'string'
-            ? (updates.rulesetType as string)
+            ? (updates.rulesetType)
             : updated.rulesetType,
         previousRules: normalizeRules(space.rules),
         nextRules:

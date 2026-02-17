@@ -1,35 +1,16 @@
 import 'dotenv/config';
-import express from 'express';
 import http from 'http';
 import { URL } from 'url';
-import type { Prisma } from '@prisma/client';
-import { Server, type Socket } from 'socket.io';
-import cors from 'cors';
+
 import cookieParser from 'cookie-parser';
-import apiRoutes from '../api';
+import cors from 'cors';
+import express from 'express';
 import jwt from 'jsonwebtoken';
-import type { WeatherPattern } from '../weatherSystem';
-import { applyWeatherPattern, getWeatherPattern } from '../weatherSystem';
-import type { Role } from '../roles';
-import { expandRoles, permissionsForRoles } from '../roles';
-import type {
-  ChatMessageData,
-  ClientToServerEvents,
-  InterServerEvents,
-  ServerToClientEvents,
-  SocketData,
-} from '../../types/socket.types';
-import type {
-  SimpleVesselState,
-  VesselControls,
-  VesselPose,
-  VesselState,
-  VesselVelocity,
-} from '../../types/vessel.types';
-import type { EnvironmentState } from '../../types/environment.types';
-import type { DeepPartial } from '../../types/utility';
-import type { Rules } from '../../types/rules.types';
-import { getDefaultRules, mapToRulesetType } from '../../types/rules.types';
+import { Server, type Socket } from 'socket.io';
+
+import { RUDDER_MAX_ANGLE_RAD } from '../../constants/vessel';
+import { DEFAULT_DAMAGE_STATE } from '../../lib/damage';
+import { applyFailureControlLimits } from '../../lib/failureControls';
 import {
   ensurePosition,
   mergePosition,
@@ -38,20 +19,23 @@ import {
   positionFromXY,
 } from '../../lib/position';
 import { prisma } from '../../lib/prisma';
-import { RUDDER_MAX_ANGLE_RAD } from '../../constants/vessel';
-import {
-  recordMetric,
-  setConnectedClients,
-  updateSpaceMetrics,
-} from '../metrics';
+import { computeTideState } from '../../lib/tides';
+import { getDefaultRules, mapToRulesetType } from '../../types/rules.types';
+import apiRoutes from '../api';
 import { getBathymetryDepth, loadBathymetry } from '../bathymetry';
+import { seedCareerDefinitions } from '../careers';
+import {
+  applyCollisionDamage,
+  applyFailureWear,
+  applyGroundingDamage,
+  mergeDamageState,
+} from '../damageModel';
 import {
   getEconomyProfile,
   applyEconomyAdjustment,
   updateEconomyForVessel,
 } from '../economy';
-import { seedDefaultMissions, updateMissionAssignments } from '../missions';
-import { seedCareerDefinitions } from '../careers';
+import { updateFailureState } from '../failureModel';
 import {
   ensureCargoAvailability,
   ensurePassengerAvailability,
@@ -60,46 +44,65 @@ import {
   updateCargoDeliveries,
   updatePassengerDeliveries,
 } from '../logistics';
-import { recordLog } from '../observability';
-import { loadSeamarks } from '../seamarks';
-import { computeTideState } from '../../lib/tides';
-import type { FailureState } from '../failureModel';
-import { updateFailureState } from '../failureModel';
-import type { DamageState } from '../../lib/damage';
-import { DEFAULT_DAMAGE_STATE } from '../../lib/damage';
 import {
-  applyCollisionDamage,
-  applyFailureWear,
-  applyGroundingDamage,
-  mergeDamageState,
-} from '../damageModel';
-import { applyFailureControlLimits } from '../../lib/failureControls';
+  recordMetric,
+  setConnectedClients,
+  updateSpaceMetrics,
+} from '../metrics';
+import { seedDefaultMissions, updateMissionAssignments } from '../missions';
+import { recordLog } from '../observability';
+import { expandRoles, permissionsForRoles } from '../roles';
+import { loadSeamarks } from '../seamarks';
+import { registerAdminHandlers } from '../socketHandlers/admin';
+import { registerAdminWeatherHandler } from '../socketHandlers/adminWeather';
+import { registerCargoHandlers } from '../socketHandlers/cargo';
+import { registerChatHandlers } from '../socketHandlers/chat';
+import { registerClientLogHandler } from '../socketHandlers/clientLog';
+import { registerDisconnectHandler } from '../socketHandlers/disconnect';
+import { registerEconomyHandlers } from '../socketHandlers/economy';
+import { registerLatencyPingHandler } from '../socketHandlers/latencyPing';
+import { registerSeamarksHandler } from '../socketHandlers/seamarks';
+import { registerSimulationResyncHandler } from '../socketHandlers/simulationResync';
+import { registerSimulationStateHandler } from '../socketHandlers/simulationState';
+import { registerStationHandlers } from '../socketHandlers/stations';
+import { registerUserModeHandler } from '../socketHandlers/userMode';
+import { registerVesselControlHandler } from '../socketHandlers/vesselControl';
+import { registerVesselJoinHandler } from '../socketHandlers/vesselJoin';
+import { registerVesselLeaseHandler } from '../socketHandlers/vesselLease';
+import { registerVesselRepairHandler } from '../socketHandlers/vesselRepair';
+import { registerVesselSaleHandler } from '../socketHandlers/vesselSale';
+import { registerVesselStorageHandler } from '../socketHandlers/vesselStorage';
+import { registerVesselUpdateHandler } from '../socketHandlers/vesselUpdate';
 import {
   buildHydrodynamics,
   resolveVesselTemplate,
   warmVesselCatalog,
 } from '../vesselCatalog';
-import { registerVesselUpdateHandler } from '../socketHandlers/vesselUpdate';
-import { registerUserModeHandler } from '../socketHandlers/userMode';
-import { registerVesselControlHandler } from '../socketHandlers/vesselControl';
-import { registerVesselRepairHandler } from '../socketHandlers/vesselRepair';
-import { registerSimulationStateHandler } from '../socketHandlers/simulationState';
-import { registerSimulationResyncHandler } from '../socketHandlers/simulationResync';
-import { registerLatencyPingHandler } from '../socketHandlers/latencyPing';
-import { registerClientLogHandler } from '../socketHandlers/clientLog';
-import { registerVesselStorageHandler } from '../socketHandlers/vesselStorage';
-import { registerVesselSaleHandler } from '../socketHandlers/vesselSale';
-import { registerVesselJoinHandler } from '../socketHandlers/vesselJoin';
-import { registerVesselLeaseHandler } from '../socketHandlers/vesselLease';
-import { registerEconomyHandlers } from '../socketHandlers/economy';
-import { registerCargoHandlers } from '../socketHandlers/cargo';
-import { registerStationHandlers } from '../socketHandlers/stations';
-import { registerAdminHandlers } from '../socketHandlers/admin';
-import { registerChatHandlers } from '../socketHandlers/chat';
-import { registerAdminWeatherHandler } from '../socketHandlers/adminWeather';
-import { registerSeamarksHandler } from '../socketHandlers/seamarks';
-import { registerDisconnectHandler } from '../socketHandlers/disconnect';
+import { applyWeatherPattern, getWeatherPattern } from '../weatherSystem';
+
+import type { DamageState } from '../../lib/damage';
+import type { EnvironmentState } from '../../types/environment.types';
+import type { Rules } from '../../types/rules.types';
+import type {
+  ChatMessageData,
+  ClientToServerEvents,
+  InterServerEvents,
+  ServerToClientEvents,
+  SocketData,
+} from '../../types/socket.types';
+import type { DeepPartial } from '../../types/utility';
+import type {
+  SimpleVesselState,
+  VesselControls,
+  VesselPose,
+  VesselState,
+  VesselVelocity,
+} from '../../types/vessel.types';
+import type { FailureState } from '../failureModel';
+import type { Role } from '../roles';
 import type { SocketHandlerContext } from '../socketHandlers/context';
+import type { WeatherPattern } from '../weatherSystem';
+import type { Prisma } from '@prisma/client';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
@@ -1830,7 +1833,7 @@ io.use(async (socket, next) => {
               ? (['admin'] as Role[])
               : []),
           ]),
-        ) as Role[],
+        ),
       );
       const permissions = permissionsForRoles(roles);
       const spaceId = spaceIdFromHandshake ?? DEFAULT_SPACE_ID;
@@ -2243,7 +2246,7 @@ io.on('connection', async socket => {
         timestamp: Date.now(),
         self: {
           userId: guest.userId,
-          roles: guest.roles as Role[],
+          roles: guest.roles,
           rank: guest.rank,
           credits: guest.credits,
           experience: guest.experience,
@@ -2281,7 +2284,7 @@ io.on('connection', async socket => {
               ? (['admin'] as Role[])
               : []),
           ]),
-        ) as Role[],
+        ),
       );
       const permissions = permissionsForRoles(roles);
       const account =
@@ -2606,7 +2609,7 @@ function stopRuntimeLoops() {
 
 // Broadcast authoritative snapshots at a throttled rate (5Hz)
 let lastBroadcastAt = Date.now();
-const broadcastTick = async () => {
+const broadcastTick = () => {
   const broadcastStart = Date.now();
   const now = Date.now();
   const drift = now - lastBroadcastAt;
