@@ -1,6 +1,8 @@
 import v8 from 'node:v8';
 import js from '@eslint/js';
 import { FlatCompat } from '@eslint/eslintrc';
+import globals from 'globals';
+import unusedImports from 'eslint-plugin-unused-imports';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -41,6 +43,13 @@ const pluginConfigs = compat.extends(
   'plugin:import/typescript',
   'prettier',
 );
+const tsTypeCheckedConfigs = compat
+  .extends('plugin:@typescript-eslint/recommended-type-checked')
+  .map(config => ({
+    ...config,
+    files: ['src/server/**/*.{ts,tsx}', 'src/lib/**/*.{ts,tsx}'],
+  }));
+const CSS_MODULE_IMPORT_PATTERNS = ['*.module.css', '**/*.module.css'];
 
 export default [
   {
@@ -55,6 +64,7 @@ export default [
 
   // Add plugin configurations
   ...pluginConfigs,
+  ...tsTypeCheckedConfigs,
 
   // Global ignores for all configurations
   {
@@ -79,36 +89,10 @@ export default [
       ecmaVersion: 2021,
       sourceType: 'module',
       globals: {
-        // Browser globals
-        process: 'readonly',
-        window: 'readonly',
-        document: 'readonly',
-        console: 'readonly',
-        setTimeout: 'readonly',
-        clearTimeout: 'readonly',
-        setInterval: 'readonly',
-        clearInterval: 'readonly',
-        WebAssembly: 'readonly',
-        performance: 'readonly',
-        fetch: 'readonly',
-        requestAnimationFrame: 'readonly',
-        cancelAnimationFrame: 'readonly',
-        alert: 'readonly',
-        ImageData: 'readonly',
-        MouseEvent: 'readonly',
-        PointerEvent: 'readonly',
-        WheelEvent: 'readonly',
-        HTMLCanvasElement: 'readonly',
-        HTMLDivElement: 'readonly',
-        HTMLInputElement: 'readonly',
-        HTMLFormElement: 'readonly',
-        SVGSVGElement: 'readonly',
-        NodeJS: 'readonly', // Added NodeJS global
-        Buffer: 'readonly', // Added Buffer global
-        URLSearchParams: 'readonly', // Added URLSearchParams global
-        Event: 'readonly', // Added Event global
-        createImageBitmap: 'readonly', // Added createImageBitmap global
-        OffscreenCanvas: 'readonly', // Added OffscreenCanvas global
+        ...globals.es2021,
+        ...globals.browser,
+        ...globals.node,
+        NodeJS: 'readonly',
       },
       parserOptions: {
         ecmaFeatures: {
@@ -121,6 +105,9 @@ export default [
   // Base config for all files
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
+    plugins: {
+      'unused-imports': unusedImports,
+    },
     settings: {
       react: {
         version: 'detect',
@@ -139,11 +126,17 @@ export default [
       ],
 
       // Allow unused vars prefixed with underscore
-      '@typescript-eslint/no-unused-vars': [
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      'unused-imports/no-unused-imports': 'error',
+      'unused-imports/no-unused-vars': [
         'error',
         {
+          args: 'after-used',
           argsIgnorePattern: '^_',
+          vars: 'all',
           varsIgnorePattern: '^_',
+          ignoreRestSiblings: true,
         },
       ],
 
@@ -200,7 +193,13 @@ export default [
       // Type/import hygiene
       '@typescript-eslint/consistent-type-imports': 'warn',
       '@typescript-eslint/no-unnecessary-condition': 'off',
-      '@typescript-eslint/ban-ts-comment': 'off',
+      '@typescript-eslint/ban-ts-comment': [
+        'warn',
+        {
+          'ts-expect-error': 'allow-with-description',
+          minimumDescriptionLength: 6,
+        },
+      ],
       '@typescript-eslint/switch-exhaustiveness-check': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
@@ -210,6 +209,24 @@ export default [
       // Module hygiene
       'import/no-cycle': 'warn',
       'import/no-unused-modules': 'off',
+      'import/order': [
+        'warn',
+        {
+          groups: [
+            'builtin',
+            'external',
+            'internal',
+            ['parent', 'sibling', 'index'],
+            'type',
+            'object',
+          ],
+          'newlines-between': 'always',
+          alphabetize: {
+            order: 'asc',
+            caseInsensitive: true,
+          },
+        },
+      ],
 
       // Safer iteration semantics over plain for..in.
       'no-restricted-syntax': [
@@ -225,7 +242,58 @@ export default [
       'no-restricted-imports': [
         'error',
         {
-          patterns: ['*.module.css', '**/*.module.css'],
+          patterns: CSS_MODULE_IMPORT_PATTERNS,
+        },
+      ],
+    },
+  },
+
+  // Keep server runtime/domain modules independent from client UI/page modules.
+  {
+    files: ['src/server/**/*.{js,jsx,ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...CSS_MODULE_IMPORT_PATTERNS,
+            '**/components/**',
+            '**/pages/**',
+          ],
+        },
+      ],
+    },
+  },
+
+  // Prevent client runtime layers from directly importing server internals.
+  {
+    files: [
+      'src/components/**/*.{js,jsx,ts,tsx}',
+      'src/features/**/*.{js,jsx,ts,tsx}',
+      'src/networking/**/*.{js,jsx,ts,tsx}',
+      'src/simulation/**/*.{js,jsx,ts,tsx}',
+      'src/store/**/*.{js,jsx,ts,tsx}',
+      'src/pages/**/*.{js,jsx,ts,tsx}',
+    ],
+    ignores: ['src/pages/api/**/*.{js,jsx,ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [...CSS_MODULE_IMPORT_PATTERNS, '**/server/**'],
+        },
+      ],
+    },
+  },
+
+  // Temporary exception: shared store type currently depends on server role type.
+  {
+    files: ['src/store/types.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: CSS_MODULE_IMPORT_PATTERNS,
         },
       ],
     },
@@ -245,15 +313,15 @@ export default [
     rules: {
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
-      '@typescript-eslint/no-unnecessary-condition': 'warn',
+      '@typescript-eslint/no-unnecessary-condition': 'error',
       '@typescript-eslint/ban-ts-comment': [
-        'warn',
+        'error',
         {
           'ts-expect-error': 'allow-with-description',
           minimumDescriptionLength: 6,
         },
       ],
-      '@typescript-eslint/switch-exhaustiveness-check': 'warn',
+      '@typescript-eslint/switch-exhaustiveness-check': 'error',
       '@typescript-eslint/no-unsafe-assignment': 'warn',
       '@typescript-eslint/no-unsafe-member-access': 'warn',
       '@typescript-eslint/no-unsafe-return': 'warn',
@@ -385,13 +453,8 @@ export default [
     },
     languageOptions: {
       globals: {
-        console: 'readonly',
-        describe: 'readonly',
-        it: 'readonly',
-        expect: 'readonly',
-        jest: 'readonly',
-        beforeEach: 'readonly',
-        afterEach: 'readonly',
+        ...globals.node,
+        ...globals.jest,
         require: 'readonly',
       },
     },
@@ -403,14 +466,7 @@ export default [
     ignores: ['**/server/**/*.{js,jsx,ts,tsx}'],
     languageOptions: {
       globals: {
-        window: 'readonly',
-        document: 'readonly',
-        navigator: 'readonly',
-        localStorage: 'readonly',
-        sessionStorage: 'readonly',
-        AbortController: 'readonly',
-        createImageBitmap: 'readonly',
-        OffscreenCanvas: 'readonly',
+        ...globals.browser,
       },
     },
   },
@@ -420,18 +476,8 @@ export default [
     files: ['**/server/**/*.{js,jsx,ts,tsx}', '*.config.js', '*.config.mjs'],
     languageOptions: {
       globals: {
-        process: 'readonly',
-        __dirname: 'readonly',
-        __filename: 'readonly',
-        require: 'readonly',
+        ...globals.node,
         module: 'writable',
-        console: 'readonly',
-        Buffer: 'readonly',
-        setTimeout: 'readonly',
-        clearTimeout: 'readonly',
-        setInterval: 'readonly',
-        clearInterval: 'readonly',
-        global: 'readonly',
         NodeJS: 'readonly',
       },
     },
