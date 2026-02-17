@@ -13,8 +13,8 @@ export function registerDisconnectHandler({
   activeUserSockets,
 }: SocketHandlerContext) {
   socket.on('disconnect', () => {
-    const currentUserId = effectiveUserId;
-    const currentUsername = effectiveUsername;
+    const currentUserId = socket.data.userId ?? effectiveUserId;
+    const currentUsername = socket.data.username ?? effectiveUsername;
     console.info(`Socket disconnected: ${currentUsername} (${currentUserId})`);
     setConnectedClients(io.engine.clientsCount);
 

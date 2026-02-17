@@ -1806,7 +1806,11 @@ io.use(async (socket, next) => {
     console.warn('NEXTAUTH_SECRET is missing; treating socket as guest');
   }
 
-  if (rawToken.length > 0 && NEXTAUTH_SECRET.length > 0) {
+  if (
+    typeof rawToken === 'string' &&
+    rawToken.length > 0 &&
+    NEXTAUTH_SECRET.length > 0
+  ) {
     try {
       const decoded = jwt.verify(rawToken, NEXTAUTH_SECRET) as {
         sub?: string;
@@ -2475,7 +2479,10 @@ async function processEnvironmentEvents() {
     for (const event of events) {
       const spaceId = event.spaceId;
       const currentEnv = getEnvironmentForSpace(spaceId);
-      const restorePayloadRaw: unknown = globalThis.structuredClone(currentEnv);
+      const restorePayloadRaw: unknown =
+        typeof globalThis.structuredClone === 'function'
+          ? globalThis.structuredClone(currentEnv)
+          : JSON.parse(JSON.stringify(currentEnv));
       const restorePayload =
         event.endAt !== null &&
         event.endPayload === null &&
@@ -2483,7 +2490,7 @@ async function processEnvironmentEvents() {
           ? restorePayloadRaw
           : null;
       let env = currentEnv;
-      if (event.pattern !== null && event.pattern.length > 0) {
+      if (typeof event.pattern === 'string' && event.pattern.length > 0) {
         const pattern = getWeatherPattern(event.pattern);
         pattern.timeOfDay = env.timeOfDay;
         env = applyWeatherPattern(spaceId, pattern, globalState);
@@ -2494,7 +2501,7 @@ async function processEnvironmentEvents() {
           event.payload as DeepPartial<EnvironmentState>,
         );
       }
-      if (event.name !== null && event.name.length > 0) {
+      if (typeof event.name === 'string' && event.name.length > 0) {
         env = { ...env, name: event.name };
         globalState.environmentBySpace.set(spaceId, env);
       }

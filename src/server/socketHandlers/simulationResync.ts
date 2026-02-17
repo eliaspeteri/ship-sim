@@ -14,6 +14,7 @@ export function registerSimulationResyncHandler({
 }: SocketHandlerContext) {
   socket.on('simulation:resync', () => {
     const currentSpace = socket.data.spaceId ?? spaceId;
+    const currentUserId = socket.data.userId ?? effectiveUserId;
     const vesselsInSpace = Object.fromEntries(
       Array.from(globalState.vessels.entries())
         .filter(([, v]) => (v.spaceId ?? defaultSpaceId) === currentSpace)
@@ -26,7 +27,7 @@ export function registerSimulationResyncHandler({
       timestamp: Date.now(),
       spaceId: currentSpace,
       self: {
-        userId: effectiveUserId,
+        userId: currentUserId,
         roles,
         rank: socket.data.rank,
         credits: socket.data.credits,

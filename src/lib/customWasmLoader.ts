@@ -4,7 +4,13 @@ let wasmInstance: WasmModule | null = null;
 const textDecoder = new globalThis.TextDecoder('utf-16le');
 
 function isDevelopmentMode(): boolean {
-  return process.env.NODE_ENV === 'development';
+  const envOverride = Object.getOwnPropertyDescriptor(
+    process.env,
+    'NODE_ENV',
+  )?.value;
+  const nodeEnv =
+    typeof envOverride === 'string' ? envOverride : process.env.NODE_ENV;
+  return nodeEnv === 'development';
 }
 
 function getWasmPath(): string {
@@ -99,18 +105,20 @@ export async function loadWasmModule(): Promise<WasmModule> {
       waveSteepness: number,
     ) => {
       setArgs(10);
-      return (updateVesselStateExport as (
-        vesselPtr: number,
-        dt: number,
-        windSpeed: number,
-        windDirection: number,
-        currentSpeed: number,
-        currentDirection: number,
-        waveHeight: number,
-        waveLength: number,
-        waveDirection: number,
-        waveSteepness: number,
-      ) => number)(
+      return (
+        updateVesselStateExport as (
+          vesselPtr: number,
+          dt: number,
+          windSpeed: number,
+          windDirection: number,
+          currentSpeed: number,
+          currentDirection: number,
+          waveHeight: number,
+          waveLength: number,
+          waveDirection: number,
+          waveSteepness: number,
+        ) => number
+      )(
         vesselPtr,
         dt,
         windSpeed,
@@ -158,40 +166,42 @@ export async function loadWasmModule(): Promise<WasmModule> {
       heaveDamping: number,
     ) => {
       setArgs(32);
-      return (createVesselExport as (
-        x: number,
-        y: number,
-        z: number,
-        heading: number,
-        roll: number,
-        pitch: number,
-        surge: number,
-        sway: number,
-        heave: number,
-        yawRate: number,
-        rollRate: number,
-        pitchRate: number,
-        throttle: number,
-        rudderAngle: number,
-        mass: number,
-        length: number,
-        beam: number,
-        draft: number,
-        blockCoefficient: number,
-        rudderForceCoefficient: number,
-        rudderStallAngle: number,
-        rudderMaxAngle: number,
-        dragCoefficient: number,
-        yawDamping: number,
-        yawDampingQuad: number,
-        swayDamping: number,
-        maxThrust: number,
-        maxSpeed: number,
-        rollDamping: number,
-        pitchDamping: number,
-        heaveStiffness: number,
-        heaveDamping: number,
-      ) => number)(
+      return (
+        createVesselExport as (
+          x: number,
+          y: number,
+          z: number,
+          heading: number,
+          roll: number,
+          pitch: number,
+          surge: number,
+          sway: number,
+          heave: number,
+          yawRate: number,
+          rollRate: number,
+          pitchRate: number,
+          throttle: number,
+          rudderAngle: number,
+          mass: number,
+          length: number,
+          beam: number,
+          draft: number,
+          blockCoefficient: number,
+          rudderForceCoefficient: number,
+          rudderStallAngle: number,
+          rudderMaxAngle: number,
+          dragCoefficient: number,
+          yawDamping: number,
+          yawDampingQuad: number,
+          swayDamping: number,
+          maxThrust: number,
+          maxSpeed: number,
+          rollDamping: number,
+          pitchDamping: number,
+          heaveStiffness: number,
+          heaveDamping: number,
+        ) => number
+      )(
         x,
         y,
         z,

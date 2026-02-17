@@ -52,6 +52,7 @@ export function registerVesselUpdateHandler({
 
     const prevPosition = mergePosition(target.position);
     const prevUpdate = target.lastUpdate;
+    const now = Date.now();
     target.position = mergePosition(target.position, data.position);
     target.orientation = {
       ...target.orientation,
@@ -59,8 +60,10 @@ export function registerVesselUpdateHandler({
       heading: clampHeading(data.orientation.heading),
     };
     target.velocity = data.velocity;
-    const dt = (Date.now() - prevUpdate) / 1000;
-    if (dt > 0.1) {
+    const rawDt = (now - prevUpdate) / 1000;
+    const canDeriveFromPosition = rawDt > 0.1 || prevUpdate <= 0;
+    const dt = rawDt > 0.1 ? rawDt : 1;
+    if (canDeriveFromPosition) {
       const nextPosition = mergePosition(target.position);
       const dx = (nextPosition.x ?? 0) - (prevPosition.x ?? 0);
       const dy = (nextPosition.y ?? 0) - (prevPosition.y ?? 0);
@@ -89,7 +92,7 @@ export function registerVesselUpdateHandler({
     ) {
       target.yawRate = data.angularVelocity.yaw;
     }
-    target.lastUpdate = Date.now();
+    target.lastUpdate = now;
     void persistVesselToDb(target);
 
     socket.to(`space:${spaceId}`).emit('simulation:update', {
