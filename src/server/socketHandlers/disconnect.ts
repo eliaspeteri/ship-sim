@@ -6,15 +6,15 @@ export function registerDisconnectHandler({
   io,
   socket,
   spaceId,
-  effectiveUserId,
-  effectiveUsername,
+  effectiveUserId: _effectiveUserId,
+  effectiveUsername: _effectiveUsername,
   getVesselIdForUser,
   globalState,
   activeUserSockets,
 }: SocketHandlerContext) {
   socket.on('disconnect', () => {
-    const currentUserId = socket.data.userId ?? effectiveUserId;
-    const currentUsername = socket.data.username ?? effectiveUsername;
+    const currentUserId = socket.data.userId;
+    const currentUsername = socket.data.username;
     console.info(`Socket disconnected: ${currentUsername} (${currentUserId})`);
     setConnectedClients(io.engine.clientsCount);
 

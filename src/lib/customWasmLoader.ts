@@ -4,10 +4,8 @@ let wasmInstance: WasmModule | null = null;
 const textDecoder = new globalThis.TextDecoder('utf-16le');
 
 function isDevelopmentMode(): boolean {
-  const envOverride = Object.getOwnPropertyDescriptor(
-    process.env,
-    'NODE_ENV',
-  )?.value;
+  const envOverride = Object.getOwnPropertyDescriptor(process.env, 'NODE_ENV')
+    ?.value as unknown;
   const nodeEnv =
     typeof envOverride === 'string' ? envOverride : process.env.NODE_ENV;
   return nodeEnv === 'development';
