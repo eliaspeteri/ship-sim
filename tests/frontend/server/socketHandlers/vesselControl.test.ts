@@ -1,5 +1,5 @@
-import { registerVesselControlHandler } from '../../../../src/server/socketHandlers/vesselControl';
 import { applyFailureControlLimits } from '../../../../src/lib/failureControls';
+import { registerVesselControlHandler } from '../../../../src/server/socketHandlers/vesselControl';
 
 jest.mock('../../../../src/lib/failureControls', () => ({
   applyFailureControlLimits: jest.fn(),

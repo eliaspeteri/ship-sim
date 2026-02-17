@@ -1,5 +1,5 @@
-import React from 'react';
 import { act, render, screen } from '@testing-library/react';
+import React from 'react';
 import * as THREE from 'three';
 
 import EditorRenderer from '../../../../../src/features/editor/components/EditorRenderer';

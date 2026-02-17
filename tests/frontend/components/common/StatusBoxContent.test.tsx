@@ -1,6 +1,8 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
+import React from 'react';
+
 import { StatusBoxContent } from '../../../../src/components/common/StatusBoxContent';
+
 import type { ValueLine } from '../../../../src/components/common/StatusPanelTypes';
 
 const renderBox = (

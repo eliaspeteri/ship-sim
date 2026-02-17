@@ -1,24 +1,17 @@
-import React, { useRef } from 'react';
-import type { GetServerSideProps, NextPage } from 'next';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Environment, OrbitControls, Sky } from '@react-three/drei';
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import * as THREE from 'three';
 import fs from 'fs';
 import path from 'path';
-import useStore from '../store';
-import {
-  initializeSimulation,
-  startSimulation,
-  getSimulationLoop,
-} from '../simulation';
-import { deriveWaveState } from '../lib/waves';
-import { OceanPatch } from '../components/OceanPatch';
+
+import { Environment, OrbitControls, Sky } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import React, { useRef } from 'react';
+import * as THREE from 'three';
+
+import { ControlLever } from '../components/ControlLever';
 import { FarWater } from '../components/FarWater';
+import { HelmControl } from '../components/HelmControl';
+import { OceanPatch } from '../components/OceanPatch';
 import Ship from '../components/Ship';
 import { TelegraphLever } from '../components/TelegraphLever';
-import { HelmControl } from '../components/HelmControl';
-import { ControlLever } from '../components/ControlLever';
 import { DEFAULT_HYDRO, RUDDER_MAX_ANGLE_RAD } from '../constants/vessel';
 import {
   RUDDER_STEP,
@@ -26,9 +19,19 @@ import {
   THROTTLE_MIN,
   THROTTLE_STEP,
 } from '../features/sim/constants';
-import type { ShipType } from '../types/vessel.types';
-import type { VesselPhysicsConfig } from '../types/physics.types';
 import { xyToLatLon, latLonToXY } from '../lib/geo';
+import { deriveWaveState } from '../lib/waves';
+import {
+  initializeSimulation,
+  startSimulation,
+  getSimulationLoop,
+} from '../simulation';
+import useStore from '../store';
+
+import type { VesselPhysicsConfig } from '../types/physics.types';
+import type { ShipType } from '../types/vessel.types';
+import type { GetServerSideProps, NextPage } from 'next';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 type DebugTemplate = {
   id: string;

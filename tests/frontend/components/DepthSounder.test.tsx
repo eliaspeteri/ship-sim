@@ -1,5 +1,6 @@
-import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import React from 'react';
+
 import DepthSounder from '../../../src/components/DepthSounder';
 
 describe('DepthSounder', () => {

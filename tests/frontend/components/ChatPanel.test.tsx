@@ -1,8 +1,9 @@
-import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
+
 import { ChatPanel } from '../../../src/components/ChatPanel';
-import useStore from '../../../src/store';
 import { socketManager } from '../../../src/networking/socket';
+import useStore from '../../../src/store';
 
 jest.mock('../../../src/networking/socket', () => ({
   __esModule: true,

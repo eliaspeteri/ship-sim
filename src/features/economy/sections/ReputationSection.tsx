@@ -1,5 +1,7 @@
 import React from 'react';
+
 import EconomySectionCard from '../components/EconomySectionCard';
+
 import type { Reputation } from '../types';
 
 type ReputationSectionProps = {

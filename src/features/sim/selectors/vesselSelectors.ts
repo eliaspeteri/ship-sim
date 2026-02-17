@@ -1,9 +1,10 @@
 import { positionToXY } from '../../../lib/position';
+import { DEFAULT_SPACE_ID } from '../constants';
+
 import type {
   VesselState,
   SimpleVesselState,
 } from '../../../types/vessel.types';
-import { DEFAULT_SPACE_ID } from '../constants';
 
 type OtherVesselMap = Record<string, SimpleVesselState | undefined>;
 

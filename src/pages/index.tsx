@@ -1,5 +1,5 @@
-import React from 'react';
 import { useRouter } from 'next/router';
+import React from 'react';
 
 const ui = {
   page: 'relative flex min-h-[calc(100vh-var(--nav-height))] flex-col gap-14 overflow-hidden px-6 pb-[72px] pt-12',

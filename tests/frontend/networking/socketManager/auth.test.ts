@@ -1,8 +1,8 @@
+import { setupSocketManager } from './harness';
 import {
   STORAGE_SPACE_KEY,
   STORAGE_SPACE_SELECTED_KEY,
 } from '../../../../src/features/sim/constants';
-import { setupSocketManager } from './harness';
 
 const mockSimulationLoop = {
   syncVesselFromStore: jest.fn(),

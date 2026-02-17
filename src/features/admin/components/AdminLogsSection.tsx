@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { adminUi as ui } from '../adminUi';
+
 import type { LogEntry } from '../types';
 
 export function AdminLogsSection({

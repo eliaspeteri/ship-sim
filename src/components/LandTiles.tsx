@@ -1,3 +1,4 @@
+import { useThree } from '@react-three/fiber';
 import React, {
   useCallback,
   useEffect,
@@ -5,11 +6,12 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useThree } from '@react-three/fiber';
-import type * as THREE from 'three';
+
 
 import { xyToLatLon } from '../lib/geo'; // adjust alias if needed
 import { fetchLandTileMesh } from '../lib/tiles/mvtLandMesh';
+
+import type * as THREE from 'three';
 
 function lonLatToTileXY(lon: number, lat: number, z: number) {
   const n = 2 ** z;

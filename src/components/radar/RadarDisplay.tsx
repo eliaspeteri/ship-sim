@@ -5,6 +5,14 @@ import React, {
   useRef,
   useState,
 } from 'react';
+
+import { DEFAULT_ARPA_SETTINGS, processRadarTargets } from './arpa';
+import { createRadarControlHandlers } from './controlHandlers';
+import { RadarControlsPanel } from './RadarControlsPanel';
+import { RadarView } from './RadarView';
+import { renderRadarFrame } from './render';
+
+import type { ARPASettings, ARPATarget, OwnShipData } from './arpa';
 import type {
   EBL,
   GuardZone,
@@ -14,12 +22,6 @@ import type {
   VRM,
   AISTarget,
 } from './types';
-import type { ARPASettings, ARPATarget, OwnShipData } from './arpa';
-import { DEFAULT_ARPA_SETTINGS, processRadarTargets } from './arpa';
-import { renderRadarFrame } from './render';
-import { RadarView } from './RadarView';
-import { RadarControlsPanel } from './RadarControlsPanel';
-import { createRadarControlHandlers } from './controlHandlers';
 
 interface RadarDisplayProps {
   size?: number;

@@ -5,8 +5,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import useStore from '../store';
+
 import { socketManager } from '../networking/socket';
+import useStore from '../store';
 
 interface ChatPanelProps {
   spaceId: string;

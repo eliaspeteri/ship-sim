@@ -1,4 +1,5 @@
 import React from 'react';
+
 import EconomySectionCard from '../components/EconomySectionCard';
 
 const InsuranceHistorySection: React.FC = () => {

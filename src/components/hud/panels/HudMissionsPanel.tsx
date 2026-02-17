@@ -1,5 +1,5 @@
 import React from 'react';
-import { hudStyles as styles } from '../hudStyles';
+
 import {
   ACCOUNT_DECIMALS,
   ECONOMY_TRANSACTIONS_LIMIT,
@@ -10,12 +10,14 @@ import {
   XP_DECIMALS,
 } from '../constants';
 import { formatTransactionReason } from '../format';
-import type { EconomyTransaction } from '../types';
+import { hudStyles as styles } from '../hudStyles';
+
+import type { AccountState } from '../../../store';
 import type {
   MissionAssignmentData,
   MissionDefinition,
 } from '../../../types/mission.types';
-import type { AccountState } from '../../../store';
+import type { EconomyTransaction } from '../types';
 
 export function HudMissionsPanel({
   account,

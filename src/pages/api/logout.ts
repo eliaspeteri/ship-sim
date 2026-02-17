@@ -1,6 +1,8 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
 import { getToken } from 'next-auth/jwt';
+
 import { recordAuthEvent } from '../../lib/authAudit';
+
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 // Simple logout endpoint to clear auth-related cookies (NextAuth + legacy tokens)
 export default async function handler(

@@ -4,8 +4,9 @@ jest.mock('../../../../../src/server/editorCompilationStore', () => ({
   getOverlayChunks: (...args: unknown[]) => mockGetOverlayChunks(...args),
 }));
 
-import type { NextApiRequest, NextApiResponse } from 'next';
 import handler from '../../../../../src/pages/api/editor/overlay';
+
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 const makeRes = () => {
   const json = jest.fn();

@@ -1,7 +1,8 @@
 import React from 'react';
-import { hudStyles as styles } from '../hudStyles';
+
 import { LAT_LON_DECIMALS } from '../constants';
 import { formatCoord } from '../format';
+import { hudStyles as styles } from '../hudStyles';
 
 export function HudAdminPanel({
   adminTargets,

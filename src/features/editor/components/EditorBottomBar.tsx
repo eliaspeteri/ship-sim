@@ -1,5 +1,6 @@
-import React from 'react';
 import Link from 'next/link';
+import React from 'react';
+
 import type { EditorPack } from '../types';
 
 type EditorBottomBarProps = {

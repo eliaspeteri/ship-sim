@@ -1,4 +1,5 @@
 import { recordLog } from '../observability';
+
 import type { SocketHandlerContext } from './context';
 
 export function registerClientLogHandler({

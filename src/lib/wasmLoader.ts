@@ -7,9 +7,10 @@
 
 // Import our custom loader
 import { loadWasmModule } from './customWasmLoader';
-import type { WasmModule } from '../types/wasm';
 import { WasmBridge } from './wasmBridge';
 import useStore from '../store';
+
+import type { WasmModule } from '../types/wasm';
 
 // Cache the loaded module and bridge
 let wasmModule: WasmModule | null = null;

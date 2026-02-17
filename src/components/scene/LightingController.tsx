@@ -1,7 +1,8 @@
-import React from 'react';
 import { Environment } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
+import React from 'react';
 import * as THREE from 'three';
+
 import { SkyFollowCamera } from './SkyFollowCamera';
 
 type LightingConfig = {

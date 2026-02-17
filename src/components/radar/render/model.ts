@@ -1,4 +1,5 @@
 /* global CanvasRenderingContext2D */
+import type { ARPASettings, ARPATarget, OwnShipData } from '../arpa';
 import type {
   AISTarget,
   EBL,
@@ -8,7 +9,6 @@ import type {
   RadarTarget,
   VRM,
 } from '../types';
-import type { ARPASettings, ARPATarget, OwnShipData } from '../arpa';
 
 export interface RadarRenderModel {
   size: number;

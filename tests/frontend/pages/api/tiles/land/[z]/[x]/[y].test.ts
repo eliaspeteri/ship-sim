@@ -1,5 +1,6 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
 import handler from '../../../../../../../../src/pages/api/tiles/land/[z]/[x]/[y]';
+
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 const makeRes = () => {
   const send = jest.fn();

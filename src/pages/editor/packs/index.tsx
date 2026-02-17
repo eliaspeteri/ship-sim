@@ -1,9 +1,11 @@
-import React from 'react';
-import Link from 'next/link';
 import Head from 'next/head';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
+import React from 'react';
+
 import EditorGate from '../../../features/editor/EditorGate';
+
 import type { EditorPack } from '../../../features/editor/types';
 
 const EditorPacksPage: React.FC & { fullBleedLayout?: boolean } = () => {

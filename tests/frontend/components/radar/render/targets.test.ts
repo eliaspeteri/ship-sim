@@ -4,6 +4,7 @@ import {
   getArpaTargetColor,
   isTargetInGuardZone,
 } from '../../../../../src/components/radar/render/targets';
+
 import type { RadarRenderModel } from '../../../../../src/components/radar/render/model';
 
 jest.mock('../../../../../src/components/radar/utils', () => ({

@@ -1,13 +1,15 @@
-import type { Router, RequestHandler, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import type { prisma as prismaClient } from '../../lib/prisma';
-import type { Role } from '../roles';
-import type { AuthenticatedUser } from '../middleware/authentication';
+
 import { withErrorResponse } from './routeUtils';
+
+import type { prisma as prismaClient } from '../../lib/prisma';
+import type { AuthenticatedUser } from '../middleware/authentication';
+import type { Role } from '../roles';
 import type {
   UserSettings,
   UserSettingsStore,
 } from '../services/userSettingsStore';
+import type { Router, RequestHandler, Request, Response } from 'express';
 
 type PrismaClient = typeof prismaClient;
 

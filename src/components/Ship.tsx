@@ -1,9 +1,11 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { useFrame } from '@react-three/fiber';
 import { useGLTF, Detailed } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
+import React, { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
-import type { WaveState } from '../lib/waves';
+
 import { getCompositeWaveSample, getGerstnerSample } from '../lib/waves';
+
+import type { WaveState } from '../lib/waves';
 
 function ShipModel({ modelPath }: { modelPath: string }): React.ReactElement {
   const model = useGLTF(modelPath);

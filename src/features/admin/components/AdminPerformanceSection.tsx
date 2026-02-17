@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { adminUi as ui, metricTargets } from '../adminUi';
+
 import type { ServerMetrics } from '../types';
 
 export function AdminPerformanceSection({

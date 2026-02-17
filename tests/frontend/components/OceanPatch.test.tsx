@@ -1,6 +1,10 @@
-import React from 'react';
-import { render, waitFor } from '@testing-library/react';
 import { useFrame } from '@react-three/fiber';
+import { render, waitFor } from '@testing-library/react';
+import React from 'react';
+import * as THREE from 'three';
+
+import { OceanPatch } from '../../../src/components/OceanPatch';
+import { getWaveComponents } from '../../../src/lib/waves';
 
 type MeshRefShape = {
   current: {
@@ -152,10 +156,6 @@ jest.mock('three', () => {
     DoubleSide: 'DoubleSide',
   };
 });
-
-import * as THREE from 'three';
-import { getWaveComponents } from '../../../src/lib/waves';
-import { OceanPatch } from '../../../src/components/OceanPatch';
 
 describe('OceanPatch', () => {
   afterEach(() => {

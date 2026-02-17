@@ -1,9 +1,10 @@
-import React from 'react';
 import Head from 'next/head';
-import { getApiBase } from '../../lib/api';
+import React from 'react';
+
 import VesselListGrid from '../../features/vessels/components/VesselListGrid';
 import VesselListHeader from '../../features/vessels/components/VesselListHeader';
 import VesselListStatus from '../../features/vessels/components/VesselListStatus';
+import { getApiBase } from '../../lib/api';
 
 type VesselSummary = {
   id: string;

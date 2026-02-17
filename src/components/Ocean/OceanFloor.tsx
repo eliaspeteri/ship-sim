@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
+import React, { useRef, useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 
 // Import shader code
-import causticsVertexShader from './shaders/caustics.vert';
 import causticsFragmentShader from './shaders/caustics.frag';
+import causticsVertexShader from './shaders/caustics.vert';
 
 /**
  * Props for the OceanFloor component

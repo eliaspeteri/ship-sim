@@ -1,4 +1,5 @@
 import React from 'react';
+
 import DepthSounder from '../../DepthSounder';
 import { hudStyles as styles } from '../hudStyles';
 

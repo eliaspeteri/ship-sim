@@ -1,12 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { getApiBase } from '../lib/api';
+import React, { useEffect, useMemo, useState } from 'react';
+
 import AccountSection from '../features/profile/components/AccountSection';
 import PreferencesSection from '../features/profile/components/PreferencesSection';
 import ProfileHeader from '../features/profile/components/ProfileHeader';
+import ProfileSidebar from '../features/profile/components/ProfileSidebar';
 import ProfileStatus from '../features/profile/components/ProfileStatus';
 import SecuritySection from '../features/profile/components/SecuritySection';
-import ProfileSidebar from '../features/profile/components/ProfileSidebar';
+import { getApiBase } from '../lib/api';
 
 type SettingsForm = {
   soundEnabled: boolean;

@@ -1,5 +1,5 @@
-import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import React from 'react';
 
 import {
   HudCrewPanel,
@@ -9,6 +9,7 @@ import {
   HudVesselsPanel,
 } from '../../../../src/components/hud/panels';
 import { ShipType } from '../../../../src/types/vessel.types';
+
 import type { SimpleVesselState } from '../../../../src/types/vessel.types';
 
 jest.mock('../../../../src/components/navigation/ecdis/EcdisDisplay', () => ({

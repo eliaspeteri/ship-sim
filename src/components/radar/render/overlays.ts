@@ -1,4 +1,5 @@
 import { getRainClutterStrength, getSeaClutterStrength } from '../utils';
+
 import type { RadarRenderContext, RadarRenderModel } from './model';
 
 export function drawRadarOverlays(

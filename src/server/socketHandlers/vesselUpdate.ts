@@ -3,6 +3,7 @@ import {
   mergePosition,
   speedFromWorldVelocity,
 } from '../../lib/position';
+
 import type { SocketHandlerContext } from './context';
 
 export function registerVesselUpdateHandler({

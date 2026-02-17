@@ -1,6 +1,8 @@
 import React from 'react';
-import type { StatusPanelSchema } from './StatusPanelTypes';
+
 import { StatusBoxContent } from './StatusBoxContent';
+
+import type { StatusPanelSchema } from './StatusPanelTypes';
 
 interface RightStatusPanelProps {
   children?: React.ReactNode;

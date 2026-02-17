@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, useTexture } from '@react-three/drei';
+import { Canvas, useFrame } from '@react-three/fiber';
+import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+
 import { majorCities } from '../lib/majorCities';
 
 const EARTH_RADIUS = 6371;

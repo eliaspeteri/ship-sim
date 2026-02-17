@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
 import Head from 'next/head';
-import { signIn, useSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { signIn, useSession } from 'next-auth/react';
+import React, { useState } from 'react';
+
 import AuthCard from '../features/auth/components/AuthCard';
 import AuthField from '../features/auth/components/AuthField';
 import AuthNotice from '../features/auth/components/AuthNotice';

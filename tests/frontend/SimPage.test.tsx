@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   act,
   fireEvent,
@@ -6,15 +5,17 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import SimPage from '../../src/pages/sim';
-import { socketManager } from '../../src/networking/socket';
-import { initializeSimulation, startSimulation } from '../../src/simulation';
+import React from 'react';
+
 import {
   STORAGE_ACTIVE_VESSEL_KEY,
   STORAGE_JOIN_CHOICE_KEY,
   STORAGE_SPACE_KEY,
   STORAGE_SPACE_SELECTED_KEY,
 } from '../../src/features/sim/constants';
+import { socketManager } from '../../src/networking/socket';
+import SimPage from '../../src/pages/sim';
+import { initializeSimulation, startSimulation } from '../../src/simulation';
 
 const mockReplace = jest.fn();
 const mockUseSession = jest.fn();

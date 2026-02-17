@@ -1,12 +1,13 @@
-import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import ARPAPanel from '../../../../src/components/radar/ARPAPanel';
+import React from 'react';
+
 import {
   ARPATarget,
   ARPATargetStatus,
   ARPASettings,
   DEFAULT_ARPA_SETTINGS,
 } from '../../../../src/components/radar/arpa';
+import ARPAPanel from '../../../../src/components/radar/ARPAPanel';
 
 const makeTarget = (overrides: Partial<ARPATarget> = {}): ARPATarget => {
   return {

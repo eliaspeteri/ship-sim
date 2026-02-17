@@ -1,12 +1,12 @@
 import React from 'react';
-import { TelegraphLever } from '../../TelegraphLever';
-import { HelmControl } from '../../HelmControl';
-import RudderAngleIndicator from '../../RudderAngleIndicator';
-import { hudStyles as styles } from '../hudStyles';
+
 import {
   RUDDER_STALL_ANGLE_DEG,
   clampRudderAngle,
 } from '../../../constants/vessel';
+import { HelmControl } from '../../HelmControl';
+import RudderAngleIndicator from '../../RudderAngleIndicator';
+import { TelegraphLever } from '../../TelegraphLever';
 import {
   DEG_PER_RAD,
   RUDDER_INDICATOR_SIZE_PX,
@@ -14,6 +14,7 @@ import {
   THROTTLE_MAX,
   THROTTLE_MIN,
 } from '../constants';
+import { hudStyles as styles } from '../hudStyles';
 
 export function HudNavControls({
   throttleLocal,

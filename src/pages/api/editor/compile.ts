@@ -1,9 +1,10 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { canManagePack, requireEditorActor } from './auth';
 import { storeArtifacts } from '../../../server/editorCompilationStore';
 import { getPack } from '../../../server/editorPacksStore';
 import { createRateLimiter } from '../../../server/rateLimit';
 import { COMPILE_LIMITS } from '../../../server/requestLimits';
-import { canManagePack, requireEditorActor } from './auth';
+
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 type CompileRequest = {
   packId: string;

@@ -1,10 +1,12 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import * as THREE from 'three';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+
 import Scene from '../../../src/components/Scene';
-import useStore from '../../../src/store';
-import type { SimulationState } from '../../../src/store/types';
 import { socketManager } from '../../../src/networking/socket';
+import useStore from '../../../src/store';
+
+import type { SimulationState } from '../../../src/store/types';
 
 type CalloutAction = { label: string; onClick: () => void };
 type CalloutRow = { label: string; value?: unknown };

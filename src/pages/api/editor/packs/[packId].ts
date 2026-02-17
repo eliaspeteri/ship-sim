@@ -1,4 +1,3 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
 import {
   deletePack,
   getPack,
@@ -8,6 +7,8 @@ import {
   updatePack,
 } from '../../../../server/editorPacksStore';
 import { canManagePack, requireEditorActor } from '../auth';
+
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { packId } = req.query;

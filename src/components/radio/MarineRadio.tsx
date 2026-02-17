@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useReducer } from 'react';
-import { MarineRadioView } from './MarineRadioView';
+
 import {
   MARINE_CHANNELS,
   MENU_OPTIONS,
@@ -7,6 +7,7 @@ import {
   getDisplayMessage,
   marineRadioReducer,
 } from './marineRadioState';
+import { MarineRadioView } from './MarineRadioView';
 import { useMarineRadioEffects } from './useMarineRadioEffects';
 
 interface MarineRadioProps {

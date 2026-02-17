@@ -1,6 +1,7 @@
-import type { SimpleVesselState } from '../../types/vessel.types';
-import type { ChatMessageData } from '../../types/socket.types';
 import { CHAT_HISTORY_PAGE_SIZE } from './types';
+
+import type { ChatMessageData } from '../../types/socket.types';
+import type { SimpleVesselState } from '../../types/vessel.types';
 
 export const hasVesselChanged = (
   prev: SimpleVesselState | undefined,

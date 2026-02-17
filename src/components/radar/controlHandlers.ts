@@ -1,4 +1,6 @@
-import type { Dispatch, RefObject, SetStateAction } from 'react';
+import { convertToARPATarget } from './arpa';
+
+import type { ARPASettings, ARPATarget, OwnShipData } from './arpa';
 import type {
   EBL,
   GuardZone,
@@ -7,8 +9,8 @@ import type {
   RadarTarget,
   VRM,
 } from './types';
-import type { ARPASettings, ARPATarget, OwnShipData } from './arpa';
-import { convertToARPATarget } from './arpa';
+import type { Dispatch, RefObject, SetStateAction } from 'react';
+
 
 const RANGE_OPTIONS = [0.5, 1.5, 3, 6, 12, 24, 48];
 

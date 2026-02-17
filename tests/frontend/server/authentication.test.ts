@@ -1,11 +1,13 @@
 /** @jest-environment node */
-import type { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { getToken } from 'next-auth/jwt';
+
 import {
   authenticateRequest,
   requireUser,
 } from '../../../src/server/middleware/authentication';
+
+import type { Request, Response } from 'express';
 
 jest.mock('next-auth/jwt', () => ({
   getToken: jest.fn(),

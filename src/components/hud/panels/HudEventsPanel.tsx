@@ -1,4 +1,5 @@
 import React from 'react';
+
 import HudEventLog from '../../EventLog';
 import { hudStyles as styles } from '../hudStyles';
 

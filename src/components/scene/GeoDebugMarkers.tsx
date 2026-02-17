@@ -1,6 +1,7 @@
-import React from 'react';
 import { useFrame } from '@react-three/fiber';
+import React from 'react';
 import * as THREE from 'three';
+
 import { latLonToXY, xyToLatLon } from '../../lib/geo';
 
 export function GeoDebugMarkers({

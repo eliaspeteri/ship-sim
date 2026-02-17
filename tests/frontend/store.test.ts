@@ -1,8 +1,10 @@
 /// <reference types="@testing-library/jest-dom" />
-import { renderHook, act, cleanup } from '@testing-library/react';
-import useStore from '../../src/store';
 import { expect } from '@jest/globals';
+import { renderHook, act, cleanup } from '@testing-library/react';
+
+import useStore from '../../src/store';
 import { ShipType } from '../../src/types/vessel.types';
+
 import type { VesselState } from '../../src/types/vessel.types';
 import type { WasmModule } from '../../src/types/wasm';
 

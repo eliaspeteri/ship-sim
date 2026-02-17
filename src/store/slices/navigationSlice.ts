@@ -1,4 +1,5 @@
 import { defaultNavigationData } from '../defaults';
+
 import type { NavigationData, SimulationState, StoreSet } from '../types';
 
 type NavigationSlice = Pick<

@@ -4,6 +4,7 @@
  */
 
 import { currentUtcTimeOfDay, getEnvironmentForSpace } from '.';
+
 import type { EnvironmentState } from '../types/environment.types';
 import type { GlobalState } from './socketHandlers/context';
 

@@ -1,6 +1,6 @@
-import { registerChatHandlers } from '../../../../src/server/socketHandlers/chat';
 import { prisma } from '../../../../src/lib/prisma';
 import { socketHasPermission } from '../../../../src/server/middleware/authorization';
+import { registerChatHandlers } from '../../../../src/server/socketHandlers/chat';
 
 jest.mock('../../../../src/lib/prisma', () => ({
   prisma: {

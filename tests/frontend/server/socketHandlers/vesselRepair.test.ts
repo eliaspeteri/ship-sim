@@ -1,12 +1,12 @@
-import { registerVesselRepairHandler } from '../../../../src/server/socketHandlers/vesselRepair';
-import { prisma } from '../../../../src/lib/prisma';
-import { applyEconomyAdjustment } from '../../../../src/server/economy';
 import {
   applyRepair,
   computeRepairCost,
   mergeDamageState,
 } from '../../../../src/lib/damage';
+import { prisma } from '../../../../src/lib/prisma';
+import { applyEconomyAdjustment } from '../../../../src/server/economy';
 import { syncUserSocketsEconomy } from '../../../../src/server/index';
+import { registerVesselRepairHandler } from '../../../../src/server/socketHandlers/vesselRepair';
 
 jest.mock('../../../../src/server/index', () => ({
   syncUserSocketsEconomy: jest.fn(),

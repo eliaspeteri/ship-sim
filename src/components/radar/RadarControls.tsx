@@ -1,8 +1,10 @@
 import React from 'react';
-import type { EBL, RadarSettings, VRM, GuardZone } from './types';
+
+import { RotaryDial } from '../dials';
 import { PushButton } from '../PushButton';
 import { ChangeoverSwitch } from '../switches';
-import { RotaryDial } from '../dials';
+
+import type { EBL, RadarSettings, VRM, GuardZone } from './types';
 
 interface RadarControlsProps {
   settings: RadarSettings;

@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import React from 'react';
 import { signOut, useSession } from 'next-auth/react';
+import React from 'react';
+
 import AccessModal from '../features/auth/components/AccessModal';
 import { ECONOMY_CONTEXTS } from '../features/economy/economyContexts';
 

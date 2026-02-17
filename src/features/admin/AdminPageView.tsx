@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import { socketManager } from '../../networking/socket';
-import { getApiBase } from '../../lib/api';
+import { useSession } from 'next-auth/react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+
 import {
   clearLogsRequest,
   createModerationRequest,
@@ -12,17 +11,20 @@ import {
   fetchModerationRequest,
   updateUserRoleRequest,
 } from './adminService';
-import type { LogEntry, ModerationEntry, ServerMetrics } from './types';
-import { useAdminForms } from './useAdminForms';
 import { adminUi as ui } from './adminUi';
 import { AdminHeader } from './components/AdminHeader';
-import { AdminPerformanceSection } from './components/AdminPerformanceSection';
 import { AdminLogsSection } from './components/AdminLogsSection';
 import { AdminModerationSection } from './components/AdminModerationSection';
+import { AdminPerformanceSection } from './components/AdminPerformanceSection';
 import {
   AdminRepositionSection,
   AdminRoleSection,
 } from './components/AdminRoleMoveSections';
+import { useAdminForms } from './useAdminForms';
+import { getApiBase } from '../../lib/api';
+import { socketManager } from '../../networking/socket';
+
+import type { LogEntry, ModerationEntry, ServerMetrics } from './types';
 
 export const AdminPageView: React.FC = () => {
   const { data: session, status } = useSession();

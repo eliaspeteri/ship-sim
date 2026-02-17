@@ -1,5 +1,6 @@
-import React from 'react';
 import { useFrame } from '@react-three/fiber';
+import React from 'react';
+
 import type * as THREE from 'three';
 
 export function ReplayGhost({

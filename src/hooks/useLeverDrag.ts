@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
 import { useState, useEffect, useCallback, useRef } from 'react';
+
 import type { MouseEvent as ReactMouseEvent, MouseEventHandler } from 'react';
 
 interface UseLeverDragProps {

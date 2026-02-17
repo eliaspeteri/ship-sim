@@ -1,6 +1,8 @@
-import type { JSX } from 'react';
 import React from 'react';
+
 import { RUDDER_STALL_ANGLE_DEG } from '../constants/vessel';
+
+import type { JSX } from 'react';
 
 /**
  * Props for the RudderAngleIndicator component

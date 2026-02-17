@@ -1,17 +1,18 @@
-import useStore from '../store';
-import { loadWasm } from '../lib/wasmLoader';
-import type { CreateVesselInput, WasmBridge } from '../lib/wasmBridge';
-import type { VesselState } from '../types/vessel.types';
-import type { DeepPartial } from '../types/utility';
-import { safe } from '../lib/safe';
-import { socketManager } from '../networking/socket';
-import { positionFromXY, positionToXY } from '../lib/position';
 import { clampRudderAngle, DEFAULT_HYDRO } from '../constants/vessel';
-import { deriveWaveState } from '../lib/waves';
 import {
   buildDisplacementParams,
   buildPhysicsPayload,
 } from '../lib/physicsParams';
+import { positionFromXY, positionToXY } from '../lib/position';
+import { safe } from '../lib/safe';
+import { loadWasm } from '../lib/wasmLoader';
+import { deriveWaveState } from '../lib/waves';
+import { socketManager } from '../networking/socket';
+import useStore from '../store';
+
+import type { CreateVesselInput, WasmBridge } from '../lib/wasmBridge';
+import type { DeepPartial } from '../types/utility';
+import type { VesselState } from '../types/vessel.types';
 
 // Singleton for simulation instance
 let simulationInstance: SimulationLoop | null = null;

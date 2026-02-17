@@ -1,12 +1,14 @@
-import type { NextAuthOptions } from 'next-auth';
-import NextAuth from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
-import type { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../../../lib/prisma';
+import NextAuth from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+
 import { recordAuthEvent } from '../../../lib/authAudit';
+import { prisma } from '../../../lib/prisma';
+
+import type { PrismaClient } from '@prisma/client';
+import type { NextAuthOptions } from 'next-auth';
 
 // Simple in-memory rate limiter/lockout for credential auth
 type LoginAttempt = { failures: number; lockedUntil: number };

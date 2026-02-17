@@ -1,5 +1,5 @@
-import type { VesselState } from '../types/vessel.types';
 import type { DamageState } from './damage';
+import type { VesselState } from '../types/vessel.types';
 
 export type FailureState = VesselState['failureState'];
 

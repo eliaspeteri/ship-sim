@@ -1,12 +1,13 @@
-import type { Prisma } from '@prisma/client';
-import type { Router, Request, RequestHandler, Response } from 'express';
 import { getScenarios } from '../../lib/scenarios';
+
+import type { prisma as prismaClient } from '../../lib/prisma';
 import type {
   MissionAssignmentData,
   MissionDefinition,
 } from '../../types/mission.types';
 import type { AuthenticatedUser } from '../middleware/authentication';
-import type { prisma as prismaClient } from '../../lib/prisma';
+import type { Prisma } from '@prisma/client';
+import type { Router, Request, RequestHandler, Response } from 'express';
 
 type PrismaClient = typeof prismaClient;
 

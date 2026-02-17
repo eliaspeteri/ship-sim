@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { useLeverDrag } from '../hooks/useLeverDrag';
 
 // Define the structure for scale markings specific to the telegraph

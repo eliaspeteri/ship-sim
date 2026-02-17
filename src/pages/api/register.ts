@@ -1,10 +1,11 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
 import bcrypt from 'bcryptjs';
 
-import { prisma } from '../../lib/prisma';
 import { recordAuthEvent } from '../../lib/authAudit';
+import { prisma } from '../../lib/prisma';
 import { createRateLimiter } from '../../server/rateLimit';
 import { REGISTER_LIMITS } from '../../server/requestLimits';
+
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 const registerLimiter = createRateLimiter(REGISTER_LIMITS.rateLimit);
 

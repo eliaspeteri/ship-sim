@@ -1,6 +1,7 @@
 import React from 'react';
-import useStore from '../../../store';
+
 import { getApiBase } from '../../../lib/api';
+import useStore from '../../../store';
 
 type UseMissionBootstrapParams = {
   status: 'loading' | 'authenticated' | 'unauthenticated';

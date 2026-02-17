@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   fireEvent,
   render,
@@ -6,9 +5,10 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import React from 'react';
 
-import AdminPage from '../../../src/pages/admin';
 import { socketManager } from '../../../src/networking/socket';
+import AdminPage from '../../../src/pages/admin';
 
 const useSessionMock = jest.fn();
 const replaceMock = jest.fn();

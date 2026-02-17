@@ -1,5 +1,6 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
+import React from 'react';
+
 import { TelegraphLever } from '../../../src/components/TelegraphLever';
 import { useLeverDrag } from '../../../src/hooks/useLeverDrag';
 

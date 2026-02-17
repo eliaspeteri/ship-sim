@@ -1,6 +1,7 @@
-import { fetchLandTileMesh } from '../../../../src/lib/tiles/mvtLandMesh';
-import { latLonToXY } from '../../../../src/lib/geo';
 import earcut from 'earcut';
+
+import { latLonToXY } from '../../../../src/lib/geo';
+import { fetchLandTileMesh } from '../../../../src/lib/tiles/mvtLandMesh';
 
 type MockGeometry = {
   setAttribute: jest.Mock;

@@ -1,6 +1,8 @@
 import React from 'react';
+
 import { hudStyles as styles } from './hudStyles';
 import { buildDisplacementParams } from '../../lib/physicsParams';
+
 import type { VesselState } from '../../types/vessel.types';
 
 const DEFAULT_PRECISION = 3;

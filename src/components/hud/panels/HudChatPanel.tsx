@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { ChatPanel } from '../../ChatPanel';
 import { hudStyles as styles } from '../hudStyles';
 

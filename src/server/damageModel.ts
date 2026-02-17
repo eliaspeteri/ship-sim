@@ -1,5 +1,6 @@
-import type { DamageState } from '../lib/damage';
 import { normalizeDamageState } from '../lib/damage';
+
+import type { DamageState } from '../lib/damage';
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 

@@ -1,9 +1,9 @@
-import { registerEconomyHandlers } from '../../../../src/server/socketHandlers/economy';
 import { prisma } from '../../../../src/lib/prisma';
 import {
   applyEconomyAdjustment,
   getEconomyProfile,
 } from '../../../../src/server/economy';
+import { registerEconomyHandlers } from '../../../../src/server/socketHandlers/economy';
 
 jest.mock('../../../../src/lib/prisma', () => ({
   prisma: {

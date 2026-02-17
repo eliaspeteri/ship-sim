@@ -1,12 +1,13 @@
-import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
 
+import { ShipType } from '../../../src/types/vessel.types';
+
+import type { SimulationState } from '../../../src/store/types';
 import type {
   MissionAssignmentData,
   MissionDefinition,
 } from '../../../src/types/mission.types';
-import type { SimulationState } from '../../../src/store/types';
-import { ShipType } from '../../../src/types/vessel.types';
 
 const applyControlsMock = jest.fn();
 const refreshPhysicsParamsMock = jest.fn();

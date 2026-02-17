@@ -1,4 +1,5 @@
 import React from 'react';
+
 import type { EconomyContext } from '../economyContexts';
 
 type EconomySidebarProps = {

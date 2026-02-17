@@ -1,4 +1,5 @@
 import React from 'react';
+
 import type { ToolDef, ToolId } from '../editorTools';
 
 type EditorToolsPanelProps = {

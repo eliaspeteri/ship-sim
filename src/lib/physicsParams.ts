@@ -1,4 +1,5 @@
 import { DEFAULT_HYDRO } from '../constants/vessel';
+
 import type { VesselState } from '../types/vessel.types';
 
 const MS_PER_KNOT = 0.514444;

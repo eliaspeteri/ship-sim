@@ -1,6 +1,7 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
 import { createPack, listPacks } from '../../../../server/editorPacksStore';
 import { requireEditorActor } from '../auth';
+
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === 'GET') {

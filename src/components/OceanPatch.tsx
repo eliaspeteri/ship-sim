@@ -1,6 +1,7 @@
-import * as THREE from 'three';
-import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
+import React, { useEffect, useMemo, useRef } from 'react';
+import * as THREE from 'three';
+
 import { getWaveComponents } from '../lib/waves';
 
 type WaveState = {

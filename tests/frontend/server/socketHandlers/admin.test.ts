@@ -1,6 +1,6 @@
-import { registerAdminHandlers } from '../../../../src/server/socketHandlers/admin';
-import { prisma } from '../../../../src/lib/prisma';
 import { mergePosition } from '../../../../src/lib/position';
+import { prisma } from '../../../../src/lib/prisma';
+import { registerAdminHandlers } from '../../../../src/server/socketHandlers/admin';
 
 jest.mock('../../../../src/lib/prisma', () => ({
   prisma: {

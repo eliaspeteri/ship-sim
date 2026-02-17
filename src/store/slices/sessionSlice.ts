@@ -1,4 +1,5 @@
 import { MAX_REPLAY_FRAMES } from '../defaults';
+
 import type { ReplayFrame, SimulationState, StoreSet } from '../types';
 
 type SessionSlice = Pick<

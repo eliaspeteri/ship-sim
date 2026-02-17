@@ -1,5 +1,6 @@
-import type { ClientSocket } from './types';
 import { RESYNC_POLL_MS, RESYNC_STALE_MS } from './types';
+
+import type { ClientSocket } from './types';
 
 type TimerState = {
   latencyTimer: NodeJS.Timeout | null;

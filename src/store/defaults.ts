@@ -1,14 +1,15 @@
 import { DEFAULT_HYDRO } from '../constants/vessel';
-import type { EnvironmentState } from '../types/environment.types';
 import { ensurePosition } from '../lib/position';
 import { ShipType } from '../types/vessel.types';
-import type { VesselState } from '../types/vessel.types';
+
 import type {
   AccountState,
   MachinerySystemStatus,
   NavigationData,
   SeamarksState,
 } from './types';
+import type { EnvironmentState } from '../types/environment.types';
+import type { VesselState } from '../types/vessel.types';
 
 export const shallowEqualEnv = (a: EnvironmentState, b: EnvironmentState) => {
   if (a.seaState !== b.seaState) return false;

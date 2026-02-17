@@ -1,25 +1,27 @@
-import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { getApiBase } from '../lib/api';
+import React, { useMemo } from 'react';
+
+import EconomyHeader from '../features/economy/components/EconomyHeader';
+import EconomySidebar from '../features/economy/components/EconomySidebar';
 import {
   ECONOMY_CONTEXTS,
   ECONOMY_DEFAULT_CONTEXT,
   isEconomyContext,
 } from '../features/economy/economyContexts';
-import EconomyHeader from '../features/economy/components/EconomyHeader';
-import EconomySidebar from '../features/economy/components/EconomySidebar';
+import CareersSection from '../features/economy/sections/CareersSection';
 import FinancesSection from '../features/economy/sections/FinancesSection';
 import FleetSection from '../features/economy/sections/FleetSection';
-import ShipyardSection from '../features/economy/sections/ShipyardSection';
-import PortMarketSection from '../features/economy/sections/PortMarketSection';
-import LoansSection from '../features/economy/sections/LoansSection';
-import InsuranceSection from '../features/economy/sections/InsuranceSection';
 import InsuranceHistorySection from '../features/economy/sections/InsuranceHistorySection';
-import MissionsSection from '../features/economy/sections/MissionsSection';
-import CareersSection from '../features/economy/sections/CareersSection';
+import InsuranceSection from '../features/economy/sections/InsuranceSection';
 import LicensesSection from '../features/economy/sections/LicensesSection';
+import LoansSection from '../features/economy/sections/LoansSection';
+import MissionsSection from '../features/economy/sections/MissionsSection';
+import PortMarketSection from '../features/economy/sections/PortMarketSection';
 import ReputationSection from '../features/economy/sections/ReputationSection';
+import ShipyardSection from '../features/economy/sections/ShipyardSection';
+import { getApiBase } from '../lib/api';
+
 import type {
   CargoLot,
   CareerStatus,

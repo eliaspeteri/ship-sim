@@ -1,6 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { Router, RequestHandler, Request, Response } from 'express';
-import type { prisma as prismaClient } from '../../lib/prisma';
+
 import { positionFromLatLon } from '../../lib/position';
 import {
   ECONOMY_PORTS,
@@ -17,7 +16,10 @@ import {
   resolveVesselTemplate,
   warmVesselCatalog,
 } from '../vesselCatalog';
+
+import type { prisma as prismaClient } from '../../lib/prisma';
 import type { AuthenticatedUser } from '../middleware/authentication';
+import type { Router, RequestHandler, Request, Response } from 'express';
 
 type PrismaClient = typeof prismaClient;
 

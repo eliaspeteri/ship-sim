@@ -1,17 +1,14 @@
-import React from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import Scene from '../components/Scene';
+import { useSession } from 'next-auth/react';
+import React from 'react';
+
 import Dashboard from '../components/Dashboard';
 import { HudDrawer } from '../components/HudDrawer';
-import useStore from '../store';
-import { socketManager } from '../networking/socket';
+import Scene from '../components/Scene';
 import { MAX_CREW } from '../constants/vessel';
-import { positionToXY } from '../lib/position';
-import type { ScenarioDefinition } from '../lib/scenarios';
-import { getScenarios } from '../lib/scenarios';
-import { getApiBase } from '../lib/api';
-import { bboxAroundLatLon, setGeoOrigin } from '../lib/geo';
+import GuestBanner from '../features/sim/components/GuestBanner';
+import SimLoadingScreen from '../features/sim/components/SimLoadingScreen';
+import SimTopBar from '../features/sim/components/SimTopBar';
 import {
   PORTS,
   REQUERY_DISTANCE_M,
@@ -19,17 +16,22 @@ import {
   SEAMARK_RADIUS_M,
   SEAMARK_REQUEST_LIMIT,
 } from '../features/sim/constants';
-import { haversineMeters, bboxKey } from '../features/sim/utils';
-import { SpaceModal } from '../features/sim/SpaceModal';
-import { JoinChoiceModal } from '../features/sim/JoinChoiceModal';
-import GuestBanner from '../features/sim/components/GuestBanner';
-import SimLoadingScreen from '../features/sim/components/SimLoadingScreen';
-import SimTopBar from '../features/sim/components/SimTopBar';
-import { useSpaceSelectionFlow } from '../features/sim/hooks/useSpaceSelectionFlow';
-import { useSimSessionBootstrap } from '../features/sim/hooks/useSimSessionBootstrap';
 import { useMissionBootstrap } from '../features/sim/hooks/useMissionBootstrap';
 import { useSimKeyboardControls } from '../features/sim/hooks/useSimKeyboardControls';
+import { useSimSessionBootstrap } from '../features/sim/hooks/useSimSessionBootstrap';
+import { useSpaceSelectionFlow } from '../features/sim/hooks/useSpaceSelectionFlow';
+import { JoinChoiceModal } from '../features/sim/JoinChoiceModal';
 import { deriveJoinableVessels } from '../features/sim/selectors/vesselSelectors';
+import { SpaceModal } from '../features/sim/SpaceModal';
+import { haversineMeters, bboxKey } from '../features/sim/utils';
+import { getApiBase } from '../lib/api';
+import { bboxAroundLatLon, setGeoOrigin } from '../lib/geo';
+import { positionToXY } from '../lib/position';
+import { getScenarios } from '../lib/scenarios';
+import { socketManager } from '../networking/socket';
+import useStore from '../store';
+
+import type { ScenarioDefinition } from '../lib/scenarios';
 
 /**
  * Simulation page for Ship Simulator.

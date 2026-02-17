@@ -1,4 +1,8 @@
 import {
+  RadarEnvironment,
+  RadarTarget,
+} from '../../../../src/components/radar/types';
+import {
   polarToCartesian,
   calculateTargetVisibility,
   generateRadarNoise,
@@ -6,10 +10,6 @@ import {
   getRainClutterStrength,
   generateNoisePattern,
 } from '../../../../src/components/radar/utils';
-import {
-  RadarEnvironment,
-  RadarTarget,
-} from '../../../../src/components/radar/types';
 
 describe('radar utils', () => {
   const environment: RadarEnvironment = {

@@ -1,5 +1,6 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
+import React from 'react';
+
 import { RotaryDial } from '../../../../src/components/dials/RotaryDial';
 import { useLeverDrag } from '../../../../src/hooks/useLeverDrag';
 

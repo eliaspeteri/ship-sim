@@ -1,6 +1,8 @@
 import socketIoClient from 'socket.io-client';
-import useStore from '../../../../src/store';
+
 import { createSocketManager } from '../../../../src/networking/socket';
+import useStore from '../../../../src/store';
+
 import type { SimulationState } from '../../../../src/store/types';
 
 type SocketHandler = (payload?: unknown) => void;

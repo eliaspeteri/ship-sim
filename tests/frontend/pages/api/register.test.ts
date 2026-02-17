@@ -23,9 +23,10 @@ jest.mock('../../../../src/lib/authAudit', () => ({
   recordAuthEvent: (...args: unknown[]) => mockRecordAuthEvent(...args),
 }));
 
-import type { NextApiRequest, NextApiResponse } from 'next';
 import handler from '../../../../src/pages/api/register';
 import { REGISTER_LIMITS } from '../../../../src/server/requestLimits';
+
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 const makeRes = () => {
   const json = jest.fn();

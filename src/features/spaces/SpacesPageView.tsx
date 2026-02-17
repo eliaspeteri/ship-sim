@@ -1,13 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+
+import { SpaceCard } from './components/SpaceCard';
+import { SpacesHeader } from './components/SpacesHeader';
+import { deleteSpace, fetchManagedSpaces, patchSpace } from './spacesService';
+import { spacesUi as ui } from './spacesUi';
+import { useSpaceDrafts } from './useSpaceDrafts';
 import { getApiBase } from '../../lib/api';
 import { getDefaultRules, mapToRulesetType } from '../../types/rules.types';
-import { deleteSpace, fetchManagedSpaces, patchSpace } from './spacesService';
+
 import type { ManagedSpace } from './types';
-import { useSpaceDrafts } from './useSpaceDrafts';
-import { spacesUi as ui } from './spacesUi';
-import { SpacesHeader } from './components/SpacesHeader';
-import { SpaceCard } from './components/SpaceCard';
+
 
 const rulesetLabels: Record<string, string> = {
   CASUAL: 'Casual',

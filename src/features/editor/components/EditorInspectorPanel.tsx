@@ -1,7 +1,9 @@
 import React from 'react';
-import type { EditorLayer, EditorWorkArea } from '../types';
+
 import EditorLayerList from './EditorLayerList';
 import EditorWorkAreaEditor from './EditorWorkAreaEditor';
+
+import type { EditorLayer, EditorWorkArea } from '../types';
 
 type EditorInspectorPanelProps = {
   layers: EditorLayer[];

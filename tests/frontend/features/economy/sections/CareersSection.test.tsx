@@ -1,5 +1,6 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
+import React from 'react';
+
 import CareersSection from '../../../../../src/features/economy/sections/CareersSection';
 
 describe('CareersSection', () => {

@@ -1,5 +1,6 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
+import React from 'react';
+
 import ReputationSection from '../../../../../src/features/economy/sections/ReputationSection';
 
 describe('ReputationSection', () => {

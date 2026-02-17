@@ -1,8 +1,8 @@
-import { registerSeamarksHandler } from '../../../../src/server/socketHandlers/seamarks';
 import {
   bboxAroundLatLonGeodesic,
   querySeamarksBBox,
 } from '../../../../src/server/seamarks';
+import { registerSeamarksHandler } from '../../../../src/server/socketHandlers/seamarks';
 
 jest.mock('../../../../src/server/seamarks', () => ({
   bboxAroundLatLonGeodesic: jest.fn(() => ({

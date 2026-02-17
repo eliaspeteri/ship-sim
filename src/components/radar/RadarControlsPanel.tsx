@@ -1,6 +1,8 @@
 import React from 'react';
-import RadarControls from './RadarControls';
+
 import ARPAPanel from './ARPAPanel';
+import RadarControls from './RadarControls';
+
 import type { ARPASettings, ARPATarget } from './arpa';
 import type { GuardZone, RadarBand, RadarSettings, VRM, EBL } from './types';
 

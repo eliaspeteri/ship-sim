@@ -1,4 +1,5 @@
 import { mergePosition } from '../../lib/position';
+
 import type { DeepPartial } from '../../types/utility';
 import type {
   CrewStationAssignment,

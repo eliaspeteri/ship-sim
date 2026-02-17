@@ -1,6 +1,7 @@
 import React from 'react';
-import { useLeverDrag } from '../hooks/useLeverDrag'; // Reusing for rotational drag logic
+
 import { RUDDER_STALL_ANGLE_DEG } from '../constants/vessel';
+import { useLeverDrag } from '../hooks/useLeverDrag'; // Reusing for rotational drag logic
 
 // Helper functions (similar to TelegraphLever)
 const polarToCartesian = (

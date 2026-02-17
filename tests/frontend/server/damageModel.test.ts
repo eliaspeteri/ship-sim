@@ -1,10 +1,10 @@
+import { DEFAULT_DAMAGE_STATE } from '../../../src/lib/damage';
 import {
   applyCollisionDamage,
   applyFailureWear,
   applyGroundingDamage,
   mergeDamageState,
 } from '../../../src/server/damageModel';
-import { DEFAULT_DAMAGE_STATE } from '../../../src/lib/damage';
 
 describe('damageModel', () => {
   it('applies collision damage with clamped severity', () => {

@@ -1,5 +1,5 @@
-import { registerDisconnectHandler } from '../../../../src/server/socketHandlers/disconnect';
 import { setConnectedClients } from '../../../../src/server/metrics';
+import { registerDisconnectHandler } from '../../../../src/server/socketHandlers/disconnect';
 
 jest.mock('../../../../src/server/metrics', () => ({
   setConnectedClients: jest.fn(),

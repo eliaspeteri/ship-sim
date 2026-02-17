@@ -1,17 +1,18 @@
-import { ensurePosition } from '../../lib/position';
-import type { SocketStoreState } from '../adapters/socketStoreAdapter';
-import type { EnvironmentState } from '../../types/environment.types';
-import type {
-  SimulationUpdateData,
-  VesselTeleportData,
-} from '../../types/socket.types';
-import type { SimpleVesselState } from '../../types/vessel.types';
 import {
   hasMoreFromSimulationCount,
   hasVesselChanged,
   mapSimulationChatHistory,
   resolvePreferredSelfId,
 } from './simulationProjection';
+import { ensurePosition } from '../../lib/position';
+
+import type { EnvironmentState } from '../../types/environment.types';
+import type {
+  SimulationUpdateData,
+  VesselTeleportData,
+} from '../../types/socket.types';
+import type { SimpleVesselState } from '../../types/vessel.types';
+import type { SocketStoreState } from '../adapters/socketStoreAdapter';
 
 export type SimulationHandlerState = {
   userId: string;

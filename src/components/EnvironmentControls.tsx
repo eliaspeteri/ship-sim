@@ -1,3 +1,4 @@
+import { useSession } from 'next-auth/react';
 import React, {
   useCallback,
   useEffect,
@@ -5,15 +6,15 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useSession } from 'next-auth/react';
-import useStore from '../store';
-import { socketManager } from '../networking/socket';
+
+import { getApiBase } from '../lib/api';
 import {
   applyOffsetToTimeOfDay,
   estimateTimeZoneOffsetHours,
   formatTimeOfDay as formatClockTime,
 } from '../lib/time';
-import { getApiBase } from '../lib/api';
+import { socketManager } from '../networking/socket';
+import useStore from '../store';
 
 interface EnvironmentControlsProps {
   className?: string;

@@ -1,4 +1,6 @@
 import React from 'react';
+
+import { RUDDER_MAX_ANGLE_RAD } from '../../../constants/vessel';
 import useStore from '../../../store';
 import {
   THROTTLE_MAX,
@@ -6,7 +8,6 @@ import {
   THROTTLE_STEP,
   RUDDER_STEP,
 } from '../constants';
-import { RUDDER_MAX_ANGLE_RAD } from '../../../constants/vessel';
 
 export function useSimKeyboardControls(): void {
   React.useEffect(() => {

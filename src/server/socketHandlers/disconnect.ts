@@ -1,4 +1,5 @@
 import { setConnectedClients } from '../metrics';
+
 import type { SocketHandlerContext } from './context';
 
 export function registerDisconnectHandler({

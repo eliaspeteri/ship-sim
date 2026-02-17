@@ -1,6 +1,8 @@
-import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import React from 'react';
+
 import FleetSection from '../../../../../src/features/economy/sections/FleetSection';
+
 import type { EconomyDashboard } from '../../../../../src/features/economy/types';
 
 const buildDashboard = (overrides: Partial<EconomyDashboard> = {}) => ({

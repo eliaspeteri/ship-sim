@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { EcdisDisplay } from '../../navigation/ecdis/EcdisDisplay';
 
 export function HudEcdisPanel({

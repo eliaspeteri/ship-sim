@@ -1,7 +1,8 @@
-import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
 
 import EditorViewport from '../../../../../src/features/editor/components/EditorViewport';
+
 import type EditorRenderer from '../../../../../src/features/editor/components/EditorRenderer';
 
 const mockEditorRenderer = jest.fn();

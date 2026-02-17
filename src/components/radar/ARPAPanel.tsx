@@ -1,7 +1,9 @@
 import React from 'react';
-import type { ARPASettings, ARPATarget } from './arpa';
+
 import { ARPATargetStatus, getTargetStatus } from './arpa';
 import { PushButton } from '../PushButton';
+
+import type { ARPASettings, ARPATarget } from './arpa';
 
 interface ARPAPanelProps {
   arpaTargets: ARPATarget[];

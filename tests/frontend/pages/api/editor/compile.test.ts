@@ -14,9 +14,10 @@ jest.mock('../../../../../src/server/editorPacksStore', () => ({
   getPack: (...args: unknown[]) => mockGetPack(...args),
 }));
 
-import type { NextApiRequest, NextApiResponse } from 'next';
 import handler from '../../../../../src/pages/api/editor/compile';
 import { COMPILE_LIMITS } from '../../../../../src/server/requestLimits';
+
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 const makeRes = () => {
   const json = jest.fn();

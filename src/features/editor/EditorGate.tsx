@@ -1,6 +1,6 @@
-import React from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
+import { useSession } from 'next-auth/react';
+import React from 'react';
 
 type EditorGateProps = {
   children: React.ReactNode;

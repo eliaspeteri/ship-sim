@@ -1,13 +1,13 @@
-import { registerCargoHandlers } from '../../../../src/server/socketHandlers/cargo';
 import { prisma } from '../../../../src/lib/prisma';
-import {
-  computeTurnaroundDelayMs,
-  getPortCongestion,
-} from '../../../../src/server/logistics';
 import {
   getVesselCargoCapacityTons,
   resolvePortForPosition,
 } from '../../../../src/server/economy';
+import {
+  computeTurnaroundDelayMs,
+  getPortCongestion,
+} from '../../../../src/server/logistics';
+import { registerCargoHandlers } from '../../../../src/server/socketHandlers/cargo';
 
 jest.mock('../../../../src/lib/prisma', () => ({
   prisma: {

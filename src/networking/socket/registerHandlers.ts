@@ -1,6 +1,14 @@
-import type * as GeoJSON from 'geojson';
+import {
+  normalizeChatHistoryPayload,
+  normalizeChatMessage,
+} from './chatProjection';
+import {
+  STORAGE_SPACE_KEY,
+  STORAGE_SPACE_SELECTED_KEY,
+} from '../../features/sim/constants';
+
+import type { ClientSocket } from './types';
 import type { AccountState } from '../../store';
-import type { SocketStoreState } from '../adapters/socketStoreAdapter';
 import type { EnvironmentState } from '../../types/environment.types';
 import type { MissionAssignmentData } from '../../types/mission.types';
 import type {
@@ -11,15 +19,8 @@ import type {
   VesselLeftData,
   VesselTeleportData,
 } from '../../types/socket.types';
-import {
-  STORAGE_SPACE_KEY,
-  STORAGE_SPACE_SELECTED_KEY,
-} from '../../features/sim/constants';
-import {
-  normalizeChatHistoryPayload,
-  normalizeChatMessage,
-} from './chatProjection';
-import type { ClientSocket } from './types';
+import type { SocketStoreState } from '../adapters/socketStoreAdapter';
+import type * as GeoJSON from 'geojson';
 
 type RegisterHandlersParams = {
   socket: ClientSocket;

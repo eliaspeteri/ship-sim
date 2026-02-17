@@ -1,5 +1,6 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
+import React from 'react';
+
 import MissionsSection from '../../../../../src/features/economy/sections/MissionsSection';
 
 jest.mock('next/link', () => ({

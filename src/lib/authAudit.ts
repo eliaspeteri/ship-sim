@@ -1,5 +1,6 @@
-import type { Prisma } from '@prisma/client';
 import { prisma } from './prisma';
+
+import type { Prisma } from '@prisma/client';
 
 export type AuthAuditEvent = {
   userId?: string | null;

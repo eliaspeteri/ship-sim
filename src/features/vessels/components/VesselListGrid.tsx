@@ -1,4 +1,5 @@
 import React from 'react';
+
 import VesselListCard from './VesselListCard';
 
 type VesselSummary = {

@@ -1,4 +1,12 @@
 import express from 'express';
+
+import {
+  CAREERS,
+  getExamDefinitions,
+  ensureUserCareers,
+  issueLicense,
+} from './careers';
+import { recordMetric, serverMetrics } from './metrics';
 import {
   authenticateRequest,
   requireAuth,
@@ -10,23 +18,17 @@ import {
   requireRole,
   requireSelfOrRole,
 } from './middleware/authorization';
-import { prisma } from '../lib/prisma';
-import { recordMetric, serverMetrics } from './metrics';
-import { clearLogs, getLogs, recordLog } from './observability';
 import { seedDefaultMissions } from './missions';
-import type { Rules } from '../types/rules.types';
-import {
-  CAREERS,
-  getExamDefinitions,
-  ensureUserCareers,
-  issueLicense,
-} from './careers';
+import { clearLogs, getLogs, recordLog } from './observability';
+import { prisma } from '../lib/prisma';
 import { registerAdminRoutes } from './routes/adminRoutes';
 import { registerCareersSpacesRoutes } from './routes/careersSpacesRoutes';
-import { registerMissionRoutes } from './routes/missionRoutes';
 import { registerEconomyRoutes } from './routes/economyRoutes';
+import { registerMissionRoutes } from './routes/missionRoutes';
 import { registerVesselEnvironmentRoutes } from './routes/vesselEnvironmentRoutes';
 import { createInMemoryUserSettingsStore } from './services/userSettingsStore';
+
+import type { Rules } from '../types/rules.types';
 
 const router = express.Router();
 const DEFAULT_SPACE_ID = process.env.DEFAULT_SPACE_ID ?? 'global';

@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { RotaryDial } from '../dials';
+
 import type { RadioChannel } from './marineRadioState';
 
 type MarineRadioViewProps = {

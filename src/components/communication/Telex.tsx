@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ToggleSwitch } from '../switches';
+
 import { PushButton } from '../PushButton';
+import { ToggleSwitch } from '../switches';
 
 /**
  * Interface for a Telex message

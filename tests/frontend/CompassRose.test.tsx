@@ -1,6 +1,7 @@
 /// <reference types="@testing-library/jest-dom" />
-import React from 'react';
 import { render, screen, cleanup } from '@testing-library/react';
+import React from 'react';
+
 import { CompassRose } from '../../src/components/CompassRose';
 
 afterEach(cleanup);

@@ -3,6 +3,7 @@ import {
   getWeatherByCoordinates,
   getWeatherPattern,
 } from '../weatherSystem';
+
 import type { SocketHandlerContext } from './context';
 
 export function registerAdminWeatherHandler({

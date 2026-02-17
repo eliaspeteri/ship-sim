@@ -1,4 +1,5 @@
 import { renderRadarFrame } from '../../../../../src/components/radar/render/renderRadarFrame';
+
 import type { RadarRenderModel } from '../../../../../src/components/radar/render/model';
 
 const drawRadarBackgroundMock = jest.fn();

@@ -1,5 +1,6 @@
-import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
+
 import VesselListPage from '../../src/pages/vessels/index';
 
 const mockFetch = jest.fn();

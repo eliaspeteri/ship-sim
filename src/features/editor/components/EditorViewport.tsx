@@ -1,13 +1,15 @@
 import React from 'react';
+
 import {
   getVisibleOverlayTiles,
   loadOverlayChunks,
 } from '../services/overlayStreaming';
-import type { EditorWorkArea } from '../types';
 import { isBBoxBounds } from '../types';
 import EditorRenderer from './EditorRenderer';
 import CameraHeadingIndicator from '../../../components/CameraHeadingIndicator';
 import { latLonToXY, setGeoOrigin, xyToLatLon } from '../../../lib/geo';
+
+import type { EditorWorkArea } from '../types';
 
 type EditorViewportProps = {
   title?: string;

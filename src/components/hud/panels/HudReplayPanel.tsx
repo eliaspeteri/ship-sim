@@ -1,10 +1,11 @@
 import React from 'react';
-import { hudStyles as styles } from '../hudStyles';
+
 import {
   MS_PER_SECOND,
   REPLAY_MIN_FRAMES,
   REPLAY_SECONDS_DECIMALS,
 } from '../constants';
+import { hudStyles as styles } from '../hudStyles';
 
 type ReplayFrame = {
   timestamp: number;

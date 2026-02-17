@@ -1,12 +1,11 @@
-import React from 'react';
 import { useRouter } from 'next/router';
-import type { EditorLayer, EditorPack, EditorWorkArea } from './types';
-import type { ToolId } from './editorTools';
-import { TOOL_DEFS } from './editorTools';
+import React from 'react';
+
 import EditorBottomBar from './components/EditorBottomBar';
 import EditorInspectorPanel from './components/EditorInspectorPanel';
 import EditorToolsPanel from './components/EditorToolsPanel';
 import EditorViewport from './components/EditorViewport';
+import { TOOL_DEFS } from './editorTools';
 import {
   compileOverlayDraft,
   compileOverlayServer,
@@ -15,6 +14,9 @@ import {
   clearOverlayCache,
   getWorkAreaTiles,
 } from './services/overlayStreaming';
+
+import type { ToolId } from './editorTools';
+import type { EditorLayer, EditorPack, EditorWorkArea } from './types';
 
 type EditorShellProps = {
   pack: EditorPack;

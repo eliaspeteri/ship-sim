@@ -1,6 +1,7 @@
 import { distanceMeters } from '../../lib/position';
-import { resolvePortForPosition } from '../economy';
 import { RulesetType } from '../../types/rules.types';
+import { resolvePortForPosition } from '../economy';
+
 import type { SocketHandlerContext } from './context';
 
 const SWITCH_NEARBY_METERS = 1500;

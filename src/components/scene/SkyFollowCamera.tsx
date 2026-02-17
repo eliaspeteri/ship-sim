@@ -1,6 +1,7 @@
-import React from 'react';
 import { Sky } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
+import React from 'react';
+
 import type * as THREE from 'three';
 
 export function SkyFollowCamera(

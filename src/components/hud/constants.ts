@@ -1,4 +1,5 @@
 import { positionFromXY } from '../../lib/position';
+
 import type { HudTab } from './types';
 
 export const HUD_TABS: { id: HudTab; label: string }[] = [

@@ -1,5 +1,6 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
+import React from 'react';
+
 import '@testing-library/jest-dom';
 import { VesselList } from '../../src/components/VesselList';
 import { VesselSnapshot } from '../../src/types/vessel.types';

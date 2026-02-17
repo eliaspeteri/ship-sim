@@ -1,4 +1,4 @@
-import type { Server, Socket } from 'socket.io';
+import type { EnvironmentState } from '../../types/environment.types';
 import type {
   ClientToServerEvents,
   InterServerEvents,
@@ -7,9 +7,9 @@ import type {
   ChatMessageData,
 } from '../../types/socket.types';
 import type { SimpleVesselState } from '../../types/vessel.types';
-import type { EnvironmentState } from '../../types/environment.types';
 import type { VesselRecord } from '../index';
 import type { WeatherPattern } from '../weatherSystem';
+import type { Server, Socket } from 'socket.io';
 
 export type GlobalState = {
   vessels: Map<string, VesselRecord>;

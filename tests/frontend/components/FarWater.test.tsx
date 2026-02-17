@@ -1,7 +1,8 @@
-import React from 'react';
-import { render } from '@testing-library/react';
 import { useFrame } from '@react-three/fiber';
+import { render } from '@testing-library/react';
+import React from 'react';
 import * as THREE from 'three';
+
 import { FarWater } from '../../../src/components/FarWater';
 
 jest.mock('@react-three/fiber', () => ({

@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { formatLatLon } from './math';
 
 type ShipDisplayState = {

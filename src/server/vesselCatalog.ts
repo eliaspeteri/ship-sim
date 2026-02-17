@@ -1,12 +1,14 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+
 import { DEFAULT_HYDRO } from '../constants/vessel';
 import { ShipType } from '../types/vessel.types';
+
+import type { VesselPhysicsConfig } from '../types/physics.types';
 import type {
   VesselCatalog,
   VesselCatalogEntry,
 } from '../types/vesselCatalog.types';
-import type { VesselPhysicsConfig } from '../types/physics.types';
 
 const CATALOG_PATH = path.join(
   process.cwd(),

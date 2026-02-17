@@ -1,5 +1,5 @@
-import { registerVesselLeaseHandler } from '../../../../src/server/socketHandlers/vesselLease';
 import { prisma } from '../../../../src/lib/prisma';
+import { registerVesselLeaseHandler } from '../../../../src/server/socketHandlers/vesselLease';
 
 jest.mock('../../../../src/lib/prisma', () => ({
   prisma: {

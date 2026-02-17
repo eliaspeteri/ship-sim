@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+
 import { createChatSlice } from './slices/chatSlice';
 import { createEnvironmentSlice } from './slices/environmentSlice';
 import { createMachinerySlice } from './slices/machinerySlice';
@@ -7,6 +8,7 @@ import { createNavigationSlice } from './slices/navigationSlice';
 import { createSessionSlice } from './slices/sessionSlice';
 import { createSystemSlice } from './slices/systemSlice';
 import { createVesselSlice } from './slices/vesselSlice';
+
 import type { SimulationState } from './types';
 
 export type { AccountState } from './types';

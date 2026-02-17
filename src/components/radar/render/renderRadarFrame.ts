@@ -1,8 +1,9 @@
 /* global CanvasRenderingContext2D */
-import type { RadarRenderContext, RadarRenderModel } from './model';
 import { drawRadarBackground } from './background';
-import { drawRadarTargets } from './targets';
 import { drawRadarOverlays } from './overlays';
+import { drawRadarTargets } from './targets';
+
+import type { RadarRenderContext, RadarRenderModel } from './model';
 
 function getRotationAngle(model: RadarRenderModel): number {
   if (model.settings.orientation === 'head-up') {

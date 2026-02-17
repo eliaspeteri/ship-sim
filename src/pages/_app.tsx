@@ -1,7 +1,9 @@
-import React from 'react';
-import type { AppProps } from 'next/app';
 import { SessionProvider } from 'next-auth/react';
+import React from 'react';
+
 import Layout from '../components/Layout';
+
+import type { AppProps } from 'next/app';
 import '../styles/globals.css';
 
 type AppPropsWithLayout = AppProps & {

@@ -1,6 +1,8 @@
 import { renderHook, act } from '@testing-library/react';
-import type { MouseEvent as ReactMouseEvent } from 'react';
+
 import { useLeverDrag } from '../../src/hooks/useLeverDrag';
+
+import type { MouseEvent as ReactMouseEvent } from 'react';
 
 const asReactMouseEvent = (event: MouseEvent) =>
   event as unknown as ReactMouseEvent<Element>;

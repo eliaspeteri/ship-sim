@@ -1,6 +1,7 @@
 /* global CanvasRenderingContext2D */
-import { calculateTargetVisibility, polarToCartesian } from '../utils';
 import { ARPATargetStatus, getTargetStatus, getVectorEndpoint } from '../arpa';
+import { calculateTargetVisibility, polarToCartesian } from '../utils';
+
 import type { RadarTarget, GuardZone } from '../types';
 import type { RadarRenderContext, RadarRenderModel } from './model';
 

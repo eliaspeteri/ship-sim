@@ -1,15 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
+import React, { useEffect, useMemo, useState } from 'react';
+
+import VesselHeader from '../../features/vessels/components/VesselHeader';
+import VesselHistorySection from '../../features/vessels/components/VesselHistorySection';
+import VesselStatsGrid from '../../features/vessels/components/VesselStatsGrid';
+import VesselStatus from '../../features/vessels/components/VesselStatus';
 import { getApiBase } from '../../lib/api';
 import {
   courseFromWorldVelocity,
   speedFromWorldVelocity,
   worldVelocityFromBody,
 } from '../../lib/position';
-import VesselHeader from '../../features/vessels/components/VesselHeader';
-import VesselHistorySection from '../../features/vessels/components/VesselHistorySection';
-import VesselStatsGrid from '../../features/vessels/components/VesselStatsGrid';
-import VesselStatus from '../../features/vessels/components/VesselStatus';
 
 type VesselDetails = {
   id: string;

@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { socketHasPermission } from '../middleware/authorization';
+
 import type { SocketHandlerContext } from './context';
 
 export function registerChatHandlers({

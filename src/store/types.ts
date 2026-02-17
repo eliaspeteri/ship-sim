@@ -1,4 +1,3 @@
-import type * as GeoJSON from 'geojson';
 import type { Role } from '../server/roles';
 import type { EnvironmentState } from '../types/environment.types';
 import type { EventLogEntry } from '../types/events.types';
@@ -7,6 +6,7 @@ import type {
   MissionDefinition,
 } from '../types/mission.types';
 import type { ChatMessageData } from '../types/socket.types';
+import type { DeepPartial } from '../types/utility';
 import type {
   CrewStation,
   CrewStationAssignment,
@@ -15,7 +15,7 @@ import type {
   VesselState,
 } from '../types/vessel.types';
 import type { WasmModule } from '../types/wasm';
-import type { DeepPartial } from '../types/utility';
+import type * as GeoJSON from 'geojson';
 import type { StateCreator } from 'zustand';
 
 export interface MachinerySystemStatus {

@@ -1,12 +1,14 @@
-import React from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import React from 'react';
+
 import EditorGate from '../../../../features/editor/EditorGate';
 import EditorShell from '../../../../features/editor/EditorShell';
 import {
   editorLayers,
   editorPacks,
 } from '../../../../features/editor/mockData';
+
 import type { EditorPack } from '../../../../features/editor/types';
 
 const EditorUserPackWorkspace: React.FC & {

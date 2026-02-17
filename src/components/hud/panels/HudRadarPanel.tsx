@@ -1,4 +1,9 @@
 import React from 'react';
+
+import { RadarDisplay } from '../../radar';
+import { RADAR_DISPLAY_SIZE_PX } from '../constants';
+import { hudStyles as styles } from '../hudStyles';
+
 import type {
   AISTarget,
   ARPASettings,
@@ -9,9 +14,6 @@ import type {
   RadarTarget,
   VRM,
 } from '../../radar';
-import { RadarDisplay } from '../../radar';
-import { hudStyles as styles } from '../hudStyles';
-import { RADAR_DISPLAY_SIZE_PX } from '../constants';
 import type { OwnShipData } from '../../radar/arpa';
 import type { RadarEnvironment } from '../../radar/types';
 

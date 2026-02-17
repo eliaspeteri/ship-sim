@@ -1,4 +1,5 @@
 import { recordAuthEvent } from '../../../src/lib/authAudit';
+
 const { prismaMock } = require('./prismaMock');
 
 jest.mock('../../../src/lib/prisma', () => ({

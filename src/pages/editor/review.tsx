@@ -1,5 +1,6 @@
-import React from 'react';
 import Head from 'next/head';
+import React from 'react';
+
 import EditorGate from '../../features/editor/EditorGate';
 
 const EditorReviewPage: React.FC & { fullBleedLayout?: boolean } = () => {

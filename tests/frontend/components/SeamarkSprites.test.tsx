@@ -1,10 +1,13 @@
-import React from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import { render } from '@testing-library/react';
+import React from 'react';
 import * as THREE from 'three';
+
 import SeamarkSprites from '../../../src/components/SeamarkSprites';
 import useStore from '../../../src/store';
+
 import type { SimulationState } from '../../../src/store/types';
-import { useFrame, useThree } from '@react-three/fiber';
+
 
 jest.mock('@react-three/fiber', () => ({
   useThree: jest.fn(),

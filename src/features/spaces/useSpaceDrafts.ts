@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
-import type { Rules } from '../../types/rules.types';
+
 import type { ManagedSpace, SpaceDraft } from './types';
+import type { Rules } from '../../types/rules.types';
 
 const cloneRules = (rules: Rules): Rules =>
   JSON.parse(JSON.stringify(rules)) as Rules;

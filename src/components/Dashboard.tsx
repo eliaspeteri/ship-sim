@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
+
 import useStore from '../store';
 import { AlarmIndicator } from './alarms/AlarmIndicator';
-import { CompassRose } from './CompassRose';
 import { CircularGauge } from './CircularGauge';
+import { CompassRose } from './CompassRose';
 import {
   courseFromWorldVelocity,
   speedFromWorldVelocity,

@@ -1,6 +1,6 @@
-import React, { useRef } from 'react';
-import Link from 'next/link';
 import { Html } from '@react-three/drei';
+import Link from 'next/link';
+import React, { useRef } from 'react';
 
 type CalloutAction = {
   label: string;

@@ -1,4 +1,4 @@
-import { registerVesselJoinHandler } from '../../../../src/server/socketHandlers/vesselJoin';
+import { distanceMeters } from '../../../../src/lib/position';
 import { prisma } from '../../../../src/lib/prisma';
 import {
   applyEconomyAdjustment,
@@ -6,7 +6,7 @@ import {
   getEconomyProfile,
   resolvePortForPosition,
 } from '../../../../src/server/economy';
-import { distanceMeters } from '../../../../src/lib/position';
+import { registerVesselJoinHandler } from '../../../../src/server/socketHandlers/vesselJoin';
 
 jest.mock('../../../../src/lib/prisma', () => ({
   prisma: {

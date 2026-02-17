@@ -1,5 +1,5 @@
-import { registerLatencyPingHandler } from '../../../../src/server/socketHandlers/latencyPing';
 import { recordMetric } from '../../../../src/server/metrics';
+import { registerLatencyPingHandler } from '../../../../src/server/socketHandlers/latencyPing';
 
 jest.mock('../../../../src/server/metrics', () => ({
   recordMetric: jest.fn(),

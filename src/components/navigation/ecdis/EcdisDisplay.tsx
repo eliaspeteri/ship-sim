@@ -6,9 +6,11 @@ import React, {
   useState,
 } from 'react';
 import * as THREE from 'three';
+
 import { EcdisSidebar } from './EcdisSidebar';
 import { mockBuoys, mockCoastline, mockRoute } from './mockData';
 import { drawEcdisScene } from './scene';
+
 import type { EcdisDisplayProps } from './types';
 
 export const EcdisDisplay: React.FC<EcdisDisplayProps> = ({

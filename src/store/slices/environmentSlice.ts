@@ -1,10 +1,11 @@
-import type { SimulationState, StoreSet } from '../types';
 import {
   defaultEnvironmentState,
   defaultSeamarks,
   normalizeSeaState,
   shallowEqualEnv,
 } from '../defaults';
+
+import type { SimulationState, StoreSet } from '../types';
 
 type EnvironmentSlice = Pick<
   SimulationState,

@@ -1,9 +1,9 @@
-import { prisma } from '../lib/prisma';
-import { distanceMeters } from '../lib/position';
 import {
   ECONOMY_PORTS,
   applyEconomyAdjustmentWithRevenueShare,
 } from './economy';
+import { distanceMeters } from '../lib/position';
+import { prisma } from '../lib/prisma';
 
 const CARGO_GENERATION_INTERVAL_MS = 5 * 60 * 1000;
 const PASSENGER_GENERATION_INTERVAL_MS = 8 * 60 * 1000;

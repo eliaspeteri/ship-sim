@@ -1,4 +1,5 @@
 import { generateNoisePattern, generateRadarNoise } from '../utils';
+
 import type { RadarRenderContext, RadarRenderModel } from './model';
 
 export function drawRadarBackground(

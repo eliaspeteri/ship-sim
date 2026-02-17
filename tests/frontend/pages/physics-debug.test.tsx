@@ -1,10 +1,12 @@
-import React from 'react';
-import type { GetServerSidePropsContext } from 'next';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
 
 import PhysicsDebugPage, {
   getServerSideProps,
 } from '../../../src/pages/physics-debug';
+
+import type { GetServerSidePropsContext } from 'next';
+
 
 const initializeSimulationMock = jest.fn(() => Promise.resolve());
 const startSimulationMock = jest.fn();

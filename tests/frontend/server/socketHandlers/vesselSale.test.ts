@@ -1,10 +1,10 @@
-import { registerVesselSaleHandler } from '../../../../src/server/socketHandlers/vesselSale';
 import { prisma } from '../../../../src/lib/prisma';
 import {
   applyEconomyAdjustment,
   getEconomyProfile,
   resolvePortForPosition,
 } from '../../../../src/server/economy';
+import { registerVesselSaleHandler } from '../../../../src/server/socketHandlers/vesselSale';
 
 jest.mock('../../../../src/lib/prisma', () => ({
   prisma: {

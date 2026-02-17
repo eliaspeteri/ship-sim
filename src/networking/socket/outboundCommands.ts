@@ -1,10 +1,11 @@
 import { positionToLatLon } from '../../lib/position';
+
+import type { ClientSocket } from './types';
 import type {
   VesselControlData,
   VesselUpdateData,
 } from '../../types/socket.types';
 import type { SocketStoreState } from '../adapters/socketStoreAdapter';
-import type { ClientSocket } from './types';
 
 export const buildSpaceChannel = (
   channel: string | undefined,

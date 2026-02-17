@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   act,
   render,
@@ -6,6 +5,8 @@ import {
   fireEvent,
   waitFor,
 } from '@testing-library/react';
+import React from 'react';
+
 import { MarineRadio } from '../../../../src/components/radio/MarineRadio';
 
 describe('MarineRadio', () => {

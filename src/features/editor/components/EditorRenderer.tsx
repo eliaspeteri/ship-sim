@@ -1,13 +1,15 @@
-import React from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Line, OrbitControls } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import React from 'react';
 import * as THREE from 'three';
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+
 import { LandTiles } from '../../../components/LandTiles';
 import { OceanPatch } from '../../../components/OceanPatch';
 import { latLonToXY } from '../../../lib/geo';
-import type { EditorWorkArea } from '../types';
 import { isBBoxBounds } from '../types';
+
+import type { EditorWorkArea } from '../types';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 type EditorRendererProps = {
   focusRef: React.MutableRefObject<{ x: number; y: number }>;

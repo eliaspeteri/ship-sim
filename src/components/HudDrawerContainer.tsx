@@ -1,17 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { getSimulationLoop } from '../simulation';
-import { socketManager } from '../networking/socket';
-import type {
-  AISTarget,
-  ARPASettings,
-  ARPATarget,
-  EBL,
-  GuardZone,
-  RadarSettings,
-  RadarTarget,
-  VRM,
-} from './radar';
+
 import { DEFAULT_ARPA_SETTINGS } from './radar';
+import { getApiBase } from '../lib/api';
+import { computeRepairCost, normalizeDamageState } from '../lib/damage';
 import {
   courseFromWorldVelocity,
   distanceMeters,
@@ -19,37 +10,13 @@ import {
   speedFromWorldVelocity,
   worldVelocityFromBody,
 } from '../lib/position';
-import { getApiBase } from '../lib/api';
 import {
   applyOffsetToTimeOfDay,
   estimateTimeZoneOffsetHours,
   formatTimeOfDay,
 } from '../lib/time';
-import { computeRepairCost, normalizeDamageState } from '../lib/damage';
-import { hudStyles as styles } from './hud/hudStyles';
-import { HudAdminPanel } from './hud/panels/HudAdminPanel';
-import { HudAlarmsPanel } from './hud/panels/HudAlarmsPanel';
-import { HudChatPanel } from './hud/panels/HudChatPanel';
-import { HudConningPanel } from './hud/panels/HudConningPanel';
-import { HudNavControls } from './hud/panels/HudNavControls';
-import { HudCrewPanel } from './hud/panels/HudCrewPanel';
-import { HudEcdisPanel } from './hud/panels/HudEcdisPanel';
-import { HudEventsPanel } from './hud/panels/HudEventsPanel';
-import { HudMissionsPanel } from './hud/panels/HudMissionsPanel';
-import { HudNavigationPanel } from './hud/panels/HudNavigationPanel';
-import { HudRadarPanel } from './hud/panels/HudRadarPanel';
-import { HudRadioPanel } from './hud/panels/HudRadioPanel';
-import { HudReplayPanel } from './hud/panels/HudReplayPanel';
-import { HudSounderPanel } from './hud/panels/HudSounderPanel';
-import { HudSystemsPanel } from './hud/panels/HudSystemsPanel';
-import { HudVesselsPanel } from './hud/panels/HudVesselsPanel';
-import { HudWeatherPanel } from './hud/panels/HudWeatherPanel';
-import { HudPhysicsInspectorPanel } from './hud/PhysicsInspectorPanel';
-import {
-  projectVesselsFromOwnShip,
-  resolveActiveSpaceId,
-  selectInSpaceVessels,
-} from '../features/sim/selectors/vesselSelectors';
+import { socketManager } from '../networking/socket';
+import { getSimulationLoop } from '../simulation';
 import {
   COMPASS_ZERO_OFFSET_DEG,
   CONTROL_SEND_MIN_INTERVAL_MS,
@@ -108,12 +75,47 @@ import {
   formatKnotsValue,
   toDegrees,
 } from './hud/format';
-import type { EconomyPort, HudTab } from './hud/types';
-import type { HudControlUpdate } from '../features/sim/hooks/useHudControlsSync';
+import { hudStyles as styles } from './hud/hudStyles';
+import { HudAdminPanel } from './hud/panels/HudAdminPanel';
+import { HudAlarmsPanel } from './hud/panels/HudAlarmsPanel';
+import { HudChatPanel } from './hud/panels/HudChatPanel';
+import { HudConningPanel } from './hud/panels/HudConningPanel';
+import { HudCrewPanel } from './hud/panels/HudCrewPanel';
+import { HudEcdisPanel } from './hud/panels/HudEcdisPanel';
+import { HudEventsPanel } from './hud/panels/HudEventsPanel';
+import { HudMissionsPanel } from './hud/panels/HudMissionsPanel';
+import { HudNavControls } from './hud/panels/HudNavControls';
+import { HudNavigationPanel } from './hud/panels/HudNavigationPanel';
+import { HudRadarPanel } from './hud/panels/HudRadarPanel';
+import { HudRadioPanel } from './hud/panels/HudRadioPanel';
+import { HudReplayPanel } from './hud/panels/HudReplayPanel';
+import { HudSounderPanel } from './hud/panels/HudSounderPanel';
+import { HudSystemsPanel } from './hud/panels/HudSystemsPanel';
+import { HudVesselsPanel } from './hud/panels/HudVesselsPanel';
+import { HudWeatherPanel } from './hud/panels/HudWeatherPanel';
+import { HudPhysicsInspectorPanel } from './hud/PhysicsInspectorPanel';
 import { useHudControlsSync } from '../features/sim/hooks/useHudControlsSync';
 import { useHudFleetData } from '../features/sim/hooks/useHudFleetData';
 import { useHudMissionData } from '../features/sim/hooks/useHudMissionData';
 import { useHudStoreSnapshot } from '../features/sim/hooks/useHudStoreSnapshot';
+import {
+  projectVesselsFromOwnShip,
+  resolveActiveSpaceId,
+  selectInSpaceVessels,
+} from '../features/sim/selectors/vesselSelectors';
+
+import type { EconomyPort, HudTab } from './hud/types';
+import type {
+  AISTarget,
+  ARPASettings,
+  ARPATarget,
+  EBL,
+  GuardZone,
+  RadarSettings,
+  RadarTarget,
+  VRM,
+} from './radar';
+import type { HudControlUpdate } from '../features/sim/hooks/useHudControlsSync';
 
 export interface HudDrawerProps {
   onOpenSpaces?: () => void;

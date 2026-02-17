@@ -1,37 +1,39 @@
 'use client';
 
-import React from 'react';
-import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import { Canvas } from '@react-three/fiber';
+import React from 'react';
 import * as THREE from 'three';
-import useStore from '../store';
-import Ship from './Ship';
-import { socketManager } from '../networking/socket';
-import { deriveWaveState } from '../lib/waves';
-import { OceanPatch } from './OceanPatch';
-import { FarWater } from './FarWater';
-import SeamarkSprites from './SeamarkSprites';
-import { LandTiles } from './LandTiles';
+
 import CameraHeadingIndicator from './CameraHeadingIndicator';
-import { WaveClock } from './scene/WaveClock';
-import { SpectatorController } from './scene/SpectatorController';
+import { FarWater } from './FarWater';
+import { LandTiles } from './LandTiles';
+import { OceanPatch } from './OceanPatch';
+import useStore from '../store';
+import { AdminDragLayer } from './scene/AdminDragLayer';
+import { AdminVesselOverlay } from './scene/AdminVesselOverlay';
+import { CameraHeadingTracker } from './scene/CameraHeadingTracker';
+import { GeoDebugMarkers } from './scene/GeoDebugMarkers';
 import {
   LightingController,
   useLightingConfig,
 } from './scene/LightingController';
+import { SpectatorController } from './scene/SpectatorController';
+import SeamarkSprites from './SeamarkSprites';
+import { deriveWaveState } from '../lib/waves';
+import { socketManager } from '../networking/socket';
 import { RendererPerfMonitor } from './scene/RendererPerfMonitor';
 import { ReplayGhost } from './scene/ReplayGhost';
-import { AdminDragLayer } from './scene/AdminDragLayer';
 import { Seamarks } from './scene/Seamarks';
-import { CameraHeadingTracker } from './scene/CameraHeadingTracker';
-import { GeoDebugMarkers } from './scene/GeoDebugMarkers';
-import { AdminVesselOverlay } from './scene/AdminVesselOverlay';
+import { WaveClock } from './scene/WaveClock';
+import Ship from './Ship';
 import {
   deriveSceneDragTargets,
   selectInSpaceVessels,
   selectSceneVesselSnapshot,
 } from '../features/sim/selectors/vesselSelectors';
+
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 interface SceneProps {
   vesselPosition: {

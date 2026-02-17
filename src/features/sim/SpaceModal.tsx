@@ -1,7 +1,9 @@
 import React from 'react';
+
 import { simStyles as styles } from './simStyles';
-import type { Rules } from '../../types/rules.types';
+
 import type { SpaceFlow, SpaceSummary } from './types';
+import type { Rules } from '../../types/rules.types';
 
 const SPACE_RULE_DEFAULT = 'CASUAL';
 

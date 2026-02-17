@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { applyEconomyAdjustment, getEconomyProfile } from '../economy';
+
 import type { SocketHandlerContext } from './context';
 
 export function registerEconomyHandlers({

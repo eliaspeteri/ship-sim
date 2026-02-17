@@ -1,8 +1,11 @@
-import React from 'react';
 import { render, waitFor } from '@testing-library/react';
-import type { MutableRefObject } from 'react';
+import React from 'react';
 
 import { LandTiles } from '../../../src/components/LandTiles';
+import { xyToLatLon } from '../../../src/lib/geo';
+import { fetchLandTileMesh } from '../../../src/lib/tiles/mvtLandMesh';
+
+import type { MutableRefObject } from 'react';
 
 jest.mock('@react-three/fiber', () => ({
   useThree: () => ({
@@ -19,9 +22,6 @@ jest.mock('../../../src/lib/tiles/mvtLandMesh', () => ({
 jest.mock('../../../src/lib/geo', () => ({
   xyToLatLon: jest.fn(),
 }));
-
-import { fetchLandTileMesh } from '../../../src/lib/tiles/mvtLandMesh';
-import { xyToLatLon } from '../../../src/lib/geo';
 
 describe('LandTiles', () => {
   beforeEach(() => {

@@ -1,7 +1,9 @@
 import React from 'react';
+
+import { spacesUi as ui } from '../spacesUi';
+
 import type { Rules } from '../../../types/rules.types';
 import type { ManagedSpace, SpaceDraft, SpaceVisibility } from '../types';
-import { spacesUi as ui } from '../spacesUi';
 
 type SpaceCardProps = {
   space: ManagedSpace;

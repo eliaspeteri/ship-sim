@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import type { Dispatch } from 'react';
+
 import type { MarineRadioAction, MarineRadioState } from './marineRadioState';
+import type { Dispatch } from 'react';
 
 type MarineRadioEffectsConfig = {
   state: MarineRadioState;

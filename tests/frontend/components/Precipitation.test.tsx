@@ -1,5 +1,6 @@
-import React from 'react';
 import { render } from '@testing-library/react';
+import React from 'react';
+
 import Precipitation from '../../../src/components/Precipitation';
 
 jest.mock('@react-three/fiber', () => ({

@@ -1,4 +1,5 @@
 import { defaultMachinerySystemStatus } from '../defaults';
+
 import type { SimulationState, StoreGet, StoreSet } from '../types';
 
 type MachinerySlice = Pick<

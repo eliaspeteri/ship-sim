@@ -1,6 +1,5 @@
 import React from 'react';
-import type { Session } from 'next-auth';
-import type { NextRouter } from 'next/router';
+
 import { socketManager } from '../../../networking/socket';
 import { initializeSimulation, startSimulation } from '../../../simulation';
 import useStore from '../../../store';
@@ -9,6 +8,9 @@ import {
   STORAGE_ACTIVE_VESSEL_KEY,
   STORAGE_JOIN_CHOICE_KEY,
 } from '../constants';
+
+import type { NextRouter } from 'next/router';
+import type { Session } from 'next-auth';
 
 type SimMode = 'player' | 'spectator';
 type SimNotice = { type: 'info' | 'error'; message: string } | null;

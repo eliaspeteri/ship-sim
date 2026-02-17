@@ -1,8 +1,10 @@
-import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import useStore from '../../../src/store';
+import React from 'react';
+
 import { WeatherVisualizer } from '../../../src/components/WeatherVisualizer';
 import { loadWasm } from '../../../src/lib/wasmLoader';
+import useStore from '../../../src/store';
+
 import type { WasmBridge } from '../../../src/lib/wasmBridge';
 
 jest.mock('../../../src/lib/wasmLoader', () => ({

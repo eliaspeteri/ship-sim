@@ -1,5 +1,5 @@
-import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import React from 'react';
 
 import AccountSection from '../../../../../src/features/profile/components/AccountSection';
 import PreferencesSection from '../../../../../src/features/profile/components/PreferencesSection';

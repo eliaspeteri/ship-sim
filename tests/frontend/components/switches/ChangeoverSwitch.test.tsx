@@ -1,5 +1,6 @@
-import React from 'react';
 import { fireEvent, render } from '@testing-library/react';
+import React from 'react';
+
 import { ChangeoverSwitch } from '../../../../src/components/switches/ChangeoverSwitch';
 import { useLeverDrag } from '../../../../src/hooks/useLeverDrag';
 

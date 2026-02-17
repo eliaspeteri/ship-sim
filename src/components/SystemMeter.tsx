@@ -1,6 +1,6 @@
-import { hudStyles as styles } from './hud/hudStyles';
 import { METER_DANGER_THRESHOLD, METER_WARN_THRESHOLD } from './hud/constants';
 import { clamp01 } from './hud/format';
+import { hudStyles as styles } from './hud/hudStyles';
 
 export const SystemMeter = ({
   label,

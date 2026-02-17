@@ -1,5 +1,5 @@
-import { registerClientLogHandler } from '../../../../src/server/socketHandlers/clientLog';
 import { recordLog } from '../../../../src/server/observability';
+import { registerClientLogHandler } from '../../../../src/server/socketHandlers/clientLog';
 
 jest.mock('../../../../src/server/observability', () => ({
   recordLog: jest.fn(),

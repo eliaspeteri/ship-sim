@@ -1,6 +1,6 @@
 import React from 'react';
+
 import { SystemMeter } from '../../SystemMeter';
-import { hudStyles as styles } from '../hudStyles';
 import {
   BALLAST_SLIDER_STEP,
   BEAM_DECIMALS,
@@ -21,6 +21,8 @@ import {
   TEMPERATURE_DECIMALS,
   VOLTAGE_DECIMALS,
 } from '../constants';
+import { hudStyles as styles } from '../hudStyles';
+
 import type { DamageState } from '../../../lib/damage';
 import type { VesselState } from '../../../types/vessel.types';
 

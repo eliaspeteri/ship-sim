@@ -1,5 +1,6 @@
-import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
+import React from 'react';
+
 import RadarControls from '../../../../src/components/radar/RadarControls';
 import {
   RadarSettings,

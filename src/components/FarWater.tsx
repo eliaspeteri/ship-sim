@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
+import React, { useRef } from 'react';
 import * as THREE from 'three';
 
 const DEEP_COLOR = new THREE.Color(0x0b2b3d);

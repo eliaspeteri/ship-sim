@@ -1,5 +1,6 @@
-import React from 'react';
 import { useFrame } from '@react-three/fiber';
+import React from 'react';
+
 import { socketManager } from '../../networking/socket';
 
 export function RendererPerfMonitor({ enabled }: { enabled: boolean }) {

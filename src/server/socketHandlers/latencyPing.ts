@@ -1,4 +1,5 @@
 import { recordMetric } from '../metrics';
+
 import type { SocketHandlerContext } from './context';
 
 export function registerLatencyPingHandler({ socket }: SocketHandlerContext) {

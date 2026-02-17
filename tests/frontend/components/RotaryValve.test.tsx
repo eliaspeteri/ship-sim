@@ -1,5 +1,6 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react';
+import React from 'react';
+
 import { RotaryValve } from '../../../src/components/RotaryValve';
 import { useLeverDrag } from '../../../src/hooks/useLeverDrag';
 

@@ -11,8 +11,9 @@ jest.mock('../../../../../../src/server/editorPacksStore', () => ({
   createPack: (...args: unknown[]) => mockCreatePack(...args),
 }));
 
-import type { NextApiRequest, NextApiResponse } from 'next';
 import handler from '../../../../../../src/pages/api/editor/packs/index';
+
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 const makeRes = () => {
   const json = jest.fn();

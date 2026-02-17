@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   render,
   screen,
@@ -6,6 +5,8 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import React from 'react';
+
 import RadarDisplay from '../../../../src/components/radar/RadarDisplay';
 import { RadarTarget } from '../../../../src/components/radar/types';
 

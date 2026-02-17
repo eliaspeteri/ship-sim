@@ -1,8 +1,9 @@
-import React, { useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
+import React, { useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import useStore from '../store';
+
 import { latLonToXY } from '../lib/geo';
+import useStore from '../store';
 
 /**
  * Efficient seamark beacon visualization using a single GPU Points draw call.

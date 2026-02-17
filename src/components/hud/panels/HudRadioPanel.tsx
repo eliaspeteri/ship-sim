@@ -1,7 +1,8 @@
 import React from 'react';
+
 import { MarineRadio } from '../../radio';
-import { hudStyles as styles } from '../hudStyles';
 import { RADIO_DISPLAY_HEIGHT_PX, RADIO_DISPLAY_WIDTH_PX } from '../constants';
+import { hudStyles as styles } from '../hudStyles';
 
 export function HudRadioPanel() {
   return (

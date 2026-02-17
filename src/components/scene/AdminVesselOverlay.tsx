@@ -1,12 +1,13 @@
 import React from 'react';
-import VesselCallout from '../VesselCallout';
-import { socketManager } from '../../networking/socket';
+
 import {
   courseFromWorldVelocity,
   ensurePosition,
   speedFromWorldVelocity,
   worldVelocityFromBody,
 } from '../../lib/position';
+import { socketManager } from '../../networking/socket';
+import VesselCallout from '../VesselCallout';
 
 type SelectedSnapshot = {
   mode?: string;

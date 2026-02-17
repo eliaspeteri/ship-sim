@@ -1,10 +1,12 @@
+import { applyFailureControlLimits } from '../../lib/failureControls';
 import { getSimulationLoop } from '../../simulation/simulationLoop';
+import { defaultVesselState, hydrodynamicsForType } from '../defaults';
+import { isValidVesselState, mergeVesselUpdate } from './vesselMerge';
+
 import type { DeepPartial } from '../../types/utility';
 import type { ShipType, VesselState } from '../../types/vessel.types';
-import { applyFailureControlLimits } from '../../lib/failureControls';
-import { defaultVesselState, hydrodynamicsForType } from '../defaults';
 import type { SimulationState, StoreGet, StoreSet } from '../types';
-import { isValidVesselState, mergeVesselUpdate } from './vesselMerge';
+
 
 type VesselSlice = Pick<
   SimulationState,

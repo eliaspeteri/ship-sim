@@ -1,6 +1,6 @@
+import { useFrame } from '@react-three/fiber';
 import React, { useRef, useMemo, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
 
 // Define types for precipitation effects
 interface PrecipitationProps {

@@ -1,4 +1,5 @@
 import type { EnvironmentState } from './environment.types';
+import type { MissionAssignmentData } from './mission.types';
 import type {
   SimpleVesselState,
   VesselControls,
@@ -9,7 +10,6 @@ import type {
 import type { AuthenticatedUser } from '../server/middleware/authentication';
 import type { Role } from '../server/roles';
 import type * as GeoJSON from 'geojson';
-import type { MissionAssignmentData } from './mission.types';
 
 type ControlUpdate = Partial<Pick<VesselControls, 'throttle' | 'rudderAngle'>>;
 

@@ -1,4 +1,5 @@
 import React from 'react';
+
 import type { EditorWorkArea } from '../types';
 
 type EditorWorkAreaEditorProps = {

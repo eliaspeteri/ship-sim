@@ -1,5 +1,5 @@
-import { registerVesselStorageHandler } from '../../../../src/server/socketHandlers/vesselStorage';
 import { resolvePortForPosition } from '../../../../src/server/economy';
+import { registerVesselStorageHandler } from '../../../../src/server/socketHandlers/vesselStorage';
 
 jest.mock('../../../../src/server/economy', () => ({
   resolvePortForPosition: jest.fn(),

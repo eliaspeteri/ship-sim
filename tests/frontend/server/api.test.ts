@@ -1,5 +1,8 @@
-import bcrypt from 'bcryptjs';
 import { EventEmitter } from 'events';
+
+import bcrypt from 'bcryptjs';
+
+const router = require('../../../src/server/api').default;
 const { prismaMock } = require('../lib/prismaMock');
 
 type MockedAsync = jest.Mock<Promise<unknown>, [unknown?]>;
@@ -194,8 +197,6 @@ jest.mock('../../../src/server/vesselCatalog', () => ({
     physics: {},
   })),
 }));
-
-import router from '../../../src/server/api';
 
 const resetPrismaMocks = () => {
   Object.values(prismaMock).forEach(entry => {

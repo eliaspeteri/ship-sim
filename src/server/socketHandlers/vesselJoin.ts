@@ -1,12 +1,13 @@
-import { prisma } from '../../lib/prisma';
 import { distanceMeters } from '../../lib/position';
+import { prisma } from '../../lib/prisma';
+import { RulesetType } from '../../types/rules.types';
 import {
   applyEconomyAdjustment,
   calculateVesselCreationCost,
   getEconomyProfile,
   resolvePortForPosition,
 } from '../economy';
-import { RulesetType } from '../../types/rules.types';
+
 import type { SocketHandlerContext } from './context';
 
 const SWITCH_NEARBY_METERS = 1500;
@@ -122,9 +123,9 @@ export function registerVesselJoinHandler({
     const switchRestricted =
       rulesType === RulesetType.REALISM || rulesType === RulesetType.EXAM;
     if (isSwitching && switchRestricted && !hasAdminRole(socket)) {
-      const currentPort = resolvePortForPosition(currentVessel!.position);
+      const currentPort = resolvePortForPosition(currentVessel.position);
       const targetPort = resolvePortForPosition(target.position);
-      const distance = distanceMeters(currentVessel!.position, target.position);
+      const distance = distanceMeters(currentVessel.position, target.position);
       if (!currentPort && !targetPort && distance > SWITCH_NEARBY_METERS) {
         socket.emit(
           'error',

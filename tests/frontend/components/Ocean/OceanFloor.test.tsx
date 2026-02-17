@@ -1,6 +1,6 @@
-import React from 'react';
-import { render } from '@testing-library/react';
 import { useFrame } from '@react-three/fiber';
+import { render } from '@testing-library/react';
+import React from 'react';
 
 type MockTextureShape = {
   wrapS: unknown;
