@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import http from 'http';
 import { URL } from 'url';
+import type { Prisma } from '@prisma/client';
 import { Server, type Socket } from 'socket.io';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -102,25 +103,31 @@ import type { SocketHandlerContext } from '../socketHandlers/context';
 
 // Environment settings
 const PRODUCTION = process.env.NODE_ENV === 'production';
-const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || '';
-const ADMIN_USERS = (process.env.ADMIN_USERS || '')
+const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET ?? '';
+const ADMIN_USERS = (process.env.ADMIN_USERS ?? '')
   .split(',')
   .map(s => s.trim())
-  .filter(Boolean);
-const MAX_CREW = parseInt(process.env.MAX_CREW || '4', 10) || 4;
+  .filter(s => s.length > 0);
+const parsedMaxCrew = parseInt(process.env.MAX_CREW ?? '4', 10);
+const MAX_CREW =
+  Number.isFinite(parsedMaxCrew) && parsedMaxCrew > 0 ? parsedMaxCrew : 4;
 const PERF_LOGGING_ENABLED = process.env.PERF_LOGGING === 'true' || !PRODUCTION;
 const API_SLOW_WARN_MS = 200;
 const BROADCAST_DRIFT_WARN_FACTOR = 1.5;
 const MIN_PERSIST_INTERVAL_MS = 1000; // Throttle DB writes per vessel
 const ENV_PERSIST_INTERVAL_MS = 30000;
-const AI_GRACE_MS = parseInt(process.env.AI_GRACE_MS || '30000', 10) || 30000; // default 30s
+const parsedAiGraceMs = parseInt(process.env.AI_GRACE_MS ?? '30000', 10);
+const AI_GRACE_MS =
+  Number.isFinite(parsedAiGraceMs) && parsedAiGraceMs > 0
+    ? parsedAiGraceMs
+    : 30000; // default 30s
 const CHAT_HISTORY_PAGE_SIZE = 20;
 const GLOBAL_SPACE_ID = 'global';
-const DEFAULT_SPACE_ID = process.env.DEFAULT_SPACE_ID || GLOBAL_SPACE_ID;
+const DEFAULT_SPACE_ID = process.env.DEFAULT_SPACE_ID ?? GLOBAL_SPACE_ID;
 
 const parseAllowedOrigins = ({
   production,
-  rawOrigins = process.env.FRONTEND_ORIGINS || process.env.FRONTEND_URL || '',
+  rawOrigins = process.env.FRONTEND_ORIGINS ?? process.env.FRONTEND_URL ?? '',
 }: {
   production: boolean;
   rawOrigins?: string;
@@ -129,9 +136,9 @@ const parseAllowedOrigins = ({
   const configuredOrigins = raw
     .split(',')
     .map(origin => origin.trim())
-    .filter(Boolean);
+    .filter(origin => origin.length > 0);
 
-  if (!configuredOrigins.length) {
+  if (configuredOrigins.length === 0) {
     if (production) {
       throw new Error(
         'Missing FRONTEND_ORIGINS/FRONTEND_URL in production. Refusing permissive CORS fallback.',
@@ -264,11 +271,11 @@ const toSpaceMeta = (space: {
   id: space.id,
   name: space.name,
   visibility: space.visibility,
-  kind: space.kind || 'free',
+  kind: space.kind ?? 'free',
   rankRequired: space.rankRequired ?? 1,
   rulesetType: space.rulesetType ?? null,
   rules: space.rules ?? null,
-  createdBy: space.createdBy || null,
+  createdBy: space.createdBy ?? null,
 });
 
 const getSpaceMeta = async (spaceId: string): Promise<SpaceMeta> => {
@@ -304,9 +311,10 @@ const refreshSpaceMeta = async (spaceId: string) => {
 };
 
 const getSpaceRole = async (userId: string | undefined, spaceId: string) => {
-  if (!userId) return 'member' as const;
+  if (!isNonEmptyString(userId)) return 'member' as const;
   const meta = await getSpaceMeta(spaceId);
-  if (meta.createdBy && meta.createdBy === userId) return 'host' as const;
+  if (isNonEmptyString(meta.createdBy) && meta.createdBy === userId)
+    return 'host' as const;
   try {
     const access = await prisma.spaceAccess.findUnique({
       where: { userId_spaceId: { userId, spaceId } },
@@ -319,8 +327,12 @@ const getSpaceRole = async (userId: string | undefined, spaceId: string) => {
   return 'member' as const;
 };
 
-const resolveChargeUserId = (vessel: VesselRecord) =>
-  vessel.chartererId || vessel.leaseeId || vessel.ownerId || undefined;
+const resolveChargeUserId = (vessel: VesselRecord) => {
+  if (isNonEmptyString(vessel.chartererId)) return vessel.chartererId;
+  if (isNonEmptyString(vessel.leaseeId)) return vessel.leaseeId;
+  if (isNonEmptyString(vessel.ownerId)) return vessel.ownerId;
+  return undefined;
+};
 
 export const syncUserSocketsEconomy = async (
   userId: string,
@@ -345,7 +357,7 @@ export const syncUserSocketsEconomy = async (
 };
 
 const canTriggerCooldown = (key: string, now: number, cooldown: number) => {
-  const last = colregsCooldown.get(key) || 0;
+  const last = colregsCooldown.get(key) ?? 0;
   if (now - last < cooldown) return false;
   colregsCooldown.set(key, now);
   return true;
@@ -360,7 +372,8 @@ const applyColregsPenalty = async (params: {
   otherVesselId: string;
   distance: number;
 }) => {
-  if (!params.chargeUserId) return;
+  if (params.chargeUserId === undefined || params.chargeUserId.length === 0)
+    return;
   const profile = await applyEconomyAdjustment({
     userId: params.chargeUserId,
     vesselId: params.vesselId,
@@ -406,24 +419,24 @@ const applyColregsRules = async (spaceId: string, now: number) => {
     | undefined;
   const realismRules = getRulesForSpace(spaceId);
   const damageEnabled = realismRules.realism.damage === true;
-  if (!rules?.colregs) return;
+  if (rules?.colregs !== true) return;
   const vessels = Array.from(globalState.vessels.values()).filter(
-    v => (v.spaceId || DEFAULT_SPACE_ID) === spaceId && v.mode === 'player',
+    v => (v.spaceId ?? DEFAULT_SPACE_ID) === spaceId && v.mode === 'player',
   );
   if (vessels.length < 1) return;
 
   for (const vessel of vessels) {
-    if (!rules.maxSpeed) continue;
+    if (rules.maxSpeed === undefined || Number.isNaN(rules.maxSpeed)) continue;
     const speedMs = Math.sqrt(
       vessel.velocity.surge ** 2 + vessel.velocity.sway ** 2,
     );
     const speedKnots = speedMs * 1.94384;
     if (speedKnots <= rules.maxSpeed) continue;
     const chargeUserId = resolveChargeUserId(vessel);
-    if (!chargeUserId) continue;
+    if (chargeUserId === undefined || chargeUserId.length === 0) continue;
     const key = `speed:${spaceId}:${vessel.id}`;
     if (!canTriggerCooldown(key, now, SPEED_VIOLATION_COOLDOWN_MS)) continue;
-    const penalty = rules.nearMissPenalty || 100;
+    const penalty = rules.nearMissPenalty ?? 100;
     const profile = await applyEconomyAdjustment({
       userId: chargeUserId,
       vesselId: vessel.id,
@@ -456,7 +469,7 @@ const applyColregsRules = async (spaceId: string, now: number) => {
         continue;
       }
       if (dist <= COLLISION_DISTANCE_M) {
-        const penalty = rules.collisionPenalty || 500;
+        const penalty = rules.collisionPenalty ?? 500;
         await applyColregsPenalty({
           chargeUserId: resolveChargeUserId(a),
           vesselId: a.id,
@@ -488,7 +501,7 @@ const applyColregsRules = async (spaceId: string, now: number) => {
       const cooldownKey = `nearmiss:${spaceId}:${pairKey}`;
       if (!canTriggerCooldown(cooldownKey, now, NEAR_MISS_COOLDOWN_MS))
         continue;
-      const penalty = rules.nearMissPenalty || 150;
+      const penalty = rules.nearMissPenalty ?? 150;
       await applyColregsPenalty({
         chargeUserId: resolveChargeUserId(a),
         vesselId: a.id,
@@ -518,30 +531,41 @@ const applyColregsRules = async (spaceId: string, now: number) => {
 };
 
 const userSpaceKey = (userId: string, spaceId: string) =>
-  `${spaceId || DEFAULT_SPACE_ID}:${userId}`;
+  `${spaceId}:${userId}`;
+
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === 'string' && value.length > 0;
 
 const normalizeVesselId = (id?: string | null): string | undefined =>
-  id || undefined;
+  isNonEmptyString(id) ? id : undefined;
 const vesselChannelId = (id?: string | null): string | undefined =>
-  id ? id.split('_')[0] || id : undefined;
+  isNonEmptyString(id) ? (id.split('_')[0] ?? id) : undefined;
 
 const getVesselIdForUser = (
   userId: string,
   spaceId: string,
 ): string | undefined => {
   const stored = globalState.userLastVessel.get(userSpaceKey(userId, spaceId));
-  return stored || userId || undefined;
+  if (stored !== undefined && stored.length > 0) return stored;
+  return userId.length > 0 ? userId : undefined;
 };
 
-const getSpaceIdForSocket = (socket: Socket): string =>
-  socket.data.spaceId || DEFAULT_SPACE_ID;
+const getSpaceIdForSocket = (socket: Socket): string => {
+  const data =
+    typeof socket.data === 'object' && socket.data !== null
+      ? (socket.data as Record<string, unknown>)
+      : {};
+  const socketSpaceId =
+    typeof data.spaceId === 'string' ? data.spaceId : undefined;
+  return socketSpaceId ?? DEFAULT_SPACE_ID;
+};
 
 export async function persistVesselToDb(
   vessel: VesselRecord,
   opts: { force?: boolean } = {},
 ) {
   const now = Date.now();
-  const lastPersist = vesselPersistAt.get(vessel.id) || 0;
+  const lastPersist = vesselPersistAt.get(vessel.id) ?? 0;
   if (!opts.force && now - lastPersist < MIN_PERSIST_INTERVAL_MS) return;
   vesselPersistAt.set(vessel.id, now);
 
@@ -550,11 +574,14 @@ export async function persistVesselToDb(
     await prisma.vessel.upsert({
       where: { id: vessel.id },
       update: {
-        spaceId: vessel.spaceId || DEFAULT_SPACE_ID,
+        spaceId: vessel.spaceId ?? DEFAULT_SPACE_ID,
         ownerId: vessel.ownerId ?? null,
-        status: vessel.status || 'active',
+        status: vessel.status ?? 'active',
         storagePortId: vessel.storagePortId ?? null,
-        storedAt: vessel.storedAt ? new Date(vessel.storedAt) : null,
+        storedAt:
+          vessel.storedAt !== undefined && vessel.storedAt !== null
+            ? new Date(vessel.storedAt)
+            : null,
         chartererId: vessel.chartererId ?? null,
         leaseeId: vessel.leaseeId ?? null,
         templateId: vessel.templateId ?? null,
@@ -580,7 +607,7 @@ export async function persistVesselToDb(
         draft: vessel.properties.draft,
         lastUpdate: new Date(vessel.lastUpdate),
         isAi: vessel.mode === 'ai',
-        lastCrewAt: new Date(vessel.lastCrewAt || vessel.lastUpdate),
+        lastCrewAt: new Date(vessel.lastCrewAt),
         hullIntegrity: vessel.damageState?.hullIntegrity ?? 1,
         engineHealth: vessel.damageState?.engineHealth ?? 1,
         steeringHealth: vessel.damageState?.steeringHealth ?? 1,
@@ -589,11 +616,14 @@ export async function persistVesselToDb(
       },
       create: {
         id: vessel.id,
-        spaceId: vessel.spaceId || DEFAULT_SPACE_ID,
+        spaceId: vessel.spaceId ?? DEFAULT_SPACE_ID,
         ownerId: vessel.ownerId ?? null,
-        status: vessel.status || 'active',
+        status: vessel.status ?? 'active',
         storagePortId: vessel.storagePortId ?? null,
-        storedAt: vessel.storedAt ? new Date(vessel.storedAt) : null,
+        storedAt:
+          vessel.storedAt !== undefined && vessel.storedAt !== null
+            ? new Date(vessel.storedAt)
+            : null,
         chartererId: vessel.chartererId ?? null,
         leaseeId: vessel.leaseeId ?? null,
         templateId: vessel.templateId ?? null,
@@ -619,7 +649,7 @@ export async function persistVesselToDb(
         draft: vessel.properties.draft,
         lastUpdate: new Date(vessel.lastUpdate),
         isAi: vessel.mode === 'ai',
-        lastCrewAt: new Date(vessel.lastCrewAt || vessel.lastUpdate),
+        lastCrewAt: new Date(vessel.lastCrewAt),
         hullIntegrity: vessel.damageState?.hullIntegrity ?? 1,
         engineHealth: vessel.damageState?.engineHealth ?? 1,
         steeringHealth: vessel.damageState?.steeringHealth ?? 1,
@@ -673,11 +703,14 @@ const buildVesselRecordFromRow = (row: {
   const template = resolveVesselTemplate(row.templateId ?? null);
   return {
     id: row.id,
-    spaceId: row.spaceId || DEFAULT_SPACE_ID,
+    spaceId: row.spaceId ?? DEFAULT_SPACE_ID,
     ownerId: row.ownerId ?? null,
-    status: row.status || 'active',
+    status: row.status ?? 'active',
     storagePortId: row.storagePortId ?? null,
-    storedAt: row.storedAt ? row.storedAt.getTime() : null,
+    storedAt:
+      row.storedAt !== null && row.storedAt !== undefined
+        ? row.storedAt.getTime()
+        : null,
     chartererId: row.chartererId ?? null,
     leaseeId: row.leaseeId ?? null,
     crewIds: new Set<string>(),
@@ -690,7 +723,7 @@ const buildVesselRecordFromRow = (row: {
     radioUsername: null,
     mode: row.mode as VesselMode,
     desiredMode: row.desiredMode as VesselMode,
-    lastCrewAt: row.lastCrewAt?.getTime() || Date.now(),
+    lastCrewAt: row.lastCrewAt?.getTime() ?? Date.now(),
     templateId: template.id,
     position: positionFromLatLon({ lat: row.lat, lon: row.lon, z: row.z }),
     orientation: {
@@ -745,7 +778,7 @@ const buildVesselRecordFromRow = (row: {
 
 async function loadVesselsFromDb() {
   const rows = await prisma.vessel.findMany();
-  if (!rows.length) return;
+  if (rows.length === 0) return;
 
   rows.forEach((row: Parameters<typeof buildVesselRecordFromRow>[0]) => {
     const vessel = buildVesselRecordFromRow(row);
@@ -753,9 +786,9 @@ async function loadVesselsFromDb() {
       vessel.mode = 'ai';
     }
     globalState.vessels.set(vessel.id, vessel);
-    if (row.ownerId) {
+    if (isNonEmptyString(row.ownerId)) {
       globalState.userLastVessel.set(
-        userSpaceKey(row.ownerId, vessel.spaceId || DEFAULT_SPACE_ID),
+        userSpaceKey(row.ownerId, vessel.spaceId ?? DEFAULT_SPACE_ID),
         vessel.id,
       );
     }
@@ -795,13 +828,14 @@ async function loadEnvironmentFromDb(spaceId = DEFAULT_SPACE_ID) {
       visibility: row.visibility ?? undefined,
       timeOfDay: row.timeOfDay,
       precipitation:
-        (row.precipitation as EnvironmentState['precipitation']) || 'none',
+        (row.precipitation as EnvironmentState['precipitation'] | null) ??
+        'none',
       precipitationIntensity: row.precipitationIntensity ?? 0,
       tideHeight: 0,
       tideRange: 0,
       tidePhase: 0,
       tideTrend: 'rising',
-      name: row.name || spaceId,
+      name: row.name ?? spaceId,
     };
     const tide = computeTideState({ timestampMs: Date.now(), spaceId });
     env.tideHeight = tide.height;
@@ -824,8 +858,8 @@ async function persistEnvironmentToDb(
   opts: { force?: boolean; spaceId?: string } = {},
 ) {
   const now = Date.now();
-  const spaceId = opts.spaceId || DEFAULT_SPACE_ID;
-  const lastPersist = environmentPersistAt.get(spaceId) || 0;
+  const spaceId = opts.spaceId ?? DEFAULT_SPACE_ID;
+  const lastPersist = environmentPersistAt.get(spaceId) ?? 0;
   if (!opts.force && now - lastPersist < ENV_PERSIST_INTERVAL_MS) {
     return;
   }
@@ -836,7 +870,7 @@ async function persistEnvironmentToDb(
       where: { id: spaceId },
       update: {
         spaceId,
-        name: env.name || spaceId,
+        name: env.name ?? spaceId,
         windSpeed: env.wind.speed,
         windDirection: env.wind.direction,
         windGusting: env.wind.gusting,
@@ -848,13 +882,13 @@ async function persistEnvironmentToDb(
         waterDepth: env.waterDepth ?? null,
         visibility: env.visibility ?? null,
         timeOfDay: env.timeOfDay,
-        precipitation: env.precipitation || 'none',
+        precipitation: env.precipitation ?? 'none',
         precipitationIntensity: env.precipitationIntensity ?? 0,
       },
       create: {
         id: spaceId,
         spaceId,
-        name: env.name || spaceId,
+        name: env.name ?? spaceId,
         windSpeed: env.wind.speed,
         windDirection: env.wind.direction,
         windGusting: env.wind.gusting,
@@ -866,7 +900,7 @@ async function persistEnvironmentToDb(
         waterDepth: env.waterDepth ?? null,
         visibility: env.visibility ?? null,
         timeOfDay: env.timeOfDay,
-        precipitation: env.precipitation || 'none',
+        precipitation: env.precipitation ?? 'none',
         precipitationIntensity: env.precipitationIntensity ?? 0,
       },
     });
@@ -944,9 +978,7 @@ function createNewVesselForUser(
 
 function detachUserFromCurrentVessel(userId: string, spaceId: string): void {
   const vessel = Array.from(globalState.vessels.values()).find(
-    v =>
-      v.crewIds.has(userId) &&
-      (v.spaceId || DEFAULT_SPACE_ID) === (spaceId || DEFAULT_SPACE_ID),
+    v => v.crewIds.has(userId) && (v.spaceId ?? DEFAULT_SPACE_ID) === spaceId,
   );
   if (!vessel) return;
   vessel.crewIds.delete(userId);
@@ -976,15 +1008,15 @@ function assignStationsForCrew(
   userId: string,
   username: string,
 ) {
-  if (!vessel.helmUserId) {
+  if (!isNonEmptyString(vessel.helmUserId)) {
     vessel.helmUserId = userId;
     vessel.helmUsername = username;
   }
-  if (!vessel.engineUserId) {
+  if (!isNonEmptyString(vessel.engineUserId)) {
     vessel.engineUserId = userId;
     vessel.engineUsername = username;
   }
-  if (!vessel.radioUserId) {
+  if (!isNonEmptyString(vessel.radioUserId)) {
     vessel.radioUserId = userId;
     vessel.radioUsername = username;
   }
@@ -1013,10 +1045,14 @@ function updateStationAssignment(
   const currentName = vessel[keys.name];
 
   if (action === 'claim') {
-    if (currentId && currentId !== userId && !isAdminOverride) {
+    if (
+      isNonEmptyString(currentId) &&
+      currentId !== userId &&
+      !isAdminOverride
+    ) {
       return {
         ok: false,
-        message: `${station} station held by ${currentName || currentId}`,
+        message: `${station} station held by ${currentName ?? currentId}`,
       };
     }
     vessel[keys.id] = userId;
@@ -1024,7 +1060,7 @@ function updateStationAssignment(
     return { ok: true };
   }
 
-  if (currentId && currentId !== userId && !isAdminOverride) {
+  if (isNonEmptyString(currentId) && currentId !== userId && !isAdminOverride) {
     return { ok: false, message: `You do not hold the ${station} station` };
   }
   vessel[keys.id] = null;
@@ -1117,10 +1153,11 @@ export const getEnvironmentForSpace = (spaceId: string): EnvironmentState => {
 
 export const getRulesForSpace = (spaceId: string): Rules => {
   const meta = spaceMetaCache.get(spaceId);
-  if (meta?.rulesetType) {
+  if (isNonEmptyString(meta?.rulesetType)) {
     return getDefaultRules(mapToRulesetType(meta.rulesetType));
   }
-  if (meta?.rules) return meta.rules as Rules;
+  if (meta?.rules !== null && meta?.rules !== undefined)
+    return meta.rules as Rules;
   return getDefaultRules(mapToRulesetType('CASUAL'));
 };
 
@@ -1149,7 +1186,7 @@ function stepAIVessel(v: VesselRecord, dt: number) {
   v.controls.throttle = 0;
   v.controls.rudderAngle = 0;
   v.yawRate = 0;
-  v.orientation.heading = clampHeading(v.orientation.heading || 0);
+  v.orientation.heading = clampHeading(v.orientation.heading);
   v.orientation.roll = 0;
   v.orientation.pitch = 0;
 
@@ -1175,12 +1212,29 @@ function stepAIVessel(v: VesselRecord, dt: number) {
 const AI_STOP_DAMPING = 0.6;
 const AI_STOP_EPS = 0.01;
 
-const hasAdminRole = (socket: Socket) =>
-  (socket.data.roles || []).includes('admin') ||
-  (socket.data.permissions || []).some(
-    (p: { resource: string; action: string }) =>
-      p.resource === '*' || p.action === '*',
-  );
+const hasAdminRole = (socket: Socket) => {
+  const data =
+    typeof socket.data === 'object' && socket.data !== null
+      ? (socket.data as Record<string, unknown>)
+      : {};
+  const roles = Array.isArray(data.roles) ? data.roles : [];
+  const permissions = Array.isArray(data.permissions) ? data.permissions : [];
+  const hasAdmin =
+    roles.some(role => typeof role === 'string' && role === 'admin') === true;
+  const hasWildcardPermission =
+    permissions.some(
+      permission =>
+        typeof permission === 'object' &&
+        permission !== null &&
+        ((((permission as Record<string, unknown>).resource as
+          | string
+          | undefined) ?? '') === '*' ||
+          (((permission as Record<string, unknown>).action as
+            | string
+            | undefined) ?? '') === '*'),
+    ) === true;
+  return hasAdmin || hasWildcardPermission;
+};
 
 function takeOverAvailableAIVessel(
   userId: string,
@@ -1193,7 +1247,7 @@ function takeOverAvailableAIVessel(
       v.status !== 'stored' &&
       v.status !== 'repossession' &&
       v.crewIds.size === 0 &&
-      (v.spaceId || DEFAULT_SPACE_ID) === spaceId,
+      (v.spaceId ?? DEFAULT_SPACE_ID) === spaceId,
   );
   if (!aiVessel) return null;
   console.info(
@@ -1223,7 +1277,7 @@ function findJoinableVessel(
   const joinable = Array.from(globalState.vessels.values())
     .filter(
       v =>
-        (v.spaceId || DEFAULT_SPACE_ID) === spaceId &&
+        (v.spaceId ?? DEFAULT_SPACE_ID) === spaceId &&
         v.mode === 'player' &&
         v.status !== 'stored' &&
         v.status !== 'repossession' &&
@@ -1234,7 +1288,7 @@ function findJoinableVessel(
         !v.crewIds.has(userId),
     )
     .sort((a, b) => a.crewIds.size - b.crewIds.size);
-  return joinable[0] || null;
+  return joinable[0] ?? null;
 }
 
 function ensureVesselForUser(
@@ -1244,9 +1298,9 @@ function ensureVesselForUser(
 ): VesselRecord | undefined {
   // Prefer last vessel if still present
   const lastId = globalState.userLastVessel.get(userSpaceKey(userId, spaceId));
-  if (lastId) {
+  if (lastId !== undefined && lastId.length > 0) {
     const lastVessel = globalState.vessels.get(lastId);
-    if (lastVessel && (lastVessel.spaceId || DEFAULT_SPACE_ID) === spaceId) {
+    if (lastVessel && (lastVessel.spaceId ?? DEFAULT_SPACE_ID) === spaceId) {
       if (
         lastVessel.status === 'stored' ||
         lastVessel.status === 'repossession' ||
@@ -1278,7 +1332,7 @@ function ensureVesselForUser(
 
   // Otherwise find any vessel where user is crew
   const existing = Array.from(globalState.vessels.values()).find(
-    v => v.crewIds.has(userId) && (v.spaceId || DEFAULT_SPACE_ID) === spaceId,
+    v => v.crewIds.has(userId) && (v.spaceId ?? DEFAULT_SPACE_ID) === spaceId,
   );
   if (existing) {
     console.info(
@@ -1317,7 +1371,7 @@ function ensureVesselForUser(
       (v.ownerId === userId ||
         v.leaseeId === userId ||
         v.chartererId === userId) &&
-      (v.spaceId || DEFAULT_SPACE_ID) === spaceId,
+      (v.spaceId ?? DEFAULT_SPACE_ID) === spaceId,
   );
   if (owned) {
     console.info(
@@ -1334,7 +1388,7 @@ function ensureVesselForUser(
   }
 
   const aiTaken = takeOverAvailableAIVessel(userId, username, spaceId);
-  if (aiTaken) return aiTaken;
+  if (aiTaken !== null) return aiTaken;
 
   return undefined;
 }
@@ -1347,8 +1401,12 @@ const resolveChatChannel = (
   vesselId: string | undefined,
   spaceId: string,
 ): string => {
-  const space = spaceId || DEFAULT_SPACE_ID;
-  if (requestedChannel && requestedChannel.startsWith('space:')) {
+  const space = spaceId;
+  if (
+    requestedChannel !== undefined &&
+    requestedChannel.length > 0 &&
+    requestedChannel.startsWith('space:')
+  ) {
     const parts = requestedChannel.split(':');
     if (parts[1] !== space) {
       return `space:${space}:global`;
@@ -1356,20 +1414,25 @@ const resolveChatChannel = (
     return requestedChannel;
   }
   const normalizedVesselId = vesselChannelId(vesselId);
-  const vesselChannel = normalizedVesselId
-    ? `space:${space}:vessel:${normalizedVesselId}`
-    : null;
-  if (requestedChannel && requestedChannel.startsWith('vessel:')) {
-    return vesselChannel || `space:${space}:global`;
+  const vesselChannel =
+    normalizedVesselId !== undefined
+      ? `space:${space}:vessel:${normalizedVesselId}`
+      : null;
+  if (
+    requestedChannel !== undefined &&
+    requestedChannel.length > 0 &&
+    requestedChannel.startsWith('vessel:')
+  ) {
+    return vesselChannel ?? `space:${space}:global`;
   }
-  if (requestedChannel === 'global') {
+  if (requestedChannel === 'global' && requestedChannel.length > 0) {
     return `space:${space}:global`;
   }
-  return vesselChannel || `space:${space}:global`;
+  return vesselChannel ?? `space:${space}:global`;
 };
 
 async function isSpaceHost(userId: string | undefined, spaceId: string) {
-  if (!userId) return false;
+  if (userId === undefined || userId.length === 0) return false;
   return (await getSpaceRole(userId, spaceId)) === 'host';
 }
 
@@ -1378,17 +1441,21 @@ async function getActiveBan(
   username: string | undefined,
   spaceId: string,
 ) {
-  if (!userId && !username) return null;
+  if (
+    (userId === undefined || userId.length === 0) &&
+    (username === undefined || username.length === 0)
+  )
+    return null;
   const now = new Date();
   try {
     return await prisma.ban.findFirst({
       where: {
         spaceId: { in: [spaceId, DEFAULT_SPACE_ID] },
-        ...(userId || username
+        ...(userId !== undefined || username !== undefined
           ? {
               OR: [
-                ...(userId ? [{ userId }] : []),
-                ...(username ? [{ username }] : []),
+                ...(userId !== undefined ? [{ userId }] : []),
+                ...(username !== undefined ? [{ username }] : []),
               ],
             }
           : {}),
@@ -1406,17 +1473,21 @@ async function getActiveMute(
   username: string | undefined,
   spaceId: string,
 ) {
-  if (!userId && !username) return null;
+  if (
+    (userId === undefined || userId.length === 0) &&
+    (username === undefined || username.length === 0)
+  )
+    return null;
   const now = new Date();
   try {
     return await prisma.mute.findFirst({
       where: {
         spaceId: { in: [spaceId, DEFAULT_SPACE_ID] },
-        ...(userId || username
+        ...(userId !== undefined || username !== undefined
           ? {
               OR: [
-                ...(userId ? [{ userId }] : []),
-                ...(username ? [{ username }] : []),
+                ...(userId !== undefined ? [{ userId }] : []),
+                ...(username !== undefined ? [{ username }] : []),
               ],
             }
           : {}),
@@ -1434,16 +1505,26 @@ function updateSocketVesselRoom(
   spaceId: string,
   vesselId?: string | null,
 ) {
-  const current = socket.data.vesselId;
-  if (current) {
+  const socketData =
+    typeof socket.data === 'object' && socket.data !== null
+      ? (socket.data as Record<string, unknown>)
+      : {};
+  const current =
+    typeof socketData.vesselId === 'string' ? socketData.vesselId : undefined;
+  if (current !== undefined && current.length > 0) {
     void socket.leave(`space:${spaceId}:vessel:${current}`);
   }
-  const normalized = vesselId ? vesselChannelId(vesselId) || vesselId : null;
-  if (normalized) {
+  const normalized =
+    vesselId !== undefined && vesselId !== null && vesselId.length > 0
+      ? (vesselChannelId(vesselId) ?? vesselId)
+      : null;
+  if (normalized !== null && normalized.length > 0) {
     void socket.join(`space:${spaceId}:vessel:${normalized}`);
-    socket.data.vesselId = normalized;
+    const typedSocketData = socket.data as SocketData;
+    typedSocketData.vesselId = normalized;
   } else {
-    socket.data.vesselId = undefined;
+    const typedSocketData = socket.data as SocketData;
+    typedSocketData.vesselId = undefined;
   }
 }
 
@@ -1453,12 +1534,14 @@ const loadChatHistory = async (
   limit = CHAT_HISTORY_PAGE_SIZE,
 ): Promise<{ messages: ChatMessageData[]; hasMore: boolean }> => {
   const take = Math.min(Math.max(limit, 1), 50);
-  const spaceId = channel.startsWith('space:') ? channel.split(':')[1] : null;
+  const spaceId = channel.startsWith('space:')
+    ? (channel.split(':')[1] ?? null)
+    : null;
   const rows = await prisma.chatMessage.findMany({
     where: {
       channel,
-      ...(spaceId ? { spaceId } : {}),
-      ...(before ? { createdAt: { lt: new Date(before) } } : {}),
+      ...(spaceId !== null ? { spaceId } : {}),
+      ...(before !== undefined ? { createdAt: { lt: new Date(before) } } : {}),
     },
     orderBy: { createdAt: 'desc' },
     take: take + 1,
@@ -1491,7 +1574,7 @@ const loadChatHistory = async (
 
 const toSimpleVesselState = (v: VesselRecord): SimpleVesselState => {
   const mergedPosition = mergePosition(v.position);
-  const env = getEnvironmentForSpace(v.spaceId || DEFAULT_SPACE_ID);
+  const env = getEnvironmentForSpace(v.spaceId ?? DEFAULT_SPACE_ID);
   const tideHeight = env.tideHeight ?? 0;
   const waterDepth = Math.max(
     0,
@@ -1558,23 +1641,23 @@ const findVesselInSpace = (
   spaceId: string,
 ): VesselRecord | null => {
   const direct = globalState.vessels.get(vesselId);
-  if (direct && (direct.spaceId || DEFAULT_SPACE_ID) === spaceId) {
+  if (direct && (direct.spaceId ?? DEFAULT_SPACE_ID) === spaceId) {
     return direct;
   }
   const normalized = vesselChannelId(vesselId);
-  if (!normalized) return null;
+  if (normalized === undefined || normalized.length === 0) return null;
   return (
     Array.from(globalState.vessels.values()).find(
       v =>
         vesselChannelId(v.id) === normalized &&
-        (v.spaceId || DEFAULT_SPACE_ID) === spaceId,
+        (v.spaceId ?? DEFAULT_SPACE_ID) === spaceId,
     ) || null
   );
 };
 
 // Create Express app
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT ?? 3001;
 const allowedOrigins = parseAllowedOrigins({ production: PRODUCTION });
 
 // Middleware
@@ -1614,11 +1697,11 @@ if (PERF_LOGGING_ENABLED) {
 }
 
 function parseCookies(cookieHeader?: string): Record<string, string> {
-  if (!cookieHeader) return {};
+  if (cookieHeader === undefined || cookieHeader.length === 0) return {};
   return cookieHeader.split(';').reduce(
     (acc, part) => {
       const token = part.trim();
-      if (!token) {
+      if (token.length === 0) {
         return acc;
       }
 
@@ -1628,7 +1711,7 @@ function parseCookies(cookieHeader?: string): Record<string, string> {
       }
 
       const key = token.slice(0, splitAt).trim();
-      if (!key) {
+      if (key.length === 0) {
         return acc;
       }
 
@@ -1693,7 +1776,7 @@ const io = new Server<
 io.use(async (socket, next) => {
   const cookies = parseCookies(socket.handshake.headers.cookie as string);
   const cookieToken =
-    cookies['next-auth.session-token'] ||
+    cookies['next-auth.session-token'] ??
     cookies['__Secure-next-auth.session-token'];
   const authPayload = socket.handshake.auth as
     | {
@@ -1706,9 +1789,9 @@ io.use(async (socket, next) => {
       }
     | undefined;
   const rawToken =
-    authPayload?.socketToken ||
-    authPayload?.token ||
-    authPayload?.accessToken ||
+    authPayload?.socketToken ??
+    authPayload?.token ??
+    authPayload?.accessToken ??
     cookieToken;
   const spaceIdFromHandshake = authPayload?.spaceId;
   const requestedMode =
@@ -1716,11 +1799,11 @@ io.use(async (socket, next) => {
   const autoJoin =
     typeof authPayload?.autoJoin === 'boolean' ? authPayload.autoJoin : true;
 
-  if (!NEXTAUTH_SECRET) {
+  if (NEXTAUTH_SECRET.length === 0) {
     console.warn('NEXTAUTH_SECRET is missing; treating socket as guest');
   }
 
-  if (rawToken && NEXTAUTH_SECRET) {
+  if (rawToken.length > 0 && NEXTAUTH_SECRET.length > 0) {
     try {
       const decoded = jwt.verify(rawToken, NEXTAUTH_SECRET) as {
         sub?: string;
@@ -1729,10 +1812,10 @@ io.use(async (socket, next) => {
         role?: string;
       };
       const userId =
-        decoded.sub ||
-        decoded.email ||
+        decoded.sub ??
+        decoded.email ??
         `na_${Math.random().toString(36).slice(2, 8)}`;
-      const username = decoded.name || decoded.email || 'NextAuthUser';
+      const username = decoded.name ?? decoded.email ?? 'NextAuthUser';
       const baseRole: Role =
         decoded.role === 'admin' || decoded.role === 'spectator'
           ? decoded.role
@@ -1743,16 +1826,16 @@ io.use(async (socket, next) => {
             baseRole,
             ...(ADMIN_USERS.includes(userId) ||
             ADMIN_USERS.includes(username) ||
-            (decoded.email && ADMIN_USERS.includes(decoded.email))
+            (decoded.email !== undefined && ADMIN_USERS.includes(decoded.email))
               ? (['admin'] as Role[])
               : []),
           ]),
         ) as Role[],
       );
       const permissions = permissionsForRoles(roles);
-      const spaceId = spaceIdFromHandshake || DEFAULT_SPACE_ID;
+      const spaceId = spaceIdFromHandshake ?? DEFAULT_SPACE_ID;
       const account =
-        (await getEconomyProfile(userId).catch(() => null)) ||
+        (await getEconomyProfile(userId).catch(() => null)) ??
         DEFAULT_ECONOMY_PROFILE;
       const spaceRole = await getSpaceRole(userId, spaceId);
       socket.data = {
@@ -1771,7 +1854,7 @@ io.use(async (socket, next) => {
       };
       const ban = await getActiveBan(userId, username, spaceId);
       if (ban) {
-        return next(new Error(`Banned: ${ban.reason || 'Access denied'}`));
+        return next(new Error(`Banned: ${ban.reason ?? 'Access denied'}`));
       }
       return next();
     } catch (err) {
@@ -1785,7 +1868,7 @@ io.use(async (socket, next) => {
   const tempUserId = `guest_${Math.random().toString(36).substring(2, 9)}`;
   const guestRoles = expandRoles(['guest']);
   const guestPermissions = permissionsForRoles(guestRoles);
-  const spaceId = spaceIdFromHandshake || DEFAULT_SPACE_ID;
+  const spaceId = spaceIdFromHandshake ?? DEFAULT_SPACE_ID;
   socket.data = {
     userId: tempUserId,
     username: 'Guest',
@@ -1802,7 +1885,7 @@ io.use(async (socket, next) => {
   };
   const ban = await getActiveBan(undefined, undefined, spaceId);
   if (ban) {
-    return next(new Error(`Banned: ${ban.reason || 'Access denied'}`));
+    return next(new Error(`Banned: ${ban.reason ?? 'Access denied'}`));
   }
   next();
 });
@@ -1817,21 +1900,23 @@ io.on('connection', async socket => {
     roles?: Role[];
   };
   const { userId, username, spaceId: socketSpaceId } = socketData;
-  const spaceId = socketSpaceId || DEFAULT_SPACE_ID;
-  const effectiveUserId =
-    userId || `guest_${Math.random().toString(36).substring(2, 9)}`;
-  const effectiveUsername = username || 'Guest';
+  const spaceId = socketSpaceId ?? DEFAULT_SPACE_ID;
+  const effectiveUserId = userId;
+  const effectiveUsername = username;
   const rankFromSocket = socketData.rank;
   if (typeof rankFromSocket !== 'number') {
     const account =
-      (await getEconomyProfile(effectiveUserId).catch(() => null)) ||
+      (await getEconomyProfile(effectiveUserId).catch(() => null)) ??
       DEFAULT_ECONOMY_PROFILE;
     socketData.rank = account.rank;
     socketData.credits = account.credits;
     socketData.experience = account.experience;
     socketData.safetyScore = account.safetyScore;
   }
-  if (!socket.data.spaceRole) {
+  if (
+    socket.data.spaceRole === undefined ||
+    socket.data.spaceRole.length === 0
+  ) {
     socket.data.spaceRole = await getSpaceRole(effectiveUserId, spaceId);
   }
   const spaceMeta = await getSpaceMeta(spaceId);
@@ -1840,7 +1925,7 @@ io.on('connection', async socket => {
   const isPlayerOrHigher = roleSet.has('player') || roleSet.has('admin');
   const isSpectatorOnly = roleSet.has('spectator') && !isPlayerOrHigher;
   const isGuest = !isPlayerOrHigher && !roleSet.has('spectator');
-  const requestedMode = socket.data.mode || 'player';
+  const requestedMode = socket.data.mode ?? 'player';
   const autoJoin = !(socket.data.autoJoin === false);
   const rankEligible = socketData.rank >= spaceMeta.rankRequired;
   const wantsSpectator =
@@ -1868,9 +1953,9 @@ io.on('connection', async socket => {
   console.info(
     `Socket connected: ${effectiveUsername} (${effectiveUserId}) role=${isPlayerOrHigher ? 'player' : isSpectatorOnly ? 'spectator' : 'guest'} space=${spaceId}`,
   );
-  if (effectiveUserId) {
+  if (effectiveUserId.length > 0) {
     const existingSocketId = activeUserSockets.get(effectiveUserId);
-    if (existingSocketId && existingSocketId !== socket.id) {
+    if (existingSocketId !== undefined && existingSocketId !== socket.id) {
       activeUserSockets.set(effectiveUserId, socket.id);
       const existingSocket = io.sockets.sockets.get(existingSocketId);
       if (existingSocket) {
@@ -1961,9 +2046,10 @@ io.on('connection', async socket => {
     effectiveUserId,
     effectiveUsername,
     roleSet,
-    isPlayerOrHigher: () =>
-      socket.data.roles.includes('player') ||
-      socket.data.roles.includes('admin'),
+    isPlayerOrHigher: () => {
+      const roles = socket.data.roles;
+      return roles.includes('player') || roles.includes('admin');
+    },
     isSpectatorOnly,
     isGuest,
     spaceMeta: {
@@ -2034,8 +2120,8 @@ io.on('connection', async socket => {
     try {
       const channelsToLoad = [`space:${spaceId}:global`];
       const vesselIdForChat =
-        socket.data.vesselId || vesselChannelId(vessel?.id);
-      if (vesselIdForChat) {
+        socket.data.vesselId ?? vesselChannelId(vessel?.id);
+      if (vesselIdForChat !== undefined && vesselIdForChat.length > 0) {
         channelsToLoad.push(`space:${spaceId}:vessel:${vesselIdForChat}`);
       }
       const results = await Promise.all(
@@ -2061,10 +2147,7 @@ io.on('connection', async socket => {
 
     const vesselsInSpace = Object.fromEntries(
       Array.from(globalState.vessels.entries())
-        .filter(
-          ([, v]) =>
-            (v.spaceId || DEFAULT_SPACE_ID) === (spaceId || DEFAULT_SPACE_ID),
-        )
+        .filter(([, v]) => (v.spaceId ?? DEFAULT_SPACE_ID) === spaceId)
         .map(([id, v]) => [id, toSimpleVesselState(v)]),
     );
 
@@ -2081,7 +2164,7 @@ io.on('connection', async socket => {
         safetyScore: socketData.safetyScore,
         spaceId,
         mode: (socket.data as { mode?: 'player' | 'spectator' }).mode,
-        vesselId: vessel?.id || socket.data.vesselId,
+        vesselId: vessel?.id ?? socket.data.vesselId,
       },
       spaceInfo: {
         id: spaceMeta.id,
@@ -2089,10 +2172,10 @@ io.on('connection', async socket => {
         visibility: spaceMeta.visibility,
         kind: spaceMeta.kind,
         rankRequired: spaceMeta.rankRequired,
-        rules: spaceMeta.rulesetType
+        rules: isNonEmptyString(spaceMeta.rulesetType)
           ? getDefaultRules(mapToRulesetType(spaceMeta.rulesetType))
           : spaceMeta.rules,
-        role: socket.data.spaceRole || 'member',
+        role: socket.data.spaceRole ?? 'member',
       },
       chatHistory,
     });
@@ -2120,13 +2203,17 @@ io.on('connection', async socket => {
   };
 
   socket.on('user:auth', async data => {
-    const prevUserId = socket.data.userId || effectiveUserId;
-    const prevUsername = socket.data.username || effectiveUsername;
-    const rawToken = data.token || null;
-    const currentSpace = socket.data.spaceId || spaceId || DEFAULT_SPACE_ID;
+    const prevUserId = socket.data.userId;
+    const prevUsername = socket.data.username;
+    const rawToken = data.token ?? null;
+    const currentSpace = socket.data.spaceId ?? spaceId;
 
-    if (!rawToken || !NEXTAUTH_SECRET) {
-      if (prevUserId) {
+    if (
+      rawToken === null ||
+      rawToken.length === 0 ||
+      NEXTAUTH_SECRET.length === 0
+    ) {
+      if (prevUserId.length > 0) {
         detachUserFromCurrentVessel(prevUserId, currentSpace);
         updateSocketVesselRoom(socket, currentSpace, null);
         void socket.leave(`user:${prevUserId}`);
@@ -2144,7 +2231,10 @@ io.on('connection', async socket => {
       socket.data.safetyScore = guest.safetyScore;
       socket.data.spaceRole = guest.spaceRole;
       void socket.join(`user:${guest.userId}`);
-      if (prevUserId && activeUserSockets.get(prevUserId) === socket.id) {
+      if (
+        prevUserId.length > 0 &&
+        activeUserSockets.get(prevUserId) === socket.id
+      ) {
         activeUserSockets.delete(prevUserId);
       }
       socket.emit('simulation:update', {
@@ -2174,13 +2264,9 @@ io.on('connection', async socket => {
         role?: string;
       };
       const nextUserId =
-        decoded.sub ||
-        decoded.email ||
-        data.userId ||
-        prevUserId ||
-        `na_${Math.random().toString(36).slice(2, 8)}`;
+        decoded.sub ?? decoded.email ?? data.userId ?? prevUserId;
       const nextUsername =
-        decoded.name || decoded.email || data.username || prevUsername;
+        decoded.name ?? decoded.email ?? data.username ?? prevUsername;
       const baseRole: Role =
         decoded.role === 'admin' || decoded.role === 'spectator'
           ? decoded.role
@@ -2191,7 +2277,7 @@ io.on('connection', async socket => {
             baseRole,
             ...(ADMIN_USERS.includes(nextUserId) ||
             ADMIN_USERS.includes(nextUsername) ||
-            (decoded.email && ADMIN_USERS.includes(decoded.email))
+            (decoded.email !== undefined && ADMIN_USERS.includes(decoded.email))
               ? (['admin'] as Role[])
               : []),
           ]),
@@ -2199,17 +2285,17 @@ io.on('connection', async socket => {
       );
       const permissions = permissionsForRoles(roles);
       const account =
-        (await getEconomyProfile(nextUserId).catch(() => null)) ||
+        (await getEconomyProfile(nextUserId).catch(() => null)) ??
         DEFAULT_ECONOMY_PROFILE;
       const spaceRole = await getSpaceRole(nextUserId, currentSpace);
       const ban = await getActiveBan(nextUserId, nextUsername, currentSpace);
       if (ban) {
-        socket.emit('error', `Banned: ${ban.reason || 'Access denied'}`);
+        socket.emit('error', `Banned: ${ban.reason ?? 'Access denied'}`);
         socket.disconnect(true);
         return;
       }
 
-      if (prevUserId && prevUserId !== nextUserId) {
+      if (prevUserId.length > 0 && prevUserId !== nextUserId) {
         detachUserFromCurrentVessel(prevUserId, currentSpace);
         updateSocketVesselRoom(socket, currentSpace, null);
         void socket.leave(`user:${prevUserId}`);
@@ -2226,7 +2312,10 @@ io.on('connection', async socket => {
       socket.data.spaceRole = spaceRole;
       void socket.join(`user:${nextUserId}`);
 
-      if (prevUserId && activeUserSockets.get(prevUserId) === socket.id) {
+      if (
+        prevUserId.length > 0 &&
+        activeUserSockets.get(prevUserId) === socket.id
+      ) {
         activeUserSockets.delete(prevUserId);
       }
       activeUserSockets.set(nextUserId, socket.id);
@@ -2243,14 +2332,14 @@ io.on('connection', async socket => {
           experience: account.experience,
           safetyScore: account.safetyScore,
           spaceId: currentSpace,
-          mode: socket.data.mode || 'spectator',
+          mode: socket.data.mode ?? 'spectator',
           vesselId: socket.data.vesselId,
         },
       });
     } catch (err) {
       socket.emit('error', 'Authentication expired');
       console.error(err);
-      if (prevUserId) {
+      if (prevUserId.length > 0) {
         detachUserFromCurrentVessel(prevUserId, currentSpace);
         updateSocketVesselRoom(socket, currentSpace, null);
         void socket.leave(`user:${prevUserId}`);
@@ -2268,7 +2357,10 @@ io.on('connection', async socket => {
       socket.data.safetyScore = guest.safetyScore;
       socket.data.spaceRole = guest.spaceRole;
       void socket.join(`user:${guest.userId}`);
-      if (prevUserId && activeUserSockets.get(prevUserId) === socket.id) {
+      if (
+        prevUserId.length > 0 &&
+        activeUserSockets.get(prevUserId) === socket.id
+      ) {
         activeUserSockets.delete(prevUserId);
       }
     }
@@ -2280,7 +2372,7 @@ io.on('connection', async socket => {
   registerVesselRepairHandler(handlerContext);
 
   socket.on('disconnect', () => {
-    if (effectiveUserId) {
+    if (effectiveUserId.length > 0) {
       const current = activeUserSockets.get(effectiveUserId);
       if (current === socket.id) {
         activeUserSockets.delete(effectiveUserId);
@@ -2344,6 +2436,26 @@ const BROADCAST_INTERVAL_MS = 200;
 let environmentEventInterval: ReturnType<typeof setInterval> | null = null;
 let broadcastInterval: ReturnType<typeof setInterval> | null = null;
 
+const isJsonValue = (value: unknown): value is Prisma.InputJsonValue => {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.every(item => isJsonValue(item));
+  }
+  if (typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).every(item =>
+      isJsonValue(item),
+    );
+  }
+  return false;
+};
+
 async function processEnvironmentEvents() {
   try {
     const now = new Date();
@@ -2355,28 +2467,31 @@ async function processEnvironmentEvents() {
       },
       orderBy: { runAt: 'asc' },
     });
-    if (!events.length) return;
+    if (events.length === 0) return;
 
     for (const event of events) {
-      const spaceId = event.spaceId || DEFAULT_SPACE_ID;
+      const spaceId = event.spaceId;
       const currentEnv = getEnvironmentForSpace(spaceId);
+      const restorePayloadRaw: unknown = globalThis.structuredClone(currentEnv);
       const restorePayload =
-        event.endAt && !event.endPayload
-          ? JSON.parse(JSON.stringify(currentEnv))
+        event.endAt !== null &&
+        event.endPayload === null &&
+        isJsonValue(restorePayloadRaw)
+          ? restorePayloadRaw
           : null;
       let env = currentEnv;
-      if (event.pattern) {
+      if (event.pattern !== null && event.pattern.length > 0) {
         const pattern = getWeatherPattern(event.pattern);
         pattern.timeOfDay = env.timeOfDay;
         env = applyWeatherPattern(spaceId, pattern, globalState);
       }
-      if (event.payload) {
+      if (event.payload !== null) {
         env = applyEnvironmentOverrides(
           spaceId,
           event.payload as DeepPartial<EnvironmentState>,
         );
       }
-      if (event.name) {
+      if (event.name !== null && event.name.length > 0) {
         env = { ...env, name: event.name };
         globalState.environmentBySpace.set(spaceId, env);
       }
@@ -2385,7 +2500,7 @@ async function processEnvironmentEvents() {
         where: { id: event.id },
         data: {
           executedAt: now,
-          ...(restorePayload ? { endPayload: restorePayload } : {}),
+          ...(restorePayload !== null ? { endPayload: restorePayload } : {}),
         },
       });
       void persistEnvironmentToDb({ force: true, spaceId });
@@ -2405,9 +2520,9 @@ async function processEnvironmentEvents() {
     });
 
     for (const event of ending) {
-      const spaceId = event.spaceId || DEFAULT_SPACE_ID;
+      const spaceId = event.spaceId;
       let env = getEnvironmentForSpace(spaceId);
-      if (event.endPayload) {
+      if (event.endPayload !== null) {
         env = applyEnvironmentOverrides(
           spaceId,
           event.endPayload as DeepPartial<EnvironmentState>,
@@ -2567,7 +2682,7 @@ const broadcastTick = async () => {
       void persistVesselToDb(v, { force: true });
     }
 
-    const sid = v.spaceId || DEFAULT_SPACE_ID;
+    const sid = v.spaceId ?? DEFAULT_SPACE_ID;
     const rules = getRulesForSpace(sid);
     if (rules.realism.failures) {
       const env = getEnvironmentForSpace(sid);
@@ -2682,10 +2797,10 @@ const broadcastTick = async () => {
     >
   >();
   for (const [id, v] of globalState.vessels.entries()) {
-    const sid = v.spaceId || DEFAULT_SPACE_ID;
+    const sid = v.spaceId ?? DEFAULT_SPACE_ID;
     if (!vesselsBySpace.has(sid)) vesselsBySpace.set(sid, {});
     vesselsBySpace.get(sid)![id] = toSimpleVesselState(v);
-    const counts = vesselCountsBySpace.get(sid) || {
+    const counts = vesselCountsBySpace.get(sid) ?? {
       total: 0,
       ai: 0,
       player: 0,
@@ -2739,7 +2854,7 @@ const broadcastTick = async () => {
     const meta = spaceMetaCache.get(spaceId);
     return {
       spaceId,
-      name: meta?.name || spaceId,
+      name: meta?.name ?? spaceId,
       connected,
       vessels: counts.total,
       aiVessels: counts.ai,

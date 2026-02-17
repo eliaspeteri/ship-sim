@@ -29,6 +29,27 @@ type AdminRouteDeps = {
   userSettingsStore: UserSettingsStore;
 };
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+
+const readString = (
+  record: Record<string, unknown>,
+  key: string,
+): string | undefined => {
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
+};
+
+const readBoolean = (
+  record: Record<string, unknown>,
+  key: string,
+): boolean | undefined => {
+  const value = record[key];
+  return typeof value === 'boolean' ? value : undefined;
+};
+
 export const registerAdminRoutes = ({
   router,
   prisma,
@@ -78,16 +99,15 @@ export const registerAdminRoutes = ({
     requireSelfOrRole('userId'),
     (req, res) => {
       const { userId } = req.params;
-      const {
-        soundEnabled,
-        units,
-        speedUnit,
-        distanceUnit,
-        timeZoneMode,
-        timeZone,
-        notificationLevel,
-        interfaceDensity,
-      } = req.body;
+      const body = asRecord(req.body as unknown);
+      const soundEnabled = readBoolean(body, 'soundEnabled');
+      const units = readString(body, 'units');
+      const speedUnit = readString(body, 'speedUnit');
+      const distanceUnit = readString(body, 'distanceUnit');
+      const timeZoneMode = readString(body, 'timeZoneMode');
+      const timeZone = readString(body, 'timeZone');
+      const notificationLevel = readString(body, 'notificationLevel');
+      const interfaceDensity = readString(body, 'interfaceDensity');
       const existing = userSettingsStore.get(userId);
 
       const settings: UserSettings = {
@@ -100,32 +120,32 @@ export const registerAdminRoutes = ({
         units:
           units === 'imperial' || units === 'nautical'
             ? units
-            : existing?.units || 'metric',
+            : (existing?.units ?? 'metric'),
         speedUnit:
           speedUnit === 'kmh' || speedUnit === 'mph' || speedUnit === 'knots'
             ? speedUnit
-            : existing?.speedUnit || 'knots',
+            : (existing?.speedUnit ?? 'knots'),
         distanceUnit:
           distanceUnit === 'km' ||
           distanceUnit === 'mi' ||
           distanceUnit === 'nm'
             ? distanceUnit
-            : existing?.distanceUnit || 'nm',
+            : (existing?.distanceUnit ?? 'nm'),
         timeZoneMode: timeZoneMode === 'manual' ? 'manual' : 'auto',
         timeZone:
           typeof timeZone === 'string' && timeZone.trim().length > 0
             ? timeZone.trim()
-            : existing?.timeZone || 'UTC',
+            : (existing?.timeZone ?? 'UTC'),
         notificationLevel:
           notificationLevel === 'all' ||
           notificationLevel === 'mentions' ||
           notificationLevel === 'none'
             ? notificationLevel
-            : existing?.notificationLevel || 'mentions',
+            : (existing?.notificationLevel ?? 'mentions'),
         interfaceDensity:
           interfaceDensity === 'compact'
             ? 'compact'
-            : existing?.interfaceDensity || 'comfortable',
+            : (existing?.interfaceDensity ?? 'comfortable'),
         createdAt: existing?.createdAt ?? new Date(),
         updatedAt: new Date(),
       };
@@ -141,7 +161,11 @@ export const registerAdminRoutes = ({
       const user = requireUser(req, res);
       if (!user) return;
       const userId = user.userId;
-      const { username, email, password, currentPassword } = req.body || {};
+      const body = asRecord(req.body as unknown);
+      const username = readString(body, 'username');
+      const email = readString(body, 'email');
+      const password = readString(body, 'password');
+      const currentPassword = readString(body, 'currentPassword');
       const currentUser = await prisma.user.findUnique({
         where: { id: userId },
       });
@@ -151,7 +175,7 @@ export const registerAdminRoutes = ({
       }
 
       const updates: Record<string, unknown> = {};
-      if (typeof username === 'string' && username.trim().length > 0) {
+      if (username !== undefined && username.trim().length > 0) {
         const normalized = username.trim();
         if (normalized.length < 3) {
           res
@@ -169,7 +193,7 @@ export const registerAdminRoutes = ({
         updates.name = normalized;
       }
 
-      if (typeof email === 'string' && email.trim().length > 0) {
+      if (email !== undefined && email.trim().length > 0) {
         const normalized = email.trim();
         if (!normalized.includes('@')) {
           res.status(400).json({ error: 'Provide a valid email address' });
@@ -185,18 +209,21 @@ export const registerAdminRoutes = ({
         updates.email = normalized;
       }
 
-      if (typeof password === 'string' && password.length > 0) {
+      if (password !== undefined && password.length > 0) {
         if (password.length < 8) {
           res
             .status(400)
             .json({ error: 'Password must be at least 8 characters' });
           return;
         }
-        if (!currentPassword || typeof currentPassword !== 'string') {
+        if (currentPassword === undefined || currentPassword.length === 0) {
           res.status(400).json({ error: 'Current password is required' });
           return;
         }
-        if (!currentUser.passwordHash) {
+        if (
+          currentUser.passwordHash === null ||
+          currentUser.passwordHash.length === 0
+        ) {
           res.status(400).json({ error: 'Password login not enabled' });
           return;
         }
@@ -285,12 +312,14 @@ export const registerAdminRoutes = ({
     requireRole(['admin']),
     withErrorResponse('Failed to update user role', async (req, res) => {
       const { userId } = req.params;
-      const nextRole = req.body?.role as Role | undefined;
+      const body = asRecord(req.body as unknown);
+      const nextRoleRaw = readString(body, 'role');
       const allowed: Role[] = ['guest', 'spectator', 'player', 'admin'];
-      if (!nextRole || !allowed.includes(nextRole)) {
+      if (nextRoleRaw === undefined || !allowed.includes(nextRoleRaw as Role)) {
         res.status(400).json({ error: 'Invalid role' });
         return;
       }
+      const nextRole = nextRoleRaw as Role;
       const updated = await prisma.user.update({
         where: { id: userId },
         data: { role: nextRole },
@@ -304,8 +333,16 @@ export const registerAdminRoutes = ({
     requireAuth,
     requireRole(['admin']),
     withErrorResponse('Failed to create ban', async (req, res) => {
-      const { userId, username, spaceId, reason, expiresAt } = req.body || {};
-      if (!userId && !username) {
+      const body = asRecord(req.body as unknown);
+      const targetUserId = readString(body, 'userId');
+      const username = readString(body, 'username');
+      const spaceId = readString(body, 'spaceId');
+      const reason = readString(body, 'reason');
+      const expiresAt = readString(body, 'expiresAt');
+      if (
+        (targetUserId === undefined || targetUserId.length === 0) &&
+        (username === undefined || username.length === 0)
+      ) {
         res.status(400).json({ error: 'userId or username is required' });
         return;
       }
@@ -313,12 +350,22 @@ export const registerAdminRoutes = ({
       if (!user) return;
       const ban = await prisma.ban.create({
         data: {
-          userId: userId || null,
-          username: username || null,
-          spaceId: spaceId || DEFAULT_SPACE_ID,
-          reason: reason || null,
+          userId:
+            targetUserId !== undefined && targetUserId.length > 0
+              ? targetUserId
+              : null,
+          username:
+            username !== undefined && username.length > 0 ? username : null,
+          spaceId:
+            spaceId !== undefined && spaceId.length > 0
+              ? spaceId
+              : DEFAULT_SPACE_ID,
+          reason: reason !== undefined && reason.length > 0 ? reason : null,
           createdBy: user.userId,
-          expiresAt: expiresAt ? new Date(expiresAt) : null,
+          expiresAt:
+            expiresAt !== undefined && expiresAt.length > 0
+              ? new Date(expiresAt)
+              : null,
         },
       });
       res.status(201).json(ban);
@@ -340,8 +387,16 @@ export const registerAdminRoutes = ({
     requireAuth,
     requireRole(['admin']),
     withErrorResponse('Failed to create mute', async (req, res) => {
-      const { userId, username, spaceId, reason, expiresAt } = req.body || {};
-      if (!userId && !username) {
+      const body = asRecord(req.body as unknown);
+      const targetUserId = readString(body, 'userId');
+      const username = readString(body, 'username');
+      const spaceId = readString(body, 'spaceId');
+      const reason = readString(body, 'reason');
+      const expiresAt = readString(body, 'expiresAt');
+      if (
+        (targetUserId === undefined || targetUserId.length === 0) &&
+        (username === undefined || username.length === 0)
+      ) {
         res.status(400).json({ error: 'userId or username is required' });
         return;
       }
@@ -349,12 +404,22 @@ export const registerAdminRoutes = ({
       if (!user) return;
       const mute = await prisma.mute.create({
         data: {
-          userId: userId || null,
-          username: username || null,
-          spaceId: spaceId || DEFAULT_SPACE_ID,
-          reason: reason || null,
+          userId:
+            targetUserId !== undefined && targetUserId.length > 0
+              ? targetUserId
+              : null,
+          username:
+            username !== undefined && username.length > 0 ? username : null,
+          spaceId:
+            spaceId !== undefined && spaceId.length > 0
+              ? spaceId
+              : DEFAULT_SPACE_ID,
+          reason: reason !== undefined && reason.length > 0 ? reason : null,
           createdBy: user.userId,
-          expiresAt: expiresAt ? new Date(expiresAt) : null,
+          expiresAt:
+            expiresAt !== undefined && expiresAt.length > 0
+              ? new Date(expiresAt)
+              : null,
         },
       });
       res.status(201).json(mute);

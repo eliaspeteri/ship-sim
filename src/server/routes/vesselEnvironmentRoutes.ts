@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import type { Router, RequestHandler, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { ShipType, type VesselState } from '../../types/vessel.types';
@@ -27,6 +28,71 @@ type RegisterVesselEnvironmentRoutesDeps = {
     user: AuthenticatedUser | null,
     spaceId: string,
   ) => Promise<boolean>;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | undefined =>
+  typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined;
+
+const readString = (
+  record: Record<string, unknown> | undefined,
+  key: string,
+): string | undefined => {
+  if (!record) {
+    return undefined;
+  }
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
+};
+
+const readNumber = (
+  record: Record<string, unknown> | undefined,
+  key: string,
+): number | undefined => {
+  if (!record) {
+    return undefined;
+  }
+  const value = record[key];
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+};
+
+const readBoolean = (
+  record: Record<string, unknown> | undefined,
+  key: string,
+): boolean | undefined => {
+  if (!record) {
+    return undefined;
+  }
+  const value = record[key];
+  return typeof value === 'boolean' ? value : undefined;
+};
+
+const isJsonValue = (value: unknown): value is Prisma.InputJsonValue => {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.every(item => isJsonValue(item));
+  }
+  if (typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).every(item =>
+      isJsonValue(item),
+    );
+  }
+  return false;
 };
 
 const defaultEnvironmentState = (): EnvironmentState => ({
@@ -69,19 +135,20 @@ const toEnvironmentState = (
     visibility: row.visibility ?? undefined,
     timeOfDay: row.timeOfDay,
     precipitation:
-      (row.precipitation as EnvironmentState['precipitation']) || 'none',
+      (row.precipitation as EnvironmentState['precipitation'] | null) ?? 'none',
     precipitationIntensity: row.precipitationIntensity ?? 0,
     tideHeight: 0,
     tideRange: 0,
     tidePhase: 0,
     tideTrend: 'rising',
-    name: row.name || row.spaceId,
+    name: row.name ?? row.spaceId,
   };
 };
 
 const toWeatherStateData = (env: EnvironmentState, spaceId: string) => ({
   spaceId,
-  name: env.name || spaceId,
+  name:
+    typeof env.name === 'string' && env.name.length > 0 ? env.name : spaceId,
   windSpeed: env.wind.speed,
   windDirection: env.wind.direction,
   windGusting: env.wind.gusting,
@@ -93,7 +160,10 @@ const toWeatherStateData = (env: EnvironmentState, spaceId: string) => ({
   waterDepth: env.waterDepth ?? null,
   visibility: env.visibility ?? null,
   timeOfDay: env.timeOfDay,
-  precipitation: env.precipitation || 'none',
+  precipitation:
+    typeof env.precipitation === 'string' && env.precipitation.length > 0
+      ? env.precipitation
+      : 'none',
   precipitationIntensity: env.precipitationIntensity ?? 0,
 });
 
@@ -299,7 +369,11 @@ export const registerVesselEnvironmentRoutes = ({
     requirePermission('vessel', 'update'),
     withErrorResponse('Failed to update vessel state', async (req, res) => {
       const { userId } = req.params;
-      const { position, orientation, velocity, properties } = req.body || {};
+      const body = asRecord(req.body as unknown);
+      const position = asRecord(body?.position);
+      const orientation = asRecord(body?.orientation);
+      const velocity = asRecord(body?.velocity);
+      const properties = asRecord(body?.properties);
       const vessel = await prisma.vessel.findFirst({
         where: buildUserVesselWhere(userId),
         orderBy: { lastUpdate: 'desc' },
@@ -313,16 +387,16 @@ export const registerVesselEnvironmentRoutes = ({
               lat: nextPosition.lat,
               lon: nextPosition.lon,
               z: nextPosition.z,
-              heading: orientation?.heading ?? vessel.heading,
-              roll: orientation?.roll ?? vessel.roll,
-              pitch: orientation?.pitch ?? vessel.pitch,
-              surge: velocity?.surge ?? vessel.surge,
-              sway: velocity?.sway ?? vessel.sway,
-              heave: velocity?.heave ?? vessel.heave,
-              mass: properties?.mass ?? vessel.mass,
-              length: properties?.length ?? vessel.length,
-              beam: properties?.beam ?? vessel.beam,
-              draft: properties?.draft ?? vessel.draft,
+              heading: readNumber(orientation, 'heading') ?? vessel.heading,
+              roll: readNumber(orientation, 'roll') ?? vessel.roll,
+              pitch: readNumber(orientation, 'pitch') ?? vessel.pitch,
+              surge: readNumber(velocity, 'surge') ?? vessel.surge,
+              sway: readNumber(velocity, 'sway') ?? vessel.sway,
+              heave: readNumber(velocity, 'heave') ?? vessel.heave,
+              mass: readNumber(properties, 'mass') ?? vessel.mass,
+              length: readNumber(properties, 'length') ?? vessel.length,
+              beam: readNumber(properties, 'beam') ?? vessel.beam,
+              draft: readNumber(properties, 'draft') ?? vessel.draft,
               lastUpdate: now,
             },
           })
@@ -343,21 +417,21 @@ export const registerVesselEnvironmentRoutes = ({
               lat: nextPosition.lat,
               lon: nextPosition.lon,
               z: nextPosition.z,
-              heading: orientation?.heading ?? 0,
-              roll: orientation?.roll ?? 0,
-              pitch: orientation?.pitch ?? 0,
-              surge: velocity?.surge ?? 0,
-              sway: velocity?.sway ?? 0,
-              heave: velocity?.heave ?? 0,
+              heading: readNumber(orientation, 'heading') ?? 0,
+              roll: readNumber(orientation, 'roll') ?? 0,
+              pitch: readNumber(orientation, 'pitch') ?? 0,
+              surge: readNumber(velocity, 'surge') ?? 0,
+              sway: readNumber(velocity, 'sway') ?? 0,
+              heave: readNumber(velocity, 'heave') ?? 0,
               throttle: 0,
               rudderAngle: 0,
               ballast: 0.5,
               bowThruster: 0,
               yawRate: 0,
-              mass: properties?.mass ?? 50000,
-              length: properties?.length ?? 50,
-              beam: properties?.beam ?? 10,
-              draft: properties?.draft ?? 3,
+              mass: readNumber(properties, 'mass') ?? 50000,
+              length: readNumber(properties, 'length') ?? 50,
+              beam: readNumber(properties, 'beam') ?? 10,
+              draft: readNumber(properties, 'draft') ?? 3,
               hullIntegrity: 1,
               engineHealth: 1,
               steeringHealth: 1,
@@ -413,10 +487,8 @@ export const registerVesselEnvironmentRoutes = ({
     withErrorResponse('Failed to update environment', async (req, res) => {
       const user = requireUser(req, res);
       if (!user) return;
-      const spaceId =
-        typeof req.body?.spaceId === 'string'
-          ? req.body.spaceId
-          : DEFAULT_SPACE_ID;
+      const body = asRecord(req.body as unknown);
+      const spaceId = readString(body, 'spaceId') ?? DEFAULT_SPACE_ID;
       if (!(await canManageSpace(user, spaceId))) {
         res.status(403).json({ error: 'Not authorized to update environment' });
         return;
@@ -426,20 +498,24 @@ export const registerVesselEnvironmentRoutes = ({
         await prisma.weatherState.findUnique({ where: { id: spaceId } }),
         spaceId,
       );
-      const { wind, current: currentUpdate, seaState } = req.body || {};
+      const wind = asRecord(body?.wind);
+      const currentUpdate = asRecord(body?.current);
+      const seaState = readNumber(body, 'seaState');
       const next: EnvironmentState = {
         ...current,
         wind: {
-          speed: wind?.speed ?? current.wind.speed,
-          direction: wind?.direction ?? current.wind.direction,
-          gusting: wind?.gusting ?? current.wind.gusting,
-          gustFactor: wind?.gustFactor ?? current.wind.gustFactor,
+          speed: readNumber(wind, 'speed') ?? current.wind.speed,
+          direction: readNumber(wind, 'direction') ?? current.wind.direction,
+          gusting: readBoolean(wind, 'gusting') ?? current.wind.gusting,
+          gustFactor: readNumber(wind, 'gustFactor') ?? current.wind.gustFactor,
         },
         current: {
-          speed: currentUpdate?.speed ?? current.current.speed,
-          direction: currentUpdate?.direction ?? current.current.direction,
+          speed: readNumber(currentUpdate, 'speed') ?? current.current.speed,
+          direction:
+            readNumber(currentUpdate, 'direction') ?? current.current.direction,
           variability:
-            currentUpdate?.variability ?? current.current.variability,
+            readNumber(currentUpdate, 'variability') ??
+            current.current.variability,
         },
         seaState: seaState ?? current.seaState,
       };
@@ -492,18 +568,18 @@ export const registerVesselEnvironmentRoutes = ({
       async (req, res) => {
         const user = requireUser(req, res);
         if (!user) return;
-        const spaceId =
-          typeof req.body?.spaceId === 'string'
-            ? req.body.spaceId
-            : DEFAULT_SPACE_ID;
+        const body = asRecord(req.body as unknown);
+        const spaceId = readString(body, 'spaceId') ?? DEFAULT_SPACE_ID;
         if (!(await canManageSpace(user, spaceId))) {
           res
             .status(403)
             .json({ error: 'Not authorized to schedule environment events' });
           return;
         }
-        const runAt = new Date(req.body?.runAt);
-        const endAt = req.body?.endAt ? new Date(req.body.endAt) : null;
+        const runAtRaw = readString(body, 'runAt');
+        const endAtRaw = readString(body, 'endAt');
+        const runAt = new Date(runAtRaw ?? '');
+        const endAt = endAtRaw !== undefined ? new Date(endAtRaw) : null;
         if (Number.isNaN(runAt.getTime())) {
           res.status(400).json({ error: 'runAt must be a valid date' });
           return;
@@ -516,19 +592,27 @@ export const registerVesselEnvironmentRoutes = ({
           res.status(400).json({ error: 'endAt must be after runAt' });
           return;
         }
-        if (!req.body?.pattern && !req.body?.payload) {
+        const pattern = readString(body, 'pattern');
+        const payloadRaw = body?.payload;
+        const payload = isJsonValue(payloadRaw) ? payloadRaw : Prisma.JsonNull;
+        if (
+          (pattern === undefined || pattern.length === 0) &&
+          payload === Prisma.JsonNull
+        ) {
           res.status(400).json({ error: 'pattern or payload is required' });
           return;
         }
+        const name = readString(body, 'name');
         const event = await prisma.environmentEvent.create({
           data: {
             spaceId,
-            name: req.body?.name || null,
-            pattern: req.body?.pattern || null,
-            payload: req.body?.payload || null,
+            name: name !== undefined && name.length > 0 ? name : null,
+            pattern:
+              pattern !== undefined && pattern.length > 0 ? pattern : null,
+            payload,
             runAt,
             endAt,
-            enabled: req.body?.enabled !== false,
+            enabled: readBoolean(body, 'enabled') !== false,
             createdBy: user.userId,
           },
         });

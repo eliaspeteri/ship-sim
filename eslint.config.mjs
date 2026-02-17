@@ -66,6 +66,7 @@ export default [
       '**/coverage/**',
       '**/public/**',
       '**/.vercel/**',
+      '**/generated/prisma/**',
       '**/assembly/**', // Ignore AssemblyScript files
       '**/scripts/**', // Ignore scripts directory
       '**/next-env.d.ts', // Ignore Next.js generated types file
@@ -188,7 +189,7 @@ export default [
       'import/no-unresolved': [
         'error',
         {
-          ignore: ['^geojson$', '^\\.\\./types/wasm$'],
+          ignore: ['^geojson$', '^\\.\\./types/wasm$', '^node:'],
         },
       ],
 
@@ -348,7 +349,7 @@ export default [
 
   // Test files config
   {
-    files: ['**/tests/**/*.{js,ts,tsx,cjs}'],
+    files: ['**/tests/**/*.{js,mjs,ts,tsx,cjs}'],
     rules: {
       'no-console': 'off', // Allow console in test files
       'no-undef': 'off', // Disable no-undef for test globals
@@ -373,6 +374,12 @@ export default [
       '@typescript-eslint/no-misused-promises': 'off',
       '@typescript-eslint/consistent-type-imports': 'off',
       'import/no-cycle': 'off',
+      'import/no-unresolved': [
+        'error',
+        {
+          ignore: ['^node:'],
+        },
+      ],
       'no-implicit-coercion': 'off',
       eqeqeq: 'off',
     },

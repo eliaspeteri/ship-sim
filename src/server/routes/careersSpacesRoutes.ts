@@ -1,6 +1,7 @@
 import type { Router, Request, Response, RequestHandler } from 'express';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
+import { Prisma } from '@prisma/client';
 import type { Rules } from '../../types/rules.types';
 import type { AuthenticatedUser } from '../middleware/authentication';
 import type { prisma as prismaClient } from '../../lib/prisma';
@@ -50,8 +51,67 @@ type RegisterCareersSpacesRoutesDeps = {
   }) => void;
 };
 
+const asRecord = (value: unknown): Record<string, unknown> | undefined =>
+  typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined;
+
+const readString = (
+  record: Record<string, unknown> | undefined,
+  key: string,
+): string | undefined => {
+  if (!record) return undefined;
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
+};
+
+const readNumber = (
+  record: Record<string, unknown> | undefined,
+  key: string,
+): number | undefined => {
+  if (!record) return undefined;
+  const value = record[key];
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+};
+
+const readBoolean = (
+  record: Record<string, unknown> | undefined,
+  key: string,
+): boolean | undefined => {
+  if (!record) return undefined;
+  const value = record[key];
+  return typeof value === 'boolean' ? value : undefined;
+};
+
+const isJsonValue = (value: unknown): value is Prisma.InputJsonValue => {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.every(item => isJsonValue(item));
+  }
+  if (typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).every(item =>
+      isJsonValue(item),
+    );
+  }
+  return false;
+};
+
 const normalizeRules = (value: unknown): Rules | null => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     return null;
   }
   return value as Rules;
@@ -61,12 +121,15 @@ const serializeSpace = (space: SpaceShape) => ({
   id: space.id,
   name: space.name,
   visibility: space.visibility,
-  inviteToken: space.inviteToken || undefined,
-  kind: space.kind || 'free',
+  inviteToken:
+    space.inviteToken !== null && space.inviteToken.length > 0
+      ? space.inviteToken
+      : undefined,
+  kind: space.kind ?? 'free',
   rankRequired: space.rankRequired ?? 1,
-  rulesetType: space.rulesetType || undefined,
+  rulesetType: space.rulesetType ?? undefined,
   rules: normalizeRules(space.rules),
-  createdBy: space.createdBy || undefined,
+  createdBy: space.createdBy ?? undefined,
 });
 
 const mergeSpaces = (
@@ -94,7 +157,7 @@ const collectSpaces = async ({
   const collected: ReturnType<typeof serializeSpace>[] =
     publicSpaces.map(serializeSpace);
 
-  if (includeKnown && userId) {
+  if (includeKnown && userId !== undefined && userId.length > 0) {
     const known = await prisma.spaceAccess.findMany({
       where: { userId },
       select: { spaceId: true },
@@ -124,17 +187,22 @@ const validateSpacePassword = async ({
   password: string | undefined;
   res: Response;
 }) => {
-  if (space.visibility !== 'private' || !space.passwordHash) {
+  const passwordHash = space.passwordHash;
+  if (
+    space.visibility !== 'private' ||
+    typeof passwordHash !== 'string' ||
+    passwordHash.length === 0
+  ) {
     return true;
   }
-  if (!password) {
+  if (password === undefined || password.length === 0) {
     res
       .status(403)
       .json({ error: 'Password required', requiresPassword: true });
     return false;
   }
-  const ok = await bcrypt.compare(password, space.passwordHash);
-  if (!ok) {
+  const passwordMatches = await bcrypt.compare(password, passwordHash);
+  if (passwordMatches === false) {
     res.status(403).json({ error: 'Invalid password', requiresPassword: true });
     return false;
   }
@@ -180,8 +248,9 @@ export const registerCareersSpacesRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const careerId = req.body?.careerId;
-      if (!careerId) {
+      const body = asRecord(req.body as unknown);
+      const careerId = readString(body, 'careerId');
+      if (careerId === undefined || careerId.length === 0) {
         res.status(400).json({ error: 'Missing career id' });
         return;
       }
@@ -222,15 +291,16 @@ export const registerCareersSpacesRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const licenseKey = req.body?.licenseKey;
-      if (!licenseKey) {
+      const body = asRecord(req.body as unknown);
+      const licenseKey = readString(body, 'licenseKey');
+      if (licenseKey === undefined || licenseKey.length === 0) {
         res.status(400).json({ error: 'Missing license key' });
         return;
       }
+      const durationDaysValue = readNumber(body, 'durationDays');
       const durationDays =
-        Number.isFinite(req.body?.durationDays) &&
-        Number(req.body.durationDays) > 0
-          ? Number(req.body.durationDays)
+        durationDaysValue !== undefined && durationDaysValue > 0
+          ? durationDaysValue
           : 90;
       await issueLicense({
         userId: user.userId,
@@ -253,8 +323,9 @@ export const registerCareersSpacesRoutes = ({
     if (!user) return;
     try {
       const examId = req.params.id;
-      const score = Number(req.body?.score);
-      if (!Number.isFinite(score)) {
+      const body = asRecord(req.body as unknown);
+      const score = readNumber(body, 'score');
+      if (score === undefined) {
         res.status(400).json({ error: 'Missing exam score' });
         return;
       }
@@ -272,7 +343,7 @@ export const registerCareersSpacesRoutes = ({
           passed,
         },
       });
-      if (passed && exam.licenseKey) {
+      if (passed && exam.licenseKey !== null && exam.licenseKey.length > 0) {
         await issueLicense({
           userId: user.userId,
           licenseKey: exam.licenseKey,
@@ -317,7 +388,7 @@ export const registerCareersSpacesRoutes = ({
         includeKnown,
       });
 
-      if (inviteToken) {
+      if (inviteToken !== undefined && inviteToken.length > 0) {
         const space = await prisma.space.findUnique({
           where: { inviteToken },
         });
@@ -325,7 +396,11 @@ export const registerCareersSpacesRoutes = ({
           res.status(404).json({ error: 'Space not found' });
           return;
         }
-        if (space.visibility === 'private' && space.passwordHash) {
+        if (
+          space.visibility === 'private' &&
+          space.passwordHash !== null &&
+          space.passwordHash.length > 0
+        ) {
           res
             .status(403)
             .json({ error: 'Password required', requiresPassword: true });
@@ -342,13 +417,12 @@ export const registerCareersSpacesRoutes = ({
   });
 
   router.post('/spaces/access', async (req, res) => {
+    const body = asRecord(req.body as unknown);
+    const inviteTokenRaw = readString(body, 'inviteToken');
     const inviteToken =
-      typeof req.body?.inviteToken === 'string'
-        ? req.body.inviteToken.trim()
-        : undefined;
-    const password =
-      typeof req.body?.password === 'string' ? req.body.password : undefined;
-    const includeKnown = Boolean(req.body?.includeKnown);
+      inviteTokenRaw !== undefined ? inviteTokenRaw.trim() : undefined;
+    const password = readString(body, 'password');
+    const includeKnown = readBoolean(body, 'includeKnown') === true;
 
     try {
       const collected = await collectSpaces({
@@ -357,7 +431,7 @@ export const registerCareersSpacesRoutes = ({
         includeKnown,
       });
 
-      if (inviteToken) {
+      if (inviteToken !== undefined && inviteToken.length > 0) {
         const space = await prisma.space.findUnique({
           where: { inviteToken },
         });
@@ -382,32 +456,43 @@ export const registerCareersSpacesRoutes = ({
   router.post('/spaces', requireAuth, async (req, res) => {
     const user = requireUser(req, res);
     if (!user) return;
-    const name = (req.body?.name || '').trim();
-    if (!name) {
+    const body = asRecord(req.body as unknown);
+    const name = (readString(body, 'name') ?? '').trim();
+    if (name.length === 0) {
       res.status(400).json({ error: 'Space name is required' });
       return;
     }
     const visibility =
-      req.body?.visibility === 'private' ? 'private' : 'public';
-    const requestedKind = req.body?.kind;
+      readString(body, 'visibility') === 'private' ? 'private' : 'public';
+    const requestedKind = readString(body, 'kind');
     const kind =
       user.roles.includes('admin') &&
       (requestedKind === 'tutorial' || requestedKind === 'scenario')
         ? requestedKind
         : 'free';
-    const rankRequiredRaw = Number(req.body?.rankRequired ?? 1);
+    const rankRequiredRaw = readNumber(body, 'rankRequired') ?? 1;
     const rankRequired = Number.isFinite(rankRequiredRaw)
       ? Math.max(1, Math.round(rankRequiredRaw))
       : 1;
     const rules =
-      user.roles.includes('admin') && req.body?.rules ? req.body.rules : null;
-    const rulesetType = req.body?.rulesetType;
-    const password =
-      typeof req.body?.password === 'string' ? req.body.password : undefined;
+      user.roles.includes('admin') &&
+      body !== undefined &&
+      body.rules !== undefined
+        ? body.rules
+        : null;
+    const rulesInput =
+      rules === null
+        ? Prisma.JsonNull
+        : isJsonValue(rules)
+          ? rules
+          : Prisma.JsonNull;
+    const rulesetType = readString(body, 'rulesetType');
+    const password = readString(body, 'password');
+    const inviteTokenRaw = readString(body, 'inviteToken');
     const inviteToken =
-      (typeof req.body?.inviteToken === 'string' &&
-        req.body.inviteToken.trim()) ||
-      randomUUID();
+      inviteTokenRaw !== undefined && inviteTokenRaw.trim().length > 0
+        ? inviteTokenRaw.trim()
+        : randomUUID();
 
     try {
       if (visibility === 'public') {
@@ -419,7 +504,10 @@ export const registerCareersSpacesRoutes = ({
           return;
         }
       }
-      const passwordHash = password ? await bcrypt.hash(password, 10) : null;
+      const passwordHash =
+        password !== undefined && password.length > 0
+          ? await bcrypt.hash(password, 10)
+          : null;
       const space = await prisma.space.create({
         data: {
           name,
@@ -428,8 +516,8 @@ export const registerCareersSpacesRoutes = ({
           passwordHash,
           kind,
           rankRequired,
-          rulesetType: rulesetType || 'CASUAL',
-          rules,
+          rulesetType: rulesetType ?? 'CASUAL',
+          rules: rulesInput,
           createdBy: user.userId,
         },
       });
@@ -440,11 +528,11 @@ export const registerCareersSpacesRoutes = ({
         where: {
           userId_spaceId: { userId: user.userId, spaceId: space.id },
         },
-        update: { role: 'host', inviteToken: space.inviteToken || null },
+        update: { role: 'host', inviteToken: space.inviteToken ?? null },
         create: {
           userId: user.userId,
           spaceId: space.id,
-          inviteToken: space.inviteToken || null,
+          inviteToken: space.inviteToken ?? null,
           role: 'host',
         },
       });
@@ -458,8 +546,10 @@ export const registerCareersSpacesRoutes = ({
   router.post('/spaces/known', requireAuth, async (req, res) => {
     const user = requireUser(req, res);
     if (!user) return;
-    const { spaceId, inviteToken } = req.body || {};
-    if (!spaceId || typeof spaceId !== 'string') {
+    const body = asRecord(req.body as unknown);
+    const spaceId = readString(body, 'spaceId');
+    const inviteToken = readString(body, 'inviteToken');
+    if (spaceId === undefined || spaceId.length === 0) {
       res.status(400).json({ error: 'spaceId is required' });
       return;
     }
@@ -471,11 +561,11 @@ export const registerCareersSpacesRoutes = ({
       }
       await prisma.spaceAccess.upsert({
         where: { userId_spaceId: { userId: user.userId, spaceId } },
-        update: { inviteToken: inviteToken || space.inviteToken || null },
+        update: { inviteToken: inviteToken ?? space.inviteToken ?? null },
         create: {
           userId: user.userId,
           spaceId,
-          inviteToken: inviteToken || space.inviteToken || null,
+          inviteToken: inviteToken ?? space.inviteToken ?? null,
           role: 'member',
         },
       });
@@ -587,29 +677,33 @@ export const registerCareersSpacesRoutes = ({
         res.status(403).json({ error: 'Not authorized to edit this space' });
         return;
       }
+      const body = asRecord(req.body as unknown);
 
       const name =
-        typeof req.body?.name === 'string' ? req.body.name.trim() : undefined;
+        readString(body, 'name') !== undefined
+          ? readString(body, 'name')?.trim()
+          : undefined;
       const visibility =
-        req.body?.visibility === 'private' ? 'private' : req.body?.visibility;
-      const password =
-        typeof req.body?.password === 'string' ? req.body.password : undefined;
-      const clearPassword = req.body?.clearPassword === true;
-      const regenerateInvite = req.body?.regenerateInvite === true;
-      const requestedKind = req.body?.kind;
-      const requestedRank = Number(req.body?.rankRequired);
-      const requestedRules = req.body?.rules;
-      const requestedRulesetType = req.body?.rulesetType;
+        readString(body, 'visibility') === 'private'
+          ? 'private'
+          : readString(body, 'visibility');
+      const password = readString(body, 'password');
+      const clearPassword = readBoolean(body, 'clearPassword') === true;
+      const regenerateInvite = readBoolean(body, 'regenerateInvite') === true;
+      const requestedKind = readString(body, 'kind');
+      const requestedRank = readNumber(body, 'rankRequired');
+      const requestedRules = body?.rules;
+      const requestedRulesetType = readString(body, 'rulesetType');
       const hasRulesField =
-        req.body !== null &&
-        typeof req.body === 'object' &&
-        Object.prototype.hasOwnProperty.call(req.body, 'rules');
+        body !== undefined &&
+        Object.prototype.hasOwnProperty.call(body, 'rules');
 
       const nextVisibility =
         visibility === 'public' || visibility === 'private'
           ? visibility
           : space.visibility;
-      const nextName = name || space.name;
+      const nextName =
+        name !== undefined && name.length > 0 ? name : space.name;
 
       if (nextVisibility === 'public') {
         const existing = await prisma.space.findFirst({
@@ -626,11 +720,11 @@ export const registerCareersSpacesRoutes = ({
       }
 
       const updates: Record<string, unknown> = {};
-      if (name) updates.name = name;
+      if (name !== undefined && name.length > 0) updates.name = name;
       if (nextVisibility !== space.visibility)
         updates.visibility = nextVisibility;
       if (regenerateInvite) updates.inviteToken = randomUUID();
-      if (password && password.trim().length > 0) {
+      if (password !== undefined && password.trim().length > 0) {
         updates.passwordHash = await bcrypt.hash(password, 10);
       } else if (clearPassword) {
         updates.passwordHash = null;
@@ -643,14 +737,19 @@ export const registerCareersSpacesRoutes = ({
       ) {
         updates.kind = requestedKind;
       }
-      if (user.roles.includes('admin') && Number.isFinite(requestedRank)) {
+      if (
+        user.roles.includes('admin') &&
+        requestedRank !== undefined &&
+        Number.isFinite(requestedRank)
+      ) {
         updates.rankRequired = Math.max(1, Math.round(requestedRank));
       }
       if (hasRulesField && (await canManageSpace(user, spaceId))) {
         updates.rules = requestedRules ?? null;
       }
       if (
-        requestedRulesetType &&
+        requestedRulesetType !== undefined &&
+        requestedRulesetType.length > 0 &&
         [
           'CASUAL',
           'REALISM',

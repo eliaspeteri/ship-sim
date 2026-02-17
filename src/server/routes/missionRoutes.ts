@@ -30,6 +30,19 @@ type RegisterMissionRoutesDeps = {
   }) => unknown;
 };
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+
+const readString = (
+  record: Record<string, unknown>,
+  key: string,
+): string | undefined => {
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
+};
+
 export const registerMissionRoutes = ({
   router,
   prisma,
@@ -101,11 +114,14 @@ export const registerMissionRoutes = ({
           res.json({ assignment: { ...existing, mission } });
           return;
         }
+        const body = asRecord(req.body as unknown);
+        const vesselId = readString(body, 'vesselId');
         const assignment = await prisma.missionAssignment.create({
           data: {
             missionId,
             userId: user.userId,
-            vesselId: req.body?.vesselId || null,
+            vesselId:
+              vesselId !== undefined && vesselId.length > 0 ? vesselId : null,
             status: 'assigned',
             progress: { stage: 'pickup' },
           },
@@ -127,7 +143,10 @@ export const registerMissionRoutes = ({
       if (!user) return;
       const status =
         typeof req.query.status === 'string' ? req.query.status : undefined;
-      const statusList = status ? status.split(',') : undefined;
+      const statusList =
+        status !== undefined && status.length > 0
+          ? status.split(',')
+          : undefined;
       try {
         const assignments = await prisma.missionAssignment.findMany({
           where: {
@@ -160,7 +179,8 @@ export const registerMissionRoutes = ({
       return;
     }
     try {
-      const name = `${scenario.name} (${user.userId.slice(0, 6) || 'pilot'})`;
+      const userIdTag = user.userId.slice(0, 6);
+      const name = `${scenario.name} (${userIdTag.length > 0 ? userIdTag : 'pilot'})`;
       const space = await prisma.space.create({
         data: {
           name,
@@ -176,16 +196,22 @@ export const registerMissionRoutes = ({
           userId: user.userId,
           spaceId: space.id,
           role: 'host',
-          inviteToken: space.inviteToken || null,
+          inviteToken:
+            space.inviteToken !== null && space.inviteToken.length > 0
+              ? space.inviteToken
+              : null,
         },
       });
-      if (scenario.weatherPattern || scenario.environmentOverrides) {
+      const hasWeatherPattern = typeof scenario.weatherPattern === 'string';
+      const hasEnvironmentOverrides =
+        scenario.environmentOverrides !== undefined;
+      if (hasWeatherPattern || hasEnvironmentOverrides) {
         await prisma.environmentEvent.create({
           data: {
             spaceId: space.id,
             name: scenario.name,
-            pattern: scenario.weatherPattern || null,
-            payload: scenario.environmentOverrides
+            pattern: hasWeatherPattern ? scenario.weatherPattern : null,
+            payload: hasEnvironmentOverrides
               ? (scenario.environmentOverrides as Prisma.InputJsonValue)
               : undefined,
             runAt: new Date(),

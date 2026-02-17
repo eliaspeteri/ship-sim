@@ -32,6 +32,34 @@ type EconomyRouteDeps = {
   requireUser: RequireUser;
 };
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : {};
+
+const readString = (
+  record: Record<string, unknown>,
+  key: string,
+): string | undefined => {
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
+};
+
+const readNumber = (
+  record: Record<string, unknown>,
+  key: string,
+): number | undefined => {
+  const value = record[key];
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+};
+
 export const registerEconomyRoutes = ({
   router,
   prisma,
@@ -154,7 +182,7 @@ export const registerEconomyRoutes = ({
   );
 
   const toVesselPosition = (vessel: { lat: number; lon: number; z: number }) =>
-    positionFromLatLon({ lat: vessel.lat, lon: vessel.lon, z: vessel.z || 0 });
+    positionFromLatLon({ lat: vessel.lat, lon: vessel.lon, z: vessel.z });
 
   const loadUserFleet = async (userId: string) =>
     prisma.vessel.findMany({
@@ -230,7 +258,7 @@ export const registerEconomyRoutes = ({
           take: 20,
         });
         const missions = await prisma.mission.findMany({
-          where: { spaceId: user.spaceId || 'global', active: true },
+          where: { spaceId: user.spaceId ?? 'global', active: true },
           orderBy: { rewardCredits: 'desc' },
           take: 10,
         });
@@ -310,13 +338,11 @@ export const registerEconomyRoutes = ({
     const actor = requireUser(req, res);
     if (!actor) return;
     try {
-      const templateId =
-        typeof req.body?.templateId === 'string' ? req.body.templateId : null;
-      const portId =
-        typeof req.body?.portId === 'string' ? req.body.portId : null;
-      const spaceId =
-        typeof req.body?.spaceId === 'string' ? req.body.spaceId : 'global';
-      if (!templateId) {
+      const body = asRecord(req.body as unknown);
+      const templateId = readString(body, 'templateId');
+      const portId = readString(body, 'portId') ?? null;
+      const spaceId = readString(body, 'spaceId') ?? 'global';
+      if (templateId === undefined || templateId.length === 0) {
         res.status(400).json({ error: 'Missing vessel template' });
         return;
       }
@@ -328,7 +354,7 @@ export const registerEconomyRoutes = ({
         return;
       }
       const price = template.commerce?.purchasePrice ?? 0;
-      if (!price) {
+      if (price <= 0) {
         res.status(400).json({ error: 'Vessel not available for purchase' });
         return;
       }
@@ -373,15 +399,13 @@ export const registerEconomyRoutes = ({
     const actor = requireUser(req, res);
     if (!actor) return;
     try {
-      const templateId =
-        typeof req.body?.templateId === 'string' ? req.body.templateId : null;
-      const leaseType = req.body?.type === 'lease' ? 'lease' : 'charter';
-      const portId =
-        typeof req.body?.portId === 'string' ? req.body.portId : null;
-      const spaceId =
-        typeof req.body?.spaceId === 'string' ? req.body.spaceId : 'global';
-      const requestedTerm =
-        typeof req.body?.termHours === 'number' ? req.body.termHours : null;
+      const body = asRecord(req.body as unknown);
+      const templateId = readString(body, 'templateId');
+      const leaseType =
+        readString(body, 'type') === 'lease' ? 'lease' : 'charter';
+      const portId = readString(body, 'portId') ?? null;
+      const spaceId = readString(body, 'spaceId') ?? 'global';
+      const requestedTerm = readNumber(body, 'termHours');
       const termHours = Math.min(
         Math.max(
           1,
@@ -392,7 +416,7 @@ export const registerEconomyRoutes = ({
         ),
         MAX_TERM_HOURS,
       );
-      if (!templateId) {
+      if (templateId === undefined || templateId.length === 0) {
         res.status(400).json({ error: 'Missing vessel template' });
         return;
       }
@@ -407,7 +431,7 @@ export const registerEconomyRoutes = ({
         leaseType === 'lease'
           ? template.commerce?.leaseRatePerHour
           : template.commerce?.charterRatePerHour;
-      if (!rate) {
+      if (rate === undefined || rate <= 0) {
         res.status(400).json({ error: 'Vessel not available for lease' });
         return;
       }
@@ -471,13 +495,14 @@ export const registerEconomyRoutes = ({
           typeof req.query.vesselId === 'string'
             ? req.query.vesselId
             : undefined;
-        const where = portId ? { portId, status: 'listed' } : undefined;
+        const where =
+          portId !== undefined ? { portId, status: 'listed' } : undefined;
         const cargo = await prisma.cargoLot.findMany({
           where,
           orderBy: { createdAt: 'desc' },
           take: 50,
         });
-        if (vesselId) {
+        if (vesselId !== undefined) {
           const vessel = await prisma.vessel.findUnique({
             where: { id: vesselId },
           });
@@ -488,11 +513,12 @@ export const registerEconomyRoutes = ({
             });
             const capacityTons = getVesselCargoCapacityTons({
               id: vessel.id,
-              spaceId: vessel.spaceId || 'global',
+              spaceId: vessel.spaceId,
               ownerId: vessel.ownerId ?? null,
-              status: vessel.status || 'active',
+              status: vessel.status,
               storagePortId: vessel.storagePortId ?? null,
-              storedAt: vessel.storedAt?.getTime() || null,
+              storedAt:
+                vessel.storedAt !== null ? vessel.storedAt.getTime() : null,
               chartererId: vessel.chartererId ?? null,
               leaseeId: vessel.leaseeId ?? null,
               crewIds: new Set<string>(),
@@ -545,15 +571,22 @@ export const registerEconomyRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const { cargoId, vesselId } = req.body || {};
-      if (!cargoId || !vesselId) {
+      const body = asRecord(req.body as unknown);
+      const cargoId = readString(body, 'cargoId');
+      const vesselId = readString(body, 'vesselId');
+      if (
+        cargoId === undefined ||
+        cargoId.length === 0 ||
+        vesselId === undefined ||
+        vesselId.length === 0
+      ) {
         res.status(400).json({ error: 'Missing cargo or vessel id' });
         return;
       }
       const cargo = await prisma.cargoLot.findUnique({
         where: { id: cargoId },
       });
-      if (!cargo || (cargo.ownerId && cargo.ownerId !== user.userId)) {
+      if (!cargo || (cargo.ownerId !== null && cargo.ownerId !== user.userId)) {
         res.status(404).json({ error: 'Cargo not found' });
         return;
       }
@@ -573,7 +606,7 @@ export const registerEconomyRoutes = ({
         return;
       }
       const port = resolvePortForPosition(toVesselPosition(vessel));
-      if (!port || (cargo.portId && cargo.portId !== port.id)) {
+      if (!port || (cargo.portId !== null && cargo.portId !== port.id)) {
         res.status(400).json({ error: 'Vessel must be in the cargo port' });
         return;
       }
@@ -583,11 +616,11 @@ export const registerEconomyRoutes = ({
       });
       const capacityTons = getVesselCargoCapacityTons({
         id: vessel.id,
-        spaceId: vessel.spaceId || 'global',
+        spaceId: vessel.spaceId,
         ownerId: vessel.ownerId ?? null,
-        status: vessel.status || 'active',
+        status: vessel.status,
         storagePortId: vessel.storagePortId ?? null,
-        storedAt: vessel.storedAt?.getTime() || null,
+        storedAt: vessel.storedAt !== null ? vessel.storedAt.getTime() : null,
         chartererId: vessel.chartererId ?? null,
         leaseeId: vessel.leaseeId ?? null,
         crewIds: new Set<string>(),
@@ -652,15 +685,16 @@ export const registerEconomyRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const { cargoId } = req.body || {};
-      if (!cargoId) {
+      const body = asRecord(req.body as unknown);
+      const cargoId = readString(body, 'cargoId');
+      if (cargoId === undefined || cargoId.length === 0) {
         res.status(400).json({ error: 'Missing cargo id' });
         return;
       }
       const cargo = await prisma.cargoLot.findUnique({
         where: { id: cargoId },
       });
-      if (!cargo || (cargo.ownerId && cargo.ownerId !== user.userId)) {
+      if (!cargo || (cargo.ownerId !== null && cargo.ownerId !== user.userId)) {
         res.status(404).json({ error: 'Cargo not found' });
         return;
       }
@@ -681,15 +715,16 @@ export const registerEconomyRoutes = ({
         typeof req.query.portId === 'string' ? req.query.portId : undefined;
       const vesselId =
         typeof req.query.vesselId === 'string' ? req.query.vesselId : undefined;
-      const where = portId
-        ? { originPortId: portId, status: 'listed' }
-        : undefined;
+      const where =
+        portId !== undefined
+          ? { originPortId: portId, status: 'listed' }
+          : undefined;
       const contracts = await prisma.passengerContract.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         take: 50,
       });
-      if (vesselId) {
+      if (vesselId !== undefined) {
         const vessel = await prisma.vessel.findUnique({
           where: { id: vesselId },
         });
@@ -700,11 +735,12 @@ export const registerEconomyRoutes = ({
           });
           const capacity = getVesselPassengerCapacity({
             id: vessel.id,
-            spaceId: vessel.spaceId || 'global',
+            spaceId: vessel.spaceId,
             ownerId: vessel.ownerId ?? null,
-            status: vessel.status || 'active',
+            status: vessel.status,
             storagePortId: vessel.storagePortId ?? null,
-            storedAt: vessel.storedAt?.getTime() || null,
+            storedAt:
+              vessel.storedAt !== null ? vessel.storedAt.getTime() : null,
             chartererId: vessel.chartererId ?? null,
             leaseeId: vessel.leaseeId ?? null,
             crewIds: new Set<string>(),
@@ -756,8 +792,15 @@ export const registerEconomyRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const { contractId, vesselId } = req.body || {};
-      if (!contractId || !vesselId) {
+      const body = asRecord(req.body as unknown);
+      const contractId = readString(body, 'contractId');
+      const vesselId = readString(body, 'vesselId');
+      if (
+        contractId === undefined ||
+        contractId.length === 0 ||
+        vesselId === undefined ||
+        vesselId.length === 0
+      ) {
         res.status(400).json({ error: 'Missing contract or vessel id' });
         return;
       }
@@ -790,11 +833,11 @@ export const registerEconomyRoutes = ({
       });
       const capacity = getVesselPassengerCapacity({
         id: vessel.id,
-        spaceId: vessel.spaceId || 'global',
+        spaceId: vessel.spaceId,
         ownerId: vessel.ownerId ?? null,
-        status: vessel.status || 'active',
+        status: vessel.status,
         storagePortId: vessel.storagePortId ?? null,
-        storedAt: vessel.storedAt?.getTime() || null,
+        storedAt: vessel.storedAt !== null ? vessel.storedAt.getTime() : null,
         chartererId: vessel.chartererId ?? null,
         leaseeId: vessel.leaseeId ?? null,
         crewIds: new Set<string>(),
@@ -885,7 +928,8 @@ export const registerEconomyRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const amount = Number(req.body?.amount);
+      const body = asRecord(req.body as unknown);
+      const amount = Number(readNumber(body, 'amount'));
       if (!Number.isFinite(amount) || amount <= 0) {
         res.status(400).json({ error: 'Invalid loan amount' });
         return;
@@ -903,15 +947,14 @@ export const registerEconomyRoutes = ({
           .json({ error: 'Loan request exceeds available credit' });
         return;
       }
-      const termDays =
-        Number.isFinite(req.body?.termDays) && Number(req.body.termDays) > 0
-          ? Number(req.body.termDays)
-          : 14;
-      const interestRate =
-        Number.isFinite(req.body?.interestRate) &&
-        Number(req.body.interestRate) > 0
-          ? Number(req.body.interestRate)
-          : 0.08;
+      const termDays = (() => {
+        const value = readNumber(body, 'termDays');
+        return value !== undefined && value > 0 ? value : 14;
+      })();
+      const interestRate = (() => {
+        const value = readNumber(body, 'interestRate');
+        return value !== undefined && value > 0 ? value : 0.08;
+      })();
       const loan = await prisma.loan.create({
         data: {
           userId: user.userId,
@@ -937,9 +980,15 @@ export const registerEconomyRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const loanId = req.body?.loanId;
-      const amount = Number(req.body?.amount);
-      if (!loanId || !Number.isFinite(amount) || amount <= 0) {
+      const body = asRecord(req.body as unknown);
+      const loanId = readString(body, 'loanId');
+      const amount = readNumber(body, 'amount');
+      if (
+        loanId === undefined ||
+        loanId.length === 0 ||
+        amount === undefined ||
+        amount <= 0
+      ) {
         res.status(400).json({ error: 'Invalid repayment' });
         return;
       }
@@ -996,8 +1045,17 @@ export const registerEconomyRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const { vesselId, coverage, deductible, premiumRate } = req.body || {};
-      if (!vesselId || !coverage || premiumRate === undefined) {
+      const body = asRecord(req.body as unknown);
+      const vesselId = readString(body, 'vesselId');
+      const coverage = readNumber(body, 'coverage');
+      const deductible = readNumber(body, 'deductible');
+      const premiumRate = readNumber(body, 'premiumRate');
+      if (
+        vesselId === undefined ||
+        vesselId.length === 0 ||
+        coverage === undefined ||
+        premiumRate === undefined
+      ) {
         res.status(400).json({ error: 'Invalid insurance terms' });
         return;
       }
@@ -1008,21 +1066,22 @@ export const registerEconomyRoutes = ({
         res.status(403).json({ error: 'Not authorized' });
         return;
       }
-      const termDays =
-        Number.isFinite(req.body?.termDays) && Number(req.body.termDays) > 0
-          ? Number(req.body.termDays)
-          : 30;
+      const termDays = (() => {
+        const value = readNumber(body, 'termDays');
+        return value !== undefined && value > 0 ? value : 30;
+      })();
       const policy = await prisma.insurancePolicy.create({
         data: {
           vesselId,
           ownerId: user.userId,
           type:
-            req.body?.type === 'loss' || req.body?.type === 'salvage'
-              ? req.body.type
+            readString(body, 'type') === 'loss' ||
+            readString(body, 'type') === 'salvage'
+              ? (readString(body, 'type') as 'loss' | 'salvage')
               : 'damage',
-          coverage: Number(coverage),
-          deductible: Number(deductible) || 0,
-          premiumRate: Number(premiumRate),
+          coverage,
+          deductible: deductible ?? 0,
+          premiumRate,
           status: 'active',
           activeFrom: new Date(),
           activeUntil: new Date(Date.now() + termDays * 24 * 60 * 60 * 1000),
@@ -1040,8 +1099,9 @@ export const registerEconomyRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const policyId = req.body?.policyId;
-      if (!policyId) {
+      const body = asRecord(req.body as unknown);
+      const policyId = readString(body, 'policyId');
+      if (policyId === undefined || policyId.length === 0) {
         res.status(400).json({ error: 'Missing policy id' });
         return;
       }
@@ -1084,8 +1144,11 @@ export const registerEconomyRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const { vesselId, ratePerHour } = req.body || {};
-      if (!vesselId || !ratePerHour) {
+      const body = asRecord(req.body as unknown);
+      const vesselId = readString(body, 'vesselId');
+      const ratePerHour = readNumber(body, 'ratePerHour');
+      const endsAtRaw = readString(body, 'endsAt');
+      if (vesselId === undefined || ratePerHour === undefined) {
         res.status(400).json({ error: 'Invalid lease terms' });
         return;
       }
@@ -1100,11 +1163,11 @@ export const registerEconomyRoutes = ({
         data: {
           vesselId,
           ownerId: user.userId,
-          type: req.body?.type === 'lease' ? 'lease' : 'charter',
-          ratePerHour: Number(ratePerHour),
-          revenueShare: Number(req.body?.revenueShare) || 0,
+          type: readString(body, 'type') === 'lease' ? 'lease' : 'charter',
+          ratePerHour,
+          revenueShare: readNumber(body, 'revenueShare') ?? 0,
           status: 'open',
-          endsAt: req.body?.endsAt ? new Date(req.body.endsAt) : null,
+          endsAt: endsAtRaw !== undefined ? new Date(endsAtRaw) : null,
         },
       });
       res.json({ lease });
@@ -1118,8 +1181,9 @@ export const registerEconomyRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const leaseId = req.body?.leaseId;
-      if (!leaseId) {
+      const body = asRecord(req.body as unknown);
+      const leaseId = readString(body, 'leaseId');
+      if (leaseId === undefined || leaseId.length === 0) {
         res.status(400).json({ error: 'Missing lease id' });
         return;
       }
@@ -1160,8 +1224,9 @@ export const registerEconomyRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const leaseId = req.body?.leaseId;
-      if (!leaseId) {
+      const body = asRecord(req.body as unknown);
+      const leaseId = readString(body, 'leaseId');
+      if (leaseId === undefined || leaseId.length === 0) {
         res.status(400).json({ error: 'Missing lease id' });
         return;
       }
@@ -1238,8 +1303,11 @@ export const registerEconomyRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const { vesselId, price } = req.body || {};
-      if (!vesselId || !price) {
+      const body = asRecord(req.body as unknown);
+      const vesselId = readString(body, 'vesselId');
+      const price = readNumber(body, 'price');
+      const endsAtRaw = readString(body, 'endsAt');
+      if (vesselId === undefined || price === undefined) {
         res.status(400).json({ error: 'Invalid sale' });
         return;
       }
@@ -1254,12 +1322,10 @@ export const registerEconomyRoutes = ({
         data: {
           vesselId,
           sellerId: user.userId,
-          type: req.body?.type === 'auction' ? 'auction' : 'sale',
-          price: Number(price),
-          reservePrice: req.body?.reservePrice
-            ? Number(req.body.reservePrice)
-            : null,
-          endsAt: req.body?.endsAt ? new Date(req.body.endsAt) : null,
+          type: readString(body, 'type') === 'auction' ? 'auction' : 'sale',
+          price,
+          reservePrice: readNumber(body, 'reservePrice') ?? null,
+          endsAt: endsAtRaw !== undefined ? new Date(endsAtRaw) : null,
         },
       });
       await prisma.vessel.update({
@@ -1277,8 +1343,9 @@ export const registerEconomyRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const saleId = req.body?.saleId;
-      if (!saleId) {
+      const body = asRecord(req.body as unknown);
+      const saleId = readString(body, 'saleId');
+      if (saleId === undefined || saleId.length === 0) {
         res.status(400).json({ error: 'Missing sale id' });
         return;
       }
@@ -1289,7 +1356,7 @@ export const registerEconomyRoutes = ({
         res.status(404).json({ error: 'Sale not available' });
         return;
       }
-      if (sale.reservePrice && sale.price < sale.reservePrice) {
+      if (sale.reservePrice !== null && sale.price < sale.reservePrice) {
         res.status(400).json({ error: 'Reserve not met' });
         return;
       }
@@ -1333,8 +1400,10 @@ export const registerEconomyRoutes = ({
     const user = requireUser(req, res);
     if (!user) return;
     try {
-      const { vesselId, action } = req.body || {};
-      if (!vesselId) {
+      const body = asRecord(req.body as unknown);
+      const vesselId = readString(body, 'vesselId');
+      const action = readString(body, 'action');
+      if (vesselId === undefined || vesselId.length === 0) {
         res.status(400).json({ error: 'Missing vessel id' });
         return;
       }
@@ -1384,7 +1453,11 @@ export const registerEconomyRoutes = ({
     async (req, res) => {
       const user = requireUser(req, res);
       if (!user) return;
-      const limit = Math.min(Number(req.query.limit ?? 50) || 50, 200);
+      const parsedLimit = Number(req.query.limit ?? 50);
+      const limit =
+        Number.isFinite(parsedLimit) && parsedLimit > 0
+          ? Math.min(parsedLimit, 200)
+          : 50;
       try {
         const transactions = await prisma.economyTransaction.findMany({
           where: { userId: user.userId },
