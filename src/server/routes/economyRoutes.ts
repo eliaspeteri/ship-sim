@@ -208,10 +208,10 @@ export const registerEconomyRoutes = ({
       try {
         const profile = await getEconomyProfile(user.userId);
         const fleet = await loadUserFleet(user.userId);
-        const activeVessel = fleet[0];
-        const currentPort = resolvePortForPosition(
-          toVesselPosition(activeVessel),
-        );
+        const currentPort =
+          fleet.length > 0
+            ? resolvePortForPosition(toVesselPosition(fleet[0]))
+            : null;
         const congestion = await getPortCongestion();
         const congestionMap = new Map(
           congestion.map(item => [item.portId, item.congestion]),
