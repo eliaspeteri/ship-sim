@@ -144,4 +144,58 @@ React will try to recreate this component tree from scratch using the error boun
 - [ ] I don't see a way to leave a vessel, and get back to "join space" modal.
 - [ ] Joining a vessel from hud drawer tab in spectator mode does not put me in player mode even if it assigns me on the vessel.
 - [ ] I get the "join space" modal even if I'm not logged in, and it's my first time visiting the site (empty cookies). I should only get this when I'm logged in.
-- [ ] Sim breaks completely in Firefox
+- [ ] Sim breaks completely in Firefox (hasn't happened recently, might not be relevant)
+- [ ] There's some weird and unfair bug where I'm getting charged for a vessel that does not belong to me or that I have no control over.. Logs:
+
+```text
+Applying economy adjustment for user cmkjjos9a0000u0u8s5dmmo3d: {
+  from: {
+    rank: 1,
+    experience: 0,
+    credits: -179274.8811999999,
+    safetyScore: 1
+  },
+  to: {
+    rank: 1,
+    experience: 0,
+    credits: -179268.7833999999,
+    safetyScore: 1
+  },
+  adjustment: {
+    userId: 'cmkjjos9a0000u0u8s5dmmo3d',
+    vesselId: 'b182c52e-9506-4a07-8b56-ec1115304f59',
+    deltaCredits: 6.097799999999999,
+    reason: 'crew_wage',
+    meta: { vesselId: 'b182c52e-9506-4a07-8b56-ec1115304f59' }
+  }
+}
+Applying economy adjustment for user system_shipyard: {
+  from: {
+    rank: 1,
+    experience: 0,
+    credits: -1879.536970581909,
+    safetyScore: 1
+  },
+  to: {
+    rank: 1,
+    experience: 0,
+    credits: -1885.634770581909,
+    safetyScore: 1
+  },
+  adjustment: {
+    userId: 'system_shipyard',
+    vesselId: 'b182c52e-9506-4a07-8b56-ec1115304f59',
+    deltaCredits: -6.097799999999999,
+    reason: 'crew_wage',
+    meta: {
+      vesselId: 'b182c52e-9506-4a07-8b56-ec1115304f59',
+      crewId: 'cmkjjos9a0000u0u8s5dmmo3d'
+    }
+  }
+}
+```
+
+I am user cmkjjos9a0000u0u8s5dmmo3d aka admin. system_shipyard is Shipyard. Shipyard owns all vessels currently in the database. I previously leased b182c52e-9506-4a07-8b56-ec1115304f59 but no longer have control over it. Lease ended.
+
+- [ ] I am able to join an existing vessel (practically the vessel i leased but is now controlled by AI), but I am not able to control it despite manning all stations on the ship.
+- [ ] Dropdown menus are broken again. When I hover over a dropdown, the menu appears. But when I move cursor to select an option, menu hides itself again.
