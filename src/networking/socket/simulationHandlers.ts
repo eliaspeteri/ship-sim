@@ -314,8 +314,7 @@ export const handleSimulationUpdate = (
         }
       }
 
-      const desired = normalized.desiredMode || normalized.mode;
-      if (desired === 'ai') {
+      if (normalized.mode === 'ai') {
         store.setMode('spectator');
         callbacks.setJoinPreference('spectator', false);
         state.lastSelfVesselId = null;

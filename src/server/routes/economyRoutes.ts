@@ -1264,6 +1264,14 @@ export const registerEconomyRoutes = ({
           where: { id: lease.id },
           data: { status: 'completed', endsAt: now },
         });
+        await txClient.crewContract.updateMany({
+          where: {
+            vesselId: lease.vesselId,
+            status: 'active',
+            releasedAt: null,
+          },
+          data: { status: 'completed', releasedAt: now },
+        });
         await txClient.vessel.update({
           where: { id: lease.vesselId },
           data: {

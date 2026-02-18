@@ -19,7 +19,18 @@ export function registerStationHandlers({
     const currentUsername = effectiveUsername;
     const vesselKey =
       getVesselIdForUser(currentUserId, spaceId) ?? currentUserId;
-    const vessel = globalState.vessels.get(vesselKey);
+    let vessel = globalState.vessels.get(vesselKey);
+    if (
+      !vessel ||
+      (vessel.spaceId ?? defaultSpaceId) !== spaceId ||
+      !vessel.crewIds.has(currentUserId)
+    ) {
+      vessel = Array.from(globalState.vessels.values()).find(
+        candidate =>
+          (candidate.spaceId ?? defaultSpaceId) === spaceId &&
+          candidate.crewIds.has(currentUserId),
+      );
+    }
     if (!vessel || (vessel.spaceId ?? defaultSpaceId) !== spaceId) return;
     if (!vessel.crewIds.has(currentUserId)) {
       socket.emit('error', 'You are not crew on this vessel');
@@ -56,7 +67,18 @@ export function registerStationHandlers({
     const currentUsername = effectiveUsername;
     const vesselKey =
       getVesselIdForUser(currentUserId, spaceId) ?? currentUserId;
-    const vessel = globalState.vessels.get(vesselKey);
+    let vessel = globalState.vessels.get(vesselKey);
+    if (
+      !vessel ||
+      (vessel.spaceId ?? defaultSpaceId) !== spaceId ||
+      !vessel.crewIds.has(currentUserId)
+    ) {
+      vessel = Array.from(globalState.vessels.values()).find(
+        candidate =>
+          (candidate.spaceId ?? defaultSpaceId) === spaceId &&
+          candidate.crewIds.has(currentUserId),
+      );
+    }
     if (!vessel || (vessel.spaceId ?? defaultSpaceId) !== spaceId) return;
     if (!vessel.crewIds.has(currentUserId) && !hasAdminRole(socket)) {
       socket.emit('error', 'You are not crew on this vessel');

@@ -310,7 +310,26 @@ const applyCrewWages = async (
   const contracts = await prisma.crewContract.findMany({
     where: { vesselId: vessel.id, status: 'active', releasedAt: null },
   });
+  const staleContractIds = contracts
+    .filter(
+      contract =>
+        contract.userId !== chargeUserId &&
+        !vessel.crewIds.has(contract.userId),
+    )
+    .map(contract => contract.id);
+  if (staleContractIds.length > 0) {
+    await prisma.crewContract.updateMany({
+      where: { id: { in: staleContractIds } },
+      data: { status: 'completed', releasedAt: new Date() },
+    });
+  }
   for (const contract of contracts) {
+    if (
+      contract.userId !== chargeUserId &&
+      !vessel.crewIds.has(contract.userId)
+    ) {
+      continue;
+    }
     const wage = contract.wageRate * intervals;
     if (wage <= 0) continue;
     if (contract.userId !== chargeUserId) {
@@ -511,6 +530,7 @@ const expireLeaseIfNeeded = async (vessel: VesselRecord, now: number) => {
   vessel.radioUserId = null;
   vessel.radioUsername = null;
   vessel.lastUpdate = now;
+  await releaseCrewContracts(vessel, now);
   await prisma.vesselLease.update({
     where: { id: lease.id },
     data: { status: 'completed', endsAt: new Date(now) },

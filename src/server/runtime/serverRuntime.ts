@@ -1260,6 +1260,7 @@ function takeOverAvailableAIVessel(
   aiVessel.crewNames.set(userId, username);
   assignStationsForCrew(aiVessel, userId, username);
   aiVessel.mode = 'player';
+  aiVessel.desiredMode = 'player';
   aiControllers.delete(aiVessel.id);
   aiVessel.ownerId = aiVessel.ownerId ?? userId;
   aiVessel.spaceId = spaceId;
@@ -1362,6 +1363,7 @@ function ensureVesselForUser(
     joinable.crewNames.set(userId, username);
     assignStationsForCrew(joinable, userId, username);
     joinable.mode = 'player';
+    joinable.desiredMode = 'player';
     aiControllers.delete(joinable.id);
     joinable.spaceId = spaceId;
     globalState.userLastVessel.set(userSpaceKey(userId, spaceId), joinable.id);
@@ -1384,6 +1386,7 @@ function ensureVesselForUser(
     owned.crewNames.set(userId, username);
     assignStationsForCrew(owned, userId, username);
     owned.mode = 'player';
+    owned.desiredMode = 'player';
     aiControllers.delete(owned.id);
     owned.spaceId = spaceId;
     globalState.userLastVessel.set(userSpaceKey(userId, spaceId), owned.id);
