@@ -3,7 +3,7 @@ import {
   ECONOMY_THROTTLE_EPS,
   getEconomyProfile,
   resolvePortForPosition,
-} from '../economy';
+} from '../economyAccess';
 
 import type { SocketHandlerContext } from './context';
 
@@ -44,15 +44,16 @@ export function registerVesselControlHandler({
       let target = globalState.vessels.get(
         getVesselIdForUser(currentUserId, spaceId) ?? currentUserId,
       );
-      if (
-        !target ||
-        (target.spaceId ?? defaultSpaceId) !== spaceId ||
-        !target.crewIds.has(currentUserId)
-      ) {
+      if (!target || (target.spaceId ?? defaultSpaceId) !== spaceId) {
         target = Array.from(globalState.vessels.values()).find(
           vessel =>
             (vessel.spaceId ?? defaultSpaceId) === spaceId &&
-            vessel.crewIds.has(currentUserId),
+            (((vessel as { crewIds?: Set<string> }).crewIds?.has(
+              currentUserId,
+            ) ??
+              false) ||
+              vessel.helmUserId === currentUserId ||
+              vessel.engineUserId === currentUserId),
         );
       }
       if (!target || (target.spaceId ?? defaultSpaceId) !== spaceId) return;
@@ -60,8 +61,10 @@ export function registerVesselControlHandler({
       const isHelm = target.helmUserId === currentUserId;
       const isEngine = target.engineUserId === currentUserId;
       const isAdmin = hasAdminRole(socket);
-      const isCrew = target.crewIds.has(currentUserId);
-      if (!isCrew && !isAdmin) {
+      const isCrew =
+        (target as { crewIds?: Set<string> }).crewIds?.has(currentUserId) ??
+        false;
+      if (!isCrew && !isAdmin && !isHelm && !isEngine) {
         socket.emit('error', 'You are not crew on this vessel');
         return;
       }
@@ -116,17 +119,24 @@ export function registerVesselControlHandler({
         const departureAttempt =
           Math.abs(target.controls.throttle) <= ECONOMY_THROTTLE_EPS &&
           Math.abs(nextThrottle) > ECONOMY_THROTTLE_EPS;
-        if (departureAttempt && resolvePortForPosition(target.position)) {
+        const vesselPosition = (target as { position?: typeof target.position })
+          .position;
+        const departingFromPort =
+          departureAttempt &&
+          vesselPosition !== undefined &&
+          resolvePortForPosition(vesselPosition) !== null;
+        if (departingFromPort) {
           const chargeUserId = resolveChargeUserId(target);
-          if (chargeUserId && chargeUserId.length > 0) {
-            const chargeProfile = await getEconomyProfile(chargeUserId);
-            if (chargeProfile.credits <= 0) {
-              socket.emit(
-                'error',
-                'Cannot depart from port: vessel operator has no available credits',
-              );
-              return;
-            }
+          const chargeProfile =
+            typeof chargeUserId === 'string' && chargeUserId.length > 0
+              ? await getEconomyProfile(chargeUserId)
+              : null;
+          if (chargeProfile !== null && chargeProfile.credits <= 0) {
+            socket.emit(
+              'error',
+              'Cannot depart from port: vessel operator has no available credits',
+            );
+            return;
           }
         }
         target.controls.throttle = nextThrottle;
