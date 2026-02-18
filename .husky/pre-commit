@@ -1,12 +1,12 @@
 #!/usr/bin/env sh
 
 # Ensure hooks run on project-supported Node.
-if [ -s "$HOME/.nvm/nvm.sh" ]; then
-  . "$HOME/.nvm/nvm.sh"
-  nvm use --silent >/dev/null 2>&1 || true
+if ! command -v node >/dev/null 2>&1; then
+  echo "Pre-commit requires Node >=20. Node was not found in PATH."
+  exit 1
 fi
 
-NODE_MAJOR="$(node -p "process.versions.node.split('.')[0]")"
+NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 if [ "$NODE_MAJOR" -lt 20 ]; then
   echo "Pre-commit requires Node >=20. Run: nvm use"
   exit 1
