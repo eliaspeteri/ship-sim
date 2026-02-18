@@ -20,11 +20,7 @@ export function registerStationHandlers({
     const vesselKey =
       getVesselIdForUser(currentUserId, spaceId) ?? currentUserId;
     let vessel = globalState.vessels.get(vesselKey);
-    if (
-      !vessel ||
-      (vessel.spaceId ?? defaultSpaceId) !== spaceId ||
-      !vessel.crewIds.has(currentUserId)
-    ) {
+    if (!vessel || (vessel.spaceId ?? defaultSpaceId) !== spaceId) {
       vessel = Array.from(globalState.vessels.values()).find(
         candidate =>
           (candidate.spaceId ?? defaultSpaceId) === spaceId &&
@@ -68,11 +64,7 @@ export function registerStationHandlers({
     const vesselKey =
       getVesselIdForUser(currentUserId, spaceId) ?? currentUserId;
     let vessel = globalState.vessels.get(vesselKey);
-    if (
-      !vessel ||
-      (vessel.spaceId ?? defaultSpaceId) !== spaceId ||
-      !vessel.crewIds.has(currentUserId)
-    ) {
+    if (!vessel || (vessel.spaceId ?? defaultSpaceId) !== spaceId) {
       vessel = Array.from(globalState.vessels.values()).find(
         candidate =>
           (candidate.spaceId ?? defaultSpaceId) === spaceId &&

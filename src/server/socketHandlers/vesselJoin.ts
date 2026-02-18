@@ -78,6 +78,15 @@ export function registerVesselJoinHandler({
         socket.emit('error', 'Vessel not found');
         return;
       }
+      const canJoinPersistedVessel =
+        hasAdminRole(socket) ||
+        row.ownerId === currentUserId ||
+        row.chartererId === currentUserId ||
+        row.leaseeId === currentUserId;
+      if (!canJoinPersistedVessel) {
+        socket.emit('error', 'Not authorized to join this vessel');
+        return;
+      }
       const hydrated = buildVesselRecordFromRow(row);
       if ((hydrated.spaceId ?? defaultSpaceId) !== spaceId) {
         socket.emit(
