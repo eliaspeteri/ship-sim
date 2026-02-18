@@ -50,6 +50,7 @@ const tsTypeCheckedConfigs = compat
     files: ['src/server/**/*.{ts,tsx}', 'src/lib/**/*.{ts,tsx}'],
   }));
 const CSS_MODULE_IMPORT_PATTERNS = ['*.module.css', '**/*.module.css'];
+const isLightLint = process.env.ESLINT_LIGHT === '1';
 
 export default [
   {
@@ -64,7 +65,7 @@ export default [
 
   // Add plugin configurations
   ...pluginConfigs,
-  ...tsTypeCheckedConfigs,
+  ...(isLightLint ? [] : tsTypeCheckedConfigs),
 
   // Global ignores for all configurations
   {
@@ -177,6 +178,7 @@ export default [
       'react-hooks/immutability': 'off',
       'react-hooks/refs': 'off',
       'react-hooks/globals': 'off',
+      'react-hooks/static-components': isLightLint ? 'off' : 'warn',
       'react-hooks/preserve-manual-memoization': 'off',
       'react-hooks/set-state-in-effect': 'off',
       'import/no-unresolved': [
@@ -207,7 +209,7 @@ export default [
       '@typescript-eslint/strict-boolean-expressions': 'off',
 
       // Module hygiene
-      'import/no-cycle': 'warn',
+      'import/no-cycle': isLightLint ? 'off' : 'warn',
       'import/no-unused-modules': 'off',
       'import/order': [
         'warn',
@@ -307,62 +309,66 @@ export default [
     },
   },
 
-  // Ratchet strict async/condition safety in backend/core utility code first.
-  {
-    files: ['src/server/**/*.{ts,tsx}', 'src/lib/**/*.{ts,tsx}'],
-    rules: {
-      '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/no-misused-promises': 'error',
-      '@typescript-eslint/no-unnecessary-condition': 'error',
-      '@typescript-eslint/ban-ts-comment': [
-        'error',
+  ...(isLightLint
+    ? []
+    : [
+        // Ratchet strict async/condition safety in backend/core utility code first.
         {
-          'ts-expect-error': 'allow-with-description',
-          minimumDescriptionLength: 6,
+          files: ['src/server/**/*.{ts,tsx}', 'src/lib/**/*.{ts,tsx}'],
+          rules: {
+            '@typescript-eslint/no-floating-promises': 'error',
+            '@typescript-eslint/no-misused-promises': 'error',
+            '@typescript-eslint/no-unnecessary-condition': 'error',
+            '@typescript-eslint/ban-ts-comment': [
+              'error',
+              {
+                'ts-expect-error': 'allow-with-description',
+                minimumDescriptionLength: 6,
+              },
+            ],
+            '@typescript-eslint/switch-exhaustiveness-check': 'error',
+            '@typescript-eslint/no-unsafe-assignment': 'warn',
+            '@typescript-eslint/no-unsafe-member-access': 'warn',
+            '@typescript-eslint/no-unsafe-return': 'warn',
+            '@typescript-eslint/strict-boolean-expressions': [
+              'warn',
+              {
+                allowNullableBoolean: true,
+                allowNullableString: false,
+                allowNullableNumber: false,
+                allowNullableObject: true,
+                allowNumber: false,
+                allowString: false,
+              },
+            ],
+          },
         },
-      ],
-      '@typescript-eslint/switch-exhaustiveness-check': 'error',
-      '@typescript-eslint/no-unsafe-assignment': 'warn',
-      '@typescript-eslint/no-unsafe-member-access': 'warn',
-      '@typescript-eslint/no-unsafe-return': 'warn',
-      '@typescript-eslint/strict-boolean-expressions': [
-        'warn',
+
+        // Type-aware linting is expensive; scope it to TS files.
         {
-          allowNullableBoolean: true,
-          allowNullableString: false,
-          allowNullableNumber: false,
-          allowNullableObject: true,
-          allowNumber: false,
-          allowString: false,
+          files: ['**/*.{ts,tsx}'],
+          languageOptions: {
+            parserOptions: {
+              projectService: true,
+              tsconfigRootDir: __dirname,
+            },
+          },
+          rules: {
+            '@typescript-eslint/no-floating-promises': 'warn',
+            '@typescript-eslint/no-misused-promises': 'warn',
+          },
         },
-      ],
-    },
-  },
 
-  // Type-aware linting is expensive; scope it to TS files.
-  {
-    files: ['**/*.{ts,tsx}'],
-    languageOptions: {
-      parserOptions: {
-        projectService: true,
-        tsconfigRootDir: __dirname,
-      },
-    },
-    rules: {
-      '@typescript-eslint/no-floating-promises': 'warn',
-      '@typescript-eslint/no-misused-promises': 'warn',
-    },
-  },
-
-  // Playwright specs are not part of the TS project service graph.
-  {
-    files: ['tests/playwright/**/*.{ts,tsx}'],
-    languageOptions: {
-      parserOptions: {
-        projectService: false,
-      },
-    },
-  },
+        // Playwright specs are not part of the TS project service graph.
+        {
+          files: ['tests/playwright/**/*.{ts,tsx}'],
+          languageOptions: {
+            parserOptions: {
+              projectService: false,
+            },
+          },
+        },
+      ]),
 
   // Legacy architecture: known cyclic graph across simulation/store/socket and server runtime modules.
   // Keep rule enabled globally, but suppress in these hotspots until larger refactors land.

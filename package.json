@@ -124,6 +124,10 @@
     "type": "git",
     "url": "https://github.com/eliaspeteri/ship-sim.git"
   },
+  "engines": {
+    "node": ">=20.9.0",
+    "npm": ">=10"
+  },
   "exports": {
     ".": {
       "import": "./build/release.js",
@@ -131,8 +135,8 @@
     }
   },
   "lint-staged": {
-    "**/*.{js,jsx,ts,tsx}": [
-      "eslint --cache --cache-location .cache/eslint --fix",
+    "{src,tests}/**/*.{js,jsx,ts,tsx,mjs,cjs}": [
+      "ESLINT_LIGHT=1 eslint --cache --cache-location .cache/eslint --cache-strategy content --fix --no-warn-ignored",
       "prettier --cache --cache-location .cache/prettier --write"
     ],
     "**/*.{json,css,scss,md,html,yml,yaml}": [
